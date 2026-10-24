@@ -26,12 +26,18 @@ FILES = {
     "prereg": HERE / "PREREG.md", "analysis": HERE / "analysis.py", "suite/families": HERE / "suite" / "families.py",
     "suite/score": HERE / "suite" / "score.py", "suite/stats": HERE / "suite" / "stats.py",
     "hypgraph/coord": HYP / "src" / "hypgraph" / "coord.py", "hypgraph/schema": HYP / "src" / "hypgraph" / "schema.py",
+    "hypgraph/src": HYP / "src" / "hypgraph",        # D-8: the whole engine, since the checks are part of condition C
     "runner": POD / "dev" / "study_runner.py", "host": POD / "dev" / "study_host.py",
 }
 LOCK = HERE / "PREREG-LOCK.json"
 
 
 def sha(p: Path) -> str:
+    if p.is_dir():                                    # every .py under it, in a fixed order
+        h = hashlib.sha256()
+        for f in sorted(p.rglob("*.py")):
+            h.update(f.relative_to(p).as_posix().encode() + b"\0" + f.read_bytes() + b"\0")
+        return h.hexdigest()
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 

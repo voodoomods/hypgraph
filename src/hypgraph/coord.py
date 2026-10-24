@@ -246,6 +246,23 @@ def _eval(g: "Graph", s: D.Snap, oid: str, pred: dict, text: str) -> dict:
     return res
 
 
+def done_lines(g: "Graph", author: str, inv: str) -> list[str]:
+    """After a write: the author's open orders, each predicate MET / NOT MET, and 'return_work now' when all are.
+    Done-ness is derived like everything else, and it is said where the work happens, so nobody works past done."""
+    out = []
+    for o in orders(g, inv):
+        if o["assignee"] != author or o["status"] not in ("open", "overdue"):
+            continue
+        c = check_work(g, o["id"])
+        if c["all_met"]:
+            out.append(f"{o['code']}: every predicate met ({', '.join(x['p'] for x in c['predicates'])}) — "
+                       "return_work now")
+        else:
+            out.append(f"{o['code']}: " + "; ".join(f"{x['p']} {'MET' if x['met'] else 'NOT MET'}"
+                                                    for x in c["predicates"]))
+    return out
+
+
 def check_work(g: "Graph", order: str, text: str = "") -> dict:
     s = g.snapshot()
     if not _is_order(s, order):
@@ -458,6 +475,8 @@ def order_text(g: "Graph", order: str) -> str:
                 for rs in _results_of_run(s, r):
                     known.append(f"    → {_standing_line(s, rs)}")
         for r in _results_on(s, t):
+            if D.state(s, r).get("restates"):
+                continue                                   # one measurement, written twice, is listed once
             line = f"  {_standing_line(s, r)}"
             if line not in known and f"    → {_standing_line(s, r)}" not in known:
                 known.append(line)

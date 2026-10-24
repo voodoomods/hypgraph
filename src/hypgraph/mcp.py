@@ -155,6 +155,9 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
     mcp = FastMCP("hypgraph", instructions=INSTRUCTIONS + f"\nYou write as {me!r}.", version=__version__,
                   website_url="https://hypgraph.com")
 
+    def _orders(n: dict) -> str:
+        return ("\nYour work orders: " + "; ".join(n["orders"])) if n.get("orders") else ""
+
     def fail(e: Exception):
         raise ToolError(str(e) if not isinstance(e, KeyError) else f"not found: {e.args[0] if e.args else e}")
 
@@ -261,7 +264,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         except (GraphError, KeyError) as e:
             fail(e)
         notes = "".join(f" Note: {x}." for x in n.get("notes") or [])
-        return f"Added {n['code']} ({n['id']}) — {n['state']['sentence']}.{notes}"
+        return f"Added {n['code']} ({n['id']}) — {n['state']['sentence']}.{notes}" + _orders(n)
 
     @mcp.tool
     def link(src: str, rel: str, dst: str, why: str = "", data: dict[str, Any] | None = None,
@@ -322,7 +325,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         br = n.get("blast_radius") or {}
         return f"Recorded on {n['code']}: {n['state']['sentence']}" + (
-            f"\nNow AT RISK: {br['sentence']}" if br.get("count") else "")
+            f"\nNow AT RISK: {br['sentence']}" if br.get("count") else "") + _orders(n)
 
     @mcp.tool
     def next_experiments(investigation: str = "") -> str:
@@ -418,7 +421,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
                 if limitations:
                     rf["limitations"] = limitations
                 r = g.create(author=me, type="result", inv=inv, fields=rf, links=[{"rel": "produced", "from": run["id"]}])
-                msg += f" Result {r['code']} ({r['id']}) — bind claims to it with measurements."
+                msg += f" Result {r['code']} ({r['id']}) — bind claims to it with measurements." + _orders(r)
             return msg
         except (GraphError, KeyError, OSError) as e:
             fail(e)

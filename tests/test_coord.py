@@ -35,10 +35,12 @@ def env():
     return g, lead, inv, h1, h2, x1
 
 
-def run_and_result(g, who, inv, x, outcome="positive"):
+def run_and_result(g, who, inv, x, outcome="positive", replicates=""):
     a = g.author(who)
-    r = a.add("run", inv, kind="agent", name="paired eval", state="succeeded",
-              links=[{"rel": "executes", "to": x}])["id"]
+    links = [{"rel": "executes", "to": x}]
+    if replicates:                                   # the same numbers again: only as a declared rerun
+        links.append({"rel": "replicates", "to": replicates, "data": {"differs": "new_seed"}})
+    r = a.add("run", inv, kind="agent", name="paired eval", state="succeeded", links=links)["id"]
     rs = a.add("result", inv, summary="Fine-tune 1,624 of 2,000 vs baseline 1,568 of 2,000 on the same items.",
                outcome=outcome, values={"ft": {"k": 1624, "n": 2000}, "bl": {"k": 1568, "n": 2000}},
                links=[{"rel": "produced", "from": r}])["id"]
@@ -70,13 +72,15 @@ def test_order_text_carries_everything_the_assignee_needs(env):
 
 def test_only_evidence_after_the_order_counts_and_acceptance_needs_every_predicate(env):
     g, lead, inv, h1, h2, x1 = env
-    run_and_result(g, "analyst", inv, x1)                     # done before anyone asked: doesn't count
+    r0, _ = run_and_result(g, "analyst", inv, x1)             # done before anyone asked: doesn't count
     o = g.issue_work(author="lead", inv=inv, target="X1", assignee="analyst", objective="Run the paired comparison.")
     chk = g.check_work(o["order"])
     assert not chk["all_met"] and all("since the order" in c["why"] for c in chk["predicates"])
     with pytest.raises(GraphError, match="isn't done"):
         g.accept_work(author="lead", order=o["order"])
-    _r, rs = run_and_result(g, "analyst", inv, x1)
+    with pytest.raises(GraphError, match="RESULT_RESTATES"):   # the same numbers again, undeclared: refused
+        run_and_result(g, "analyst", inv, x1)
+    _r, rs = run_and_result(g, "analyst", inv, x1, replicates=r0)
     back = g.return_work(author="analyst", order=o["order"], note="Ran it; result RS2.")
     assert back["all_met"] and back["status"] == "returned"
     with pytest.raises(GraphError, match="analyst's order"):

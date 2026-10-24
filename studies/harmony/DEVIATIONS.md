@@ -118,3 +118,27 @@ Harness note for any restart: copies staged with `podman cp` into `/root/harmony
 write permission, so the runner's cleanup failed silently and 84 copies piled up (code only, no keys). They were
 removed by hand (`chmod -R u+rwX`, then `rm`). The host's cleanup needs that chmod before the confirmatory run
 restarts.
+
+## D-8: engine fixes from the pilot records, before any further run (2026-10-24)
+
+Approved by the operator ("fix the engine first"). Changes in HypGraph (`src/hypgraph`), all deterministic, with
+tests (`tests/test_engine_fixes.py`):
+1. **Negation-aware checks.** A word counts only when its sentence asserts it. Pilot evidence: the checker refused
+   "A is not significantly more accurate than B" with the same code as the overclaim; an analyst's honest trap
+   check was refused three times (F1-903-C). New code `SIGNIFICANCE_CONTRADICTED` for "not significant" when the
+   bound counts are.
+2. **Auto-binding.** A claim's loose numbers are bound to the author's own results before any refusal, with a
+   `supports` link added. Pilot evidence: 61 of 106 numbers refused as unbound in pilot 2's C runs already sat in
+   a result of the same record.
+3. **The done signal.** Every write by an assignee returns its open orders with predicates MET / NOT MET and
+   "return_work now" when all are. Pilot evidence: 8 of 9 sub-agent units in F1-902-C ran to the turn cap.
+4. **Result deduplication.** The same author re-registering the same numbers is refused (`RESULT_RESTATES`); a
+   declared rerun or another author's restatement is kept and marked. Pilot evidence: RS4 / RS7 / RS9 / RS14 /
+   RS16 in F1-902-C all carried the same subset numbers.
+
+Runner: `dev/study_runner.py`'s record tools now show the record's notes and the done signal to the agent (the
+tool outputs only; no change to prompts or caps). The lock now hashes the whole engine (`hypgraph/src`), since
+the checks are part of condition C; before D-8 it covered only `coord.py` and `schema.py`.
+
+These change condition C (and D, through auto-binding and the done signal) and nothing in A or B. Pilots 1 and 2
+were run without them and are reported as such; any later pilot or confirmatory run is on the D-8 engine.

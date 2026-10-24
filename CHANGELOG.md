@@ -2,6 +2,23 @@
 
 ## Unreleased: coordination layer (held back until the harmony study is done)
 
+- **Honest negations pass.** A word counts only when its sentence asserts it (`language.asserted`): "A is not
+  significantly better", "no evidence that it ever fails", "we cannot conclude that…" are accepted; the unnegated
+  overclaim is refused as before. New code `SIGNIFICANCE_CONTRADICTED`: "not significant" when the bound counts
+  are (p < 0.05). Found by the harmony pilot, where the checker refused the honest sentence its own message asked
+  for.
+- **The record binds the numbers it already holds.** A claim's loose numbers are bound to the author's own results
+  in the investigation (linked results first) before any refusal; a `derived_from` link is added to the result
+  they came from, and the reply says what was bound. Small integers (≤ 12) bind only to counts. In the pilot,
+  61 of 106 refused numbers were already in a result.
+- **The done signal.** After every write by an assignee, the reply carries its open orders with each predicate
+  MET / NOT MET, and "return_work now" when all are (`coord.done_lines`; `orders` on create / revise / review
+  results; shown by the MCP tools). In the pilot 8 of 9 sub-agents worked to their turn cap past done.
+- **A result written twice is written once.** The same author re-registering the same numbers (the multiset of
+  a result's values, rounded, keys ignored) is refused with `RESULT_RESTATES`; a declared rerun (a run that
+  `replicates`) is kept and marked; another author's restatement is kept and its standing says `RESTATES RSn`.
+  Restated results are collapsed in work-order text.
+
 - **Coordinating a team through the record** (`coord.py`). All of it is deterministic and makes no model calls.
   - `briefing(inv)`: the orchestrator's context compiled from the record (mission, rules, roster, standing,
     frontier, orders in flight and returned with their predicates checked, budget, what changed since the last
