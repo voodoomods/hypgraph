@@ -66,3 +66,25 @@ chosen after seeing results.
 - **Budget:** estimated $3–10, with the same guard: a run starts only if spend so far plus a reserve fits under
   the approved cap. **Approved by the operator on 2026-10-24: up to $10.** This approval covers D-6 only, not the
   confirmatory run.
+
+## D-7: a conditions option for the D-6 slice (tooling only)
+
+`study_host.py pilot --conditions ABC`. The default stays ABCD, so the shuffled order of every other run is
+unchanged.
+
+## The operator's conditional pre-approval (2026-10-24, recorded while pilot 2 was running, before any of its C runs had finished)
+
+> "if pilot 2 shows the record condition finishing within its call budget in most runs, run the confirmatory study
+> (sample size from the rule, cap $15), analyse it, then run D-6 (cap $10). If pilot 2 doesn't show that, stop
+> and report."
+
+The test, fixed now: in pilot 2's **C** runs, at least **3 of 4** submitted a report (`submitted: true`) without
+hitting the 150-call cap. If it passes:
+1. Confirmatory: all ten families, seeds 100 … 100 + k − 1, where k comes from the sample-size rule applied to
+   pilot 2 only. Every condition runs in the preregistered shuffled order (seed 20261024), output to
+   `runs/confirmatory/`, with a $15 guard.
+2. The frozen analysis on `runs/confirmatory/`.
+3. D-6 (`--families F1,F7 --seeds 100,101,102 --conditions ABC`, output `runs/d6/`, $10 guard), then its
+   analysis.
+
+If the test fails, nothing more is spent and pilot 2 is reported.
