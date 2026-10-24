@@ -323,7 +323,7 @@ def basis_changed(s: Snap, nid: str) -> list[dict]:
 # What a node's standing reads. Out-edges: what it rests on or is made of. In-edges: what reviews, supports,
 # challenges, supersedes or produced it. A change at y can alter the standing of x only if x reads y this way —
 # directly, or through a chain (at-risk and evidence are transitive).
-_READS_OUT = {"requires", "derived_from", "based_on", "cites", "uses", "replicates"}
+_READS_OUT = {"requires", "derived_from", "based_on", "cites", "uses", "replicates", "works_on", "rests_on"}
 _READS_IN = {"reviews", "supports", "challenges", "supersedes", "corrects", "produced", "replicates"}
 
 

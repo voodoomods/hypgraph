@@ -475,6 +475,105 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         except (GraphError, KeyError) as e:
             fail(e)
 
+    # ── coordinating a team (coord.py) ──────────────────────────────
+    @mcp.tool
+    def briefing(investigation: str = "", since_seq: int = 0, roster: list[dict[str, str]] | None = None) -> str:
+        """For an orchestrator: your whole context, compiled from the record — mission, rules, standing, the
+        frontier, orders in flight and returned (predicates already checked), budget. Pass back the seq it ends with
+        as since_seq to see only what changed since."""
+        try:
+            b = g.briefing(inv_of(investigation), roster=roster, since_seq=since_seq)
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return b["text"] + f"\n\n(seq {b['seq']} · sha256 {b['sha256'][:12]})"
+
+    @mcp.tool
+    def issue_work(target: str, assignee: str, objective: str, investigation: str = "", role: str = "",
+                   done_when: list[dict[str, Any]] | None = None, prediction: str = "", method: str = "",
+                   budget: dict[str, Any] | None = None) -> str:
+        """For an orchestrator: one work order on one target (experiment, hypothesis, question, claim to review, or
+        the investigation for the report) for one assignee. The target is leased to them; a duplicate is refused.
+        done_when defaults by target type; predicates: run_registered, result_exists, claim_made, reviewed,
+        no_open_objection, report_clean, within_budget. Returns the order text to hand to the assignee."""
+        try:
+            o = g.issue_work(author=me, inv=inv_of(investigation), target=target, assignee=assignee.strip().lower(),
+                             objective=objective, role=role, done_when=done_when, prediction=prediction,
+                             method=method, budget=budget)
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return o["text"]
+
+    @mcp.tool
+    def my_work(investigation: str = "") -> str:
+        """Your open work orders, each with its full text."""
+        try:
+            mine = [o for o in g.orders(inv_of(investigation)) if o["assignee"] == me
+                    and o["status"] in ("open", "overdue", "returned")]
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return "\n\n---\n\n".join(g.order_text(o["id"]) for o in mine) or "No open work orders for you."
+
+    @mcp.tool
+    def check_work(order: str, text: str = "", investigation: str = "") -> str:
+        """Every done-when predicate of an order: MET / NOT MET, with the nodes that satisfy it."""
+        try:
+            c = g.check_work(g.resolve(order, inv_of(investigation) if investigation else ""), text)
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return f"{c['code']} ({c['status']}): " + ("ALL MET" if c["all_met"] else "not done") + "\n" + "\n".join(
+            f"  {'MET    ' if x['met'] else 'NOT MET'} {x['p']} {', '.join(x['evidence_codes'])} {x['why']}".rstrip()
+            for x in c["predicates"])
+
+    @mcp.tool
+    def return_work(order: str, note: str = "", investigation: str = "") -> str:
+        """For the assignee: hand an order back with a note of at most 120 words (what you did, what you couldn't)."""
+        try:
+            c = g.return_work(author=me, order=g.resolve(order, inv_of(investigation) if investigation else ""),
+                              note=note)
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return f"{c['code']} returned — " + ("every predicate met" if c["all_met"] else "NOT every predicate is met: "
+                                             + "; ".join(x["why"] for x in c["predicates"] if not x["met"]))
+
+    @mcp.tool
+    def accept_work(order: str, reason: str = "", text: str = "", investigation: str = "") -> str:
+        """For the orchestrator: accept an order whose predicates are all met — a decision based on the evidence."""
+        try:
+            a = g.accept_work(author=me, order=g.resolve(order, inv_of(investigation) if investigation else ""),
+                              reason=reason, text=text)
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return f"{a['code']} accepted ({a['decision']})"
+
+    @mcp.tool
+    def rework(order: str, missing: str, investigation: str = "") -> str:
+        """For the orchestrator: send an order back as a new order that supersedes it, saying what was missing."""
+        try:
+            r = g.rework(author=me, order=g.resolve(order, inv_of(investigation) if investigation else ""),
+                         missing=missing)
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return r["text"]
+
+    @mcp.tool
+    def cancel_work(order: str, why: str, investigation: str = "") -> str:
+        """For the orchestrator: cancel an order (withdrawn, with the reason)."""
+        try:
+            g.cancel_work(author=me, order=g.resolve(order, inv_of(investigation) if investigation else ""), why=why)
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return f"{order} cancelled"
+
+    @mcp.tool
+    def cancel_moot(investigation: str = "") -> str:
+        """For the orchestrator: cancel exactly the orders whose target or a premise has fallen."""
+        try:
+            gone = g.cancel_moot(author=me, inv=inv_of(investigation))
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return "\n".join(f"{c['order']} ({c['assignee']}) cancelled — {', '.join(c['because'])} fell"
+                         for c in gone) or "No order is moot."
+
     @mcp.tool
     def schema() -> dict:
         """The node types (fields, which are required), the relations (which types each may join) and the verdicts."""

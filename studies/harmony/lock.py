@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""
+Freeze the preregistration: write PREREG-LOCK.json with the sha256 of every file that defines the study, the git
+commits of both repositories and the subject model. Commit the lock before the first confirmatory run; anything
+changed after it is a deviation (DEVIATIONS.md).
+
+    python studies/harmony/lock.py --model "deepinfra:deepseek-ai/DeepSeek-V4.1-Flash"
+    python studies/harmony/lock.py --check            # do the files still match the lock?
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+HYP = HERE.parents[1]
+POD = Path(os.environ.get("PEGASUS_REPO", HYP.parent / "Pegasus" / "pod"))
+FILES = {
+    "prereg": HERE / "PREREG.md", "analysis": HERE / "analysis.py", "suite/families": HERE / "suite" / "families.py",
+    "suite/score": HERE / "suite" / "score.py", "suite/stats": HERE / "suite" / "stats.py",
+    "hypgraph/coord": HYP / "src" / "hypgraph" / "coord.py", "hypgraph/schema": HYP / "src" / "hypgraph" / "schema.py",
+    "runner": POD / "dev" / "study_runner.py", "host": POD / "dev" / "study_host.py",
+}
+LOCK = HERE / "PREREG-LOCK.json"
+
+
+def sha(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def git(repo: Path) -> str:
+    out = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    dirty = subprocess.run(["git", "-C", str(repo), "status", "--porcelain"], capture_output=True, text=True).stdout
+    return out + ("+dirty" if dirty.strip() else "")
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default="")
+    ap.add_argument("--check", action="store_true")
+    a = ap.parse_args(argv)
+    now = {k: sha(p) for k, p in FILES.items()}
+    if a.check:
+        if not LOCK.exists():
+            print("no lock yet")
+            return 1
+        lock = json.loads(LOCK.read_text(encoding="utf-8"))
+        moved = [k for k, v in now.items() if lock["files"].get(k) != v]
+        print("matches the lock" if not moved else "CHANGED since the lock: " + ", ".join(moved))
+        return 1 if moved else 0
+    if not a.model:
+        raise SystemExit("--model: the subject model, chosen by the operator")
+    if LOCK.exists():
+        raise SystemExit("already locked — changes after the lock go in DEVIATIONS.md")
+    lock = {"locked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "subject_model": a.model,
+            "files": now, "git": {"hypgraph": git(HYP), "pegasus": git(POD)}}
+    if "+dirty" in lock["git"]["hypgraph"] or "+dirty" in lock["git"]["pegasus"]:
+        print("warning: uncommitted changes — commit first so the lock points at real commits", file=sys.stderr)
+    LOCK.write_text(json.dumps(lock, indent=1), encoding="utf-8")
+    print(f"locked: {LOCK}\ncombined sha256 {hashlib.sha256(json.dumps(now, sort_keys=True).encode()).hexdigest()}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

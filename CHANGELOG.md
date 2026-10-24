@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased: coordination layer (held back until the harmony study is done)
+
+- **Coordinating a team through the record** (`coord.py`). All of it is deterministic and makes no model calls.
+  - `briefing(inv)`: the orchestrator's context compiled from the record (mission, rules, roster, standing,
+    frontier, orders in flight and returned with their predicates checked, budget, what changed since the last
+    one), with a hash.
+  - Work orders are `task` nodes: `issue_work` (the target is leased to the assignee; a duplicate is refused),
+    `order_text`, `return_work`, `check_work` (each predicate MET / NOT MET with the nodes that satisfy it),
+    `accept_work` (a decision based on the evidence, only when every predicate is met), `rework`, `cancel_work`
+    and `cancel_moot`.
+  - An order's status is derived, never set: open, returned, overdue, accepted, reworked, cancelled or moot.
+    Only evidence written after the order was issued counts toward it.
+- **Schema.**
+  - `task` gains optional `objective`, `assignee`, `role`, `prediction`, `method`, `done_when`, `budget` and
+    `note`; `kanban_id` is no longer required.
+  - New relations `rests_on` (an order's pinned premises) and `settles` (a decision accepting an order).
+  - `works_on` and `rests_on` join the at-risk relations, so the blast radius of a withdrawal now lists the work
+    orders it makes moot.
+- **Surfaces.** MCP tools `briefing`, `issue_work`, `my_work`, `check_work`, `return_work`, `accept_work`,
+  `rework`, `cancel_work` and `cancel_moot`; CLI `hypgraph brief` and `hypgraph orders`.
+
 ## 0.3.0 — 2026-10-24
 
 - **The refusal log.** Every refused claim is logged: author, statement, codes, messages. A later accepted claim by

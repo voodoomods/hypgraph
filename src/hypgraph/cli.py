@@ -238,6 +238,30 @@ def cmd_work(args) -> int:
     return 0
 
 
+def cmd_brief(args) -> int:
+    g = _graph(args)
+    b = g.briefing(_inv(g, args.inv), since_seq=args.since)
+    _out(args, b, b["text"] + f"\n\n(seq {b['seq']} · sha256 {b['sha256'][:12]} — pass --since {b['seq']} next time)")
+    return 0
+
+
+def cmd_orders(args) -> int:
+    g = _graph(args)
+    inv = _inv(g, args.inv)
+    if args.order:
+        o = g.resolve(args.order, inv)
+        c = g.check_work(o)
+        lines = [g.order_text(o), "", f"Status: {c['status']} — " + ("ALL MET" if c["all_met"] else "not done")]
+        lines += [f"  {'MET    ' if x['met'] else 'NOT MET'} {x['p']} {', '.join(x['evidence_codes'])} {x['why']}"
+                  for x in c["predicates"]]
+        _out(args, c, "\n".join(lines))
+        return 0
+    rows = g.orders(inv, args.status)
+    _out(args, rows, "\n".join(f"{o['code']:<5} {o['status']:<9} {o['assignee']:<12} {o['target']:<6} "
+                                f"{o['objective'][:70]}" for o in rows) or "No work orders.")
+    return 0
+
+
 def cmd_report(args) -> int:
     g = _graph(args)
     r = g.report(_inv(g, args.inv))
@@ -445,6 +469,13 @@ def build_parser() -> argparse.ArgumentParser:
     for name, fn, h in (("next", cmd_next, "experiments ranked by how well they separate hypotheses"),
                         ("work", cmd_work, "review queue, revalidation, contested, decisions to revisit")):
         cmd(name, fn, h).add_argument("--inv", default="")
+    s = cmd("brief", cmd_brief, "an orchestrator's context, compiled from the record (deterministic)")
+    s.add_argument("--inv", default="")
+    s.add_argument("--since", type=int, default=0, help="the seq of the last brief read: show what changed")
+    s = cmd("orders", cmd_orders, "work orders and their derived status; with ORDER, its text and predicates")
+    s.add_argument("order", nargs="?", default="")
+    s.add_argument("--inv", default="")
+    s.add_argument("--status", default="", help="open | returned | overdue | accepted | reworked | cancelled | moot")
     s = cmd("report", cmd_report, "the facts of an investigation, generated from the record")
     s.add_argument("--inv", default="")
     s.add_argument("-o", "--output", default="")

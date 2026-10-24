@@ -987,6 +987,49 @@ class Graph:
         from . import report_check
         return report_check.check(self, text, inv)
 
+    # ── coordinating a team through the record (coord.py) ───────────
+    def briefing(self, inv: str, *, roster: list | None = None, since_seq: int = 0, budget_usd: float = 0) -> dict:
+        """The orchestrator's context, compiled from the record (coord.briefing)."""
+        from . import coord
+        return coord.briefing(self, inv, roster=roster, since_seq=since_seq, budget_usd=budget_usd)
+
+    def issue_work(self, **kw) -> dict:
+        """A work order on one target for one assignee, with done-when predicates (coord.issue_work)."""
+        from . import coord
+        return coord.issue_work(self, **kw)
+
+    def order_text(self, order: str) -> str:
+        from . import coord
+        return coord.order_text(self, self.resolve(order))
+
+    def orders(self, inv: str, status: str = "") -> list[dict]:
+        from . import coord
+        return coord.orders(self, inv, status)
+
+    def return_work(self, *, author: str, order: str, note: str = "") -> dict:
+        from . import coord
+        return coord.return_work(self, author=author, order=self.resolve(order), note=note)
+
+    def check_work(self, order: str, text: str = "") -> dict:
+        from . import coord
+        return coord.check_work(self, self.resolve(order), text)
+
+    def accept_work(self, *, author: str, order: str, reason: str = "", text: str = "") -> dict:
+        from . import coord
+        return coord.accept_work(self, author=author, order=self.resolve(order), reason=reason, text=text)
+
+    def rework(self, *, author: str, order: str, missing: str, done_when: list | None = None) -> dict:
+        from . import coord
+        return coord.rework(self, author=author, order=self.resolve(order), missing=missing, done_when=done_when)
+
+    def cancel_work(self, *, author: str, order: str, why: str) -> dict:
+        from . import coord
+        return coord.cancel_work(self, author=author, order=self.resolve(order), why=why)
+
+    def cancel_moot(self, *, author: str, inv: str) -> list[dict]:
+        from . import coord
+        return coord.cancel_moot(self, author=author, inv=inv)
+
     # ── method & coordination (plan.py) ─────────────────────────────
     def next_experiments(self, inv: str, limit: int = 10) -> dict:
         from . import plan
