@@ -63,5 +63,6 @@ chosen after seeing results.
 - **Analysis:** secondary. The same contrasts (C vs A, C vs B) on this slice, plus the model × condition
   interaction on correctness and on cost (paired by instance). It is reported whichever way it comes out, and it
   is never pooled into the primary hypotheses.
-- **Budget:** estimated $3–10, with its own operator approval and the same guard: a run starts only if spend so
-  far plus a reserve fits under the approved cap.
+- **Budget:** estimated $3–10, with the same guard: a run starts only if spend so far plus a reserve fits under
+  the approved cap. **Approved by the operator on 2026-10-24: up to $10.** This approval covers D-6 only, not the
+  confirmatory run.
