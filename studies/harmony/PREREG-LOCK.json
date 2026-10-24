@@ -1,0 +1,19 @@
+{
+ "locked_at": "2026-10-24T21:42:08Z",
+ "subject_model": "deepinfra:deepseek-ai/DeepSeek-V4.1-Flash",
+ "files": {
+  "prereg": "56abd817a8bef30d6953d2c2b98925d46936a4799461c1b638ac1d1175c6e351",
+  "analysis": "02aeeca68be2340904bb1720783f3c88ab5acb818625999b287c4b72dc216ddf",
+  "suite/families": "2202e3670972ad024b131a748c104ea8def8cb747713b9c3d5612c8a1ce68cf0",
+  "suite/score": "221ccba4b98213a0a7edefe2a549981b0b21e4fb4eb6d779e224482d8242bb63",
+  "suite/stats": "030e084bdda1294dd4c6f810c8e0f25f2ed547b9f50d9b097b9f54d7d3cc482f",
+  "hypgraph/coord": "2c2e62d20f0ceb0c3d3280d8538e0461646a78def3fad8eaf5c3462bb310edfb",
+  "hypgraph/schema": "d5f28b43c7573e32f177c7225635c8fb055685fc8da6587c2497814b8527e283",
+  "runner": "308978211ccfa59b1453d20b885956a94b76927fb663a84d582bdc37041380c3",
+  "host": "fc2659e685b9de6d5898ae42fae3149e8506d52671ae003426e6e3d8d657cedc"
+ },
+ "git": {
+  "hypgraph": "14c4181c69ea1ae589848ba602544d6a75ab4fe4",
+  "pegasus": "404c9ed993ad3d34b5f8726092c2a5db72ad0e5a+dirty"
+ }
+}
