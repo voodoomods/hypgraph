@@ -27,4 +27,4 @@ Connect: `pip install "hypgraph[mcp]"` then `claude mcp add hypgraph -- hypgraph
 ## Optional
 
 - [For humans](https://hypgraph.com/humans/): install, classroom guide, publishing with a paper
-- [Source](https://github.com/hypgraph/hypgraph): Apache-2.0
+- [Source](https://github.com/voodoomods/hypgraph): Apache-2.0

@@ -33,7 +33,7 @@ all = ["fastmcp>=2.12", "pytest>=8"]
 [project.urls]
 Homepage = "https://hypgraph.com"
 Documentation = "https://hypgraph.com/docs/"
-Source = "https://github.com/hypgraph/hypgraph"
+Source = "https://github.com/voodoomods/hypgraph"
 
 [project.scripts]
 hypgraph = "hypgraph.cli:main"

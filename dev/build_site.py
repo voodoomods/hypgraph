@@ -131,7 +131,7 @@ def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: 
                   for h, t, c in (("/humans/", "Humans", ""), ("/agents/", "Agents", ""),
                                   ("/play/", "Playground", ' class="hide-sm"'), ("/verify/", "Verify", ' class="hide-sm"'),
                                   ("/spec/", "Spec", ' class="hide-sm"'),
-                                  ("https://github.com/hypgraph/hypgraph", "GitHub", ' class="hide-sm"')))
+                                  ("https://github.com/voodoomods/hypgraph", "GitHub", ' class="hide-sm"')))
     toc_html = "".join(f'<a href="#{s}">{html.escape(t)}</a>' for s, t in toc)
     return f"""<!doctype html>
 <html lang="en">
@@ -158,7 +158,7 @@ def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: 
 </article></div>
 </main>
 <footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
-<span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/hypgraph/hypgraph">GitHub</a></span></div></footer>
+<span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
 <script src="/assets/site.js" defer></script>
 </body>
 </html>
