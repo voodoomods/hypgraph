@@ -142,3 +142,9 @@ the checks are part of condition C; before D-8 it covered only `coord.py` and `s
 
 These change condition C (and D, through auto-binding and the done signal) and nothing in A or B. Pilots 1 and 2
 were run without them and are reported as such; any later pilot or confirmatory run is on the D-8 engine.
+
+## D-9: pilot 3 on the D-8 engine (2026-10-24, approved by the operator)
+
+F1 and F7, seeds 904–905, all four conditions, $5 guard, output `runs/pilot3/`. Same model, caps and order rule
+as pilot 2. Its purpose: does the record condition finish, how many calls does it take, and what does it cost, on
+the D-8 engine, compared with pilot 2 on the pre-D-8 engine. Still a pilot: not confirmatory data.
