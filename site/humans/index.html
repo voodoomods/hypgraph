@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>For humans — HypGraph</title>
 <meta name="description" content="Install HypGraph, take the five-minute tour, run it in a classroom, and publish a research record anyone can verify.">
-<link rel="icon" href="/assets/hypgraph.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
-  <a class="brand" href="/"><img src="/assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="/humans/" aria-current="page">Humans</a><a href="/agents/">Agents</a>
-    <a href="/play/" class="hide-sm">Playground</a><a href="/verify/" class="hide-sm">Verify</a><a href="/spec/" class="hide-sm">Spec</a>
+  <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="../humans/" aria-current="page">Humans</a><a href="../agents/">Agents</a>
+    <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
     <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
@@ -39,7 +39,7 @@
 <p>You need Python 3.10 or newer. HypGraph has no other dependencies.</p>
 <div class="code"><pre>pip install hypgraph</pre></div>
 <p>On a school or lab machine without admin rights, <code>pip install --user hypgraph</code> works too. Or skip
-  installing altogether: the <a href="/play/">playground</a> runs the real engine in your browser.</p>
+  installing altogether: the <a href="../play/">playground</a> runs the real engine in your browser.</p>
 
 <h2 id="tour">Five-minute tour</h2>
 <p>Build the teaching investigation that ships with HypGraph — how cholera was shown to spread through water in
@@ -87,7 +87,7 @@ hypgraph add result summary="Blue trays averaged 41 mm, red trays 33 mm after 7 
   measurements='[{"name": "blue", "result": "RS1", "key": "blue_mm", "value": 41}, {"name": "red", "result": "RS1", "key": "red_mm", "value": 33}]' \
   --link "supports:from:RS1:the tray heights are the measurement"</pre></div>
 <p>If something's wrong, the record says what, in words — fix it and try again. Try a few wrong ones in the
-  <a href="/play/">playground</a>.</p>
+  <a href="../play/">playground</a>.</p>
 
 <h2 id="reviews">Reviews</h2>
 <p>Only the reviewers you named can make a claim <i>checked</i> — and never on their own work. Anyone else's review is
@@ -126,7 +126,7 @@ print(g.report(inv)["markdown"])</pre></div>
   <li><b>Let the record push back.</b> Students will try "this proves…" and numbers from nowhere. The refusals
     explain the problem better than a red pen, at the moment it matters.</li>
   <li><b>Collect.</b> Students hand in <code>hypgraph export -o name.bundle.json</code>. <code>hypgraph verify</code>
-    (or <a href="/verify/">hypgraph.com/verify</a>) shows it wasn't edited afterwards; open it in the Atlas to read
+    (or <a href="../verify/">hypgraph.com/verify</a>) shows it wasn't edited afterwards; open it in the Atlas to read
     it.</li>
   <li><b>Review.</b> Your <code>pass</code>, <code>objection</code> or <code>fail</code> becomes part of their record —
     and a student who revises a claim sends it back to you automatically.</li>
@@ -142,7 +142,7 @@ print(g.report(inv)["markdown"])</pre></div>
     the paper (or a preregistration, or a repository tag). That anchors it: a later bundle can't have rewritten
     anything before that hash.</li>
   <li>Generate the facts section with <code>hypgraph report -o facts.md</code>. Write your interpretation below it.</li>
-  <li>Referees run <code>hypgraph verify study.bundle.json</code>, or drop it on <a href="/verify/">/verify</a>, and
+  <li>Referees run <code>hypgraph verify study.bundle.json</code>, or drop it on <a href="../verify/">/verify</a>, and
     explore it in the Atlas.</li>
 </ol>
 
@@ -168,7 +168,7 @@ print(g.report(inv)["markdown"])</pre></div>
   The old version stays on record. That's the point: the history of how you got there is part of the evidence.</p>
 <h3>Can someone fake a record?</h3>
 <p>Anyone can write a file. What they can't do is change one after its head hash was published without the change
-  showing. See <a href="/spec/#4-bundles-hypgraph-1-bundle">anchoring</a>.</p>
+  showing. See <a href="../spec/#4-bundles-hypgraph-1-bundle">anchoring</a>.</p>
 <h3>Why so strict about numbers?</h3>
 <p>Because the most common way a summary goes wrong is a number that matches no result — copied wrong, rounded
   wrong, remembered wrong, or invented. The check is mechanical, so it never gets tired.</p>
@@ -177,6 +177,6 @@ print(g.report(inv)["markdown"])</pre></div>
 </main>
 <footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
 <span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
-<script src="/assets/site.js" defer></script>
+<script src="../assets/site.js" defer></script>
 </body>
 </html>

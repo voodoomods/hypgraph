@@ -128,9 +128,9 @@ def markdown(md: str) -> tuple[str, list[tuple[str, str]]]:
 
 def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str) -> str:
     nav = "".join(f'<a href="{h}"{" aria-current=\"page\"" if h == current else ""}{c}>{t}</a>'
-                  for h, t, c in (("/humans/", "Humans", ""), ("/agents/", "Agents", ""),
-                                  ("/play/", "Playground", ' class="hide-sm"'), ("/verify/", "Verify", ' class="hide-sm"'),
-                                  ("/spec/", "Spec", ' class="hide-sm"'),
+                  for h, t, c in (("../humans/", "Humans", ""), ("../agents/", "Agents", ""),
+                                  ("../play/", "Playground", ' class="hide-sm"'), ("../verify/", "Verify", ' class="hide-sm"'),
+                                  ("../spec/", "Spec", ' class="hide-sm"'),
                                   ("https://github.com/voodoomods/hypgraph", "GitHub", ' class="hide-sm"')))
     toc_html = "".join(f'<a href="#{s}">{html.escape(t)}</a>' for s, t in toc)
     return f"""<!doctype html>
@@ -140,14 +140,14 @@ def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)} — HypGraph</title>
 <meta name="description" content="{html.escape(lede)}">
-<link rel="icon" href="/assets/hypgraph.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
 <script>try{{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}}catch(e){{}}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
-  <a class="brand" href="/"><img src="/assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
   <nav aria-label="Site">{nav}<button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
 <main id="main">
@@ -159,7 +159,7 @@ def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: 
 </main>
 <footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
 <span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
-<script src="/assets/site.js" defer></script>
+<script src="../assets/site.js" defer></script>
 </body>
 </html>
 """
@@ -198,13 +198,29 @@ def main() -> None:
     body, toc = markdown((ROOT / "docs" / "spec.md").read_text(encoding="utf-8"))
     write(SITE / "spec" / "index.html", page("The record format", "Everything needed to write another "
                                                                    "implementation, a verifier or a viewer of HypGraph "
-                                                                   "records.", body, toc, "/spec/"))
+                                                                   "records.", body, toc, "../spec/"))
     shutil.copy2(ROOT / "AGENTS.md", SITE / "agents.md")
     skill = PKG / "skill" / "SKILL.md"
     shutil.copy2(skill, SITE / "SKILL.md")
     (ROOT / "skills" / "hypgraph").mkdir(parents=True, exist_ok=True)
     shutil.copy2(skill, ROOT / "skills" / "hypgraph" / "SKILL.md")
     print("  site/agents.md, site/SKILL.md, skills/hypgraph/SKILL.md")
+    check_paths()
+
+
+def check_paths() -> None:
+    """The site must work at / (hypgraph.com) and under a prefix (<owner>.github.io/hypgraph/): no root-absolute
+    href/src in any page (404.html sets its own <base>)."""
+    bad = []
+    for f in SITE.rglob("*.html"):
+        if f.name == "404.html" or "py" in f.relative_to(SITE).parts:
+            continue
+        bad += [f"{f.relative_to(SITE)}: {m}" for m in re.findall(r'(?:href|src)="/(?!/)[^"]*"', f.read_text(encoding="utf-8"))]
+    for f in (SITE / "assets").glob("*.js"):
+        bad += [f"{f.relative_to(SITE)}: {m}" for m in re.findall(r"""['"]/(?:data|py|assets|atlas)/""", f.read_text(encoding="utf-8"))]
+    if bad:
+        raise SystemExit("root-absolute paths break the site under a prefix:\n  " + "\n  ".join(bad[:20]))
+    print("  paths: all relative")
 
 
 if __name__ == "__main__":

@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verify a bundle — HypGraph</title>
 <meta name="description" content="Check a HypGraph bundle in your browser: the hash chain, and every row against the event that wrote it. Nothing is uploaded.">
-<link rel="icon" href="/assets/hypgraph.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
-  <a class="brand" href="/"><img src="/assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="/humans/">Humans</a><a href="/agents/">Agents</a>
-    <a href="/play/" class="hide-sm">Playground</a><a href="/verify/" aria-current="page" class="hide-sm">Verify</a><a href="/spec/" class="hide-sm">Spec</a>
+  <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="../humans/">Humans</a><a href="../agents/">Agents</a>
+    <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" aria-current="page" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
     <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
@@ -46,8 +46,8 @@
 </main>
 <footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
 <span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
-<script src="/atlas/atlas.js"></script>
-<script src="/assets/site.js" defer></script>
+<script src="../atlas/atlas.js"></script>
+<script src="../assets/site.js" defer></script>
 <script>
 (() => {
   const res = document.getElementById('res');
@@ -73,7 +73,7 @@
       <div class="row" style="margin-top:16px"><button class="btn primary" id="open" type="button">Open in the Atlas</button></div>
       <p class="note">The standing shown in the Atlas is what the bundle was exported with; the chain above is what you just checked.</p>`;
     document.getElementById('open').addEventListener('click', () => {
-      try { sessionStorage.setItem('hg-bundle', text); location.href = '/atlas/?from=verify'; }
+      try { sessionStorage.setItem('hg-bundle', text); location.href = '../atlas/?from=verify'; }
       catch { res.insertAdjacentHTML('beforeend', '<p class="bad">This bundle is too large to hand over in this browser — open it with <code>hypgraph import</code> and <code>hypgraph serve</code>.</p>'); }
     });
   }
@@ -84,7 +84,7 @@
   drop.addEventListener('drop', async (e) => { const f = e.dataTransfer.files[0]; if (f) check(await f.text(), f.name); });
   document.getElementById('demo').addEventListener('click', async (e) => {
     e.preventDefault(); e.stopPropagation();
-    const r = await fetch('/data/broad-street.bundle.json'); check(await r.text(), 'broad-street.bundle.json');
+    const r = await fetch('../data/broad-street.bundle.json'); check(await r.text(), 'broad-street.bundle.json');
   });
 })();
 </script>

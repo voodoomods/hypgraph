@@ -1,6 +1,8 @@
 /* Mount the Atlas on #atlas from a bundle: data-bundle="<url>" (default: the Broad Street demo), or ?bundle=<url>,
    or a bundle handed over from /verify/ (sessionStorage). The bundle's hash chain is verified in the browser. */
 'use strict';
+// The site root, from this script's own URL (assets/embed.js): the site works at / and under a prefix (/hypgraph/).
+const HG_ROOT = new URL('..', document.currentScript ? document.currentScript.src : location.href);
 (async () => {
   const el = document.getElementById('atlas');
   if (!el || !window.HypAtlas) return;
@@ -9,7 +11,7 @@
   if (params.get('from') === 'verify') {
     try { bundle = JSON.parse(sessionStorage.getItem('hg-bundle') || 'null'); } catch { bundle = null; }
   }
-  const url = params.get('bundle') || el.dataset.bundle || '/data/broad-street.bundle.json';
+  const url = params.get('bundle') || el.dataset.bundle || new URL('data/broad-street.bundle.json', HG_ROOT).href;
   try {
     if (!bundle) {
       const r = await fetch(url);

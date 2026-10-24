@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>For agents — HypGraph</title>
 <meta name="description" content="Connect an AI agent to HypGraph: an Agent Skill and an MCP server whose claim checks and refusals tell the agent exactly what to fix.">
-<link rel="icon" href="/assets/hypgraph.svg" type="image/svg+xml">
-<link rel="alternate" type="text/plain" href="/llms.txt" title="For language models">
-<link rel="alternate" type="text/markdown" href="/SKILL.md" title="Agent skill">
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="../llms.txt" title="For language models">
+<link rel="alternate" type="text/markdown" href="../SKILL.md" title="Agent skill">
+<link rel="stylesheet" href="../assets/site.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
-  <a class="brand" href="/"><img src="/assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="/humans/">Humans</a><a href="/agents/" aria-current="page">Agents</a>
-    <a href="/play/" class="hide-sm">Playground</a><a href="/verify/" class="hide-sm">Verify</a><a href="/spec/" class="hide-sm">Spec</a>
+  <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="../humans/">Humans</a><a href="../agents/" aria-current="page">Agents</a>
+    <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
     <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
@@ -41,11 +41,11 @@
   hypotheses with predictions. Write each experiment's expected outcome per hypothesis <i>before</i> running it.
   Record runs with hashed files. Bind every number in a claim to a result field. Never write "always/never/proves"
   without k of n with k = 0 or n. Never call something ruled out without a power check. Report standing exactly as
-  the record states it. When a write is refused, fix what the message says. Short version: <a href="/llms.txt">/llms.txt</a> ·
-  full skill: <a href="/SKILL.md">/SKILL.md</a>.</div>
+  the record states it. When a write is refused, fix what the message says. Short version: <a href="../llms.txt">/llms.txt</a> ·
+  full skill: <a href="../SKILL.md">/SKILL.md</a>.</div>
 
 <h2 id="skill">Install the skill</h2>
-<p>For Claude Code and other hosts that load <a href="/SKILL.md">Agent Skills</a>. The skill carries the method, the
+<p>For Claude Code and other hosts that load <a href="../SKILL.md">Agent Skills</a>. The skill carries the method, the
   refusals and their fixes, and works through the CLI — no server needed.</p>
 <div class="code"><pre>pip install hypgraph
 hypgraph skill --install            # .claude/skills/hypgraph/SKILL.md in this project
@@ -128,18 +128,18 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
 
 <h2 id="machine">Machine-readable</h2>
 <ul>
-  <li><a href="/llms.txt">/llms.txt</a> — the short version</li>
-  <li><a href="/SKILL.md">/SKILL.md</a> — the agent skill</li>
-  <li><a href="/agents.md">/agents.md</a> — this page as Markdown</li>
-  <li><a href="/schema/hypgraph-1.json">/schema/hypgraph-1.json</a> — node types, fields, relations, verdicts</li>
-  <li><a href="/spec/">/spec/</a> — the record and bundle formats</li>
-  <li><a href="/data/broad-street.bundle.json">/data/broad-street.bundle.json</a> — a complete example bundle</li>
+  <li><a href="../llms.txt">/llms.txt</a> — the short version</li>
+  <li><a href="../SKILL.md">/SKILL.md</a> — the agent skill</li>
+  <li><a href="../agents.md">/agents.md</a> — this page as Markdown</li>
+  <li><a href="../schema/hypgraph-1.json">/schema/hypgraph-1.json</a> — node types, fields, relations, verdicts</li>
+  <li><a href="../spec/">/spec/</a> — the record and bundle formats</li>
+  <li><a href="../data/broad-street.bundle.json">/data/broad-street.bundle.json</a> — a complete example bundle</li>
 </ul>
 </article>
 </div>
 </main>
 <footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
 <span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
-<script src="/assets/site.js" defer></script>
+<script src="../assets/site.js" defer></script>
 </body>
 </html>
