@@ -42,6 +42,23 @@
     "hypgraph": "01ad496839b2ad9a8223ee56d5cee494000ce83a",
     "pegasus": "8619997ccb4d5ed60493f7076e642be097fa175a+dirty"
    }
+  },
+  {
+   "at": "2026-10-24T22:39:12Z",
+   "ids": [
+    "D-7"
+   ],
+   "note": "tooling: --conditions; default unchanged",
+   "files": {
+    "host": "ab6cc4b75ac1d5b3602cca1e4046e84c00ccf1fa25f762f4d9a6f6be451b6781"
+   },
+   "was": {
+    "host": "76fb8fc7ec7506d2e010272a9b3e47a829fc97e7d0eb6538240ab4f1f9bea6e2"
+   },
+   "git": {
+    "hypgraph": "6c8f15108038af3c19564401ee89fc4507d0fdc8",
+    "pegasus": "89e78354c1f47d5bf89e2d54847f7ca4aadd018e+dirty"
+   }
   }
  ]
 }
