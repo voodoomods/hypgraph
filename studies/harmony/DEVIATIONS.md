@@ -104,3 +104,17 @@ Sample-size rule on pilot 2 (C/A log-ratio SD 0.197, 4 pairs) → 7 pairs needed
 
 Under the pre-approval: the confirmatory run starts now (all ten families × seeds 100–102 × ABCD = 120 runs,
 $15 guard), then its analysis, then D-6.
+
+## The confirmatory run was stopped by the operator (2026-10-24)
+
+The operator said "no need on the confirmatory study. lets stop that", and it was stopped. By then the chain had
+already halted on its own after 2 runs: F4-100 B completed ($0.0184), F2-101 D produced no output, and staging
+the third run failed (`podman cp` exited 0xC0000142 on the host). Those runs sit in `runs/confirmatory/`. They are
+**not** analysed or reported as confirmatory results: the study is incomplete. D-6 did not run.
+
+Spend for the whole study: smoke $0.0001 + pilot 1 $0.3677 + pilot 2 $0.3360 + confirmatory $0.0184 ≈ **$0.72**.
+
+Harness note for any restart: copies staged with `podman cp` into `/root/harmony-code-*` arrive without owner
+write permission, so the runner's cleanup failed silently and 84 copies piled up (code only, no keys). They were
+removed by hand (`chmod -R u+rwX`, then `rm`). The host's cleanup needs that chmod before the confirmatory run
+restarts.
