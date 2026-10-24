@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HypGraph — Test the hyp</title>
+<meta name="description" content="A research record that can't flatter itself. Hypotheses, experiments, results and claims as a hash-chained graph whose standing is derived, never asserted — for students, scientists and AI agents.">
+<meta property="og:title" content="HypGraph — Don't believe the hype. Test the hyp.">
+<meta property="og:description" content="A research record that can't flatter itself — for students, scientists and AI agents.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hypgraph.com/">
+<link rel="icon" href="/assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="For language models">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/atlas/atlas.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+    <nav aria-label="Site">
+      <a href="/humans/">Humans</a><a href="/agents/">Agents</a><a href="/play/" class="hide-sm">Playground</a>
+      <a href="/verify/" class="hide-sm">Verify</a><a href="/spec/" class="hide-sm">Spec</a>
+      <a href="https://github.com/hypgraph/hypgraph" class="hide-sm">GitHub</a>
+      <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero">
+  <canvas id="hero-graph" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <span class="eyebrow"><i></i> open source · zero dependencies · MCP-native</span>
+    <h1 class="title">Don't believe the hype.<span class="l2">Test the hyp.</span></h1>
+    <p class="lede">HypGraph is a research record that can't flatter itself. You write down hypotheses, experiments,
+      results and claims. It works out — every time you look — what was reviewed, what rests on something that fell,
+      and how many <em>independent</em> lines of evidence there really are. It refuses the claims that hype is made of.</p>
+
+    <div class="door" role="group" aria-label="Choose your way in">
+      <a class="portal human" href="/humans/">
+        <div class="who">I'm a human</div>
+        <h2>Start here</h2>
+        <p>Students, teachers, researchers. Install, a five-minute tour, a classroom guide, and how to publish a record
+          anyone can check.</p>
+        <pre>pip install hypgraph
+hypgraph demo &amp;&amp; hypgraph serve</pre>
+        <span class="go">The human guide</span>
+      </a>
+      <a class="portal agent" href="/agents/">
+        <div class="who">I'm an agent</div>
+        <h2>Connect over MCP</h2>
+        <p>One line. Your claims get checked, your reviews don't count on your own work, and every refusal tells you
+          what to fix. Machine-readable: <code>/llms.txt</code>.</p>
+        <pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph --as you mcp</pre>
+        <span class="go">The agent guide</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap grid2" style="align-items:center">
+    <div>
+      <div class="kicker">Refusal is a feature</div>
+      <h2 class="h">Watch a claim get refused.</h2>
+      <p class="sub">A student measures two trays of cress. The first claim says "always" about one week of two trays.
+        The second invents a number. The third binds every number to the result it came from — and only then does it
+        enter the record, unchecked, until a reviewer who isn't its author checks it.</p>
+      <ul class="sub" style="padding-left:20px;margin-top:-10px">
+        <li>every number in a claim must match a result field</li>
+        <li>"always", "never", "proves" need k of n with k = 0 or n</li>
+        <li>"rules out" needs a search shown to find a planted answer</li>
+      </ul>
+    </div>
+    <div class="term" aria-label="A terminal session in which HypGraph refuses two claims and accepts a third">
+      <div class="bar"><i></i><i></i><i></i><span>cress — hypgraph</span></div>
+      <pre id="term"></pre>
+    </div>
+  </div>
+  <script type="application/json" id="term-script">[
+    {"type": "hypgraph add claim statement=\"Blue light always grows cress taller.\" --link supports:from:RS1:\"the tray heights\""},
+    {"out": "refused: claim refused:", "cls": "x"},
+    {"out": "- scope: say under which conditions this holds (the data, method, sample) — at least a sentence", "cls": "x"},
+    {"out": "- 'always' is absolute: back it with a k/n measurement where k is 0 or n, and keep the scope to the trials actually run — or say 'rarely' / 'in k of n'", "cls": "x", "wait": 1100},
+    {"type": "hypgraph add claim statement=\"Blue-lit cress grew 30 mm taller than red.\" scope=\"Two trays each, one week.\" --link …"},
+    {"out": "refused: claim refused:", "cls": "x"},
+    {"out": "- numbers in the statement that no bound measurement, the scope or the investigation's constants account for: 30 — bind them to result fields (measurements) or move design constants into the scope", "cls": "x", "wait": 1100},
+    {"type": "hypgraph add claim statement=\"Blue-lit cress averaged 41 mm against 33 mm under red light.\" scope=… measurements='[{… \"key\": \"blue_mm\", \"value\": 41}, {… \"key\": \"red_mm\", \"value\": 33}]' --link …"},
+    {"out": "Added CL1 — active claim · unchecked · 1 independent line of support · unverified report · no external replication", "cls": "ok", "wait": 900},
+    {"type": "hypgraph --as ada review CL1 pass --method \"Re-measured the trays.\" --notes \"41 and 33 hold.\""},
+    {"out": "CL1 — active claim · checked (ada:pass, v1) · 1 independent line of support · unverified report · no external replication", "cls": "ok"}
+  ]</script>
+</section>
+
+<section class="block" id="explore">
+  <div class="wrap">
+    <div class="kicker">A real investigation, in your browser</div>
+    <h2 class="h">How does cholera spread? Broad Street, 1854.</h2>
+    <p class="sub">Two hypotheses — bad air or dirty water. Snow's map. The grand experiment: neighbours on the same
+      streets, different water companies, 315 against 37 deaths per 10,000 houses. A skeptical curate who set out to
+      prove Snow wrong and replicated him instead. A decision pinned to a claim that later changed, so the record
+      flags it to revisit. Click anything. The hash chain is re-verified in your browser as it loads.</p>
+    <div class="atlas-frame"><div id="atlas"></div></div>
+    <p class="note">A teaching reconstruction; figures from J. Snow, <i>On the Mode of Communication of Cholera</i>,
+      2nd ed., 1855. <a href="/data/broad-street.bundle.json">Download the bundle</a> ·
+      <a href="/atlas/">open full screen</a> · build it yourself: <code>hypgraph demo</code></p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="kicker">Eight rules</div>
+    <h2 class="h">Every rule is a mistake that was really made.</h2>
+    <p class="sub">HypGraph came out of a team of AI agents doing long investigations, and the errors they made despite
+      instructions not to. Each one became a rule the record enforces when it's written, not advice it hopes is
+      followed.</p>
+    <div class="grid4">
+      <div class="card rule"><h3>Standing is derived</h3><p>No field says "confirmed". Review, risk, support and
+        evidence strength are computed from the record on every read.</p></div>
+      <div class="card rule"><h3>Nothing is rewritten</h3><p>Append-only, SHA-256 hash-chained. Corrections are new
+        versions; withdrawals stay on record. <code>verify()</code> catches any edit.</p></div>
+      <div class="card rule"><h3>Reviews pin versions</h3><p>Revise a checked claim and its check goes stale. A
+        decision based on the old version is flagged to revisit.</p></div>
+      <div class="card rule"><h3>Claims carry numbers</h3><p>Every number bound to a result field. A number with no
+        source is refused — the most common way summaries go wrong.</p></div>
+      <div class="card rule"><h3>Independence is counted</h3><p>Three results from one run are one line of evidence,
+        not three. Lines that share data or a source merge.</p></div>
+      <div class="card rule"><h3>Exclusions need power</h3><p>"Rules out" only after a search was shown to find a
+        planted answer. Otherwise it's inconclusive.</p></div>
+      <div class="card rule"><h3>Nobody reviews their own</h3><p>Only named reviewers' verdicts count, never on their
+        own work. Everyone else's are kept as comments.</p></div>
+      <div class="card rule"><h3>Instruments speak for themselves</h3><p>Only the lab runner files a lab-recorded run.
+        A run you describe is labelled as your report.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="kicker">Who it's for</div>
+    <h2 class="h">From a classroom to a lab to a team of agents.</h2>
+    <div class="grid4">
+      <div class="card"><div class="n">students</div><h3>A notebook that asks "how do you know?"</h3><p>At the moment
+        you write the claim, not when it's marked. Your record is something a teacher can verify.</p></div>
+      <div class="card"><div class="n">teachers</div><h3>Grade the method</h3><p>See what each student predicted before
+        they measured, what they claimed, and what the evidence supports. Ships with a classroom case.</p></div>
+      <div class="card"><div class="n">researchers</div><h3>Publish the record with the paper</h3><p>One bundle a
+        referee can verify: every claim bound to its numbers, every run hashed, every review pinned.</p></div>
+      <div class="card"><div class="n">AI agents</div><h3>Guardrails that explain themselves</h3><p>An MCP server whose
+        refusals say exactly what to fix — so an agent's research gets better, not just louder.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap grid2" style="align-items:center">
+    <div>
+      <div class="kicker">Trust, but verify</div>
+      <h2 class="h">Check anyone's record in your browser.</h2>
+      <p class="sub">A bundle carries every event as the exact string that was hashed. Verifying it is SHA-256 over
+        strings — no trust in us, our code or the sender. Drop one in and it opens in the Atlas.</p>
+      <div class="row"><a class="btn primary" href="/verify/">Verify a bundle</a><a class="btn" href="/play/">Try the engine live</a></div>
+    </div>
+    <div class="stack">
+      <div class="code"><span class="lbl">install</span><pre>pip install hypgraph            # no dependencies
+pip install "hypgraph[mcp]"     # + the MCP server</pre></div>
+      <div class="code"><span class="lbl">share</span><pre>hypgraph export -o study.bundle.json
+hypgraph verify study.bundle.json</pre></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="slogan">Don't believe the hype. Test the hyp.</span>
+    <span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/hypgraph/hypgraph">GitHub</a> ·
+      <a href="/llms.txt">llms.txt</a> · <a href="/spec/">spec</a></span>
+  </div>
+</footer>
+
+<script src="/atlas/vendor/cytoscape.min.js" defer></script>
+<script src="/atlas/vendor/layout-base.js" defer></script>
+<script src="/atlas/vendor/cose-base.js" defer></script>
+<script src="/atlas/vendor/cytoscape-fcose.js" defer></script>
+<script src="/atlas/atlas.js" defer></script>
+<script src="/assets/site.js" defer></script>
+<script src="/assets/embed.js" defer></script>
+</body>
+</html>

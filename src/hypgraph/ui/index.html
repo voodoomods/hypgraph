@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HypGraph Atlas</title>
+<link rel="icon" href="hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="atlas.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0d14; }
+  @media (prefers-color-scheme: light) { html, body { background: #f7f8fb; } }
+  #atlas { height: 100vh; height: 100dvh; }
+</style>
+</head>
+<body>
+<div id="atlas"></div>
+<script src="vendor/cytoscape.min.js"></script>
+<script src="vendor/layout-base.js"></script>
+<script src="vendor/cose-base.js"></script>
+<script src="vendor/cytoscape-fcose.js"></script>
+<script src="atlas.js"></script>
+<script>
+  const prefersLight = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches;
+  HypAtlas.mount(document.getElementById('atlas'), {
+    source: HypAtlas.HttpSource('api/graph'), title: 'HYPGRAPH',
+    theme: (() => { try { return localStorage.getItem('atlas-theme') || (prefersLight ? 'light' : 'dark'); } catch { return 'dark'; } })(),
+  });
+</script>
+</body>
+</html>

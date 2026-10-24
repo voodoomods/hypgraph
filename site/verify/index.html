@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify a bundle — HypGraph</title>
+<meta name="description" content="Check a HypGraph bundle in your browser: the hash chain, and every row against the event that wrote it. Nothing is uploaded.">
+<link rel="icon" href="/assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="/"><img src="/assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="/humans/">Humans</a><a href="/agents/">Agents</a>
+    <a href="/play/" class="hide-sm">Playground</a><a href="/verify/" aria-current="page" class="hide-sm">Verify</a><a href="/spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/hypgraph/hypgraph" class="hide-sm">GitHub</a>
+    <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+</div></header>
+<main id="main">
+<div class="phead"><div class="wrap"><div class="kicker">Trust, but verify</div>
+  <h1>Verify a bundle.</h1>
+  <p>Drop a <code>.bundle.json</code> from <code>hypgraph export</code>. Your browser recomputes every SHA-256 in the chain
+    and checks every version and link against the event that wrote it. Nothing leaves your machine.</p></div></div>
+<div class="wrap" style="padding:32px 16px 80px;max-width:860px">
+  <label class="drop" id="drop" for="file">
+    <div style="font-size:20px;font-weight:700">Drop a bundle here</div>
+    <div class="note">or click to choose a file · or <button class="btn" type="button" id="demo" style="padding:4px 10px;font-size:14px">try the Broad Street bundle</button></div>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </label>
+  <div class="vres" id="res" aria-live="polite"></div>
+  <div class="prose" style="margin-top:40px">
+    <h2>What this proves — and what it doesn't</h2>
+    <ul>
+      <li><b>Proves:</b> every event's hash is the SHA-256 of the exact string shown, each links to the one before, and
+        every node version, link, withdrawal and retraction in the bundle matches the event that wrote it. Nothing in
+        it was edited after it was written.</li>
+      <li><b>Doesn't prove on its own:</b> that the whole record wasn't rebuilt from scratch. For that, compare the
+        bundle's <b>head</b> hash with one published at the time (in a paper, a preregistration, a repository tag).</li>
+      <li><b>Scoped bundles</b> (one investigation out of a shared record) redact the events outside it. Those can't be
+        checked, and the result says so.</li>
+    </ul>
+  </div>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
+<span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/hypgraph/hypgraph">GitHub</a></span></div></footer>
+<script src="/atlas/atlas.js"></script>
+<script src="/assets/site.js" defer></script>
+<script>
+(() => {
+  const res = document.getElementById('res');
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  async function check(text, name) {
+    let b;
+    try { b = JSON.parse(text); } catch (e) { res.innerHTML = `<div class="big bad">✗ Not JSON</div><p>${esc(e.message)}</p>`; return; }
+    res.innerHTML = '<div class="note">Hashing…</div>';
+    const t0 = performance.now();
+    const v = await HypAtlas.verifyBundle(b);
+    const ms = Math.round(performance.now() - t0);
+    if (!v.ok) {
+      res.innerHTML = `<div class="big bad">✗ ${esc(name)} does not verify</div><p>${esc(v.problem)}${v.broken_at ? ` (event ${v.broken_at})` : ''}</p>`;
+      return;
+    }
+    const invs = (b.derived && b.derived.investigations) || [];
+    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">✓ ${esc(name)}: ${v.checked} events verified${v.complete ? '' : ' (scoped)'}</div>
+      <p>The chain is intact and every row matches the event that wrote it. Checked in your browser in ${ms} ms.</p>
+      ${v.warning ? `<p class="warn">${esc(v.warning)}</p>` : ''}
+      <dl class="kv"><dt>head</dt><dd>${esc(v.head)}</dd><dt>nodes</dt><dd>${v.nodes}</dd><dt>links</dt><dd>${v.edges}</dd>
+        <dt>scope</dt><dd>${esc((b.scope || {}).title || '—')}</dd><dt>exported</dt><dd>${esc(b.exported_at || '—')} by ${esc(b.generator || '—')}</dd>
+        <dt>investigations</dt><dd>${invs.map((i) => esc(i.title)).join(' · ') || '—'}</dd></dl>
+      <div class="row" style="margin-top:16px"><button class="btn primary" id="open" type="button">Open in the Atlas</button></div>
+      <p class="note">The standing shown in the Atlas is what the bundle was exported with; the chain above is what you just checked.</p>`;
+    document.getElementById('open').addEventListener('click', () => {
+      try { sessionStorage.setItem('hg-bundle', text); location.href = '/atlas/?from=verify'; }
+      catch { res.insertAdjacentHTML('beforeend', '<p class="bad">This bundle is too large to hand over in this browser — open it with <code>hypgraph import</code> and <code>hypgraph serve</code>.</p>'); }
+    });
+  }
+  const file = document.getElementById('file'), drop = document.getElementById('drop');
+  file.addEventListener('change', async () => { const f = file.files[0]; if (f) check(await f.text(), f.name); });
+  ['dragenter', 'dragover'].forEach((k) => drop.addEventListener(k, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((k) => drop.addEventListener(k, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', async (e) => { const f = e.dataTransfer.files[0]; if (f) check(await f.text(), f.name); });
+  document.getElementById('demo').addEventListener('click', async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = await fetch('/data/broad-street.bundle.json'); check(await r.text(), 'broad-street.bundle.json');
+  });
+})();
+</script>
+</body>
+</html>

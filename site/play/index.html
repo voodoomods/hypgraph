@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playground — HypGraph</title>
+<meta name="description" content="Try to get a claim past HypGraph. The real engine, in Python, running in your browser.">
+<link rel="icon" href="/assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="/"><img src="/assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="/humans/">Humans</a><a href="/agents/">Agents</a>
+    <a href="/play/" aria-current="page" class="hide-sm">Playground</a><a href="/verify/" class="hide-sm">Verify</a><a href="/spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/hypgraph/hypgraph" class="hide-sm">GitHub</a>
+    <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+</div></header>
+<main id="main">
+<div class="phead"><div class="wrap"><div class="kicker">Playground</div>
+  <h1>Try to get a claim past it.</h1>
+  <p>This is the real engine — the same Python package you'd <code>pip install</code> — running in your browser, on the
+    Broad Street investigation of 1854. Write a claim about Snow's results and see what the record makes of it.</p></div></div>
+
+<div class="wrap" style="padding:28px 16px 80px">
+  <div class="card" id="boot" style="margin-bottom:18px">
+    <div class="row"><button class="btn primary" id="load" type="button">Load the engine</button>
+      <span class="note" id="bootmsg" style="margin:0">Python via Pyodide, about 10 MB the first time, cached after. Nothing is sent anywhere.</span></div>
+  </div>
+
+  <div class="play">
+    <div class="card">
+      <h3 style="margin-top:0">Write a claim</h3>
+      <div class="chips" aria-label="Examples">
+        <button class="chip" type="button" data-ex="always">“always”</button>
+        <button class="chip" type="button" data-ex="invent">a number from nowhere</button>
+        <button class="chip" type="button" data-ex="exclude">“rules out”</button>
+        <button class="chip" type="button" data-ex="nosupport">no evidence</button>
+        <button class="chip" type="button" data-ex="honest">the honest one</button>
+      </div>
+      <div class="field"><label for="st">Statement</label><textarea id="st" rows="3"></textarea></div>
+      <div class="field"><label for="sc">Scope — where it holds</label><textarea id="sc" rows="2"></textarea></div>
+      <div class="row" style="gap:12px">
+        <div class="field" style="flex:1;min-width:140px"><label for="kind">Kind</label>
+          <select id="kind"><option>finding</option><option>exclusion</option><option>inconclusive</option><option>lead</option><option>convention</option></select></div>
+        <div class="field" style="flex:2;min-width:200px"><label for="sup">Supported by</label><select id="sup"><option value="">(nothing)</option></select></div>
+      </div>
+      <div class="field"><label for="ms">Measurements (JSON) — bind each number to a result field</label>
+        <textarea id="ms" class="mono" rows="5" spellcheck="false"></textarea></div>
+      <button class="btn primary" id="test" type="button" disabled>Test the claim</button>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">What the record says</h3>
+      <div class="out" id="out"><span class="dim">Load the engine, then test a claim.</span></div>
+      <h3>Results you can cite</h3>
+      <div class="out" id="res" style="min-height:0"><span class="dim">—</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">Or write Python</h3>
+    <p class="note" style="margin-top:0"><code>g</code> is the graph and <code>inv</code> the investigation. Everything in the
+      <a href="/humans/#python">Python guide</a> works here.</p>
+    <div class="field"><textarea id="py" class="mono" rows="9" spellcheck="false">for n in g.subgraph(inv, types=["claim", "hypothesis", "decision"])["nodes"]:
+    print(n["code"], "—", n["state"]["sentence"])
+
+print()
+print(g.report(inv)["markdown"][:900])</textarea></div>
+    <div class="row"><button class="btn" id="run" type="button" disabled>Run</button></div>
+    <div class="out" id="pyout" style="margin-top:12px"><span class="dim">Output appears here.</span></div>
+  </div>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
+<span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/hypgraph/hypgraph">GitHub</a></span></div></footer>
+<script src="/assets/site.js" defer></script>
+<script>
+(() => {
+  const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  let py = null;
+
+  const EX = {
+    always: { st: 'Water from the Broad Street pump always caused cholera.', sc: 'The Golden Square outbreak, September 1854.', kind: 'finding', sup: 'RS2', ms: [] },
+    invent: { st: 'Southwark and Vauxhall houses died at ten times the Lambeth rate.', sc: 'South London, the first seven weeks of the 1854 epidemic.', kind: 'finding', sup: 'RS5', ms: [] },
+    exclude: { st: 'The company comparison rules out the miasma theory.', sc: 'South London, the 1854 epidemic.', kind: 'exclusion', sup: 'RS5', ms: [] },
+    nosupport: { st: 'Cleaning the sewers would have stopped the outbreak.', sc: '', kind: 'finding', sup: '', ms: [] },
+    honest: { st: 'Lambeth houses had 37 cholera deaths per 10,000 against 315 for Southwark and Vauxhall.',
+      sc: 'South London, the first seven weeks of the 1854 epidemic, deaths per 10,000 houses by water company.', kind: 'finding', sup: 'RS5',
+      ms: [{ name: 'Lambeth', result: 'RS5', key: 'lambeth_per_10000', value: 37 }, { name: 'S&V', result: 'RS5', key: 'sv_per_10000', value: 315 }] },
+  };
+  function fill(k) {
+    const e = EX[k]; $('st').value = e.st; $('sc').value = e.sc; $('kind').value = e.kind;
+    $('ms').value = JSON.stringify(e.ms, null, 1); if ([...$('sup').options].some((o) => o.value === e.sup)) $('sup').value = e.sup;
+  }
+  document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => fill(b.dataset.ex)));
+  fill('always');
+
+  async function boot() {
+    $('load').disabled = true;
+    const msg = (t) => { $('bootmsg').textContent = t; };
+    try {
+      msg('Loading Python…');
+      await new Promise((ok, fail) => { const s = document.createElement('script'); s.src = PYODIDE + 'pyodide.js'; s.onload = ok; s.onerror = () => fail(new Error('could not load Pyodide')); document.head.appendChild(s); });
+      py = await loadPyodide({ indexURL: PYODIDE });
+      msg('Loading sqlite3…');
+      await py.loadPackage('sqlite3');
+      msg('Loading the hypgraph engine…');
+      const man = await (await fetch('/py/manifest.json')).json();
+      for (const f of man.files) {
+        const text = await (await fetch('/py/' + f)).text();
+        const path = '/home/pyodide/lib/' + f;
+        py.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));
+        py.FS.writeFile(path, text);
+      }
+      await py.runPythonAsync(`
+import sys, io, json, contextlib
+sys.path.insert(0, "/home/pyodide/lib")
+import hypgraph
+from hypgraph import GraphError
+from hypgraph.demos import broad_street
+g, inv, story = broad_street.build()
+
+def _results():
+    return json.dumps([{"code": n["code"], "title": n["title"], "values": g.get(n["id"])["body"].get("values", {})}
+                       for n in g.search(type="result", inv=inv, limit=100)])
+
+def _try_claim(spec):
+    spec = json.loads(spec)
+    links = [{"rel": "supports", "from": g.resolve(spec["sup"], inv), "why": "This result is the evidence the claim rests on."}] if spec["sup"] else []
+    fields = {k: v for k, v in spec["fields"].items() if v not in ("", [], None)}
+    try:
+        n = g.create(author="you", type="claim", inv=inv, fields=fields, links=links)
+        return json.dumps({"ok": True, "code": n["code"], "sentence": n["state"]["sentence"]})
+    except GraphError as e:
+        return json.dumps({"ok": False, "error": str(e)})
+
+def _run(code):
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(code, {"g": g, "inv": inv, "hypgraph": hypgraph})
+    except Exception as e:
+        buf.write(f"\\n{type(e).__name__}: {e}")
+    return buf.getvalue()
+`);
+      const rs = JSON.parse(py.globals.get('_results')());
+      $('sup').innerHTML = '<option value="">(nothing)</option>' + rs.map((r) => `<option value="${esc(r.code)}">${esc(r.code)} — ${esc(r.title.slice(0, 60))}</option>`).join('');
+      $('res').innerHTML = rs.map((r) => `<b>${esc(r.code)}</b> ${esc(r.title)}${Object.keys(r.values).length ? `\n  <span class="dim">values: ${esc(JSON.stringify(r.values))}</span>` : ''}`).join('\n\n');
+      fill('always');
+      msg(`Engine ready: hypgraph ${py.runPython('hypgraph.__version__')} on Python ${py.runPython('import sys; sys.version.split()[0]')}, in your browser.`);
+      $('test').disabled = false; $('run').disabled = false;
+      $('out').innerHTML = '<span class="dim">Pick an example above, or write your own, and test it.</span>';
+    } catch (e) {
+      msg('Could not load the engine: ' + e.message + ' — try again, or pip install hypgraph.'); $('load').disabled = false;
+    }
+  }
+  $('load').addEventListener('click', boot);
+
+  $('test').addEventListener('click', () => {
+    let ms;
+    try { ms = JSON.parse($('ms').value || '[]'); } catch (e) { $('out').innerHTML = `<span class="x">Measurements must be JSON: ${esc(e.message)}</span>`; return; }
+    const spec = { sup: $('sup').value, fields: { statement: $('st').value, scope: $('sc').value, kind: $('kind').value, measurements: ms } };
+    const r = JSON.parse(py.globals.get('_try_claim')(JSON.stringify(spec)));
+    $('out').innerHTML = r.ok
+      ? `<span class="ok">✓ Added ${esc(r.code)}</span>\n${esc(r.sentence)}\n\n<span class="dim">It's in the record — unchecked until a reviewer who isn't you checks it.</span>`
+      : `<span class="x">✗ Refused</span>\n${esc(r.error)}`;
+  });
+  $('run').addEventListener('click', () => { $('pyout').textContent = py.globals.get('_run')($('py').value) || '(no output)'; });
+})();
+</script>
+</body>
+</html>

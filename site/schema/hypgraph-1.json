@@ -1,0 +1,792 @@
+{
+ "format": "hypgraph/1",
+ "types": {
+  "investigation": {
+   "prefix": "INV",
+   "about": "The study: an objective, its scope, who reviews it. Every other node belongs to one.",
+   "fields": {
+    "title": {
+     "kind": "str",
+     "max": 200,
+     "required": true
+    },
+    "objective": {
+     "kind": "text",
+     "max": 3000,
+     "required": true
+    },
+    "success_criteria": {
+     "kind": "text",
+     "max": 3000,
+     "required": false
+    },
+    "scope": {
+     "kind": "text",
+     "max": 3000,
+     "required": false
+    },
+    "state": {
+     "kind": "enum:active|archived|published",
+     "max": 2000,
+     "required": false
+    },
+    "reviewers": {
+     "kind": "list",
+     "max": 20,
+     "required": false
+    },
+    "constants": {
+     "kind": "list",
+     "max": 60,
+     "required": false
+    },
+    "strict_claims": {
+     "kind": "bool",
+     "max": 2000,
+     "required": false
+    },
+    "keywords": {
+     "kind": "list",
+     "max": 30,
+     "required": false
+    },
+    "projects": {
+     "kind": "list",
+     "max": 20,
+     "required": false
+    },
+    "doi": {
+     "kind": "str",
+     "max": 120,
+     "required": false
+    },
+    "note": {
+     "kind": "text",
+     "max": 2000,
+     "required": false
+    },
+    "legacy_case": {
+     "kind": "str",
+     "max": 80,
+     "required": false
+    }
+   }
+  },
+  "question": {
+   "prefix": "Q",
+   "about": "Something you want to know.",
+   "fields": {
+    "text": {
+     "kind": "text",
+     "max": 1500,
+     "required": true
+    },
+    "why": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    }
+   }
+  },
+  "hypothesis": {
+   "prefix": "H",
+   "about": "A possible answer, with the predictions that would show it wrong.",
+   "fields": {
+    "statement": {
+     "kind": "text",
+     "max": 1500,
+     "required": true
+    },
+    "assumptions": {
+     "kind": "list",
+     "max": 20,
+     "required": false
+    },
+    "predictions": {
+     "kind": "list",
+     "max": 20,
+     "required": true
+    },
+    "distinguishing": {
+     "kind": "list",
+     "max": 20,
+     "required": false
+    },
+    "open_questions": {
+     "kind": "list",
+     "max": 20,
+     "required": false
+    }
+   }
+  },
+  "claim": {
+   "prefix": "CL",
+   "about": "What you assert is known, with its scope and its numbers bound to results.",
+   "fields": {
+    "statement": {
+     "kind": "text",
+     "max": 1500,
+     "required": true
+    },
+    "scope": {
+     "kind": "text",
+     "max": 1000,
+     "required": false
+    },
+    "limitations": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    },
+    "kind": {
+     "kind": "enum:finding|exclusion|inconclusive|convention|lead",
+     "max": 2000,
+     "required": false
+    },
+    "measurements": {
+     "kind": "list",
+     "max": 40,
+     "required": false
+    },
+    "evidence_note": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    },
+    "legacy": {
+     "kind": "dict",
+     "max": 4000,
+     "required": false
+    }
+   }
+  },
+  "experiment": {
+   "prefix": "X",
+   "about": "A planned test: aim, protocol, controls, success criteria, and what each hypothesis expects.",
+   "fields": {
+    "aim": {
+     "kind": "text",
+     "max": 1500,
+     "required": true
+    },
+    "protocol": {
+     "kind": "text",
+     "max": 4000,
+     "required": true
+    },
+    "controls": {
+     "kind": "text",
+     "max": 2000,
+     "required": false
+    },
+    "success_criteria": {
+     "kind": "text",
+     "max": 2000,
+     "required": true
+    },
+    "method": {
+     "kind": "str",
+     "max": 200,
+     "required": false
+    },
+    "budget": {
+     "kind": "dict",
+     "max": 400,
+     "required": false
+    },
+    "power_check": {
+     "kind": "text",
+     "max": 1000,
+     "required": false
+    },
+    "cost_minutes": {
+     "kind": "num",
+     "max": 2000,
+     "required": false
+    },
+    "seed": {
+     "kind": "any",
+     "max": 200,
+     "required": false
+    }
+   }
+  },
+  "run": {
+   "prefix": "RUN",
+   "about": "One execution: code, inputs and outputs hashed, seed, state. `kind=lab` only from an instrument.",
+   "fields": {
+    "kind": {
+     "kind": "enum:lab|agent|external",
+     "max": 2000,
+     "required": true
+    },
+    "job_id": {
+     "kind": "str",
+     "max": 80,
+     "required": false
+    },
+    "name": {
+     "kind": "str",
+     "max": 300,
+     "required": false
+    },
+    "state": {
+     "kind": "enum:queued|running|succeeded|failed|timeout|cancelled|interrupted|unknown",
+     "max": 2000,
+     "required": false
+    },
+    "code": {
+     "kind": "list",
+     "max": 50,
+     "required": false
+    },
+    "inputs": {
+     "kind": "list",
+     "max": 200,
+     "required": false
+    },
+    "outputs": {
+     "kind": "list",
+     "max": 500,
+     "required": false
+    },
+    "args": {
+     "kind": "list",
+     "max": 100,
+     "required": false
+    },
+    "config": {
+     "kind": "dict",
+     "max": 20000,
+     "required": false
+    },
+    "seed": {
+     "kind": "any",
+     "max": 200,
+     "required": false
+    },
+    "env": {
+     "kind": "dict",
+     "max": 4000,
+     "required": false
+    },
+    "started": {
+     "kind": "str",
+     "max": 40,
+     "required": false
+    },
+    "finished": {
+     "kind": "str",
+     "max": 40,
+     "required": false
+    },
+    "exit_code": {
+     "kind": "any",
+     "max": 20,
+     "required": false
+    },
+    "log_sha256": {
+     "kind": "str",
+     "max": 80,
+     "required": false
+    },
+    "note": {
+     "kind": "text",
+     "max": 2000,
+     "required": false
+    }
+   }
+  },
+  "result": {
+   "prefix": "RS",
+   "about": "What a run (or an observation, or a citation) found: values, outcome, power.",
+   "fields": {
+    "summary": {
+     "kind": "text",
+     "max": 2000,
+     "required": true
+    },
+    "kind": {
+     "kind": "enum:computed|observed|cited",
+     "max": 2000,
+     "required": false
+    },
+    "outcome": {
+     "kind": "enum:positive|negative|inconclusive|expected_failure|skipped|failed",
+     "max": 2000,
+     "required": false
+    },
+    "values": {
+     "kind": "dict",
+     "max": 20000,
+     "required": false
+    },
+    "expected": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    },
+    "limitations": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    },
+    "power": {
+     "kind": "enum:demonstrated|not_demonstrated|not_applicable",
+     "max": 2000,
+     "required": false
+    },
+    "evidence_note": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    },
+    "legacy": {
+     "kind": "dict",
+     "max": 4000,
+     "required": false
+    }
+   }
+  },
+  "artifact": {
+   "prefix": "A",
+   "about": "Exact bytes, by sha256 — data, code, a model, a figure.",
+   "fields": {
+    "sha256": {
+     "kind": "str",
+     "max": 64,
+     "required": true
+    },
+    "path": {
+     "kind": "str",
+     "max": 500,
+     "required": false
+    },
+    "size": {
+     "kind": "num",
+     "max": 2000,
+     "required": false
+    },
+    "format": {
+     "kind": "str",
+     "max": 40,
+     "required": false
+    }
+   }
+  },
+  "source": {
+   "prefix": "S",
+   "about": "Outside literature or data: citation, DOI, the passage that says it.",
+   "fields": {
+    "citation": {
+     "kind": "text",
+     "max": 1000,
+     "required": true
+    },
+    "doi": {
+     "kind": "str",
+     "max": 200,
+     "required": false
+    },
+    "url": {
+     "kind": "str",
+     "max": 500,
+     "required": false
+    },
+    "passage": {
+     "kind": "text",
+     "max": 3000,
+     "required": false
+    },
+    "retrieved": {
+     "kind": "str",
+     "max": 40,
+     "required": false
+    },
+    "says": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    }
+   }
+  },
+  "review": {
+   "prefix": "RV",
+   "about": "A verdict on one version of a claim, result, run, experiment or hypothesis.",
+   "fields": {
+    "verdict": {
+     "kind": "enum:checked|comment|does_not_generalize|fail|generalizes|inconclusive|not_replicated|not_reproduced|objection|pass|replicated|reproduced|resolved|separate_implementation",
+     "max": 2000,
+     "required": true
+    },
+    "method": {
+     "kind": "text",
+     "max": 1500,
+     "required": true
+    },
+    "notes": {
+     "kind": "text",
+     "max": 4000,
+     "required": true
+    },
+    "official": {
+     "kind": "bool",
+     "max": 2000,
+     "required": false
+    }
+   }
+  },
+  "decision": {
+   "prefix": "D",
+   "about": "A choice made on the evidence; flagged when what it was based on changes.",
+   "fields": {
+    "choice": {
+     "kind": "text",
+     "max": 1500,
+     "required": true
+    },
+    "alternatives": {
+     "kind": "list",
+     "max": 20,
+     "required": false
+    },
+    "reasons": {
+     "kind": "text",
+     "max": 3000,
+     "required": true
+    },
+    "revisit_if": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    },
+    "meeting": {
+     "kind": "str",
+     "max": 80,
+     "required": false
+    }
+   }
+  },
+  "task": {
+   "prefix": "T",
+   "about": "A unit of work in your tracker, linked to what it works on.",
+   "fields": {
+    "kanban_id": {
+     "kind": "str",
+     "max": 80,
+     "required": true
+    },
+    "title": {
+     "kind": "str",
+     "max": 300,
+     "required": false
+    }
+   }
+  }
+ },
+ "relations": {
+  "part_of": {
+   "from": [
+    "artifact",
+    "claim",
+    "decision",
+    "experiment",
+    "hypothesis",
+    "question",
+    "result",
+    "review",
+    "run",
+    "source",
+    "task"
+   ],
+   "to": [
+    "investigation",
+    "question"
+   ],
+   "about": "belongs to an investigation or question"
+  },
+  "answers": {
+   "from": [
+    "claim",
+    "hypothesis"
+   ],
+   "to": [
+    "question"
+   ],
+   "about": "offers an answer to a question"
+  },
+  "alternative_to": {
+   "from": [
+    "hypothesis"
+   ],
+   "to": [
+    "hypothesis"
+   ],
+   "about": "competes with another hypothesis"
+  },
+  "tests": {
+   "from": [
+    "experiment"
+   ],
+   "to": [
+    "claim",
+    "hypothesis"
+   ],
+   "about": "an experiment tests a hypothesis or claim (data.expected: what it should show if true)"
+  },
+  "executes": {
+   "from": [
+    "run"
+   ],
+   "to": [
+    "experiment"
+   ],
+   "about": "a run carries out an experiment"
+  },
+  "produced": {
+   "from": [
+    "run"
+   ],
+   "to": [
+    "artifact",
+    "result"
+   ],
+   "about": "a run produced a result or artifact"
+  },
+  "uses": {
+   "from": [
+    "run"
+   ],
+   "to": [
+    "artifact"
+   ],
+   "about": "a run used an artifact (data.role: data / code / model / config)"
+  },
+  "derived_from": {
+   "from": [
+    "artifact",
+    "claim",
+    "result"
+   ],
+   "to": [
+    "artifact",
+    "result",
+    "run",
+    "source"
+   ],
+   "about": "computed or taken from"
+  },
+  "supports": {
+   "from": [
+    "claim",
+    "result",
+    "source"
+   ],
+   "to": [
+    "claim",
+    "hypothesis"
+   ],
+   "about": "evidence for (why required)"
+  },
+  "challenges": {
+   "from": [
+    "claim",
+    "result",
+    "source"
+   ],
+   "to": [
+    "claim",
+    "hypothesis"
+   ],
+   "about": "evidence against (why required)"
+  },
+  "requires": {
+   "from": [
+    "claim",
+    "hypothesis"
+   ],
+   "to": [
+    "claim"
+   ],
+   "about": "rests on another claim as a premise"
+  },
+  "replicates": {
+   "from": [
+    "run"
+   ],
+   "to": [
+    "run"
+   ],
+   "about": "a run repeats another (data.differs: same_code / new_seed / new_impl / new_data / new_env)"
+  },
+  "reviews": {
+   "from": [
+    "review"
+   ],
+   "to": [
+    "claim",
+    "experiment",
+    "hypothesis",
+    "result",
+    "run"
+   ],
+   "about": "a review of a node (written by review())"
+  },
+  "supersedes": {
+   "from": [
+    "claim",
+    "decision",
+    "experiment",
+    "hypothesis",
+    "question",
+    "result",
+    "run",
+    "source",
+    "task"
+   ],
+   "to": [
+    "claim",
+    "decision",
+    "experiment",
+    "hypothesis",
+    "question",
+    "result",
+    "run",
+    "source",
+    "task"
+   ],
+   "about": "replaces an older node of the same type"
+  },
+  "corrects": {
+   "from": [
+    "claim",
+    "decision",
+    "result"
+   ],
+   "to": [
+    "claim",
+    "decision",
+    "result"
+   ],
+   "about": "fixes an error in a node of the same type"
+  },
+  "motivated_by": {
+   "from": [
+    "experiment",
+    "hypothesis",
+    "question"
+   ],
+   "to": [
+    "artifact",
+    "claim",
+    "decision",
+    "experiment",
+    "hypothesis",
+    "investigation",
+    "question",
+    "result",
+    "review",
+    "run",
+    "source",
+    "task"
+   ],
+   "about": "prompted by"
+  },
+  "cites": {
+   "from": [
+    "claim",
+    "experiment",
+    "hypothesis",
+    "result"
+   ],
+   "to": [
+    "source"
+   ],
+   "about": "cites a source"
+  },
+  "based_on": {
+   "from": [
+    "decision"
+   ],
+   "to": [
+    "claim",
+    "hypothesis",
+    "result"
+   ],
+   "about": "a decision rests on this evidence (pinned to its version)"
+  },
+  "works_on": {
+   "from": [
+    "task"
+   ],
+   "to": [
+    "claim",
+    "decision",
+    "experiment",
+    "hypothesis",
+    "investigation",
+    "question",
+    "result",
+    "run",
+    "source"
+   ],
+   "about": "a task works on a node"
+  },
+  "blocked_by": {
+   "from": [
+    "task"
+   ],
+   "to": [
+    "task"
+   ],
+   "about": "a task waits on another task"
+  }
+ },
+ "verdicts": {
+  "positive": [
+   "checked",
+   "generalizes",
+   "pass",
+   "replicated",
+   "reproduced",
+   "separate_implementation"
+  ],
+  "negative": [
+   "does_not_generalize",
+   "fail",
+   "not_replicated",
+   "not_reproduced"
+  ],
+  "other": [
+   "comment",
+   "inconclusive",
+   "objection",
+   "resolved"
+  ]
+ },
+ "evidence_rank": [
+  "unverified",
+  "agent_reported",
+  "lab_recorded",
+  "project_rerun",
+  "separate_implementation",
+  "new_data",
+  "external"
+ ],
+ "evidence_label": {
+  "unverified": "unverified report",
+  "agent_reported": "agent-reported run",
+  "lab_recorded": "lab-recorded run",
+  "project_rerun": "reproduced in project",
+  "separate_implementation": "separate implementation",
+  "new_data": "replicated on new data",
+  "external": "external source"
+ },
+ "replication": [
+  "same_code",
+  "new_seed",
+  "new_impl",
+  "new_data",
+  "new_env"
+ ]
+}

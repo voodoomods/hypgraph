@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>For agents — HypGraph</title>
+<meta name="description" content="Connect an AI agent to HypGraph: an Agent Skill and an MCP server whose claim checks and refusals tell the agent exactly what to fix.">
+<link rel="icon" href="/assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="For language models">
+<link rel="alternate" type="text/markdown" href="/SKILL.md" title="Agent skill">
+<link rel="stylesheet" href="/assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="/"><img src="/assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="/humans/">Humans</a><a href="/agents/" aria-current="page">Agents</a>
+    <a href="/play/" class="hide-sm">Playground</a><a href="/verify/" class="hide-sm">Verify</a><a href="/spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/hypgraph/hypgraph" class="hide-sm">GitHub</a>
+    <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+</div></header>
+
+<main id="main">
+<div class="phead"><div class="wrap"><div class="kicker" style="color:var(--violet)">For agents</div>
+  <h1>Research you can stand behind.</h1>
+  <p>Give your agent a record that checks its claims as they're written, won't let it review its own work, and
+    explains every refusal — so its research gets better, not just longer.</p></div></div>
+
+<div class="wrap doc">
+<nav class="toc" aria-label="On this page">
+  <a href="#you">If you are an agent</a><a href="#skill">Install the skill</a><a href="#mcp">Connect over MCP</a>
+  <a href="#method">The method</a><a href="#tools">Tools</a><a href="#refusals">Refusals</a><a href="#standing">Reading standing</a>
+  <a href="#hosts">For host builders</a><a href="#machine">Machine-readable</a>
+</nav>
+<article class="prose">
+
+<h2 id="you">If you are an agent reading this</h2>
+<div class="callout"><b>Plain instructions.</b> HypGraph is a research record. Use it whenever you investigate a
+  question with evidence and need to say what is established. Read before writing (<code>overview</code>). Write
+  hypotheses with predictions. Write each experiment's expected outcome per hypothesis <i>before</i> running it.
+  Record runs with hashed files. Bind every number in a claim to a result field. Never write "always/never/proves"
+  without k of n with k = 0 or n. Never call something ruled out without a power check. Report standing exactly as
+  the record states it. When a write is refused, fix what the message says. Short version: <a href="/llms.txt">/llms.txt</a> ·
+  full skill: <a href="/SKILL.md">/SKILL.md</a>.</div>
+
+<h2 id="skill">Install the skill</h2>
+<p>For Claude Code and other hosts that load <a href="/SKILL.md">Agent Skills</a>. The skill carries the method, the
+  refusals and their fixes, and works through the CLI — no server needed.</p>
+<div class="code"><pre>pip install hypgraph
+hypgraph skill --install            # .claude/skills/hypgraph/SKILL.md in this project
+hypgraph skill --install --user     # or under your home directory, for every project</pre></div>
+
+<h2 id="mcp">Connect over MCP</h2>
+<div class="code"><span class="lbl">Claude Code</span><pre>pip install "hypgraph[mcp]"
+claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></div>
+<div class="code" style="margin-top:18px"><span class="lbl">Claude Desktop · Cursor · any MCP client</span><pre>{
+  "mcpServers": {
+    "hypgraph": {
+      "command": "hypgraph",
+      "args": ["--db", "/absolute/path/study.hypgraph", "--as", "claude", "mcp"]
+    }
+  }
+}</pre></div>
+<div class="code" style="margin-top:18px"><span class="lbl">Streamable HTTP</span><pre>hypgraph --db study.hypgraph --as claude mcp --transport http --port 8766
+# → http://127.0.0.1:8766/mcp</pre></div>
+<p>The server writes as <b>one</b> author, fixed at start. The agent can't pass another name, can't write as the
+  instrument (<code>lab</code>) or the <code>operator</code>, and its verdicts count only if the investigation names it
+  as a reviewer. Files for <code>register_run</code> must be under the directory the server was started in.</p>
+
+<h2 id="method">The method</h2>
+<ol>
+  <li><b><code>overview()</code> first.</b> What's established, what's contested, what's waiting, what to run next.</li>
+  <li><b>Hypotheses with predictions</b> — and rivals, linked <code>alternative_to</code>.</li>
+  <li><b>Experiments that can fail</b> — <code>tests</code> links with <code>data.expected</code> per hypothesis, written
+    before running. Add a <code>power_check</code>: plant a known answer and show the method finds it.</li>
+  <li><b><code>register_run</code></b> — hashes code, inputs and outputs, and adds the result with values
+    <code>{name: {value} | {k, n}}</code>.</li>
+  <li><b>Claims with measurements</b> — every number bound; a <code>supports</code> link with a reason; a scope.</li>
+  <li><b>Review</b> — only named reviewers count, never on their own work.</li>
+  <li><b><code>report()</code></b> at the top of every summary; interpretation below it.</li>
+</ol>
+
+<h2 id="tools">Tools</h2>
+<table>
+  <thead><tr><th>tool</th><th>what it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>overview(investigation?)</code></td><td>Objective, reviewers, live hypotheses, checked claims and how they're known, contested / at-risk work, leases, queues, next experiments.</td></tr>
+    <tr><td><code>find(text, type?, investigation?)</code></td><td>Search by words or code (H1, CL3).</td></tr>
+    <tr><td><code>show(node, view)</code></td><td><code>summary</code> · <code>why</code> (what it rests on) · <code>impact</code> (what breaks if it's wrong) · <code>history</code>.</td></tr>
+    <tr><td><code>start_investigation(title, objective, reviewers)</code></td><td>Open a study with its reviewers.</td></tr>
+    <tr><td><code>add(type, fields, investigation?, links?)</code></td><td>Question, hypothesis, experiment, run, result, claim, source, decision. Links accept ids or codes.</td></tr>
+    <tr><td><code>link(src, rel, dst, why, data?)</code></td><td>Typed links; a backwards link is turned round when only the reverse is allowed.</td></tr>
+    <tr><td><code>revise</code> · <code>withdraw</code> · <code>retract_link</code></td><td>Corrections as new rows; nothing is erased.</td></tr>
+    <tr><td><code>review(node, verdict, method, notes)</code></td><td>A verdict on the current version.</td></tr>
+    <tr><td><code>next_experiments</code> · <code>work_queue</code> · <code>claim_work</code></td><td>What to run next; what's waiting; take a node so others see who's on it.</td></tr>
+    <tr><td><code>register_run(name, code_paths, input_paths, output_paths, result_summary, result_values)</code></td><td>Record a computation with hashed files.</td></tr>
+    <tr><td><code>report</code> · <code>verify</code> · <code>schema</code></td><td>The generated facts; the chain check; the vocabulary.</td></tr>
+  </tbody>
+</table>
+<p>Resources: <code>hypgraph://skill</code>, <code>hypgraph://schema</code>, <code>hypgraph://investigations</code>,
+  <code>hypgraph://investigation/{inv}/report</code>. Prompt: <code>method</code>.</p>
+
+<h2 id="refusals">Refusals are instructions</h2>
+<table>
+  <thead><tr><th>the record says</th><th>do this</th></tr></thead>
+  <tbody>
+    <tr><td>numbers in the statement that no bound measurement … account for</td><td>Bind the number to a result field (or move a design constant into the scope). Don't drop the number to get past.</td></tr>
+    <tr><td>'always' is absolute</td><td>Back it with k of n, k = 0 or n — or write "in k of n".</td></tr>
+    <tr><td>an exclusion needs a search that recovered a planted answer</td><td>Run a power check and mark the result <code>power: demonstrated</code>, or file it as <code>inconclusive</code>.</td></tr>
+    <tr><td>tests …: give data.expected</td><td>Say what the experiment should show if that hypothesis is true.</td></tr>
+    <tr><td>you can't review your own work</td><td>Ask a named reviewer.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="standing">Reading standing</h2>
+<blockquote>active claim · checked (fisher:pass, v2) · 2 independent lines of support · replicated on new data · no external replication</blockquote>
+<p>Quote it as it is. "Unchecked" is not "shown"; one agent-reported line is not "established". <b>AT RISK</b>: a
+  premise fell. <b>REVISIT</b>: a decision's basis changed. <b>UNSUPPORTED</b>: every support fell.</p>
+
+<h2 id="hosts">For host builders</h2>
+<p>Running many agents? Embed the library and set the trust yourself: <code>Graph(path, policy=Policy(reviewers=…,
+  instrument="lab", operator="operator"))</code>. Fix each caller's <code>author</code> on your side and refuse the
+  reserved names. Give your job runner the instrument identity so its runs count as lab-recorded. Pass
+  <code>spend=</code> to price the work behind each investigation. PegasusDMZ runs a team of agents on exactly this.
+  The HTTP API (<code>hypgraph.server.dispatch</code>) and the Atlas (<code>hypgraph.ui.static_dir()</code>) drop into
+  any web framework.</p>
+
+<h2 id="machine">Machine-readable</h2>
+<ul>
+  <li><a href="/llms.txt">/llms.txt</a> — the short version</li>
+  <li><a href="/SKILL.md">/SKILL.md</a> — the agent skill</li>
+  <li><a href="/agents.md">/agents.md</a> — this page as Markdown</li>
+  <li><a href="/schema/hypgraph-1.json">/schema/hypgraph-1.json</a> — node types, fields, relations, verdicts</li>
+  <li><a href="/spec/">/spec/</a> — the record and bundle formats</li>
+  <li><a href="/data/broad-street.bundle.json">/data/broad-street.bundle.json</a> — a complete example bundle</li>
+</ul>
+</article>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
+<span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/hypgraph/hypgraph">GitHub</a></span></div></footer>
+<script src="/assets/site.js" defer></script>
+</body>
+</html>

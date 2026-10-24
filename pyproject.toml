@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hypgraph"
+dynamic = ["version"]
+description = "A research record that can't flatter itself: typed, append-only, hash-chained, with standing derived on read."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Nicolas Houghtaling" }]
+keywords = ["research", "provenance", "reproducibility", "hypothesis", "science", "mcp", "agents", "open-science"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Education",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Education",
+]
+dependencies = []          # the engine, CLI, HTTP server and Atlas are stdlib only
+
+[project.optional-dependencies]
+mcp = ["fastmcp>=2.12"]
+test = ["pytest>=8"]
+all = ["fastmcp>=2.12", "pytest>=8"]
+
+[project.urls]
+Homepage = "https://hypgraph.com"
+Documentation = "https://hypgraph.com/docs/"
+Source = "https://github.com/hypgraph/hypgraph"
+
+[project.scripts]
+hypgraph = "hypgraph.cli:main"
+
+[tool.hatch.version]
+path = "src/hypgraph/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hypgraph"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/hypgraph", "tests", "docs", "README.md", "LICENSE", "CITATION.cff", "AGENTS.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "src/hypgraph/__init__.py"]
+addopts = "--doctest-modules --import-mode=importlib"
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120

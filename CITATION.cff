@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use HypGraph in your research or teaching, please cite it."
+title: "HypGraph: a research record that can't flatter itself"
+abstract: >-
+  An append-only, hash-chained record of questions, hypotheses, experiments, runs, results, claims, sources,
+  reviews and decisions, whose standing (review, risk, independent support, evidence strength) is derived on read
+  and never asserted. Claims are checked on write: numbers bound to results, absolutes backed by k of n, exclusions
+  backed by a powered search.
+type: software
+authors:
+  - family-names: Houghtaling
+    given-names: Nicolas
+license: Apache-2.0
+version: 0.1.0
+date-released: "2026-10-24"
+url: "https://hypgraph.com"
+repository-code: "https://github.com/hypgraph/hypgraph"
+keywords:
+  - research provenance
+  - reproducibility
+  - hypothesis testing
+  - open science
+  - AI agents
+  - Model Context Protocol
