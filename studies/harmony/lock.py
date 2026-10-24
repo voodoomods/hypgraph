@@ -5,7 +5,8 @@ commits of both repositories and the subject model. Commit the lock before the f
 changed after it is a deviation (DEVIATIONS.md).
 
     python studies/harmony/lock.py --model "deepinfra:deepseek-ai/DeepSeek-V4.1-Flash"
-    python studies/harmony/lock.py --check            # do the files still match the lock?
+    python studies/harmony/lock.py --check            # do the files still match the lock (and its deviations)?
+    python studies/harmony/lock.py --deviation D-1,D-2 --note "…"   # record approved changes beside the lock
 """
 from __future__ import annotations
 
@@ -44,6 +45,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--deviation", default="", help="comma-separated ids from DEVIATIONS.md, approved by the operator")
+    ap.add_argument("--note", default="")
     a = ap.parse_args(argv)
     now = {k: sha(p) for k, p in FILES.items()}
     if a.check:
@@ -51,9 +54,28 @@ def main(argv=None) -> int:
             print("no lock yet")
             return 1
         lock = json.loads(LOCK.read_text(encoding="utf-8"))
-        moved = [k for k, v in now.items() if lock["files"].get(k) != v]
+        current = dict(lock["files"])
+        for d in lock.get("deviations", []):
+            current.update(d["files"])
+        moved = [k for k, v in now.items() if current.get(k) != v]
         print("matches the lock" if not moved else "CHANGED since the lock: " + ", ".join(moved))
         return 1 if moved else 0
+    if a.deviation:
+        if not LOCK.exists():
+            raise SystemExit("nothing is locked yet")
+        lock = json.loads(LOCK.read_text(encoding="utf-8"))
+        current = dict(lock["files"])
+        for d in lock.get("deviations", []):
+            current.update(d["files"])
+        changed = {k: v for k, v in now.items() if current.get(k) != v}
+        entry = {"at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                 "ids": [x.strip() for x in a.deviation.split(",") if x.strip()], "note": a.note,
+                 "files": changed, "was": {k: current.get(k) for k in changed},
+                 "git": {"hypgraph": git(HYP), "pegasus": git(POD)}}
+        lock.setdefault("deviations", []).append(entry)
+        LOCK.write_text(json.dumps(lock, indent=1), encoding="utf-8")
+        print(f"recorded {', '.join(entry['ids'])}: {len(changed)} file(s) changed — {', '.join(changed) or 'none'}")
+        return 0
     if not a.model:
         raise SystemExit("--model: the subject model, chosen by the operator")
     if LOCK.exists():

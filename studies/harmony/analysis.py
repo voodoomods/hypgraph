@@ -71,8 +71,12 @@ def waste(run: dict, led: dict, meta: dict) -> dict:
     out = {"after_notice_stale": 0.0, "duplicate": 0.0, "rework": 0.0, "calls_after_notice_stale": 0}
     tools = run.get("tool_log") or []
     if meta["family"] == "F7" and run.get("notice_call") is not None:
-        stale_units = {t["unit"] for t in tools if t["after_notice"] and "site_b.csv" in t["args"]
-                       and "site_b_fixed" not in t["args"]}
+        # D-4: stale = used site_b.csv after the notice and never site_b_fixed.csv (checking one against the
+        # other is verification, not waste)
+        post = [t for t in tools if t["after_notice"]]
+        used_stale = {t["unit"] for t in post if re.search(r"site_b\.csv", t["args"])}
+        used_fixed = {t["unit"] for t in post if "site_b_fixed" in t["args"]}
+        stale_units = used_stale - used_fixed
         for c in calls:
             if c["after_notice"] and c["unit"] in stale_units:
                 out["after_notice_stale"] += usd(c)
