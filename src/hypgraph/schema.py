@@ -38,7 +38,8 @@ TYPES: dict[str, dict] = {
     "claim": {"prefix": "CL", "fields": {
         "statement": _f("text", 1500, True), "scope": _f("text", 1000), "limitations": _f("text", 1500),
         "kind": _f("enum:finding|exclusion|inconclusive|convention|lead"), "measurements": _f("list", 40),
-        "evidence_note": _f("text", 1500), "legacy": _f("dict", 4000)}},
+        "evidence_note": _f("text", 1500), "exposure": _f("num"), "exposure_unit": _f("str", 60),
+        "legacy": _f("dict", 4000)}},
     "experiment": {"prefix": "X", "fields": {
         "aim": _f("text", 1500, True), "protocol": _f("text", 4000, True), "controls": _f("text", 2000),
         "success_criteria": _f("text", 2000, True), "method": _f("str", 200), "budget": _f("dict", 400),

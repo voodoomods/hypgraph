@@ -153,6 +153,16 @@
      "max": 1500,
      "required": false
     },
+    "exposure": {
+     "kind": "num",
+     "max": 2000,
+     "required": false
+    },
+    "exposure_unit": {
+     "kind": "str",
+     "max": 60,
+     "required": false
+    },
     "legacy": {
      "kind": "dict",
      "max": 4000,

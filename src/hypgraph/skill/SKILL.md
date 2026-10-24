@@ -63,16 +63,32 @@ The names `lab`, `operator`, `importer` and `system` are reserved. Never write a
 
 ## Refusals and their fixes
 
-| The record says | Do this |
-|---|---|
-| `numbers in the statement that no bound measurement … account for: 30` | Add a measurement binding that number to a result field, or put design constants in the scope. Don't delete the number to sneak past. |
-| `'always' is absolute` | Back it with k of n where k = 0 or n, or say "in k of n" / "rarely". |
-| `an exclusion needs a search that recovered a planted answer` | Run a power check (plant a known answer and recover it) and set `power=demonstrated` on the result, or file the claim as `kind=inconclusive`. |
-| `scope: say under which conditions this holds` | Name the data, method and sample. |
-| `link the evidence` | Add a `supports` link from the result, with a reason. |
-| `tests …: give data.expected` | Say what the experiment should show if that hypothesis is true. |
-| `you can't review your own work` | Ask a named reviewer. |
-| `… is published — its record is fixed` | Open a follow-up investigation and link to what you build on. |
+Every refused claim lists one line per problem, ending in a code like `[ABSOLUTE_UNDERPOWERED]`. With the Python
+API, `GraphError.problems` holds the same as dicts: `code`, `message`, `fix`, `words`. The message has already done
+the arithmetic. Use it.
+
+| Code | What it means | Do this |
+|---|---|---|
+| `UNBOUND_NUMBER` | A number with no source. Differences, ratios, percentages and intervals computed from bound counts are fine. | Bind it to a result field. Never drop the number to get past. |
+| `ABSOLUTE_WITHOUT_COUNT` | never / always / eliminates / 100% with nothing counted. | Say what was seen: "in k of n". |
+| `ABSOLUTE_UNDERPOWERED` | 0 of n, but n is too small: the rate could still be above 5%. | Use the honest sentence the refusal gives ("no occurrences in n trials (95% upper bound X)"), or run the trials it says you need. |
+| `ABSOLUTE_HIDES_DENOMINATOR` | 0 of n is enough, but the statement hides n. | Put n in the statement: "never, in 3,000 probes". |
+| `ABSOLUTE_UNRELATED_COUNT` | The 0 of n counts something else. | Name the measurement after what it counts, or bind the right count. |
+| `COMPARATIVE_WITHOUT_COMPARISON` | beats / outperforms / higher than with fewer than two sides measured. | Bind both sides (k/n or value each). |
+| `SIGNIFICANCE_WITHOUT_TEST` / `SIGNIFICANCE_NOT_SHOWN` | "significantly" with no test, or a test that fails at 0.05. The record tests two bound counts itself. | Bind both sides as k/n, or a p-value. If it isn't significant, say the difference and that it isn't. |
+| `CAUSAL_WITHOUT_INTERVENTION` | causes / leads to with no experiment that intervened. | Say "is associated with", or run the experiment and support the claim with its result. |
+| `EXCLUSION_WITHOUT_POWER` | "no effect" / "rules out" without a search shown to find a planted effect. The refusal says the smallest effect your sample could have seen. | Show power (`power=demonstrated`), or file it as `kind=inconclusive` and say "no detectable effect". |
+| `SCOPE_MISSING` / `EVIDENCE_MISSING` | No conditions, or nothing supports it. | Name the data, method and sample. Link the result with `supports`. |
+
+**Before writing never or always, run `hypgraph bound K N --exposure USERS`** (MCP tool `bound`). It tells you what
+the count supports and how many failures are not ruled out at the scale the claim will be used. Set `exposure` (and
+`exposure_unit`) on the claim, so its standing carries that number.
+
+Other refusals: `tests …: give data.expected` (say what each hypothesis predicts), `you can't review your own work`
+(ask a named reviewer), `… is published — its record is fixed` (open a follow-up investigation).
+
+**When you withdraw or contest a node,** the reply lists what now rests on something that fell, e.g.
+`2 nodes rest on CL1: 1 decision (D1); 1 claim (CL2)`. Tell whoever owns those nodes.
 
 ## Reading standing
 
@@ -89,6 +105,6 @@ Report standing as the record states it. Don't upgrade "unchecked" to "shown", o
 
 ## Useful commands
 
-`hypgraph show NODE [--why|--impact|--history]` · `hypgraph work` · `hypgraph next` · `hypgraph revise NODE k=v --reason "…"`
+`hypgraph bound K N [--exposure X]` · `hypgraph show NODE [--why|--impact|--history]` · `hypgraph work` · `hypgraph next` · `hypgraph revise NODE k=v --reason "…"`
 · `hypgraph withdraw NODE --why "…"` · `hypgraph export -o bundle.json` · `hypgraph verify [bundle.json]` ·
 `hypgraph serve` (the Atlas explorer) · `hypgraph schema` (every type and relation).

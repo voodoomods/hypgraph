@@ -10,7 +10,7 @@ no absolutes without k of n, exclusions need a powered search. A refusal comes b
 fix, which is the point.
 
 Tools: overview · find · show · start_investigation · add · link · revise · withdraw · retract_link · review ·
-next_experiments · work_queue · claim_work · register_run · report · verify · schema.
+next_experiments · work_queue · claim_work · register_run · bound · report · verify · schema.
 Resources: hypgraph://skill · hypgraph://schema · hypgraph://investigations · hypgraph://investigation/{inv}/report.
 Prompt: method — how to work a question through the record.
 """
@@ -117,6 +117,26 @@ def show_text(n: dict) -> str:
     if ins:
         out += ["  links in:"] + ins[:25]
     return "\n".join(out)
+
+
+def bound_text(k: int, n: int, exposure: float = 0, unit: str = "uses") -> str:
+    """What "k of n" actually supports, in words — the arithmetic every 'never' should come with."""
+    from . import stats
+    lo, hi = stats.rate_bounds(k, n)
+    lines = [f"{k:,} of {n:,} observed: rate {stats.pct(k / n) if n else '?'} (95% interval {stats.pct(lo)} to "
+             f"{stats.pct(hi)})"]
+    if k == 0:
+        lines.append(f"'never' here means: at most {stats.pct(hi)} — {stats.one_in(hi)} — at 95% confidence")
+        for target in (0.01, 0.001, 0.0001):
+            if hi > target:
+                lines.append(f"  to bound it below {stats.one_in(target)}: about {stats.trials_for(target):,} "
+                             "trials with none")
+    elif k == n:
+        lines.append(f"'always' here means: fails at most {stats.pct(1 - lo)} of the time — {stats.one_in(1 - lo)}")
+    if exposure:
+        worst = hi if k <= n / 2 else 1 - lo
+        lines.append(f"across {exposure:,.0f} {unit}: up to {worst * exposure:,.0f} not ruled out (95%)")
+    return "\n".join(lines)
 
 
 def build(graph: Graph | str, author: Optional[str] = None, files_root: str | None = None):
@@ -276,7 +296,8 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             n = g.withdraw(author=me, node=g.resolve(node, g.resolve(investigation) if investigation else ""), why=why)
         except (GraphError, KeyError) as e:
             fail(e)
-        return f"{n['code']} — {n['state']['sentence']}"
+        br = n.get("blast_radius") or {}
+        return f"{n['code']} — {n['state']['sentence']}" + (f"\nNow AT RISK: {br['sentence']}" if br.get("count") else "")
 
     @mcp.tool
     def retract_link(edge: int, why: str) -> str:
@@ -298,7 +319,9 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
                          verdict=verdict.strip().lower(), method=method, notes=notes)
         except (GraphError, KeyError) as e:
             fail(e)
-        return f"Recorded on {n['code']}: {n['state']['sentence']}"
+        br = n.get("blast_radius") or {}
+        return f"Recorded on {n['code']}: {n['state']['sentence']}" + (
+            f"\nNow AT RISK: {br['sentence']}" if br.get("count") else "")
 
     @mcp.tool
     def next_experiments(investigation: str = "") -> str:
@@ -415,6 +438,15 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         v = g.verify()
         return (f"Verified {v['checked']} events: chain intact, every row matches its event (head {v['head'][:16]}…)."
                 if v["ok"] else f"VERIFY FAILED: {v['problem']}")
+
+    @mcp.tool
+    def bound(k: int, n: int, exposure: float = 0, unit: str = "uses") -> str:
+        """What 'k of n' actually supports: the observed rate, its 95% interval, what 'never' (k = 0) or 'always'
+        (k = n) can honestly mean, how many trials a tighter bound needs, and — with exposure, the number of uses or
+        users a claim will apply to — how many failures are not ruled out. Use it before writing never / always."""
+        if not (0 <= k <= n and n > 0):
+            raise ToolError("give k (how many times it happened) and n (trials), with 0 <= k <= n")
+        return bound_text(k, n, exposure, unit)
 
     @mcp.tool
     def schema() -> dict:

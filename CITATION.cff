@@ -10,8 +10,10 @@ type: software
 authors:
   - family-names: Houghtaling
     given-names: Nicolas
+    affiliation: VoodooMods LLC
+  - name: VoodooMods LLC
 license: Apache-2.0
-version: 0.1.0
+version: 0.2.0
 date-released: "2026-10-24"
 url: "https://hypgraph.com"
 repository-code: "https://github.com/voodoomods/hypgraph"

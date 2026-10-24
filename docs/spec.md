@@ -1,6 +1,6 @@
 # The HypGraph record format — `hypgraph/1`
 
-Status: draft 1 (HypGraph 0.1). Licence: CC BY 4.0. This page is enough to write another implementation, a
+Status: draft 2 (HypGraph 0.2). Licence: CC BY 4.0. This page is enough to write another implementation, a
 verifier or a viewer.
 
 ## 1. Model
@@ -23,7 +23,7 @@ correction is a new row, never an edited one.
 | `investigation` | INV | **title**\*, **objective**\*, success_criteria, scope, state, reviewers, constants, strict_claims, keywords, projects, doi, note, legacy_case | The study: an objective, its scope, who reviews it. Every other node belongs to one. |
 | `question` | Q | **text**\*, why | Something you want to know. |
 | `hypothesis` | H | **statement**\*, assumptions, **predictions**\*, distinguishing, open_questions | A possible answer, with the predictions that would show it wrong. |
-| `claim` | CL | **statement**\*, scope, limitations, kind, measurements, evidence_note, legacy | What you assert is known, with its scope and its numbers bound to results. |
+| `claim` | CL | **statement**\*, scope, limitations, kind, measurements, evidence_note, exposure, exposure_unit, legacy | What you assert is known, with its scope and its numbers bound to results. |
 | `experiment` | X | **aim**\*, **protocol**\*, controls, **success_criteria**\*, method, budget, power_check, cost_minutes, seed | A planned test: aim, protocol, controls, success criteria, and what each hypothesis expects. |
 | `run` | RUN | **kind**\*, job_id, name, state, code, inputs, outputs, args, config, seed, env, started, finished, exit_code, log_sha256, note | One execution: code, inputs and outputs hashed, seed, state. `kind=lab` only from an instrument. |
 | `result` | RS | **summary**\*, kind, outcome, values, expected, limitations, power, evidence_note, legacy | What a run (or an observation, or a citation) found: values, outcome, power. |
@@ -158,14 +158,36 @@ Implementations must derive these, never store them:
 
 ## 7. Claim checks
 
-1. `finding` and `exclusion` need a scope of at least 10 characters.
-2. `finding`, `exclusion` and `inconclusive` need at least one supporting node.
-3. Each measurement must name a result and a key present in its `values`. Its `value` / `k` / `n` must equal the
-   result's at the precision written; a fraction ≤ 1 may be written as a percentage.
-4. Every number in the statement (digits, and the words two to twenty), except digits in quotes, must match a bound
-   measurement's numbers, a number in the scope, or one of the investigation's `constants`.
-5. Absolute words (never, always, all, every, none, impossible, cannot, proves, proven, certainly, guaranteed) need a
-   measurement with `n` and `k ∈ {0, n}`.
-6. An `exclusion` needs a supporting result with `power: demonstrated`, or one produced by a run of an experiment
-   with a `power_check`.
-7. A `convention` may not hedge (could, might, suggests, consistent with, …).
+A claim is checked before it enters the record. Each failed rule is reported with a stable code, a message that does
+the arithmetic, a suggested fix, and the words that triggered it. Checks are skipped for the operator and importer,
+and in an investigation with `strict_claims: false`. Leads and conventions skip rules 7–9.
+
+**Arithmetic.** For a count of k in n trials, the 95% interval is the Wilson score interval. At k = 0 (or k = n) it is
+the exact one-sided bound 1 − 0.05^(1/n), the "rule of three" (≈ 3/n). "Never, in n trials" means at most that rate,
+and never zero. Two counts are compared with Newcombe's hybrid score interval and a pooled two-proportion z-test. The
+smallest detectable difference uses 80% power at two-sided α = 0.05.
+
+| # | Code | Refused when |
+|---|---|---|
+| 1 | `SCOPE_MISSING` | a finding or exclusion has a scope shorter than 10 characters |
+| 2 | `EVIDENCE_MISSING` | a finding, exclusion or inconclusive claim has no supporting node |
+| 3 | `MEASUREMENT_MALFORMED` / `MEASUREMENT_UNKNOWN_FIELD` / `MEASUREMENT_MISMATCH` | a measurement doesn't name a result and a key present in its `values`, or states a `value` / `k` / `n` different from the result's at the precision written (a fraction ≤ 1 may be written as a percentage) |
+| 4 | `UNBOUND_NUMBER` | a number in the statement (digits, or the words two to twenty; digits in quotes are names) is not one of: a bound measurement's numbers; for a count, its rate, complement or n − k; for any two measurements, their difference, ratios, relative change or sum; the scope's numbers; the investigation's `constants`; or the conventions 95 / 99 / 90 / 80 / 0.05 / 0.01 when the statement speaks of intervals, bounds, confidence, power or significance. *Statistical* quantities (a rate's 95% bounds; for two counts the difference interval, p-value and detectable difference) count only when written to at least one decimal place. |
+| 5 | `ABSOLUTE_WITHOUT_COUNT` | an absolute word (never, always, all, every, none, impossible, cannot, proves, certainly, guaranteed, eliminates, entirely, completely, universally, consistently, perfect, solves, zero, 100%, …) with no bound count where k is 0 or n |
+| 5a | `ABSOLUTE_UNRELATED_COUNT` | the counts with k ∈ {0, n} share no content word with the statement in their name or key |
+| 5b | `ABSOLUTE_UNDERPOWERED` | the 95% bound on the opposite rate is above 5%. The message gives the honest wording and the trials needed for a 1-in-1,000 bound. |
+| 5c | `ABSOLUTE_HIDES_DENOMINATOR` | the count is enough, but n appears in neither the statement nor the scope |
+| 6 | `CONVENTION_HEDGED` | a `convention` hedges (could, might, suggests, consistent with, …) |
+| 7 | `COMPARATIVE_WITHOUT_COMPARISON` | a comparative (better, beats, outperforms, higher than, improves, exceeds, …) with fewer than two measured sides, no bound p-value or interval, and no supporting claim that binds two sides |
+| 8 | `SIGNIFICANCE_WITHOUT_TEST` / `SIGNIFICANCE_NOT_SHOWN` | "significantly" / "statistically" with no bound p-value and fewer than two counts, or when the bound p-value, or the test the record runs on the first two counts, is not below 0.05 |
+| 9 | `CAUSAL_WITHOUT_INTERVENTION` | a causal word (causes, leads to, results in, drives, due to, because of, responsible for, …) when no supporting result was produced by a run that `executes` an experiment |
+| 10 | `EXCLUSION_WITHOUT_POWER` | `kind: exclusion`, or wording that says an effect is absent (no effect, no difference, makes no difference, does not affect, rules out, ineffective, …) in a finding, without a supporting result with `power: demonstrated` or one produced by a run of an experiment with a `power_check`. With two counts, the message gives the smallest detectable difference. |
+
+**Exposure.** A claim may set `exposure` (how many uses, users or units it will be applied to) and `exposure_unit`.
+Absolute refusals then state how many failures the bound leaves unruled out at that scale. An accepted claim's
+standing carries `bounds` (per count: k, n, rate, lo, hi and, with exposure, `unruled_out`), its sentence reads
+"'never' = at most 0.1% (0 of 3,000, 95%), up to 998 of 1,000,000 not ruled out", and a "significantly" claim carries
+`test` (the difference, its interval and p).
+
+**Blast radius.** Withdrawing a node, or a verdict that makes it fall, returns `blast_radius`: every node resting on it
+by type, with claims and decisions named and, if a spend meter is connected, the cost of the work behind them.

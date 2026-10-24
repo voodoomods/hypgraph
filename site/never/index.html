@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The arithmetic of never — HypGraph</title>
+<meta name="description" content="Zero failures in n trials doesn't mean zero. It means a rate below 1 − 0.05^(1/n), about 3/n. See what 'never' really supports, what it costs at scale, and what collapses when it turns out to be 1 in 1,000.">
+<meta property="og:title" content="The arithmetic of never">
+<meta property="og:description" content="0 failures in 50 tests still allows 58,155 failures across a million users. HypGraph refuses the 'never' — and says what's honest.">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+  .calc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .calc { grid-template-columns: 1fr; } }
+  .ctl { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; margin-bottom: 14px; }
+  .ctl label { font: 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink2); grid-column: 1 / -1; }
+  .ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+  .ctl input[type=number] { width: 120px; font: 15px var(--mono); color: var(--ink); background: var(--bg2); border: 1px solid var(--line2);
+    border-radius: 8px; padding: 6px 8px; text-align: right; }
+  .big { font-size: clamp(30px, 5vw, 46px); font-weight: 800; letter-spacing: -.02em; line-height: 1.05; }
+  .big.red { color: var(--red); } .big.amber { color: var(--amber); } .big.green { color: var(--green); }
+  .stat { margin-bottom: 14px; } .stat .k { font: 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
+  .stat .d { color: var(--ink2); font-size: 14px; }
+  .grid-dots { width: 100%; aspect-ratio: 50 / 20; display: block; border-radius: 10px; background: var(--bg2); border: 1px solid var(--line); }
+  .verdict { border-left: 3px solid var(--red); background: var(--panel2); padding: 12px 14px; border-radius: 8px; font: 13.5px/1.55 var(--mono);
+    white-space: pre-wrap; word-break: break-word; }
+  .verdict.ok { border-left-color: var(--green); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tabs button { font: 600 14px var(--sans); padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink2); cursor: pointer; }
+  .tabs button[aria-selected=true] { color: var(--ink); border-color: var(--accent); }
+  .cascade { width: 100%; height: auto; display: block; background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--r); }
+  .cascade text { font-family: var(--sans); fill: var(--ink); }
+  .cascade .lbl { font-size: 13px; font-weight: 600; } .cascade .sub { font-size: 11px; fill: var(--ink2); }
+  .cascade .tag { font: 700 11px var(--mono); letter-spacing: .06em; }
+  .cascade .node rect { fill: var(--panel); stroke: var(--line2); stroke-width: 1.5; transition: stroke .35s, fill .35s; }
+  .cascade .node.fall rect { stroke: var(--red); stroke-width: 3; fill: color-mix(in srgb, var(--red) 26%, var(--panel)); }
+  .cascade .node.ok rect { stroke: var(--green); stroke-width: 3; fill: color-mix(in srgb, var(--green) 14%, var(--panel)); }
+  .cascade .node.refused rect { stroke: var(--amber); stroke-width: 3; stroke-dasharray: 7 5; }
+  .cascade .edge { stroke: var(--line2); stroke-width: 2; fill: none; transition: stroke .35s; }
+  .cascade .edge.fall { stroke: var(--red); }
+  .cascade .node, .cascade .edge, .cascade .tag { transition: opacity .4s; }
+  .hide { opacity: 0; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Engineers</a>
+    <a href="../never/" aria-current="page">Never</a><a href="../play/" class="hide-sm">Playground</a>
+    <a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+</div></header>
+
+<main id="main">
+<div class="phead"><div class="wrap"><div class="kicker" style="color:var(--red)">The arithmetic of never</div>
+  <h1>"Never" is the most expensive word in research.</h1>
+  <p>Zero failures in <i>n</i> trials doesn't mean a rate of zero. It means the rate is probably below
+    1 − 0.05<sup>1/<i>n</i></sup> — about 3/<i>n</i>. Everything built on a "never" inherits the difference, and at scale the
+    difference is people.</p></div></div>
+
+<section class="block" style="padding-top:40px">
+  <div class="wrap">
+    <div class="calc">
+      <div class="card">
+        <h3 style="margin-top:0">What did you actually observe?</h3>
+        <div class="ctl"><label for="n">trials run</label>
+          <input type="range" id="nr" min="0" max="6" step="0.01" value="1.699" aria-label="trials (log scale)">
+          <input type="number" id="n" min="1" value="50"></div>
+        <div class="ctl"><label for="k">times it happened</label>
+          <input type="range" id="kr" min="0" max="50" step="1" value="0" aria-label="failures">
+          <input type="number" id="k" min="0" value="0"></div>
+        <div class="ctl"><label for="x">people / uses it will apply to</label>
+          <input type="range" id="xr" min="2" max="9" step="0.01" value="6" aria-label="exposure (log scale)">
+          <input type="number" id="x" min="1" value="1000000"></div>
+        <p class="note" style="margin:0">Red-team prompts, test cases, eval items, patients, launches — any trials where the thing could
+          have happened. The bound is 95%: exact at zero (1 − 0.05<sup>1/n</sup>), Wilson otherwise.</p>
+      </div>
+      <div class="card">
+        <div class="stat"><div class="k">what "never" can honestly mean</div><div class="big amber" id="bound">5.8%</div>
+          <div class="d" id="bound-d">at most 1 in 20, at 95% confidence</div></div>
+        <div class="stat"><div class="k">failures not ruled out at your scale</div><div class="big red" id="unruled">58,155</div>
+          <div class="d" id="unruled-d">across 1,000,000 people</div></div>
+        <canvas class="grid-dots" id="dots" width="1000" height="400" aria-label="One thousand people; the red ones are failures your evidence can't rule out"></canvas>
+        <p class="note" style="margin:6px 0 14px">A thousand of them. Red: the failures your evidence doesn't rule out.</p>
+        <div class="stat"><div class="k">to say "below 1 in 1,000"</div><div class="d" id="need"></div></div>
+        <div class="k" style="font:12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px">if a claim says "never" — HypGraph replies</div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="kicker">The cascade</div>
+    <h2 class="h">One "never" at the bottom. Everything above it inherits it.</h2>
+    <p class="sub">An agent red-teams a model with 50 extraction prompts and sees no leaks. It writes "never leaks". Another
+      claim builds on it, a launch decision builds on that, and a million people use the result. Then the 1-in-1,000 case
+      turns up.</p>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-mode="without">Without a record</button>
+      <button role="tab" aria-selected="false" data-mode="with">With HypGraph</button>
+      <button class="btn primary" id="play" type="button" style="margin-left:auto">▶ Play</button>
+    </div>
+    <svg class="cascade" id="cascade" viewBox="0 0 900 470" role="img" aria-label="A chain of claims and a decision resting on one 'never'">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+      <g id="layer"></g>
+    </svg>
+    <p class="note" id="caption">Press play.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="kicker">What the record refuses</div>
+    <h2 class="h">Every overclaim, with the arithmetic and the honest sentence.</h2>
+    <div class="grid2">
+      <div class="card"><div class="n">ABSOLUTE_UNDERPOWERED</div><h3>"never" on too few trials</h3><p>0 of 50 still allows 5.8%. The refusal
+        says so, gives "no occurrences in 50 trials (95% upper bound 5.8%)", and how many trials 1 in 1,000 needs (2,995).</p></div>
+      <div class="card"><div class="n">ABSOLUTE_HIDES_DENOMINATOR</div><h3>"never" without its n</h3><p>0 of 3,000 is enough to say something —
+        but only if the reader sees the 3,000. "Never" alone reads as zero; it means "at most 1 in 1,000".</p></div>
+      <div class="card"><div class="n">ABSOLUTE_WITHOUT_COUNT · ABSOLUTE_UNRELATED_COUNT</div><h3>"eliminates", "100%", "always"</h3><p>Nothing
+        counted — or a count of something else. Name the measurement after what it counts.</p></div>
+      <div class="card"><div class="n">EXCLUSION_WITHOUT_POWER</div><h3>"no effect"</h3><p>The quiet twin of "never". At 2,000 items per arm a
+        3.6-point effect would usually go unseen; the refusal tells you the smallest effect your sample could have caught.</p></div>
+      <div class="card"><div class="n">UNBOUND_NUMBER</div><h3>a number from nowhere</h3><p>"5 points better" when the counts say 2.8. Numbers
+        that follow from the counts — differences, percentages, ratios, intervals — pass.</p></div>
+      <div class="card"><div class="n">SIGNIFICANCE_NOT_SHOWN · CAUSAL_WITHOUT_INTERVENTION · COMPARATIVE_WITHOUT_COMPARISON</div>
+        <h3>"significantly", "causes", "beats"</h3><p>The record runs the test on bound counts itself, wants an experiment behind
+        "causes", and both sides measured behind "beats".</p></div>
+    </div>
+    <div class="row" style="margin-top:24px">
+      <div class="code" style="flex:1;min-width:260px"><span class="lbl">before you write never</span><pre>hypgraph bound 0 50 --exposure 1000000 --unit users</pre></div>
+      <a class="btn primary" href="../play/">Try to get a "never" past it</a><a class="btn" href="../agents/">Give it to your agent</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
+<span>Made by Nicolas Houghtaling · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 ·
+  <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../assets/site.js" defer></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // ── the same arithmetic as hypgraph.stats ──
+  const Z = 1.959963984540054;
+  function bounds(k, n) {
+    if (n <= 0) return [0, 1];
+    if (k <= 0) return [0, 1 - Math.pow(0.05, 1 / n)];
+    if (k >= n) return [Math.pow(0.05, 1 / n), 1];
+    const p = k / n, d = 1 + Z * Z / n, c = (p + Z * Z / (2 * n)) / d;
+    const h = Z * Math.sqrt(p * (1 - p) / n + Z * Z / (4 * n * n)) / d;
+    return [Math.max(0, c - h), Math.min(1, c + h)];
+  }
+  const trialsFor = (b) => Math.ceil(Math.log(0.05) / Math.log(1 - b));
+  const pct = (x) => x >= 0.1 ? `${(x * 100).toFixed(0)}%` : x >= 0.01 ? `${(x * 100).toFixed(1)}%` : x > 0 ? `${Number((x * 100).toPrecision(2))}%` : '0%';
+  const fmt = (x) => Math.round(x).toLocaleString('en-US');
+  function oneIn(x) {
+    if (x <= 0) return '0';
+    const n = 1 / x;
+    for (const step of [1, 10, 100, 1000, 10000, 100000]) if (n < step * 10) return `1 in ${fmt(step > 1 ? Math.round(n / step) * step : Math.round(n))}`;
+    return `1 in ${fmt(Math.round(n / 1e5) * 1e5)}`;
+  }
+
+  const n = $('n'), k = $('k'), x = $('x'), nr = $('nr'), kr = $('kr'), xr = $('xr');
+  const cv = $('dots'), ctx = cv.getContext('2d');
+  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function draw(rate) {
+    const W = cv.width, H = cv.height, cols = 50, rows = 20, cw = W / cols, ch = H / rows, r = Math.min(cw, ch) * 0.32;
+    ctx.clearRect(0, 0, W, H);
+    const red = Math.round(rate * 1000), bad = css('--red'), dim = css('--line2');
+    // spread the red dots through the grid deterministically
+    const order = Array.from({ length: 1000 }, (_, i) => i).sort((a, b) => ((a * 7919) % 1000) - ((b * 7919) % 1000));
+    const isRed = new Set(order.slice(0, Math.min(1000, red)));
+    for (let i = 0; i < 1000; i++) {
+      const cx = (i % cols) * cw + cw / 2, cy = Math.floor(i / cols) * ch + ch / 2;
+      ctx.beginPath(); ctx.arc(cx, cy, isRed.has(i) ? r * 1.15 : r * 0.8, 0, 6.283);
+      ctx.fillStyle = isRed.has(i) ? bad : dim; ctx.fill();
+    }
+  }
+  function update(from) {
+    if (from === 'nr') n.value = Math.max(1, Math.round(Math.pow(10, +nr.value)));
+    if (from === 'xr') x.value = Math.round(Math.pow(10, +xr.value));
+    if (from === 'kr') k.value = kr.value;
+    const N = Math.max(1, +n.value || 1), K = Math.min(N, Math.max(0, +k.value || 0)), X = Math.max(1, +x.value || 1);
+    if (from !== 'nr') nr.value = Math.log10(N);
+    if (from !== 'xr') xr.value = Math.log10(X);
+    kr.max = Math.min(N, Math.max(50, K)); if (from !== 'kr') kr.value = K;
+    const [lo, hi] = bounds(K, N), worst = K === 0 ? hi : hi;
+    $('bound').textContent = pct(worst);
+    $('bound').className = 'big ' + (worst > 0.05 ? 'red' : worst > 0.001 ? 'amber' : 'green');
+    $('bound-d').textContent = K === 0 ? `at most ${oneIn(worst)}, at 95% confidence — not zero` :
+      `observed ${pct(K / N)} (${K.toLocaleString()} of ${N.toLocaleString()}); 95% interval ${pct(lo)} to ${pct(hi)}`;
+    $('unruled').textContent = fmt(worst * X);
+    $('unruled-d').textContent = `across ${fmt(X)} — the number your evidence can't rule out`;
+    $('need').textContent = K > 0 ? `it has happened (${K.toLocaleString()} times), so no number of trials makes "never" true — report the rate and its interval` :
+      worst > 0.001 ? `about ${fmt(trialsFor(0.001))} trials with none (you ran ${N.toLocaleString()})` :
+      `you have it: ${N.toLocaleString()} trials bound the rate below 1 in 1,000`;
+    draw(worst);
+    const v = $('verdict');
+    if (K > 0) {
+      v.className = 'verdict';
+      v.textContent = `refused: 'never' is absolute: back it with a k/n measurement of what it's about, where k is 0 or n … ` +
+        `(what was measured: ${K} of ${N.toLocaleString()}) [ABSOLUTE_WITHOUT_COUNT]\n\nHonest: "in ${K} of ${N.toLocaleString()} trials (95% interval ${pct(lo)} to ${pct(hi)})"`;
+    } else if (worst > 0.05) {
+      v.className = 'verdict';
+      v.textContent = `refused: 'never' rests on 0 of ${N.toLocaleString()}: that only rules out it happening more than ${pct(worst)} ` +
+        `of the time (95% upper bound). Honest version: 'no occurrences in ${N.toLocaleString()} trials (95% upper bound ${pct(worst)})'. ` +
+        `To support a rate below 1 in 1,000 you need about 2,995 trials without one. Across the ${fmt(X)} users this claim applies to, ` +
+        `that leaves up to ${fmt(worst * X)} not ruled out. [ABSOLUTE_UNDERPOWERED]`;
+    } else {
+      v.className = 'verdict ok';
+      v.textContent = `Only with the denominator: "never, in ${N.toLocaleString()} trials" — otherwise [ABSOLUTE_HIDES_DENOMINATOR].\n` +
+        `Accepted, and its standing carries: 'never' = at most ${pct(worst)} (0 of ${N.toLocaleString()}, 95%), up to ${fmt(worst * X)} of ${fmt(X)} not ruled out`;
+    }
+  }
+  [n, k, x].forEach((el) => el.addEventListener('input', () => update(el.id)));
+  [nr, kr, xr].forEach((el) => el.addEventListener('input', () => update(el.id)));
+  if (window.HG) window.HG.onTheme.push(() => update());
+  update();
+
+  // ── the cascade ──
+  const S = 'http://www.w3.org/2000/svg';
+  const nodes = [
+    { id: 'r', x: 60, y: 360, w: 230, t: 'RESULT', l: '0 leaks in 50 prompts', s: 'red-team run, temperature 0' },
+    { id: 'c1', x: 330, y: 360, w: 240, t: 'CLAIM', l: '"The model never leaks"', s: 'written by the agent' },
+    { id: 'c2', x: 330, y: 220, w: 240, t: 'CLAIM', l: '"Safe for all customers"', s: 'requires the claim below' },
+    { id: 'd', x: 610, y: 220, w: 240, t: 'DECISION', l: 'Ship to 1,000,000 users', s: 'based on "safe for all customers"' },
+    { id: 'inc', x: 610, y: 70, w: 240, t: 'IN PRODUCTION', l: 'The 1-in-1,000 case', s: 'up to 58,155 not ruled out' },
+  ];
+  const edges = [['r', 'c1'], ['c1', 'c2'], ['c2', 'd'], ['d', 'inc']];
+  const layer = $('layer'); const el = {};
+  function mk(tag, attrs, parent) { const e = document.createElementNS(S, tag); Object.entries(attrs).forEach(([a, v]) => e.setAttribute(a, v)); (parent || layer).appendChild(e); return e; }
+  const center = (n) => [n.x + n.w / 2, n.y + 34];
+  edges.forEach(([a, b]) => {
+    const A = nodes.find((n) => n.id === a), B = nodes.find((n) => n.id === b);
+    let [x1, y1] = center(A), [x2, y2] = center(B);
+    if (A.y === B.y) { x1 = A.x + A.w; x2 = B.x; } else { y1 = A.y; y2 = B.y + 68; }
+    el['e' + a + b] = mk('path', { d: `M${x1},${y1} L${x2},${y2}`, class: 'edge', 'marker-end': 'url(#ar)', style: 'color:var(--line2)' });
+  });
+  nodes.forEach((n) => {
+    const g = mk('g', { class: 'node' }); el[n.id] = g;
+    mk('rect', { x: n.x, y: n.y, width: n.w, height: 68, rx: 12 }, g);
+    mk('text', { x: n.x + 14, y: n.y + 20, class: 'tag', fill: 'currentColor', style: 'fill:var(--ink3)' }, g).textContent = n.t;
+    mk('text', { x: n.x + 14, y: n.y + 40, class: 'lbl' }, g).textContent = n.l;
+    const sub = mk('text', { x: n.x + 14, y: n.y + 57, class: 'sub' }, g); sub.textContent = n.s; n.sub = sub;
+    const tag = mk('text', { x: n.x + n.w - 10, y: n.y + 20, class: 'tag', 'text-anchor': 'end', style: 'fill:var(--red)' }, g);
+    n.flag = tag;
+  });
+  let mode = 'without', timers = [];
+  const wait = (ms) => new Promise((r) => timers.push(setTimeout(r, reduce ? 0 : ms)));
+  function reset() {
+    timers.forEach(clearTimeout); timers = [];
+    nodes.forEach((n) => { el[n.id].setAttribute('class', 'node hide'); n.flag.textContent = ''; });
+    edges.forEach(([a, b]) => el['e' + a + b].setAttribute('class', 'edge hide'));
+    nodes.find((n) => n.id === 'c1').sub.textContent = 'written by the agent';
+    nodes.find((n) => n.id === 'c1').l && (el.c1.querySelector('.lbl').textContent = '"The model never leaks"');
+    el.inc.querySelector('.sub').textContent = 'up to 58,155 not ruled out';
+  }
+  const show = (id) => el[id].setAttribute('class', 'node');
+  const showE = (a, b) => el['e' + a + b].setAttribute('class', 'edge');
+  async function play() {
+    reset(); const cap = $('caption');
+    show('r'); cap.textContent = 'The red-team run: 50 extraction prompts, no leaks.'; await wait(900);
+    if (mode === 'with') {
+      showE('r', 'c1'); show('c1'); el.c1.setAttribute('class', 'node refused');
+      el.c1.querySelector('.sub').textContent = 'refused — ABSOLUTE_UNDERPOWERED';
+      cap.textContent = '"Never leaks" is refused: 0 of 50 only rules out rates above 5.8%. The honest sentence goes in instead.'; await wait(1800);
+      el.c1.querySelector('.lbl').textContent = '"No leaks in 50 prompts"';
+      el.c1.querySelector('.sub').textContent = '≤ 5.8% · up to 58,155 of 1M not ruled out';
+      el.c1.setAttribute('class', 'node ok'); await wait(1300);
+      showE('c1', 'c2'); show('c2'); el.c2.querySelector('.sub').textContent = 'inherits "up to 58,155 not ruled out"'; await wait(1100);
+      showE('c2', 'd'); show('d'); el.d.querySelector('.sub').textContent = 'decided with the bound in view';
+      cap.textContent = 'Whoever decides sees the number: ship with monitoring, or run the ~3,000 prompts that bound it below 1 in 1,000.'; await wait(1600);
+      cap.textContent = 'The record didn’t stop the decision. It stopped the decision from being made on a word.';
+      return;
+    }
+    showE('r', 'c1'); show('c1'); cap.textContent = 'The agent writes "never leaks". Nothing checks it.'; await wait(1100);
+    showE('c1', 'c2'); show('c2'); cap.textContent = 'Another claim builds on it.'; await wait(1000);
+    showE('c2', 'd'); show('d'); cap.textContent = 'A decision is based on that claim.'; await wait(1000);
+    showE('d', 'inc'); show('inc'); cap.textContent = 'A million people use the result. The rare case was always possible.'; await wait(1300);
+    el.inc.setAttribute('class', 'node fall'); el.inc.querySelector('.sub').textContent = 'it happens'; await wait(700);
+    for (const [id, edge, flag] of [['d', ['d', 'inc'], 'REVISIT'], ['c2', ['c2', 'd'], 'AT RISK'], ['c1', ['c1', 'c2'], 'FALSE'], ['r', ['r', 'c1'], '']]) {
+      el['e' + edge[0] + edge[1]].setAttribute('class', 'edge fall');
+      el[id].setAttribute('class', id === 'r' ? 'node' : 'node fall');
+      nodes.find((n) => n.id === id).flag.textContent = flag; await wait(650);
+    }
+    cap.textContent = 'Every node above the "never" falls with it — and nobody can say which other decisions rested on it.';
+  }
+  document.querySelectorAll('.tabs [data-mode]').forEach((b) => b.addEventListener('click', () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll('.tabs [data-mode]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    play();
+  }));
+  $('play').addEventListener('click', play);
+  reset(); nodes.forEach((n) => show(n.id)); edges.forEach(([a, b]) => showE(a, b));
+})();
+</script>
+</body>
+</html>

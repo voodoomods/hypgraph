@@ -56,9 +56,16 @@ reserved.
    ```
    with `links=[{"rel": "supports", "from": "RS3", "why": "RS3 is the measurement this claim states."}]`.
    - every number in the statement must match a bound measurement, the scope, or an investigation constant;
-   - "never", "all", "always" or "proves" need a measurement with k = 0 or k = n;
+   - "never", "always", "eliminates", "100%" need a count of what they're about with k = 0 or k = n, enough
+     trials that the 95% bound is under 5%, and n in the statement ("never, in 3,000 probes"). Check first:
+     `bound(k, n, exposure)` says what a count supports and how many failures it leaves unruled out at scale;
+   - "beats" / "outperforms" need both sides measured; "significantly" needs a test (the record runs one on two
+     bound counts); "causes" needs an experiment that intervened;
+   - numbers computed from bound counts (differences, percentages, ratios, intervals) are fine; invented ones
+     are not;
    - `kind: "exclusion"` needs a result with `power: "demonstrated"` (a search that found a planted answer).
      Otherwise use `"inconclusive"`.
+   Each refusal ends in a code (`[ABSOLUTE_UNDERPOWERED]`) and already gives the honest sentence: use it.
 6. **Reviews.** Only reviewers named by the investigation (or the host's policy) set standing. Nobody reviews their
    own work. A revision makes earlier reviews stale.
 7. **Start summaries from `report()`.** It's generated from the record, so it can't restate a withdrawn claim. Write

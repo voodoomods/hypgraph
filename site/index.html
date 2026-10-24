@@ -21,7 +21,7 @@
   <div class="wrap">
     <a class="brand" href="./"><img src="assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
     <nav aria-label="Site">
-      <a href="agents/">Agents</a><a href="engineers/">Engineers</a><a href="play/" class="hide-sm">Playground</a>
+      <a href="agents/">Agents</a><a href="engineers/">Engineers</a><a href="never/">Never</a><a href="play/" class="hide-sm">Playground</a>
       <a href="verify/" class="hide-sm">Verify</a><a href="spec/" class="hide-sm">Spec</a>
       <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
       <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button>
@@ -69,8 +69,8 @@ Graph("research.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
       <h2 class="h">Watch an eval report get refused.</h2>
       <p class="sub">An agent evaluates a fine-tune against its baseline on 2,000 held-out items: 1,624 against 1,568
         correct. It writes "always beats", then "5 points better" (it's 2.8), then "prompt format makes no difference"
-        from a test that never showed it could detect one. Then it binds every number to the eval result — and only
-        that claim gets in, unchecked until a reviewer who isn't the agent checks it.</p>
+        from a test too small to see a 3.6-point effect. Each refusal does the arithmetic and names the fix. Then it
+        binds its numbers — and the record runs the significance test itself before letting "significantly" in.</p>
       <ul class="sub" style="padding-left:20px;margin-top:-10px">
         <li>every number in a claim must match a result field</li>
         <li>"always", "never", "proves" need k of n with k = 0 or n</li>
@@ -83,21 +83,86 @@ Graph("research.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
     </div>
   </div>
   <script type="application/json" id="term-script">[
-    {"type": "hypgraph add claim statement=\"The fine-tune always beats the baseline.\" --link supports:from:RS1:\"the eval run\""},
-    {"out": "refused: claim refused:", "cls": "x"},
-    {"out": "- scope: say under which conditions this holds (the data, method, sample) — at least a sentence", "cls": "x"},
-    {"out": "- 'always' is absolute: back it with a k/n measurement where k is 0 or n, and keep the scope to the trials actually run — or say 'rarely' / 'in k of n'", "cls": "x", "wait": 1100},
-    {"type": "hypgraph add claim statement=\"The fine-tune is 5 points better than the baseline.\" scope=\"2,000 held-out items, greedy decoding, one seed.\" --link …"},
-    {"out": "refused: claim refused:", "cls": "x"},
-    {"out": "- numbers in the statement that no bound measurement, the scope or the investigation's constants account for: 5 — bind them to result fields (measurements) or move design constants into the scope", "cls": "x", "wait": 1100},
-    {"type": "hypgraph add claim kind=exclusion statement=\"Prompt format makes no difference to accuracy.\" scope=… --link …"},
-    {"out": "refused: claim refused:", "cls": "x"},
-    {"out": "- an exclusion needs a search that recovered a planted answer (a result with power=demonstrated, or a run of an experiment with a power_check) — otherwise file it as inconclusive", "cls": "x", "wait": 1100},
-    {"type": "hypgraph add claim statement=\"The fine-tune got 1624 of 2000 held-out items right, against 1568 for the baseline.\" scope=… measurements='[{… \"key\": \"finetune\", \"k\": 1624, \"n\": 2000}, {… \"key\": \"baseline\", \"k\": 1568, \"n\": 2000}]' --link …"},
-    {"out": "Added CL1 — active claim · unchecked · 1 independent line of support · unverified report · no external replication", "cls": "ok", "wait": 900},
-    {"type": "hypgraph --as eval-reviewer review CL1 pass --method \"Re-ran the scorer on the stored predictions.\" --notes \"1624 and 1568 reproduce.\""},
-    {"out": "CL1 — active claim · checked (eval-reviewer:pass, v1) · 1 independent line of support · unverified report · no external replication", "cls": "ok"}
-  ]</script>
+ {
+  "type": "hypgraph add claim statement=\"The fine-tune always beats the baseline.\" scope=… --link supports:from:RS1:\"the eval run\""
+ },
+ {
+  "out": "refused: claim refused:",
+  "cls": "x"
+ },
+ {
+  "out": "- 'always' is absolute: back it with a k/n measurement of what it's about, where k is 0 or n, and keep the scope to the trials actually run — or say 'rarely' / 'in k of n' [ABSOLUTE_WITHOUT_COUNT]",
+  "cls": "x"
+ },
+ {
+  "out": "- 'beats' compares, but there is nothing to compare: bind a measurement for each side (a k/n or value for both), or a difference with its interval [COMPARATIVE_WITHOUT_COMPARISON]",
+  "cls": "x",
+  "wait": 1100
+ },
+ {
+  "type": "hypgraph add claim statement=\"The fine-tune is 5 points better than the baseline.\" scope=… measurements='[… 1624/2000, 1568/2000 …]' --link …"
+ },
+ {
+  "out": "refused: claim refused:",
+  "cls": "x"
+ },
+ {
+  "out": "- numbers in the statement that no bound measurement, the scope or the investigation's constants account for: 5 — bind them to result fields (measurements) or move design constants into the scope [UNBOUND_NUMBER]",
+  "cls": "x",
+  "wait": 1100
+ },
+ {
+  "type": "hypgraph add claim statement=\"Prompt format makes no difference to accuracy.\" scope=… measurements=… --link …"
+ },
+ {
+  "out": "refused: claim refused:",
+  "cls": "x"
+ },
+ {
+  "out": "- 'makes no difference' says an effect is absent, so it is an exclusion: an exclusion needs a search that recovered a planted answer … At these sample sizes (2,000 and 2,000) a difference smaller than about 3.6 points would usually go unseen (80% power, α 0.05). [EXCLUSION_WITHOUT_POWER]",
+  "cls": "x",
+  "wait": 1100
+ },
+ {
+  "type": "hypgraph add claim statement=\"The fine-tune is significantly better: 81.2% against 78.4% on held-out items.\" scope=… measurements=… --link …"
+ },
+ {
+  "out": "Added CL1 — active claim · unchecked · 1 independent line of support · unverified report · no external replication · tested from its counts: difference 2.8 points, 95% interval 0.3 to 5.3, p = 0.027",
+  "cls": "ok",
+  "wait": 900
+ },
+ {
+  "type": "hypgraph --as eval-reviewer review CL1 pass --method \"Re-ran the scorer on the stored predictions.\" --notes \"1624 and 1568 reproduce.\""
+ },
+ {
+  "out": "CL1 — active claim · checked (eval-reviewer:pass, v1) · 1 independent line of support · … · p = 0.027",
+  "cls": "ok"
+ }
+]</script>
+</section>
+
+<section class="block" style="background:linear-gradient(180deg, color-mix(in srgb, var(--red) 6%, transparent), transparent)">
+  <div class="wrap grid2" style="align-items:center">
+    <div>
+      <div class="kicker" style="color:var(--red)">The arithmetic of never</div>
+      <h2 class="h">0 leaks in 50 tests still allows 58,155 across a million users.</h2>
+      <p class="sub">Zero failures in <i>n</i> trials doesn't mean zero — it means "probably below 3/<i>n</i>". HypGraph refuses
+        a "never" its count can't carry, says what the count does support, and puts the number of failures you haven't
+        ruled out into the claim's standing, where every claim and decision built on it can see it.</p>
+      <div class="row"><a class="btn primary" href="never/">See the arithmetic, and the cascade</a></div>
+    </div>
+    <div class="term"><div class="bar"><i></i><i></i><i></i><span>red-team — hypgraph</span></div>
+<pre><span class="p">$</span> hypgraph add claim statement="The model never leaks training data." exposure=1000000 …
+<span class="x">refused: 'never' rests on 0 of 50: that only rules out it happening more than 5.8% of the
+time (95% upper bound). Honest version: 'no occurrences in 50 trials (95% upper bound 5.8%)'.
+To support a rate below 1 in 1,000 you need about 2,995 trials without one. Across the
+1,000,000 users this claim applies to, that leaves up to 58,155 not ruled out.
+[ABSOLUTE_UNDERPOWERED]</span>
+<span class="p">$</span> hypgraph bound 0 50 --exposure 1000000 --unit users
+'never' here means: at most 5.8% — 1 in 20 — at 95% confidence
+  to bound it below 1 in 1,000: about 2,995 trials with none
+<span class="x">across 1,000,000 users: up to 58,155 not ruled out (95%)</span></pre></div>
+  </div>
 </section>
 
 <section class="block" id="explore">
@@ -186,7 +251,7 @@ hypgraph verify study.bundle.json</pre></div>
 <footer>
   <div class="wrap">
     <span class="slogan">Don't believe the hype. Test the hyp.</span>
-    <span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a> ·
+    <span>Made by Nicolas Houghtaling · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a> ·
       <a href="llms.txt">llms.txt</a> · <a href="spec/">spec</a></span>
   </div>
 </footer>

@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.2.0 — 2026-10-24
+
+**Refusal, remastered.** The claim checks now do the arithmetic the writer skipped, and every refusal says what the
+count actually supports and offers the honest sentence.
+
+- **The arithmetic of never.** "Never" / "always" / "eliminates" / "100%" need a count of what they're about with
+  k = 0 or n (`ABSOLUTE_WITHOUT_COUNT`, `ABSOLUTE_UNRELATED_COUNT`). That count needs a 95% bound under 5%
+  (`ABSOLUTE_UNDERPOWERED`: "0 of 3 only rules out more than 63%"), and the statement has to show its denominator
+  (`ABSOLUTE_HIDES_DENOMINATOR`). The bounds are exact at k = 0 (1 − 0.05^(1/n), the rule of three) and Wilson
+  otherwise.
+- **Exposure.** A claim can say how many uses, users or units it applies to (`exposure`, `exposure_unit`). Refusals
+  and the claim's standing then state how many failures the bound leaves unruled out: "up to 58,155 of 1,000,000".
+- **New rules:** `COMPARATIVE_WITHOUT_COMPARISON`, `SIGNIFICANCE_WITHOUT_TEST`, `SIGNIFICANCE_NOT_SHOWN` (the
+  record runs a two-proportion test on bound counts itself), `CAUSAL_WITHOUT_INTERVENTION`, and
+  `EXCLUSION_WITHOUT_POWER` for "no effect" however it is filed, with the smallest effect the sample could have
+  detected.
+- **True numbers pass.** Differences, ratios, percentages and relative changes computed from bound measurements are
+  accepted ("2.8 points", "81.2% vs 78.4%", "+3.6%"). Statistical quantities must be written to one decimal place, so
+  "5 points" can't borrow an interval's end.
+- **Refusals agents can act on:** a stable code on every line, and `GraphError.problems` with `code`, `message`,
+  `fix` and `words`.
+- **Blast radius.** `withdraw()`, and a review that makes a node fall, return `blast_radius`: what rests on it, by
+  type, with claims and decisions named (and spend, if metered). The CLI and MCP print it.
+- **`hypgraph bound K N --exposure X`** and the MCP tool `bound`: what a count supports, before anyone writes "never".
+- A claim's standing carries `bounds`, and `test` for "significantly" claims. Spec draft 2 (§7 rewritten).
+- Credits: made by Nicolas Houghtaling at VoodooMods LLC (README, NOTICE, CITATION.cff, package metadata, site).
+
 ## 0.1.0 — 2026-10-24
 
 First release on PyPI.

@@ -8,21 +8,59 @@ The evidence layer for AI research agents.<br>
 
 ---
 
-Agents doing research write fluent summaries. Some of the numbers in them match no result. "Always" gets written
-about one run, a search too weak to find anything becomes "ruled out", and three copies of one result get counted as
-three lines of evidence. HypGraph is the record they write into instead. It checks every claim as it's written, so
-those claims can't get in:
+Agents doing research write fluent summaries. Some of the numbers in them match no result. A clean red-team run of
+50 prompts becomes "the model never leaks". A search too weak to find anything becomes "ruled out", and three copies
+of one result get counted as three lines of evidence. Then other claims, decisions and deployments get built on top.
+HypGraph is the record agents write into instead. It checks every claim as it's written, does the arithmetic the
+writer skipped, and refuses:
 
 ```text
-$ hypgraph add claim statement="The fine-tune is 5 points better than the baseline." scope="2,000 held-out items, greedy decoding, one seed." --link "supports:from:RS1:the eval run"
+$ hypgraph add claim statement="The model never leaks training data." exposure=1000000 exposure_unit=users …
 refused: claim refused:
-- numbers in the statement that no bound measurement, the scope or the investigation's constants account for: 5 — bind them to result fields (measurements) or move design constants into the scope
+- 'never' rests on 0 of 50: that only rules out it happening more than 5.8% of the time (95% upper bound).
+  Honest version: 'no occurrences in 50 trials (95% upper bound 5.8%)'. To support a rate below 1 in 1,000 you need
+  about 2,995 trials without one. Across the 1,000,000 users this claim applies to, that leaves up to 58,155 not
+  ruled out. [ABSOLUTE_UNDERPOWERED]
 ```
 
-(The result said 1,624 against 1,568 correct out of 2,000. That's 2.8 points.)
+The honest version goes in, and it carries its consequence wherever it's read:
 
-Every refusal says what to fix, so an agent can act on it. Nothing in the record is ever *set* as known. How well
-each claim is known is **derived on every read**:
+```text
+active claim · unchecked · 1 independent line of support · … · 0 of 50 = at most 5.8% at 95%, up to 58,155 of 1,000,000 not ruled out
+```
+
+## The arithmetic of never
+
+"Never" is the most expensive word in research, because everything built on it inherits it. Zero failures in *n*
+trials doesn't mean a rate of zero. It means a rate below 1 − 0.05^(1/*n*), about 3/*n*, at 95% confidence. HypGraph
+holds every claim to that:
+
+| The claim says | Refused as | Because |
+|---|---|---|
+| "never leaks", from 0 of 50 | `ABSOLUTE_UNDERPOWERED` | it could still be 5.8%, up to 58,155 of a million users |
+| "never leaks", from 0 of 3,000, without saying 3,000 | `ABSOLUTE_HIDES_DENOMINATOR` | readers hear "never", but it means "at most 1 in 1,000" |
+| "eliminates hallucinations entirely" | `ABSOLUTE_WITHOUT_COUNT` | nothing was counted |
+| "5 points better" (the counts say 2.8) | `UNBOUND_NUMBER` | the number comes from nowhere. 2.8 points, 81.2% vs 78.4% and +3.6% all pass, because they follow from the counts. |
+| "significantly better", counts 812/1,000 vs 800/1,000 | `SIGNIFICANCE_NOT_SHOWN` | the record runs the test: p = 0.5 |
+| "prompt format has no effect" | `EXCLUSION_WITHOUT_POWER` | at 2,000 items a 3.6-point effect would usually go unseen |
+| "longer prompts cause the gain" | `CAUSAL_WITHOUT_INTERVENTION` | no experiment intervened |
+| "outperforms the baseline", no numbers | `COMPARATIVE_WITHOUT_COMPARISON` | only one side was measured |
+
+Every refusal has a stable code, the arithmetic, and the sentence that *would* be honest, so an agent can repair a
+claim in one step. `hypgraph bound 0 50 --exposure 1e6` (or the MCP tool `bound`) answers "what does my count
+actually support?" before anyone writes the word.
+
+And when something does fall, the record says what falls with it:
+
+```text
+$ hypgraph withdraw CL1 --why "the held-out set leaked into training"
+CL1 — withdrawn claim · …
+  ⚠ 2 nodes rest on CL1: 1 decision (D1); 1 claim (CL2) — now AT RISK
+```
+
+## Derived, never asserted
+
+Nothing in the record is ever *set* as known. How well each claim is known is **derived on every read**:
 
 - **reviewed, and which version?** Only named reviewers count, and never on their own work. A revised claim goes back
   to unchecked.
@@ -46,7 +84,7 @@ hypgraph skill --install                                                     # +
 The server writes as one author, fixed when it starts. The agent can't pass another name or write as your job runner,
 and its verdicts count only if you name it as a reviewer. Tools: `overview`, `find`, `show`, `start_investigation`,
 `add`, `link`, `revise`, `withdraw`, `retract_link`, `review`, `next_experiments`, `work_queue`, `claim_work`,
-`register_run`, `report`, `verify`, `schema`. The method is in [AGENTS.md](https://github.com/voodoomods/hypgraph/blob/main/AGENTS.md); the short version is
+`register_run`, `bound`, `report`, `verify`, `schema`. The method is in [AGENTS.md](https://github.com/voodoomods/hypgraph/blob/main/AGENTS.md); the short version is
 [llms.txt](https://hypgraph.com/llms.txt).
 
 ## Wire it into your system
@@ -103,6 +141,10 @@ The engine is pure Python and stays fast at the sizes research records reach. At
 standing takes 0.09 s, reading one node 0.3 ms, and a write about 10 ms, mostly SQLite committing to disk. A write
 costs what it touches: cached standing is kept for every node the write can't affect, and a randomized suite checks
 that against a full rebuild.
+
+## Made by
+
+HypGraph is made by **Nicolas Houghtaling** at **[VoodooMods LLC](https://github.com/voodoomods)**.
 
 ## License
 

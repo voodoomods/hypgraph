@@ -8,9 +8,10 @@ dynamic = ["version"]
 description = "The evidence layer for AI research agents: a hash-chained research record that checks every claim as it is written and derives how well each is known."
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.10"
-authors = [{ name = "Nicolas Houghtaling" }]
+authors = [{ name = "Nicolas Houghtaling" }, { name = "VoodooMods LLC" }]
+maintainers = [{ name = "VoodooMods LLC" }]
 keywords = ["ai-agents", "mcp", "agent-skills", "research", "provenance", "reproducibility", "evaluation", "hypothesis"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -45,7 +46,7 @@ path = "src/hypgraph/__init__.py"
 packages = ["src/hypgraph"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/hypgraph", "tests", "docs", "README.md", "LICENSE", "CITATION.cff", "AGENTS.md"]
+include = ["src/hypgraph", "tests", "docs", "README.md", "LICENSE", "NOTICE", "CITATION.cff", "AGENTS.md", "CHANGELOG.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "src/hypgraph/__init__.py"]

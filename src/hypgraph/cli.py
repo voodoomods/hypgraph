@@ -7,6 +7,7 @@ hypgraph — the command line.
     hypgraph add hypothesis statement="Blue light grows cress faster." predictions='["taller after 7 days"]'
     hypgraph add result summary="Blue trays averaged 41 mm, red 33 mm." values='{"blue_mm": {"value": 41}}'
     hypgraph link RS1 supports H1 --why "The blue trays grew taller, as H1 predicts."
+    hypgraph bound 0 300 --exposure 1e6 what "never, in 300 trials" really supports, at a million uses
     hypgraph show CL1 --why             what it rests on        (--impact: what rests on it, --history: versions)
     hypgraph report                     the facts, generated from the record
     hypgraph export -o study.json       a bundle anyone can verify:  hypgraph verify study.json
@@ -151,7 +152,10 @@ def cmd_review(args) -> int:
     g = _graph(args)
     n = g.review(author=_author(args), target=g.resolve(args.node, args.inv or ""), verdict=args.verdict,
                  method=args.method, notes=args.notes)
-    _out(args, n, f"{n['code']} — {n['state']['sentence']}")
+    text = f"{n['code']} — {n['state']['sentence']}"
+    if n.get("blast_radius"):
+        text += f"\n  ⚠ {n['blast_radius']['sentence']}"
+    _out(args, n, text)
     return 0
 
 
@@ -166,7 +170,9 @@ def cmd_revise(args) -> int:
 def cmd_withdraw(args) -> int:
     g = _graph(args)
     n = g.withdraw(author=_author(args), node=g.resolve(args.node, args.inv or ""), why=args.why)
-    _out(args, n, f"{n['code']} — {n['state']['sentence']}")
+    br = n.get("blast_radius") or {}
+    _out(args, n, f"{n['code']} — {n['state']['sentence']}" + (f"\n  ⚠ {br['sentence']} — now AT RISK"
+                                                                if br.get("count") else ""))
     return 0
 
 
@@ -298,6 +304,18 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def cmd_bound(args) -> int:
+    from .mcp import bound_text
+    from . import stats
+    if not (0 <= args.k <= args.n):
+        raise GraphError("give k (how many times it happened) and n (trials), with 0 <= k <= n")
+    lo, hi = stats.rate_bounds(args.k, args.n)
+    _out(args, {"k": args.k, "n": args.n, "rate": args.k / args.n, "lo": lo, "hi": hi,
+                "trials_for_1_in_1000": stats.trials_for(0.001)},
+         bound_text(args.k, args.n, args.exposure, args.unit))
+    return 0
+
+
 def cmd_schema(args) -> int:
     d = describe()
     if args.json:
@@ -409,6 +427,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("bundle")
     cmd("demo", cmd_demo, "build the Broad Street (1854) teaching investigation")
     cmd("schema", cmd_schema, "the node types and relations")
+    s = cmd("bound", cmd_bound, "what k of n actually supports: the 95% bounds behind any 'never'")
+    s.add_argument("k", type=int, help="how many times it happened")
+    s.add_argument("n", type=int, help="how many trials")
+    s.add_argument("--exposure", type=float, default=0, help="how many uses / users / units it will apply to")
+    s.add_argument("--unit", default="uses")
     s = cmd("skill", cmd_skill, "print the agent skill (SKILL.md), or --install it for Claude Code")
     s.add_argument("--install", action="store_true", help="write .claude/skills/hypgraph/SKILL.md")
     s.add_argument("--user", action="store_true", help="install under your home directory instead of this project")

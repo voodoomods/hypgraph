@@ -1,0 +1,8 @@
+HypGraph
+Copyright 2026 Nicolas Houghtaling and VoodooMods LLC
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+The record format specification and documentation are licensed under CC BY 4.0.
+
+This product includes software developed by third parties, shipped in src/hypgraph/ui/vendor/ under the MIT
+license: Cytoscape.js (The Cytoscape Consortium), layout-base, cose-base and cytoscape-fcose (iVis@Bilkent).

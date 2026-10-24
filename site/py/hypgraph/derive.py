@@ -16,6 +16,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Optional
 
+from . import language as lang
+from . import stats
 from .policy import Policy
 from .schema import NEGATIVE, POSITIVE, PROFILE_LABEL, PROFILE_RANK, RISKY, SAME_TYPE
 
@@ -273,6 +275,39 @@ def independent_lines(s: Snap, nid: str) -> int:
     return len(groups)
 
 
+def result_value(s: Snap, rid: str, key: str) -> Optional[dict]:
+    """A result's value under ``key`` as a dict ({"value": …} for a bare number), or None."""
+    r = s.nodes.get(rid)
+    if not r or r["type"] != "result":
+        return None
+    v = (r["body"].get("values") or {}).get(key)
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return {"value": v}
+    return v if isinstance(v, dict) else None
+
+
+def bounds(s: Snap, nid: str) -> list[dict]:
+    """For each count (k of n) a claim binds: the rate and its 95% bounds — what the count actually supports. At
+    k = 0 the upper bound is the exact one-sided 1 - 0.05^(1/n): "never, in n trials" means "below this"."""
+    body = s.nodes[nid]["body"]
+    out = []
+    for m in body.get("measurements") or []:
+        if not isinstance(m, dict):
+            continue
+        rv = result_value(s, str(m.get("result") or ""), str(m.get("key") or ""))
+        k, n = (rv or {}).get("k"), (rv or {}).get("n")
+        if not (isinstance(k, (int, float)) and isinstance(n, (int, float)) and n > 0 and 0 <= k <= n):
+            continue
+        lo, hi = stats.rate_bounds(int(k), int(n))
+        row = {"name": m.get("name") or m.get("key"), "k": int(k), "n": int(n), "rate": k / n, "lo": lo, "hi": hi}
+        x = body.get("exposure")
+        if isinstance(x, (int, float)) and x > 0:
+            row["exposure"] = x
+            row["unruled_out"] = round((hi if k == 0 else 1 - lo) * x)
+        out.append(row)
+    return out
+
+
 def basis_changed(s: Snap, nid: str) -> list[dict]:
     """A decision's basis that is no longer what the decision saw: a node revised since the decision cited it."""
     out = []
@@ -324,6 +359,12 @@ def state(s: Snap, nid: str) -> dict:
         st["execution"] = n["body"].get("state") or "unknown"
     if t == "result":
         st["outcome"] = n["body"].get("outcome") or "unstated"
+    if t == "claim":
+        b = bounds(s, nid)
+        if b:
+            st["bounds"] = b
+        if len(b) >= 2 and lang.found(lang.SIGNIFICANCE, n["body"].get("statement", "")):
+            st["test"] = stats.two_proportions(b[0]["k"], b[0]["n"], b[1]["k"], b[1]["n"])
     if t in ("claim", "hypothesis"):
         st["evidence"] = profile(s, nid)
         st["independent_lines"] = independent_lines(s, nid)
@@ -377,6 +418,21 @@ def sentence(s: Snap, nid: str, st: dict) -> str:
             parts.append(f"{st['challenges']} challenge(s)")
         if st.get("unsupported"):
             parts.append("UNSUPPORTED — every support has fallen")
+    absolute = lang.found(lang.ABSOLUTE, n["body"].get("statement", "")) if n["type"] == "claim" else []
+    for b in st.get("bounds") or []:
+        if b["k"] in (0, b["n"]) and (absolute or b.get("unruled_out") is not None):
+            worst = b["hi"] if b["k"] == 0 else 1 - b["lo"]
+            label = f"'{absolute[0]}' = at most" if absolute else f"{b['k']} of {b['n']:,} = at most"
+            note = f"{label} {stats.pct(worst)} ({b['k']} of {b['n']:,}, 95%)" if absolute else \
+                f"{label} {stats.pct(worst)} at 95%"
+            if b.get("unruled_out") is not None:
+                note += f", up to {b['unruled_out']:,} of {b['exposure']:,.0f} not ruled out"
+            parts.append(note)
+            break
+    if st.get("test"):
+        x = st["test"]
+        parts.append(f"tested from its counts: difference {x['diff'] * 100:.1f} points, 95% interval "
+                     f"{x['lo'] * 100:.1f} to {x['hi'] * 100:.1f}, p = {x['p']:.2g}")
     if st.get("basis_changed"):
         parts.append("REVISIT — its basis changed: " + ", ".join(
             f"{b['code']} v{b['was_v']}→v{b['now_v']}" for b in st["basis_changed"][:5]))

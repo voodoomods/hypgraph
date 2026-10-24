@@ -5,7 +5,9 @@
 Use HypGraph whenever you investigate a question with evidence and need to say what is established. Rules the record enforces:
 
 - Every number in a claim must be bound to a result field (`measurements`), the scope, or a declared constant.
-- "always / never / all / proves" need a measurement with k = 0 or k = n.
+- "never / always / eliminates / 100%" need a count with k = 0 or k = n, a 95% bound under 5% (0 of 50 → could still be 5.8%), and n stated in the claim. Check with `hypgraph bound K N --exposure X` or the MCP tool `bound`.
+- "beats / outperforms" need both sides measured; "significantly" needs a test (the record tests two bound counts itself); "causes" needs an experiment that intervened. Numbers computed from bound counts pass; invented ones are refused.
+- Every refusal ends in a code like [ABSOLUTE_UNDERPOWERED] and gives the honest sentence. Withdrawing or contesting a node reports its blast radius: what now rests on something that fell.
 - `kind: exclusion` needs a search shown to recover a planted answer (`power: demonstrated`); otherwise use `inconclusive`.
 - `tests` links need `data.expected`, written before running. `supports` / `challenges` need a `why`.
 - Only named reviewers set standing, never on their own work. Revising a node makes its reviews stale.
@@ -18,6 +20,7 @@ Connect: `pip install "hypgraph[mcp]"` then `claude mcp add hypgraph -- hypgraph
 - [Agent skill](https://hypgraph.com/SKILL.md): the method, refusals and their fixes (Agent Skills format)
 - [For agents](https://hypgraph.com/agents.md): MCP setup, tools, reading standing
 - [Record format](https://hypgraph.com/spec/): nodes, edges, events, hash chain, bundles, derivation rules
+- [The arithmetic of never](https://hypgraph.com/never/): what 0 of n really supports, and what it costs at scale
 - [Schema](https://hypgraph.com/schema/hypgraph-1.json): node types, fields, relations, verdicts as JSON
 
 ## Examples

@@ -28,14 +28,19 @@ from typing import Any, Callable, Optional
 
 from . import derive as D
 from . import store
-from .checks import claim_problems
+from .checks import claim_issues
 from .policy import Policy
 from .schema import REPLICATION, RELS, SAME_TYPE, TYPES, VERDICTS
 from .store import canon, now
 
 
 class GraphError(ValueError):
-    """A write the graph refuses — the message says what to fix."""
+    """A write the graph refuses — the message says what to fix. A refused claim also carries ``problems``: one dict
+    per rule it broke, with a stable ``code``, the ``message``, a ``fix`` and the offending ``words``."""
+
+    def __init__(self, message: str, problems: list | None = None):
+        super().__init__(message)
+        self.problems = problems or []
 
 
 SpendFn = Callable[..., dict]
@@ -508,7 +513,7 @@ class Graph:
     def create(self, *, author: str, type: str, fields: dict, inv: str = "", links: list | None = None,
                code: str = "", node_id: str = "", reason: str = "", at: str = "", attribute_to: str = "") -> dict:
         """Add a node (version 1) with its links. ``links``: [{"rel", "to"} | {"rel", "from"}, "why", "data"].
-        Claims are checked (checks.claim_problems) unless a curator writes them or the investigation is non-strict.
+        Claims are checked (checks.claim_issues) unless a curator writes them or the investigation is non-strict.
         Artifacts are content-addressed: the same bytes are one node."""
         P = self.policy
         author = str(author or "").strip()[:40]
@@ -562,9 +567,10 @@ class Graph:
                     body = self._bind_measurements(s, body, inv)
                     staged["body"] = body
                 if type == "claim" and author not in P.curators:
-                    problems = claim_problems(s, body, self._support_ids(s, nid, pending), inv)
+                    problems = claim_issues(s, body, self._support_ids(s, nid, pending), inv)
                     if problems:
-                        raise GraphError("claim refused:\n- " + "\n- ".join(problems))
+                        raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems),
+                                         [p.to_dict() for p in problems])
 
                 def write(con):
                     self._rate(con, author)
@@ -619,9 +625,10 @@ class Graph:
                     raise GraphError("a run's kind (lab / agent / external) is where its record came from; it doesn't "
                                      "change")
                 if n["type"] == "claim" and author not in P.curators:
-                    problems = claim_problems(s, body, self._support_ids(s, node, []), n["inv"])
+                    problems = claim_issues(s, body, self._support_ids(s, node, []), n["inv"])
                     if problems:
-                        raise GraphError("revision refused:\n- " + "\n- ".join(problems))
+                        raise GraphError("revision refused:\n- " + "\n- ".join(p.text() for p in problems),
+                                         [p.to_dict() for p in problems])
                 at = self.clock()
 
                 def write(con):
@@ -692,7 +699,40 @@ class Graph:
                 self._transaction(write)
             finally:
                 self._after_write()
-        return self.get(node)
+        return self.get(node) | {"blast_radius": self.blast_radius(node)}
+
+    def blast_radius(self, nid: str) -> dict:
+        """What falls if this node falls: everything that rests on it, by type, with the claims and decisions named,
+        and — when a spend meter is connected — what the work behind them cost. Returned by withdraw() and by a
+        review that contests a node, so a correction always shows its consequences."""
+        s = self.snapshot()
+        if nid not in s.nodes:
+            raise KeyError(nid)
+        dep = D.dependents(s, nid)
+        ids = [d for d, _r, _k in dep if d in s.nodes and s.nodes[d]["type"] not in ("review", "artifact")]
+        by: dict[str, list] = defaultdict(list)
+        for d in ids:
+            by[s.nodes[d]["type"]].append(s.nodes[d]["code"] or d)
+        out = {"node": nid, "code": s.nodes[nid]["code"], "count": len(ids), "by_type": {k: len(v) for k, v in by.items()},
+               "claims": by.get("claim", [])[:50], "decisions": by.get("decision", [])[:50],
+               "results": by.get("result", [])[:50], "hypotheses": by.get("hypothesis", [])[:50]}
+        if self.spend is not None and ids and s.nodes[nid]["inv"]:
+            try:
+                idset = set(ids)
+                tasks = {t for e in s.events if e["ref"] in idset for t in [(e["payload"] or {}).get("task")] if t}
+                led = self.spend(s.nodes[nid]["inv"], tasks) if tasks else {"usd": 0.0}
+                out["usd"] = round(float(led.get("usd") or 0), 2)
+            except Exception:  # noqa: BLE001 - a spend problem never hides the consequences
+                pass
+        if not ids:
+            out["sentence"] = f"nothing rests on {out['code'] or nid}"
+        else:
+            parts = [f"{len(v)} {k}{'s' if len(v) != 1 else ''} ({', '.join(v[:6])}{'…' if len(v) > 6 else ''})"
+                     for k, v in sorted(by.items(), key=lambda x: (x[0] != "decision", x[0] != "claim", x[0]))]
+            out["sentence"] = (f"{len(ids)} node{'s' if len(ids) != 1 else ''} rest on {out['code'] or nid}: "
+                               + "; ".join(parts)
+                               + (f" — ${out['usd']:,.2f} of work behind them" if out.get("usd") else ""))
+        return out
 
     def review(self, *, author: str, target: str, verdict: str, method: str, notes: str, links: list | None = None,
                at: str = "", attribute_to: str = "") -> dict:
@@ -735,7 +775,10 @@ class Graph:
                 self._transaction(write)
             finally:
                 self._after_write()
-        return self.get(target)
+        out = self.get(target)
+        if out["state"].get("fallen"):
+            out["blast_radius"] = self.blast_radius(target)
+        return out
 
     def lease(self, *, author: str, node: str, task: str = "", minutes: int = 240, release: bool = False,
               note: str = "") -> dict:

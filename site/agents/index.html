@@ -15,7 +15,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
   <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="../agents/" aria-current="page">Agents</a><a href="../engineers/">Engineers</a>
+  <nav aria-label="Site"><a href="../agents/" aria-current="page">Agents</a><a href="../engineers/">Engineers</a><a href="../never/">Never</a>
     <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
     <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
@@ -93,6 +93,7 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
     <tr><td><code>link(src, rel, dst, why, data?)</code></td><td>Typed links; a backwards link is turned round when only the reverse is allowed.</td></tr>
     <tr><td><code>revise</code> · <code>withdraw</code> · <code>retract_link</code></td><td>Corrections as new rows; nothing is erased.</td></tr>
     <tr><td><code>review(node, verdict, method, notes)</code></td><td>A verdict on the current version.</td></tr>
+    <tr><td><code>bound(k, n, exposure)</code></td><td>What a count supports: the 95% bounds behind any "never", trials needed, failures not ruled out at scale.</td></tr>
     <tr><td><code>next_experiments</code> · <code>work_queue</code> · <code>claim_work</code></td><td>What to run next; what's waiting; take a node so others see who's on it.</td></tr>
     <tr><td><code>register_run(name, code_paths, input_paths, output_paths, result_summary, result_values)</code></td><td>Record a computation with hashed files.</td></tr>
     <tr><td><code>report</code> · <code>verify</code> · <code>schema</code></td><td>The generated facts; the chain check; the vocabulary.</td></tr>
@@ -102,16 +103,26 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
   <code>hypgraph://investigation/{inv}/report</code>. Prompt: <code>method</code>.</p>
 
 <h2 id="refusals">Refusals are instructions</h2>
+<p>Each refused claim lists one line per problem, ending in a stable code. The message has done the arithmetic and
+  usually contains the honest sentence — use it. In Python, <code>GraphError.problems</code> gives
+  <code>code</code>, <code>message</code>, <code>fix</code> and <code>words</code>.</p>
 <table>
-  <thead><tr><th>the record says</th><th>do this</th></tr></thead>
+  <thead><tr><th>code</th><th>do this</th></tr></thead>
   <tbody>
-    <tr><td>numbers in the statement that no bound measurement … account for</td><td>Bind the number to a result field (or move a design constant into the scope). Don't drop the number to get past.</td></tr>
-    <tr><td>'always' is absolute</td><td>Back it with k of n, k = 0 or n — or write "in k of n".</td></tr>
-    <tr><td>an exclusion needs a search that recovered a planted answer</td><td>Run a power check and mark the result <code>power: demonstrated</code>, or file it as <code>inconclusive</code>.</td></tr>
-    <tr><td>tests …: give data.expected</td><td>Say what the experiment should show if that hypothesis is true.</td></tr>
-    <tr><td>you can't review your own work</td><td>Ask a named reviewer.</td></tr>
+    <tr><td><code>ABSOLUTE_UNDERPOWERED</code></td><td>"never" on 0 of n with too few trials. Write the honest sentence it gives ("no occurrences in n trials (95% upper bound X)"), or run the trials it says you need.</td></tr>
+    <tr><td><code>ABSOLUTE_HIDES_DENOMINATOR</code></td><td>Put n in the statement: "never, in 3,000 probes".</td></tr>
+    <tr><td><code>ABSOLUTE_WITHOUT_COUNT</code> · <code>ABSOLUTE_UNRELATED_COUNT</code></td><td>Say what was seen ("in k of n"); name the count after what it counts.</td></tr>
+    <tr><td><code>UNBOUND_NUMBER</code></td><td>Bind it to a result field. Differences, percentages, ratios and intervals computed from bound counts pass — never drop the number to get past.</td></tr>
+    <tr><td><code>EXCLUSION_WITHOUT_POWER</code></td><td>"No effect" needs a search shown to find a planted effect (<code>power: demonstrated</code>). Otherwise file <code>kind: inconclusive</code> and say "no detectable effect" — the refusal says how large an effect could have hidden.</td></tr>
+    <tr><td><code>COMPARATIVE_WITHOUT_COMPARISON</code></td><td>Bind both sides.</td></tr>
+    <tr><td><code>SIGNIFICANCE_WITHOUT_TEST</code> · <code>SIGNIFICANCE_NOT_SHOWN</code></td><td>Bind both sides as k/n (the record tests them) or a p-value; if it isn't significant, say so.</td></tr>
+    <tr><td><code>CAUSAL_WITHOUT_INTERVENTION</code></td><td>Say "is associated with", or support it from an experiment that intervened.</td></tr>
   </tbody>
 </table>
+<p><b>Before writing never or always,</b> call <code>bound(k, n, exposure)</code>: what the count supports and how many
+  failures it leaves unruled out at the scale the claim will be used. Set <code>exposure</code> on the claim so its
+  standing carries that number. <b>When you withdraw or contest a node,</b> the reply lists what now rests on something
+  that fell — tell their owners. The full story: <a href="../never/">the arithmetic of never</a>.</p>
 
 <h2 id="standing">Reading standing</h2>
 <blockquote>active claim · checked (fisher:pass, v2) · 2 independent lines of support · replicated on new data · no external replication</blockquote>
@@ -139,7 +150,7 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
 </div>
 </main>
 <footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
-<span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<span>Made by Nicolas Houghtaling · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
 <script src="../assets/site.js" defer></script>
 </body>
 </html>
