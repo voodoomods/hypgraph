@@ -31,7 +31,8 @@ all = ["fastmcp>=2.12", "pytest>=8"]
 
 [project.urls]
 Homepage = "https://hypgraph.com"
-Documentation = "https://hypgraph.com/docs/"
+Documentation = "https://hypgraph.com/engineers/"
+Changelog = "https://github.com/voodoomods/hypgraph/blob/main/CHANGELOG.md"
 Source = "https://github.com/voodoomods/hypgraph"
 
 [project.scripts]

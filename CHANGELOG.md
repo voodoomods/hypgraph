@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 — 2026-10-24
+
+First release on PyPI.
 
 - **Writes cost what they touch.** A write no longer copies the whole in-memory snapshot. Tables are shallow
   copies, and a node's list is copied only when the write appends to it. Derived standing is kept for every node the
@@ -14,9 +16,9 @@
   Skill; a new engineering guide (`/engineers/`) replaces the human guide; the eval-report example replaces the
   classroom one.
 
-## 0.1.0 — 2026-10-24
+### Extracted from PegasusDMZ
 
-First release. Extracted from the PegasusDMZ research graph and verified against it: on a copy of Pegasus's live
+Extracted from the PegasusDMZ research graph and verified against it: on a copy of Pegasus's live
 graph (1,357 events, 790 nodes in 5 investigations), the library reproduces the same chain head, every node's
 standing, the work queues and the next-experiment rankings.
 

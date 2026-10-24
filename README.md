@@ -1,10 +1,10 @@
-<p align="center"><img src="site/assets/hypgraph.svg" width="72" alt=""></p>
+<p align="center"><img src="https://hypgraph.com/assets/hypgraph.svg" width="72" alt=""></p>
 
 <h1 align="center">HypGraph</h1>
 <p align="center"><b>Don't believe the hype. Test the hyp.</b><br>
 The evidence layer for AI research agents.<br>
 <a href="https://hypgraph.com">hypgraph.com</a> · <a href="https://hypgraph.com/agents/">for agents</a> ·
-<a href="https://hypgraph.com/engineers/">for engineers</a> · <a href="docs/spec.md">record format</a></p>
+<a href="https://hypgraph.com/engineers/">for engineers</a> · <a href="https://hypgraph.com/spec/">record format</a></p>
 
 ---
 
@@ -46,7 +46,7 @@ hypgraph skill --install                                                     # +
 The server writes as one author, fixed when it starts. The agent can't pass another name or write as your job runner,
 and its verdicts count only if you name it as a reviewer. Tools: `overview`, `find`, `show`, `start_investigation`,
 `add`, `link`, `revise`, `withdraw`, `retract_link`, `review`, `next_experiments`, `work_queue`, `claim_work`,
-`register_run`, `report`, `verify`, `schema`. The method is in [AGENTS.md](AGENTS.md); the short version is
+`register_run`, `report`, `verify`, `schema`. The method is in [AGENTS.md](https://github.com/voodoomods/hypgraph/blob/main/AGENTS.md); the short version is
 [llms.txt](https://hypgraph.com/llms.txt).
 
 ## Wire it into your system
@@ -106,5 +106,5 @@ that against a full rebuild.
 
 ## License
 
-Code: [Apache-2.0](LICENSE). The record format ([docs/spec.md](docs/spec.md)) and the docs: CC BY 4.0. Cite it with
-[CITATION.cff](CITATION.cff).
+Code: [Apache-2.0](https://github.com/voodoomods/hypgraph/blob/main/LICENSE). The record format ([docs/spec.md](https://github.com/voodoomods/hypgraph/blob/main/docs/spec.md)) and the docs: CC BY 4.0. Cite it with
+[CITATION.cff](https://github.com/voodoomods/hypgraph/blob/main/CITATION.cff).
