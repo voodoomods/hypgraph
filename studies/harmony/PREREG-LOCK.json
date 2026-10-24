@@ -59,6 +59,27 @@
     "hypgraph": "6c8f15108038af3c19564401ee89fc4507d0fdc8",
     "pegasus": "89e78354c1f47d5bf89e2d54847f7ca4aadd018e+dirty"
    }
+  },
+  {
+   "at": "2026-10-24T23:50:44Z",
+   "ids": [
+    "D-8"
+   ],
+   "note": "engine fixes from the pilot records; lock now hashes the whole engine",
+   "files": {
+    "hypgraph/coord": "a63819d8943389d8f98e9bc5303cceb70ebcbd15795b007e277aaea671e6f3f9",
+    "hypgraph/src": "a62478e807e0e4509889be266c7076cebfae0647e434da73f0532ff9fc660bb0",
+    "runner": "e849003a6bd10f83e1b30614c59326ac555a44f943d65b7389b7b7a278667454"
+   },
+   "was": {
+    "hypgraph/coord": "2c2e62d20f0ceb0c3d3280d8538e0461646a78def3fad8eaf5c3462bb310edfb",
+    "hypgraph/src": null,
+    "runner": "62319bb0a3d97f8eeebc9205831219cbe85834b191eb78f8c7e233de93b5fe70"
+   },
+   "git": {
+    "hypgraph": "bc452159a1c87d0c70ac91ac17cb16d87cc33d5e",
+    "pegasus": "c14946cd4b714fc8d70e9c2e2e6399436c35026f+dirty"
+   }
   }
  ]
 }
