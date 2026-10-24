@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>For engineers — HypGraph</title>
+<meta name="description" content="Wire HypGraph into an agent system: policy and roles, MCP and tool wrappers, recorded runs, ML eval reports, spend, the JSON API, the Atlas and verifiable bundles in CI.">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/" aria-current="page">Engineers</a>
+    <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+</div></header>
+
+<main id="main">
+<div class="phead"><div class="wrap"><div class="kicker">For engineers &amp; scientists</div>
+  <h1>Give your agents a record they can't flatter.</h1>
+  <p>One Python package, no dependencies. You decide who reviews, whose runs count as recorded, and what the work
+    costs; HypGraph enforces it, checks every claim as it's written, and derives what's actually been shown.</p></div></div>
+
+<div class="wrap doc">
+<nav class="toc" aria-label="On this page">
+  <a href="#install">Install</a><a href="#model">The model</a><a href="#policy">Policy &amp; roles</a>
+  <a href="#connect">Connecting agents</a><a href="#runs">Recording runs</a><a href="#evals">Recipe: eval reports</a>
+  <a href="#spend">Cost</a><a href="#http">HTTP &amp; the Atlas</a><a href="#ci">Bundles in CI</a>
+  <a href="#perf">Performance</a><a href="#reference">Reference deployment</a>
+</nav>
+<article class="prose">
+
+<h2 id="install">Install</h2>
+<div class="code"><pre>pip install hypgraph            # engine, CLI, JSON API, Atlas — standard library only
+pip install "hypgraph[mcp]"     # + the MCP server (FastMCP)</pre></div>
+<p>Python 3.10+. One SQLite file per record (<code>Graph("research.hypgraph")</code>), or <code>Graph()</code> in
+  memory for tests and notebooks.</p>
+
+<h2 id="model">The model</h2>
+<p>Typed nodes — question, hypothesis, experiment, run, result, claim, source, review, decision — joined by typed links
+  whose endpoints are enforced (<code>supports</code>, <code>challenges</code>, <code>requires</code>,
+  <code>tests</code>, <code>produced</code>, <code>replicates</code>, <code>based_on</code> …). Every table is
+  append-only; every write is an event in a SHA-256 chain. Nothing about standing is stored. Each read derives:</p>
+<ul>
+  <li><b>review</b> — checked / unchecked / contested / stale, from reviewers' verdicts on the current version;</li>
+  <li><b>risk</b> — fallen premises upstream (<code>AT RISK</code>), decisions whose basis moved (<code>REVISIT</code>),
+    every support fallen (<code>UNSUPPORTED</code>);</li>
+  <li><b>independent lines</b> — supports that share no run, data artifact or source;</li>
+  <li><b>evidence</b> — the strongest line: agent-reported → instrument-recorded → reproduced → separate
+    implementation → new data → external source.</li>
+</ul>
+<p>The full rules are in the <a href="../spec/">record format</a>; <code>hypgraph schema --json</code> prints the
+  vocabulary.</p>
+
+<h2 id="policy">Policy &amp; roles</h2>
+<div class="code"><pre>from hypgraph import Graph, Policy
+
+POLICY = Policy(
+    reviewers={"critic", "stats-reviewer"},   # whose verdicts count (an investigation can add its own)
+    instrument="runner",                      # the only author whose kind=lab runs are "recorded" evidence
+    operator="operator",                      # revises anything, settles disputes
+    importer="importer",                      # brings legacy records in, with their original dates
+)
+g = Graph("research.hypgraph", policy=POLICY)</pre></div>
+<div class="callout"><b>Authentication is yours.</b> HypGraph takes <code>author=</code> at its word. Wherever an
+  agent reaches the graph, fix its author on your side and refuse <code>POLICY.reserved</code> — that's what the bundled
+  MCP server and HTTP API do.</div>
+<p>A pattern that works for a team of agents:</p>
+<table>
+  <thead><tr><th>role in your system</th><th>in HypGraph</th></tr></thead>
+  <tbody>
+    <tr><td>worker agents (researchers, analysts)</td><td>each its own author name; their claims are checked; their reviews are comments</td></tr>
+    <tr><td>critic / reviewer agents</td><td><code>reviewers</code>; their verdicts set standing; never on their own nodes</td></tr>
+    <tr><td>the job runner / sandbox that executes code</td><td><code>instrument</code>: files runs with hashes, so results count as recorded</td></tr>
+    <tr><td>you, or an orchestrator acting for you</td><td><code>operator</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="connect">Connecting agents</h2>
+<h3>MCP</h3>
+<p>One server process per agent identity — the author is fixed at start:</p>
+<div class="code"><pre>hypgraph --db research.hypgraph --as critic mcp                                # stdio
+hypgraph --db research.hypgraph --as worker-1 mcp --transport http --port 8766 # streamable HTTP</pre></div>
+<p>Or build it in-process (custom policy, your own auth): <code>hypgraph.mcp.build(graph, author="worker-1")</code>
+  returns the FastMCP server.</p>
+<h3>Agent Skill</h3>
+<p><code>hypgraph skill --install</code> writes <code>.claude/skills/hypgraph/SKILL.md</code>: the method, the refusals
+  and their fixes, through the CLI.</p>
+<h3>Your own tools</h3>
+<p>Any framework that takes Python functions as tools (Claude Agent SDK, LangGraph, OpenAI Agents …) — return the
+  refusal text so the model can act on it:</p>
+<div class="code"><pre>from hypgraph import GraphError
+
+def add_claim(statement: str, scope: str, result: str, measurements: list[dict], why: str) -&gt; str:
+    """Add a claim supported by a result; every number in the statement must be bound in measurements."""
+    try:
+        n = g.create(author=AGENT_NAME, type="claim", inv=INV,
+                     fields={"statement": statement, "scope": scope, "measurements": measurements},
+                     links=[{"rel": "supports", "from": result, "why": why}])
+        return f"Added {n['code']}: {n['state']['sentence']}"
+    except GraphError as e:
+        return f"Refused — fix this and retry:\n{e}"</pre></div>
+<p>Put <code>g.report(inv)["markdown"]</code> or the MCP <code>overview</code> text in the agent's context at the
+  start of a task, so it reads what's established before re-deriving it.</p>
+
+<h2 id="runs">Recording runs</h2>
+<div class="code"><pre>from hypgraph import file_sha256
+
+data, code = file_sha256("evals/heldout.jsonl"), file_sha256("eval.py")
+a_data = g.create(author="runner", type="artifact", inv=INV, fields={**data, "format": "jsonl"})["id"]
+a_code = g.create(author="runner", type="artifact", inv=INV, fields={**code, "format": "py"})["id"]
+run = g.create(author="runner", type="run", inv=INV, fields={"kind": "lab", "state": "succeeded", "seed": 7},
+               links=[{"rel": "uses", "to": a_data, "data": {"role": "data"}},
+                      {"rel": "uses", "to": a_code, "data": {"role": "code"}}])["id"]
+res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced", "from": run}],
+               fields={"summary": "Held-out accuracy, fine-tune vs baseline.",
+                       "values": {"finetune": {"k": 1624, "n": 2000}, "baseline": {"k": 1568, "n": 2000}}})["id"]</pre></div>
+<p>Artifacts are content-addressed (same bytes, one node), so two results computed from the same data merge into
+  one line of evidence automatically. A rerun links <code>replicates</code> with <code>data.differs</code>
+  (<code>new_seed</code>, <code>new_impl</code>, <code>new_data</code> …) and raises the evidence profile.</p>
+
+<h2 id="evals">Recipe: eval reports that hold up</h2>
+<ol>
+  <li><b>Preregister.</b> An experiment with <code>tests</code> links to each hypothesis ("fine-tune is better",
+    "no difference"), each with <code>data.expected</code>, before running.</li>
+  <li><b>Record the run</b> as above; put counts in result values as <code>{k, n}</code>, not just percentages.</li>
+  <li><b>Claim with measurements.</b> "1,624 of 2,000 against 1,568" binds; "5 points better" with no result field for
+    5 is refused.</li>
+  <li><b>"No difference" needs power.</b> Plant a known effect (inject a 2-point gap into a copy of the predictions),
+    show the comparison detects it at this sample size, and mark that result <code>power: "demonstrated"</code>. Without
+    it, file the claim as <code>inconclusive</code> — the record insists.</li>
+  <li><b>Review.</b> A critic agent re-runs the scorer on the stored predictions; its <code>pass</code> or
+    <code>fail</code> pins to this version of the claim.</li>
+  <li><b>Report.</b> <code>g.report(inv)["markdown"]</code> is the facts table for the top of the write-up; it can't
+    restate a withdrawn claim.</li>
+</ol>
+
+<h2 id="spend">Cost</h2>
+<div class="code"><pre>def spend(inv, tasks, since=None):            # your meter: model calls per task id
+    rows = ledger.calls(task_ids=tasks, since=since)
+    return {"usd": sum(r.usd for r in rows), "calls": len(rows), "input_tokens": ..., "cached_tokens": ...,
+            "output_tokens": ..., "by_task": [{"task_id": t, "usd": ...} for t in tasks]}
+
+g = Graph("research.hypgraph", policy=POLICY, spend=spend)
+with g.writing_for(task_id):                    # events carry the task
+    g.create(...)
+g.cost(inv)        # $ for the investigation, per node, per verdict, and since the record last moved</pre></div>
+
+<h2 id="http">HTTP &amp; the Atlas</h2>
+<div class="code"><pre>hypgraph serve --db research.hypgraph            # Atlas + JSON API on 127.0.0.1:8765, read-only
+hypgraph serve --db research.hypgraph --writable # + POST /api/graph/write</pre></div>
+<p>In your own app (FastAPI shown; any framework works):</p>
+<div class="code"><pre>from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from hypgraph.server import dispatch
+from hypgraph.ui import static_dir
+
+app = FastAPI()
+app.mount("/atlas", StaticFiles(directory=static_dir(), html=True))
+
+@app.get("/api/graph/{path:path}")
+def graph_api(path: str, request: Request):
+    status, body = dispatch(g, "GET", "/" + path, dict(request.query_params))
+    return body          # (set the status code too)</pre></div>
+<p>The Atlas itself is framework-free: <code>HypAtlas.mount(el, {source: HypAtlas.HttpSource('/api/graph')})</code>,
+  or <code>HypAtlas.BundleSource(bundle)</code> with no server at all. Theme it with <code>--hg-*</code> CSS variables.</p>
+
+<h2 id="ci">Bundles in CI</h2>
+<div class="code"><pre>hypgraph export -o record.bundle.json     # every event as the exact string that was hashed
+hypgraph verify record.bundle.json        # exit 1 if anything was edited</pre></div>
+<p>Publish the bundle's <code>head</code> hash somewhere you don't control (a tag, a paper, a ticket) when a result
+  ships: a later record that passes through that hash can't have rewritten anything before it. Reviewers can check a
+  bundle at <a href="../verify/">/verify</a> without installing anything.</p>
+
+<h2 id="perf">Performance</h2>
+<table>
+  <thead><tr><th>nodes</th><th>derive all standing</th><th>read one node</th><th>write</th><th>verify chain</th></tr></thead>
+  <tbody>
+    <tr><td>1,000</td><td>0.02 s</td><td>0.1 ms</td><td>~6 ms</td><td>0.02 s</td></tr>
+    <tr><td>3,300</td><td>0.07 s</td><td>0.2 ms</td><td>~7 ms</td><td>0.07 s</td></tr>
+    <tr><td>10,000</td><td>0.09 s</td><td>0.3 ms</td><td>~10 ms</td><td>0.18 s</td></tr>
+  </tbody>
+</table>
+<p>Pure Python, measured on a laptop. A write costs what it touches: snapshots share untouched data, and cached
+  standing survives for every node the write can't reach (checked against a full rebuild by a randomized test
+  suite). Most of a write is SQLite committing to disk.</p>
+
+<h2 id="reference">Reference deployment</h2>
+<p>HypGraph is the research graph of PegasusDMZ — a governed team of a few dozen AI agents doing long investigations
+  behind an egress firewall. There, the graph lives in the proxy; agents reach it only through a broker that fixes
+  their author; the lab's job runner is the instrument; critic agents form a review board; a heartbeat routes
+  unchecked claims to reviewers and fallen premises back to their authors; and spend comes from the proxy's metered
+  ledger. Its Atlas is this package's.</p>
+</article>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
+<span>Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../assets/site.js" defer></script>
+</body>
+</html>

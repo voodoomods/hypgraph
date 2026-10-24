@@ -17,13 +17,15 @@ trials. The library turns each of those mistakes into a rule that is enforced wh
 
 ## Who it is for
 
+Refocused 2026-10-24: agents first, and the people who deploy them.
+
 | Who | What they get |
 |---|---|
-| **Students** | A lab notebook that asks "how do you know?" at the moment you write a claim. A record a teacher can verify. |
-| **Teachers** | Classroom investigations (the Broad Street cholera case ships as a demo) where the method is part of the grade. |
-| **Researchers & labs** | A provenance record for a paper: claims bound to the numbers they cite, runs hashed, reviews pinned to versions. One `bundle.json` that anyone can verify. |
-| **AI agents** | An MCP server (FastMCP). The agent's claims are checked before they enter the record, and agents can't review their own work. |
-| **Tool builders** | An open record format (`hypgraph/1`), a JSON-over-HTTP API, and a framework-free Atlas explorer you can embed. |
+| **AI agents** | An MCP server and an Agent Skill. Claims are checked before they enter the record, an agent can't review its own work, and every refusal says what to fix. |
+| **AI/ML engineers** | One dependency-free package to wire in: roles as policy (reviewers, the job runner as instrument), tool wrappers, the JSON API, the Atlas, spend per investigation. |
+| **Scientists running agents** | Eval reports and findings whose numbers are bound to the runs that produced them, with premise chains and reviews kept honest by the record. |
+| **Reviewers and auditors** | One bundle to verify with SHA-256, in any language or in the browser. |
+| **Tool builders** | An open record format (`hypgraph/1`), a JSON-over-HTTP API, and a framework-free Atlas to embed. |
 
 ## Principles (the record's rules)
 

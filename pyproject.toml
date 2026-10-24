@@ -5,23 +5,22 @@ build-backend = "hatchling.build"
 [project]
 name = "hypgraph"
 dynamic = ["version"]
-description = "A research record that can't flatter itself: typed, append-only, hash-chained, with standing derived on read."
+description = "The evidence layer for AI research agents: a hash-chained research record that checks every claim as it is written and derives how well each is known."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "Nicolas Houghtaling" }]
-keywords = ["research", "provenance", "reproducibility", "hypothesis", "science", "mcp", "agents", "open-science"]
+keywords = ["ai-agents", "mcp", "agent-skills", "research", "provenance", "reproducibility", "evaluation", "hypothesis"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
-  "Intended Audience :: Education",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Scientific/Engineering",
-  "Topic :: Education",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = []          # the engine, CLI, HTTP server and Atlas are stdlib only
 

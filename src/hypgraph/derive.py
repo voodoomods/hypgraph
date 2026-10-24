@@ -285,6 +285,32 @@ def basis_changed(s: Snap, nid: str) -> list[dict]:
     return out
 
 
+# What a node's standing reads. Out-edges: what it rests on or is made of. In-edges: what reviews, supports,
+# challenges, supersedes or produced it. A change at y can alter the standing of x only if x reads y this way —
+# directly, or through a chain (at-risk and evidence are transitive).
+_READS_OUT = {"requires", "derived_from", "based_on", "cites", "uses", "replicates"}
+_READS_IN = {"reviews", "supports", "challenges", "supersedes", "corrects", "produced", "replicates"}
+
+
+def affected_by(s: Snap, touched: set) -> set:
+    """Every node whose derived standing can have changed when ``touched`` changed: the touched nodes and,
+    transitively, everything that reads them. A touched investigation (its reviewers, strictness, state) affects
+    every node in it. Used to keep cached standing across a write instead of re-deriving the whole graph."""
+    out: set = set()
+    stack = [x for x in touched if x in s.nodes]
+    invs = {x for x in stack if s.nodes[x]["type"] == "investigation"}
+    if invs:
+        stack += [i for i, n in s.nodes.items() if n["inv"] in invs]
+    while stack:
+        y = stack.pop()
+        if y in out:
+            continue
+        out.add(y)
+        stack += [e["src"] for e in s.inn.get(y, ()) if e["rel"] in _READS_OUT and e["src"] not in out]
+        stack += [e["dst"] for e in s.out.get(y, ()) if e["rel"] in _READS_IN and e["dst"] not in out]
+    return out
+
+
 def state(s: Snap, nid: str) -> dict:
     """Every standing dimension of a node, plus one honest sentence. Cached on the snapshot."""
     if nid in s._state:

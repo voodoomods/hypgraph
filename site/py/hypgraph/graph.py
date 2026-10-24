@@ -256,8 +256,20 @@ class Graph:
         s.seq = max(self._head_seq(con), s.seq)
         return s
 
-    def _load_rows(self, con, s: D.Snap, retracted: set) -> None:
-        """Add every row newer than s.marks to s (all of it for a fresh Snap)."""
+    def _load_rows(self, con, s: D.Snap, retracted: set, *, shared: bool = False) -> set:
+        """Add every row newer than s.marks to s (all of it for a fresh Snap) and return the ids of the nodes those
+        rows touched. ``shared``: s's per-node lists still belong to an older snapshot too, so a list is copied the
+        first time this load appends to it (readers of the old snapshot never see it change) and appended to after."""
+        touched: set = set()
+        owned: set = set()
+
+        def push(table: dict, key: str, item) -> None:
+            if shared and (id(table), key) not in owned:
+                table[key] = list(table.get(key, ())) + [item]
+                owned.add((id(table), key))
+            else:
+                table[key].append(item)
+
         con.row_factory = sqlite3.Row
         try:
             m = s.marks
@@ -265,12 +277,14 @@ class Graph:
                 row = dict(r)
                 m["nodes"] = max(m["nodes"], row.pop("_r"))
                 s.nodes[row["id"]] = row | {"v": 0, "body": {}}
+                touched.add(row["id"])
             for r in con.execute("SELECT rowid AS _r, node, v, at, by, reason, body FROM versions WHERE rowid > ? "
                                  "ORDER BY node, v", (m["versions"],)):
                 row = dict(r)
                 m["versions"] = max(m["versions"], row.pop("_r"))
                 row["body"] = json.loads(row["body"])
-                s.versions[row["node"]].append(row)
+                push(s.versions, row["node"], row)
+                touched.add(row["node"])
                 n = s.nodes.get(row["node"])
                 if n and row["v"] >= n["v"]:
                     s.nodes[row["node"]] = n | {"v": row["v"], "body": row["body"], "revised_at": row["at"],
@@ -286,15 +300,18 @@ class Graph:
                 if e["id"] in retracted or e["src"] not in s.nodes or e["dst"] not in s.nodes:
                     continue
                 s.edges[e["id"]] = e
-                s.out[e["src"]].append(e)
-                s.inn[e["dst"]].append(e)
+                push(s.out, e["src"], e)
+                push(s.inn, e["dst"], e)
+                touched.update((e["src"], e["dst"]))
             for r in con.execute("SELECT rowid AS _r, * FROM withdrawals WHERE rowid > ?", (m["withdrawals"],)):
                 row = dict(r)
                 m["withdrawals"] = max(m["withdrawals"], row.pop("_r"))
                 s.withdrawn[row["node"]] = row
+                touched.add(row["node"])
             t = self.clock()
             for r in con.execute("SELECT * FROM leases WHERE id > ? ORDER BY id", (m["leases"],)):
                 m["leases"] = max(m["leases"], r["id"])
+                touched.add(r["node"])
                 if r["kind"] == "take":
                     s.leases[r["node"]] = dict(r)
                 elif r["kind"] == "release" and s.leases.get(r["node"], {}).get("agent") == r["agent"]:
@@ -302,23 +319,32 @@ class Graph:
             s.leases = {k: v for k, v in s.leases.items() if v["expires"] > t}
         finally:
             con.row_factory = None
+        return touched
 
     def _delta(self, con, old: D.Snap) -> Optional[D.Snap]:
-        """The old snapshot plus what was written since — a copy, so readers holding the old one never see it change
-        under them. None (rebuild instead) when an edge was retracted: retractions remove, they don't append."""
+        """The old snapshot plus what was written since. Readers holding the old one never see it change: the tables
+        are shallow copies (C speed), and a per-node list is copied only when this load appends to it — a write
+        costs what it touched, not the size of the graph. Derived standing carries over for every node the write
+        can't have affected (derive.affected_by). None (rebuild instead) when an edge was retracted: retractions
+        remove, they don't append."""
         if con.execute("SELECT 1 FROM events WHERE seq > ? AND kind = 'retract' LIMIT 1", (old.seq,)).fetchone():
             return None
         s = D.Snap(old.seq, self.policy)
         s.nodes = dict(old.nodes)
         s.edges = dict(old.edges)
-        s.out = defaultdict(list, {k: list(v) for k, v in old.out.items()})
-        s.inn = defaultdict(list, {k: list(v) for k, v in old.inn.items()})
+        s.out = defaultdict(list, old.out)
+        s.inn = defaultdict(list, old.inn)
         s.withdrawn = dict(old.withdrawn)
         s.leases = dict(old.leases)
-        s.versions = defaultdict(list, {k: list(v) for k, v in old.versions.items()})
+        s.versions = defaultdict(list, old.versions)
         s.events = list(old.events)
         s.marks = dict(old.marks)
-        self._load_rows(con, s, set())
+        touched = self._load_rows(con, s, set(), shared=True)
+        if old._state and touched:
+            stale = D.affected_by(s, touched)
+            s._state = {k: v for k, v in old._state.items() if k not in stale}
+        elif not touched:
+            s._state = dict(old._state)
         return s
 
     def _invalidate(self) -> None:
@@ -345,10 +371,10 @@ class Graph:
 
     @staticmethod
     def _code(con, ntype: str, inv: str) -> str:
+        """The next free display code (H3, CL12 …) in an investigation — an indexed count and lookups, not a scan."""
         prefix = TYPES[ntype]["prefix"]
-        used = {r[0] for r in con.execute("SELECT code FROM nodes WHERE inv=? AND type=?", (inv, ntype))}
-        k = len(used) + 1
-        while f"{prefix}{k}" in used:
+        k = con.execute("SELECT COUNT(*) FROM nodes WHERE inv=? AND type=?", (inv, ntype)).fetchone()[0] + 1
+        while con.execute("SELECT 1 FROM nodes WHERE inv=? AND code=? LIMIT 1", (inv, f"{prefix}{k}")).fetchone():
             k += 1
         return f"{prefix}{k}"
 

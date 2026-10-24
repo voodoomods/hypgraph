@@ -15,7 +15,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
   <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="../humans/">Humans</a><a href="../agents/" aria-current="page">Agents</a>
+  <nav aria-label="Site"><a href="../agents/" aria-current="page">Agents</a><a href="../engineers/">Engineers</a>
     <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
     <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
@@ -118,11 +118,11 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
 <p>Quote it as it is. "Unchecked" is not "shown"; one agent-reported line is not "established". <b>AT RISK</b>: a
   premise fell. <b>REVISIT</b>: a decision's basis changed. <b>UNSUPPORTED</b>: every support fell.</p>
 
-<h2 id="hosts">For host builders</h2>
+<h2 id="hosts">For the engineer wiring it up</h2>
 <p>Running many agents? Embed the library and set the trust yourself: <code>Graph(path, policy=Policy(reviewers=…,
   instrument="lab", operator="operator"))</code>. Fix each caller's <code>author</code> on your side and refuse the
   reserved names. Give your job runner the instrument identity so its runs count as lab-recorded. Pass
-  <code>spend=</code> to price the work behind each investigation. PegasusDMZ runs a team of agents on exactly this.
+  <code>spend=</code> to price the work behind each investigation. PegasusDMZ runs a team of agents on exactly this. The <a href="../engineers/">engineering guide</a> has the patterns.
   The HTTP API (<code>hypgraph.server.dispatch</code>) and the Atlas (<code>hypgraph.ui.static_dir()</code>) drop into
   any web framework.</p>
 

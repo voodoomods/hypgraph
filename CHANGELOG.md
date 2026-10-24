@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Writes cost what they touch.** A write no longer copies the whole in-memory snapshot. Tables are shallow
+  copies, and a node's list is copied only when the write appends to it. Derived standing is kept for every node the
+  write can't affect (`derive.affected_by`), so the first full read after a write no longer re-derives the graph.
+  At 10,000 nodes: building the graph took 77 s instead of 133 s, a full read after a write 0.02 s instead of
+  0.17 s, and a write at 5,000 nodes 5.8 ms instead of 12 ms. A randomized suite checks the carried standing
+  against a full rebuild after every kind of write.
+- New indexes for display codes and the rate limit (`nodes(inv, type)`, `nodes(inv, code)`, `events(actor, kind,
+  at)`). Created on open; existing records just gain them.
+- Positioning: the evidence layer for AI research agents. README and site lead with the MCP server and the Agent
+  Skill; a new engineering guide (`/engineers/`) replaces the human guide; the eval-report example replaces the
+  classroom one.
+
 ## 0.1.0 — 2026-10-24
 
 First release. Extracted from the PegasusDMZ research graph and verified against it: on a copy of Pegasus's live
