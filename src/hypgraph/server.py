@@ -11,6 +11,8 @@
     GET  /api/graph/events?after=&inv=&limit=
     GET  /api/graph/next?inv=   /work?inv=   /cost?inv=&node=   /report?inv=   /verify   /schema
     GET  /api/graph/export?inv=             a verifiable bundle
+    GET  /api/graph/refusals?inv=&since=    the overclaims caught, per author and rule
+    POST /api/graph/check                   {text, inv?} → lint a write-up against the record (always allowed)
     POST /api/graph/write                   only with --writable: {op, author, ...} (create | revise | link | retract |
                                             withdraw | review | lease); the policy's reserved authors are refused
 
@@ -58,6 +60,9 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
     parts = [unquote(p) for p in path.strip("/").split("/") if p]
     try:
         if method == "POST":
+            if parts == ["check"]:
+                b = body or {}
+                return 200, g.check_text(str(b.get("text") or ""), str(b.get("inv") or ""))
             if parts != ["write"]:
                 return 404, {"detail": "no such route"}
             if not writable:
@@ -103,6 +108,8 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
             return 200, g.report(inv)
         if head == "verify":
             return 200, g.verify_chain()
+        if head == "refusals":
+            return 200, g.refusal_report(inv=inv, since=q.get("since", ""))
         if head == "export":
             return 200, g.export(inv)
         if head == "schema":

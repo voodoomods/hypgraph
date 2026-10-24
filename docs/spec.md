@@ -1,6 +1,6 @@
 # The HypGraph record format — `hypgraph/1`
 
-Status: draft 2 (HypGraph 0.2). Licence: CC BY 4.0. This page is enough to write another implementation, a
+Status: draft 3 (HypGraph 0.3). Licence: CC BY 4.0. This page is enough to write another implementation, a
 verifier or a viewer.
 
 ## 1. Model
@@ -175,7 +175,7 @@ smallest detectable difference uses 80% power at two-sided α = 0.05.
 | 4 | `UNBOUND_NUMBER` | a number in the statement (digits, or the words two to twenty; digits in quotes are names) is not one of: a bound measurement's numbers; for a count, its rate, complement or n − k; for any two measurements, their difference, ratios, relative change or sum; the scope's numbers; the investigation's `constants`; or the conventions 95 / 99 / 90 / 80 / 0.05 / 0.01 when the statement speaks of intervals, bounds, confidence, power or significance. *Statistical* quantities (a rate's 95% bounds; for two counts the difference interval, p-value and detectable difference) count only when written to at least one decimal place. |
 | 5 | `ABSOLUTE_WITHOUT_COUNT` | an absolute word (never, always, all, every, none, impossible, cannot, proves, certainly, guaranteed, eliminates, entirely, completely, universally, consistently, perfect, solves, zero, 100%, …) with no bound count where k is 0 or n |
 | 5a | `ABSOLUTE_UNRELATED_COUNT` | the counts with k ∈ {0, n} share no content word with the statement in their name or key |
-| 5b | `ABSOLUTE_UNDERPOWERED` | the 95% bound on the opposite rate is above 5%. The message gives the honest wording and the trials needed for a 1-in-1,000 bound. |
+| 5b | `ABSOLUTE_UNDERPOWERED` | the 95% bound on the opposite rate is above 5% and the statement doesn't say n ("never leaks" rather than "no leaks in 50 prompts" — a statement that gives its n is scoped to what was seen, and accepted). The message gives the honest wording and the trials needed for a 1-in-1,000 bound. |
 | 5c | `ABSOLUTE_HIDES_DENOMINATOR` | the count is enough, but n appears in neither the statement nor the scope |
 | 6 | `CONVENTION_HEDGED` | a `convention` hedges (could, might, suggests, consistent with, …) |
 | 7 | `COMPARATIVE_WITHOUT_COMPARISON` | a comparative (better, beats, outperforms, higher than, improves, exceeds, …) with fewer than two measured sides, no bound p-value or interval, and no supporting claim that binds two sides |
@@ -191,3 +191,39 @@ standing carries `bounds` (per count: k, n, rate, lo, hi and, with exposure, `un
 
 **Blast radius.** Withdrawing a node, or a verdict that makes it fall, returns `blast_radius`: every node resting on it
 by type, with claims and decisions named and, if a spend meter is connected, the cost of the work behind them.
+
+## 8. The refusal log
+
+A refused claim never enters the record, so its trace lives in a separate append-only table, `refusal_log`, with
+its own SHA-256 chain over `canon({at, kind, author, inv, node, op, statement, codes, detail, ref, prev})`. The
+record's own chain and `verify()` are unaffected.
+
+- `kind: refused`: the author, the investigation, the statement (≤ 1,500 characters), the sorted codes, and the
+  problems (code, message, fix) it was refused with. `op` is `create` or `revise`; `node` is set for a revision.
+- `kind: fixed`: a later claim or revision by the same author in the same investigation, accepted within 24 hours,
+  that says the same thing. "The same" means the same node for a revision; otherwise a Jaccard overlap ≥ 0.3 of the
+  statements' content words. `ref` is the refusal it fixes.
+
+A report aggregates per author (refused, fixed, open, codes) and per rule.
+
+## 9. Checking a write-up against the record
+
+A checker reads markdown sentence by sentence and checks it against the record. Code blocks, inline code, URLs, link
+targets and HTML comments are skipped. Quoted passages and negated words ("cannot be proven") are not treated as
+the writer's assertion. Codes are matched within the investigation being reported on.
+
+| level | code | when |
+|---|---|---|
+| error | `REPORT_CITES_WITHDRAWN` | a sentence cites a withdrawn node and doesn't say so (withdrawn, retracted, failed, superseded, earlier, …) |
+| error | `REPORT_OVERSTATES_STANDING` | settled language (confirmed, established, shown, proven, holds, …) about a claim or hypothesis that is unchecked, stale, contested or at risk, or a result that is contested or at risk |
+| error | `REPORT_UNKNOWN_CODE` | an `INV` / `RUN` / `CL` / `RS` / `RV` code the investigation doesn't have |
+| error | `REPORT_ABSOLUTE_UNBACKED` | never / always / impossible / guaranteed / eliminates / proven / 100% asserted, not in an instruction, with no cited claim carrying a count with k ∈ {0, n} |
+| error | `REPORT_ABSENCE_UNBACKED` | "no effect" / "rules out" / "doesn't matter" without citing a claim filed as `exclusion` or `inconclusive` |
+| error | `REPORT_SIGNIFICANCE_UNBACKED` | "significantly" without a p-value or interval in the sentence and without citing a node that carries a test (a negated "not significant" is a warning) |
+| warning | `REPORT_UNSOURCED_NUMBER` | a number not contained in or implied by the investigation's results, live claims' measurements, statements and scopes, the investigation's scope and constants, or experiment and run settings. Integers ≤ 12, years, dates, times and 7-digit+ ids are skipped. Statistical quantities need one decimal. |
+| warning | `REPORT_OMITS_DISPUTE` | cites a contested or at-risk node without saying so |
+| warning | `REPORT_CITES_SUPERSEDED` | cites a superseded node without saying so |
+| warning | `REPORT_CAUSAL_UNCITED` | causal language with no node cited |
+| note | `REPORT_BOUND` | an absolute backed by a cited count: what the count supports |
+
+Calibrated on 24 real write-ups from PegasusDMZ against its live record.

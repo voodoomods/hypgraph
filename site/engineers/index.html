@@ -30,6 +30,7 @@
   <a href="#install">Install</a><a href="#model">The model</a><a href="#policy">Policy &amp; roles</a>
   <a href="#connect">Connecting agents</a><a href="#runs">Recording runs</a><a href="#evals">Recipe: eval reports</a>
   <a href="#spend">Cost</a><a href="#http">HTTP &amp; the Atlas</a><a href="#ci">Bundles in CI</a>
+  <a href="#lint">Lint the write-up</a><a href="#refusals">The refusal log</a>
   <a href="#perf">Performance</a><a href="#reference">Reference deployment</a>
 </nav>
 <article class="prose">
@@ -175,6 +176,36 @@ hypgraph verify record.bundle.json        # exit 1 if anything was edited</pre><
 <p>Publish the bundle's <code>head</code> hash somewhere you don't control (a tag, a paper, a ticket) when a result
   ships: a later record that passes through that hash can't have rewritten anything before it. Reviewers can check a
   bundle at <a href="../verify/">/verify</a> without installing anything.</p>
+
+<h2 id="lint">Lint the write-up</h2>
+<p>Most hype lives in the final report, not the record. <code>hypgraph check</code> reads markdown against the record and
+  exits 1 on errors, so the summary an agent hands over can't contradict what was actually shown:</p>
+<div class="code"><pre>hypgraph check summary.md              # errors fail
+hypgraph check --strict summary.md     # warnings (unsourced numbers …) fail too</pre></div>
+<table>
+  <thead><tr><th>error</th><th>catches</th></tr></thead>
+  <tbody>
+    <tr><td><code>REPORT_OVERSTATES_STANDING</code></td><td>"established" / "confirmed" about a claim the record has as unchecked, contested or at risk</td></tr>
+    <tr><td><code>REPORT_CITES_WITHDRAWN</code></td><td>citing a withdrawn claim as if it stood</td></tr>
+    <tr><td><code>REPORT_UNKNOWN_CODE</code></td><td>a citation to a claim or result that doesn't exist</td></tr>
+    <tr><td><code>REPORT_ABSOLUTE_UNBACKED</code> · <code>REPORT_ABSENCE_UNBACKED</code> · <code>REPORT_SIGNIFICANCE_UNBACKED</code></td><td>never / no effect / significantly with nothing cited behind them</td></tr>
+  </tbody>
+</table>
+<p>Warnings: numbers no result contains or implies, disputes left out, superseded citations, uncited causal language.
+  Code blocks, inline code, URLs, quoted passages, negations ("cannot be proven") and instructions ("never use the eval
+  set") are not treated as claims — calibrated on two dozen real write-ups from PegasusDMZ against its live record.
+  In Python: <code>g.check_text(text, inv)</code>; over HTTP: <code>POST /api/graph/check</code>; for agents: the MCP tool
+  <code>check_report</code>.</p>
+
+<h2 id="refusals">The refusal log</h2>
+<p>Every refused claim is logged — author, statement, codes — and marked fixed when the same author comes back with the
+  honest version. It's the number nobody else can show you: how often your agents tried to overclaim, which rules
+  caught them, and which ones they quietly abandoned.</p>
+<div class="code"><pre>hypgraph refusals                      # per author and rule, fixed vs open
+hypgraph refusals --author analyst     # one agent's refusals in full</pre></div>
+<p>Append-only with its own hash chain (<code>g.verify_refusals()</code>), separate from the record's. In Python:
+  <code>g.refusal_report(inv)</code>; HTTP <code>GET /api/graph/refusals</code>; MCP <code>refusal_log</code>; and an
+  "Overclaims caught" card in the Atlas's Work view.</p>
 
 <h2 id="perf">Performance</h2>
 <table>

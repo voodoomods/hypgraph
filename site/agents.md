@@ -65,10 +65,11 @@ reserved.
      are not;
    - `kind: "exclusion"` needs a result with `power: "demonstrated"` (a search that found a planted answer).
      Otherwise use `"inconclusive"`.
-   Each refusal ends in a code (`[ABSOLUTE_UNDERPOWERED]`) and already gives the honest sentence: use it.
+   Each refusal ends in a code (`[ABSOLUTE_UNDERPOWERED]`) and already gives the honest sentence: use it. Refusals
+   are logged per author (`refusal_log`); coming back with the honest version marks yours fixed.
 6. **Reviews.** Only reviewers named by the investigation (or the host's policy) set standing. Nobody reviews their
    own work. A revision makes earlier reviews stale.
-7. **Start summaries from `report()`.** It's generated from the record, so it can't restate a withdrawn claim. Write
+7. **Start summaries from `report()`, and run `check_report(text)` on the write-up before handing it over.** It's generated from the record, so it can't restate a withdrawn claim. Write
    your interpretation underneath it.
 
 ## Reading standing

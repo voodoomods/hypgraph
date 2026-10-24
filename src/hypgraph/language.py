@@ -24,7 +24,7 @@ COMPARATIVE = re.compile(
     r"gains? over|uplift|lift over|advantage over|wins? over|surpass(?:es|ed)?)\b", re.I)
 SIGNIFICANCE = re.compile(r"\b(significant(?:ly)?|statistically|reliably (?:better|worse|higher|lower))\b", re.I)
 CAUSAL = re.compile(
-    r"\b(caus(?:es|ed|ing|al)|cause|leads? to|led to|results? in|resulted in|drives?|driven by|due to|because of|"
+    r"\b(caus(?:es|ed|ing|al)|cause|leads? to|led to|resulted in|drives?|driven by|due to|because of|"
     r"responsible for|is the reason)\b", re.I)
 EXCLUSION = re.compile(
     r"\b(no (?:effect|difference|impact|influence|benefit|improvement|association|relationship)|"

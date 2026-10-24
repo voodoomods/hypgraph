@@ -78,7 +78,8 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
     <code>{name: {value} | {k, n}}</code>.</li>
   <li><b>Claims with measurements</b> — every number bound; a <code>supports</code> link with a reason; a scope.</li>
   <li><b>Review</b> — only named reviewers count, never on their own work.</li>
-  <li><b><code>report()</code></b> at the top of every summary; interpretation below it.</li>
+  <li><b><code>report()</code></b> at the top of every summary; interpretation below it — then
+    <b><code>check_report(text)</code></b> on the write-up before you hand it over. Fix every error.</li>
 </ol>
 
 <h2 id="tools">Tools</h2>
@@ -93,6 +94,8 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
     <tr><td><code>link(src, rel, dst, why, data?)</code></td><td>Typed links; a backwards link is turned round when only the reverse is allowed.</td></tr>
     <tr><td><code>revise</code> · <code>withdraw</code> · <code>retract_link</code></td><td>Corrections as new rows; nothing is erased.</td></tr>
     <tr><td><code>review(node, verdict, method, notes)</code></td><td>A verdict on the current version.</td></tr>
+    <tr><td><code>check_report(text)</code></td><td>Lint a write-up against the record: unsourced numbers, claims called settled that aren't, withdrawn or unknown codes, never / no effect / significantly with nothing behind them.</td></tr>
+    <tr><td><code>refusal_log(author?)</code></td><td>The overclaims the record refused — yours or the team's — and whether each came back honest.</td></tr>
     <tr><td><code>bound(k, n, exposure)</code></td><td>What a count supports: the 95% bounds behind any "never", trials needed, failures not ruled out at scale.</td></tr>
     <tr><td><code>next_experiments</code> · <code>work_queue</code> · <code>claim_work</code></td><td>What to run next; what's waiting; take a node so others see who's on it.</td></tr>
     <tr><td><code>register_run(name, code_paths, input_paths, output_paths, result_summary, result_values)</code></td><td>Record a computation with hashed files.</td></tr>

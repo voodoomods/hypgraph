@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.0 — 2026-10-24
+
+- **The refusal log.** Every refused claim is logged: author, statement, codes, messages. A later accepted claim by
+  the same author that says the same thing (same node, or ≥ 30% shared content words within 24 hours) marks the
+  refusal fixed. Append-only, with its own hash chain (`verify_refusals()`); the record's chain is untouched.
+  - API: `refusals()`, `refusal_report()`.
+  - CLI: `hypgraph refusals [--author …]`. MCP: `refusal_log`. HTTP: `GET /api/graph/refusals`.
+  - Atlas: an "Overclaims caught" card in the Work view.
+- **`hypgraph check report.md`** lints a write-up against the record (`Graph.check_text`; MCP `check_report`; HTTP
+  `POST /api/graph/check`). Exits 1 on errors (`--strict`: warnings too).
+  - Errors: citations of withdrawn nodes, settled language about unchecked, contested or at-risk work, unknown
+    codes, and unbacked never / no effect / significantly.
+  - Warnings: numbers no result contains or implies, omitted disputes, superseded citations, uncited causal
+    language.
+  - Calibrated on 24 real PegasusDMZ write-ups against its live record. That fixed negations ("cannot be proven"),
+    quoted passages under correction, instructions ("never use the eval set"), p-values given in the sentence, and
+    "results in" as a noun phrase.
+- An absolute whose statement gives its n ("no leaks in 50 prompts", "nothing in 50 of 50") is scoped to what was
+  seen and accepted; its standing still carries the bound. Without n it is refused, as before.
+- Spec draft 3 (§8 refusal log, §9 checking a write-up).
+
 ## 0.2.0 — 2026-10-24
 
 **Refusal, remastered.** The claim checks now do the arithmetic the writer skipped, and every refusal says what the

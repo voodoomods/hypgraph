@@ -11,6 +11,8 @@ hypgraph — the command line.
     hypgraph show CL1 --why             what it rests on        (--impact: what rests on it, --history: versions)
     hypgraph report                     the facts, generated from the record
     hypgraph export -o study.json       a bundle anyone can verify:  hypgraph verify study.json
+    hypgraph check summary.md           lint a write-up against the record (exit 1 on errors)
+    hypgraph refusals                   the overclaims the record caught, per author
     hypgraph mcp                        an MCP server for agents (pip install "hypgraph[mcp]")
     hypgraph skill --install            the agent skill, into .claude/skills/hypgraph/SKILL.md
 
@@ -304,6 +306,35 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def cmd_refusals(args) -> int:
+    g = _graph(args)
+    inv = g.resolve(args.inv) if args.inv else ""
+    if args.author_filter:
+        rows = g.refusals(inv=inv, author=args.author_filter, since=args.since)
+        _out(args, rows, "\n".join(f"{r['at'][:16]}  {', '.join(r['codes'])}\n    “{r['statement'][:160]}”"
+                                    + (f"\n    → fixed as {r['fixed_by']['node']}" if r["fixed_by"] else "")
+                                    for r in rows) or "No refusals.")
+        return 0
+    r = g.refusal_report(inv=inv, since=args.since)
+    _out(args, r, r["markdown"])
+    return 0
+
+
+def cmd_check(args) -> int:
+    g = _graph(args)
+    text = Path(args.file).read_text(encoding="utf-8") if args.file != "-" else sys.stdin.read()
+    r = g.check_text(text, g.resolve(args.inv) if args.inv else "")
+    if getattr(args, "json", False):
+        _out(args, r)
+    else:
+        name = args.file
+        for f in r["findings"]:
+            print(f"{name}:{f['line']}: {f['level']} {f['code']}: {f['message']}\n    “{f['excerpt']}”")
+        print(r["markdown"].splitlines()[0])
+    failed = r["errors"] > 0 or (args.strict and r["warnings"] > 0)
+    return 1 if failed else 0
+
+
 def cmd_bound(args) -> int:
     from .mcp import bound_text
     from . import stats
@@ -427,6 +458,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("bundle")
     cmd("demo", cmd_demo, "build the Broad Street (1854) teaching investigation")
     cmd("schema", cmd_schema, "the node types and relations")
+    s = cmd("refusals", cmd_refusals, "the overclaims the record caught: per author, per rule, fixed or open")
+    s.add_argument("--inv", default="")
+    s.add_argument("--since", default="", help="ISO date or time")
+    s.add_argument("--author", dest="author_filter", default="", help="list one author's refusals in full")
+    s = cmd("check", cmd_check, "lint a write-up (markdown) against the record; exit 1 on errors")
+    s.add_argument("file", help="the markdown file ('-' for stdin)")
+    s.add_argument("--inv", default="", help="the investigation it reports on (default: inferred)")
+    s.add_argument("--strict", action="store_true", help="warnings (e.g. unsourced numbers) fail too")
     s = cmd("bound", cmd_bound, "what k of n actually supports: the 95% bounds behind any 'never'")
     s.add_argument("k", type=int, help="how many times it happened")
     s.add_argument("n", type=int, help="how many trials")

@@ -7,6 +7,7 @@ Use HypGraph whenever you investigate a question with evidence and need to say w
 - Every number in a claim must be bound to a result field (`measurements`), the scope, or a declared constant.
 - "never / always / eliminates / 100%" need a count with k = 0 or k = n, a 95% bound under 5% (0 of 50 → could still be 5.8%), and n stated in the claim. Check with `hypgraph bound K N --exposure X` or the MCP tool `bound`.
 - "beats / outperforms" need both sides measured; "significantly" needs a test (the record tests two bound counts itself); "causes" needs an experiment that intervened. Numbers computed from bound counts pass; invented ones are refused.
+- Before handing over a write-up, run `hypgraph check summary.md` (MCP `check_report`): it flags numbers no result contains, claims called settled that the record has as unchecked/contested/withdrawn, unknown codes, and never/no effect/significantly with nothing cited. Refusals are logged per author (`hypgraph refusals`, MCP `refusal_log`).
 - Every refusal ends in a code like [ABSOLUTE_UNDERPOWERED] and gives the honest sentence. Withdrawing or contesting a node reports its blast radius: what now rests on something that fell.
 - `kind: exclusion` needs a search shown to recover a planted answer (`power: demonstrated`); otherwise use `inconclusive`.
 - `tests` links need `data.expected`, written before running. `supports` / `challenges` need a `why`.

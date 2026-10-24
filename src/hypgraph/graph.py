@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from . import derive as D
-from . import store
+from . import refusals, store
 from .checks import claim_issues
 from .policy import Policy
 from .schema import REPLICATION, RELS, SAME_TYPE, TYPES, VERDICTS
@@ -138,6 +138,7 @@ class Graph:
         with self._lock:
             con = self._connect()
             store.install(con)
+            refusals.install(con)
 
     # ── connections ─────────────────────────────────────────────────
     def _connect(self) -> sqlite3.Connection:
@@ -569,8 +570,10 @@ class Graph:
                 if type == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, nid, pending), inv)
                     if problems:
-                        raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems),
-                                         [p.to_dict() for p in problems])
+                        found = [p.to_dict() for p in problems]
+                        refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
+                                                problems=found)
+                        raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems), found)
 
                 def write(con):
                     self._rate(con, author)
@@ -591,6 +594,11 @@ class Graph:
         out = self.get(nid)
         if flipped:
             out["notes"] = [f"link turned round to the direction the relation allows: {x}" for x in flipped]
+        if type == "claim" and author not in P.curators:
+            fixed = refusals.match_fix(self, author=author, inv=inv, node=nid, statement=body.get("statement", ""),
+                                       op="create")
+            if fixed:
+                out["fixes_refusals"] = fixed
         return out
 
     def _may_revise(self, s: D.Snap, author: str, n: dict) -> bool:
@@ -627,8 +635,10 @@ class Graph:
                 if n["type"] == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, node, []), n["inv"])
                     if problems:
-                        raise GraphError("revision refused:\n- " + "\n- ".join(p.text() for p in problems),
-                                         [p.to_dict() for p in problems])
+                        found = [p.to_dict() for p in problems]
+                        refusals.record_refusal(self, author=author, op="revise", inv=n["inv"], node=node, body=body,
+                                                problems=found)
+                        raise GraphError("revision refused:\n- " + "\n- ".join(p.text() for p in problems), found)
                 at = self.clock()
 
                 def write(con):
@@ -638,7 +648,13 @@ class Graph:
                 self._transaction(write)
             finally:
                 self._after_write()
-        return self.get(node)
+        out = self.get(node)
+        if out["type"] == "claim" and author not in P.curators:
+            fixed = refusals.match_fix(self, author=author, inv=out["inv"], node=node,
+                                       statement=out["body"].get("statement", ""), op="revise")
+            if fixed:
+                out["fixes_refusals"] = fixed
+        return out
 
     def link(self, *, author: str, src: str, rel: str, dst: str, why: str = "", data: dict | None = None) -> dict:
         if rel == "reviews":
@@ -951,6 +967,25 @@ class Graph:
             by[n["type"]] += 1
         return {"seq": s.seq, "nodes": len(s.nodes), "edges": len(s.edges), "by_type": dict(by),
                 "leases": len(s.leases)}
+
+    # ── the refusal log (refusals.py) and checking write-ups (report_check.py) ──
+    def refusals(self, inv: str = "", author: str = "", since: str = "", limit: int = 500) -> list[dict]:
+        """Every overclaim the record refused, newest first, with its codes and what fixed it (if anything)."""
+        return refusals.rows(self, inv=inv, author=author, since=since, limit=limit)
+
+    def refusal_report(self, inv: str = "", since: str = "") -> dict:
+        """Overclaims caught per author and per rule, fixed vs open, with the latest in full (and as markdown)."""
+        return refusals.report(self, inv=inv, since=since)
+
+    def verify_refusals(self) -> dict:
+        """The refusal log's own hash chain."""
+        return refusals.verify(self)
+
+    def check_text(self, text: str, inv: str = "") -> dict:
+        """Lint a write-up (markdown) against the record: numbers no result contains, claims stated as settled that
+        the record has as contested / withdrawn / unchecked, codes that don't exist, absolutes nothing counts."""
+        from . import report_check
+        return report_check.check(self, text, inv)
 
     # ── method & coordination (plan.py) ─────────────────────────────
     def next_experiments(self, inv: str, limit: int = 10) -> dict:

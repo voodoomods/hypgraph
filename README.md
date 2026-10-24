@@ -50,6 +50,33 @@ Every refusal has a stable code, the arithmetic, and the sentence that *would* b
 claim in one step. `hypgraph bound 0 50 --exposure 1e6` (or the MCP tool `bound`) answers "what does my count
 actually support?" before anyone writes the word.
 
+Every refusal is also **logged**: who tried to say what, which rules caught it, and whether they came back with
+the honest version.
+
+```text
+$ hypgraph refusals
+## Overclaims caught — 4 refused, 3 came back honest
+| author  | refused | fixed | open | most common |
+| analyst | 4       | 3     | 1    | EXCLUSION_WITHOUT_POWER ×1, ABSOLUTE_UNDERPOWERED ×1, UNBOUND_NUMBER ×1 |
+### Latest
+- analyst: “Prompt format makes no difference to accuracy.” — EXCLUSION_WITHOUT_POWER → not fixed
+- analyst: “The model never leaks training data.” — ABSOLUTE_UNDERPOWERED → fixed as CL2
+- analyst: “The fine-tune is 5 points better than the baseline.” — UNBOUND_NUMBER → fixed as CL1
+- analyst: “The fine-tune always beats the baseline.” — ABSOLUTE_WITHOUT_COUNT, COMPARATIVE_WITHOUT_COMPARISON → fixed as CL1
+```
+
+And because most hype lives in the write-up, not the record, **`hypgraph check summary.md`** lints the final report
+against the record. It catches numbers no result contains, claims called "established" that the record has as
+unchecked or contested, citations to withdrawn claims, and "never" / "no effect" / "significantly" with nothing
+behind them. It exits 1 on errors, so it can gate CI:
+
+```text
+$ hypgraph check summary.md
+summary.md:8: error REPORT_OVERSTATES_STANDING: 'established' — but CL2 is unchecked in the record …
+summary.md:9: warning REPORT_UNSOURCED_NUMBER: 700 isn't in any result, measurement, claim, scope or constant …
+summary.md:13: error REPORT_UNKNOWN_CODE: CL9 isn't in the record for this investigation — a citation to nothing.
+```
+
 And when something does fall, the record says what falls with it:
 
 ```text
@@ -84,7 +111,7 @@ hypgraph skill --install                                                     # +
 The server writes as one author, fixed when it starts. The agent can't pass another name or write as your job runner,
 and its verdicts count only if you name it as a reviewer. Tools: `overview`, `find`, `show`, `start_investigation`,
 `add`, `link`, `revise`, `withdraw`, `retract_link`, `review`, `next_experiments`, `work_queue`, `claim_work`,
-`register_run`, `bound`, `report`, `verify`, `schema`. The method is in [AGENTS.md](https://github.com/voodoomods/hypgraph/blob/main/AGENTS.md); the short version is
+`register_run`, `bound`, `check_report`, `refusal_log`, `report`, `verify`, `schema`. The method is in [AGENTS.md](https://github.com/voodoomods/hypgraph/blob/main/AGENTS.md); the short version is
 [llms.txt](https://hypgraph.com/llms.txt).
 
 ## Wire it into your system

@@ -13,8 +13,9 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
                                 computed from them (difference, ratio, percentage, interval), the scope or a constant
   ABSOLUTE_WITHOUT_COUNT        "never" / "always" / "eliminates" / "100%" with no count of 0 or n behind it
   ABSOLUTE_UNRELATED_COUNT      the 0-of-n it leans on counts something else
-  ABSOLUTE_UNDERPOWERED         0 of n, but n is too small: the rate could still be above 5%
-  ABSOLUTE_HIDES_DENOMINATOR    0 of n is enough, but the statement doesn't say n — so "never" reads as never
+  ABSOLUTE_UNDERPOWERED         0 of n with n too small (the rate could still be above 5%), and the statement
+                                generalises past the n trials instead of saying them ("never leaks")
+  ABSOLUTE_HIDES_DENOMINATOR    0 of n is enough, but neither statement nor scope says n — "never" reads as never
   COMPARATIVE_WITHOUT_COMPARISON "beats" / "outperforms" / "higher than" with fewer than two sides measured
   SIGNIFICANCE_WITHOUT_TEST     "significantly" with no test behind it
   SIGNIFICANCE_NOT_SHOWN        the test behind it isn't significant
@@ -211,6 +212,10 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     opposite = hi if k == 0 else 1 - lo               # how often the opposite could still happen
     seen = f"{k} of {n:,}"
     what = "it happening" if k == 0 else "it failing"
+    in_statement = n in {round(v) for v, *_ in numbers(stmt)}
+    in_scope = n in {round(v) for v, *_ in numbers(scope)}
+    if in_statement:
+        return []          # scoped to the trials it states ("nothing in 50 prompts"); its standing carries the bound
     if opposite > UNDERPOWERED:
         need = stats.trials_for(0.001)
         honest = (f"'no {'occurrences' if k == 0 else 'exceptions'} in {n:,} trials (95% upper bound "
@@ -220,14 +225,13 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
                         f"time (95% upper bound). Honest version: {honest}. To support a rate below 1 in 1,000 you "
                         f"need about {need:,} trials without one." + _exposure_note(opposite, body),
                         fix=honest.strip("'"), words=words)]
-    stated = {round(v) for v, *_ in numbers(f"{stmt} {scope}")}
-    if n not in stated:
-        return [Problem("ABSOLUTE_HIDES_DENOMINATOR",
-                        f"'{w}' rests on {seen} — say the {n:,} in the statement or scope, so readers can see what "
-                        f"'{w}' means here: {what} no more than {stats.pct(opposite)} of the time "
-                        f"({stats.one_in(opposite)}, 95% upper bound)." + _exposure_note(opposite, body),
-                        fix=f"add 'in {n:,} trials'", words=words)]
-    return []
+    if in_scope:
+        return []          # enough trials, and the scope says how many
+    return [Problem("ABSOLUTE_HIDES_DENOMINATOR",
+                    f"'{w}' rests on {seen} — say the {n:,} in the statement or scope, so readers can see what "
+                    f"'{w}' means here: {what} no more than {stats.pct(opposite)} of the time "
+                    f"({stats.one_in(opposite)}, 95% upper bound)." + _exposure_note(opposite, body),
+                    fix=f"add 'in {n:,} trials'", words=words)]
 
 
 def _measured_claim(s: Snap, support: list[str]) -> bool:

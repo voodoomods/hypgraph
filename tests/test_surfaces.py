@@ -225,7 +225,8 @@ def test_mcp_server_tools(tmp_path):
     async def go():
         async with fastmcp.Client(server) as c:
             names = {t.name for t in await c.list_tools()}
-            assert {"overview", "find", "show", "add", "link", "review", "register_run", "report", "verify"} <= names
+            assert {"overview", "find", "show", "add", "link", "review", "register_run", "report", "verify", "bound",
+                    "check_report", "refusal_log"} <= names
             text = lambda r: r.content[0].text  # noqa: E731
             ov = text(await c.call_tool("overview", {}))
             assert "How does cholera spread" in ov and "Next experiments: X3" in ov

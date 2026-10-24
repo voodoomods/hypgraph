@@ -10,7 +10,8 @@ no absolutes without k of n, exclusions need a powered search. A refusal comes b
 fix, which is the point.
 
 Tools: overview · find · show · start_investigation · add · link · revise · withdraw · retract_link · review ·
-next_experiments · work_queue · claim_work · register_run · bound · report · verify · schema.
+next_experiments · work_queue · claim_work · register_run · bound · check_report · refusal_log · report · verify ·
+schema.
 Resources: hypgraph://skill · hypgraph://schema · hypgraph://investigations · hypgraph://investigation/{inv}/report.
 Prompt: method — how to work a question through the record.
 """
@@ -447,6 +448,32 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         if not (0 <= k <= n and n > 0):
             raise ToolError("give k (how many times it happened) and n (trials), with 0 <= k <= n")
         return bound_text(k, n, exposure, unit)
+
+    @mcp.tool
+    def check_report(text: str, investigation: str = "") -> str:
+        """Lint a write-up (markdown) against the record BEFORE you hand it over: numbers no result contains, claims
+        stated as settled that the record has as unchecked / contested / withdrawn, codes that don't exist, never /
+        no effect / significantly with nothing behind them. Fix every error; say why for any warning you keep."""
+        try:
+            r = g.check_text(text, g.resolve(investigation) if investigation else "")
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return r["markdown"]
+
+    @mcp.tool
+    def refusal_log(investigation: str = "", author: str = "") -> str:
+        """The overclaims the record refused — per author and rule, fixed or still open. With author: that author's
+        refusals in full, so you can see what you (or a teammate) tried to say and what the record said back."""
+        try:
+            inv = g.resolve(investigation) if investigation else ""
+            if author:
+                rows = g.refusals(inv=inv, author=author.strip().lower())
+                return "\n".join(f"{r['at'][:16]} {', '.join(r['codes'])}: “{r['statement'][:200]}”"
+                                 + (f" → fixed as {r['fixed_by']['node']}" if r["fixed_by"] else " → not fixed")
+                                 for r in rows[:40]) or "No refusals."
+            return g.refusal_report(inv=inv)["markdown"]
+        except (GraphError, KeyError) as e:
+            fail(e)
 
     @mcp.tool
     def schema() -> dict:

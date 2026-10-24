@@ -60,6 +60,14 @@ The names `lab`, `operator`, `importer` and `system` are reserved. Never write a
    makes earlier reviews stale and flags decisions based on it.
 7. **Summaries start from the record.** `hypgraph report -o facts.md` generates the facts, which can't restate a
    withdrawn claim or override a verdict. Write your interpretation underneath.
+8. **Check the write-up before you hand it over.** `hypgraph check summary.md` (MCP: `check_report`) reads it
+   against the record and flags:
+   - numbers no result contains;
+   - claims you call "established" that the record has as unchecked, contested or withdrawn;
+   - codes that don't exist;
+   - "never" / "no effect" / "significantly" with nothing cited behind them.
+
+   Fix every error. Keep a warning only if you can say why. It exits 1 on errors, so it can gate CI.
 
 ## Refusals and their fixes
 
@@ -87,6 +95,10 @@ the count supports and how many failures are not ruled out at the scale the clai
 Other refusals: `tests …: give data.expected` (say what each hypothesis predicts), `you can't review your own work`
 (ask a named reviewer), `… is published — its record is fixed` (open a follow-up investigation).
 
+**Your refusals are logged.** `hypgraph refusals --author <you>` (MCP: `refusal_log`) shows what you tried to
+say, what the record said back, and whether you came back with the honest version. Open refusals are claims you
+abandoned. Revisit them.
+
 **When you withdraw or contest a node,** the reply lists what now rests on something that fell, e.g.
 `2 nodes rest on CL1: 1 decision (D1); 1 claim (CL2)`. Tell whoever owns those nodes.
 
@@ -105,6 +117,6 @@ Report standing as the record states it. Don't upgrade "unchecked" to "shown", o
 
 ## Useful commands
 
-`hypgraph bound K N [--exposure X]` · `hypgraph show NODE [--why|--impact|--history]` · `hypgraph work` · `hypgraph next` · `hypgraph revise NODE k=v --reason "…"`
+`hypgraph check summary.md` · `hypgraph refusals` · `hypgraph bound K N [--exposure X]` · `hypgraph show NODE [--why|--impact|--history]` · `hypgraph work` · `hypgraph next` · `hypgraph revise NODE k=v --reason "…"`
 · `hypgraph withdraw NODE --why "…"` · `hypgraph export -o bundle.json` · `hypgraph verify [bundle.json]` ·
 `hypgraph serve` (the Atlas explorer) · `hypgraph schema` (every type and relation).

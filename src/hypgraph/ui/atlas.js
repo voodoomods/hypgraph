@@ -167,6 +167,7 @@
       next: (inv) => get(`/next?inv=${q(inv)}`),
       work: (inv) => get(`/work?inv=${q(inv)}`),
       cost: (inv) => get(`/cost?inv=${q(inv)}`),
+      refusals: (inv) => get(`/refusals?inv=${q(inv)}`),
       verify: () => get('/verify'),
     };
   }
@@ -230,6 +231,7 @@
       next: async (inv) => d.by_inv[inv].next,
       work: async (inv) => d.by_inv[inv].work,
       cost: async () => null,
+      refusals: async () => null,
       verify: async () => (verified = verified || await verifyBundle(bundle)),
     };
   }
@@ -851,6 +853,8 @@
       try { nxt = (await src.next(S.inv)) || nxt; } catch { /* none */ }
       let cost = null;
       try { cost = await src.cost(S.inv); } catch { /* no meter */ }
+      let refused = null;
+      try { refused = src.refusals ? await src.refusals(S.inv) : null; } catch { /* host without a refusal log */ }
       const list = (rows, empty) => rows.length ? rows.slice(0, 60).map((n) =>
         `<div class="at-edge"><span class="rel">${esc(n.kind || n.type)}</span><span>${nodeLink(n.id)} ${esc(n.title.slice(0, 90))}</span></div>`).join('') : `<div class="st-dim">${empty}</div>`;
       const authors = {};
@@ -871,10 +875,28 @@
         <div class="at-card"><h5>Contested (${w.contested.length})</h5>${list(w.contested, 'No open disputes.')}</div>
         <div class="at-card"><h5>Decisions to revisit (${(w.decisions_to_revisit || []).length})</h5>${list(w.decisions_to_revisit || [], 'None — every decision still rests on what it saw.')}</div>
         <div class="at-card"><h5>Duplicate work (${w.duplicates.length})</h5>${w.duplicates.length ? w.duplicates.map((g) => `<div>${g.map((n) => nodeLink(n.id)).join(' = ')}</div>`).join('') : '<div class="st-dim">No duplicates found.</div>'}</div>
+        ${refused ? refusalCard(refused) : ''}
         ${cost && cost.metered !== false && cost.usd !== undefined ? spendCard(cost) : ''}
         <div class="at-card"><h5>Who wrote the record</h5>${bars(authors)}</div>
         <div class="at-card"><h5>Who reviewed it</h5>${Object.keys(reviewers).length ? bars(reviewers) : '<div class="st-dim">No reviews yet.</div>'}</div>
       </div>`;
+    }
+
+    // Overclaims the record refused in this investigation: per author, per rule, fixed or still open.
+    function refusalCard(r) {
+      if (!r.refused) return '<div class="at-card"><h5>Overclaims caught (0)</h5><div class="st-dim">No claim has been refused here.</div></div>';
+      const authors = Object.entries(r.by_author || {});
+      const max = Math.max(1, ...authors.map(([, v]) => v.refused));
+      const rows = authors.slice(0, 10).map(([a, v]) => `<div class="at-bar-row"><span>${esc(a)}</span>`
+        + `<span class="bar" style="width:${(100 * v.refused / max).toFixed(1)}%;background:var(--a-warn)"></span>`
+        + `<span class="num">${v.fixed}/${v.refused}</span></div>`).join('');
+      const codes = Object.entries(r.by_code || {}).slice(0, 6).map(([c, n]) => `<div class="at-edge"><span class="rel">×${n}</span><span>${esc(c)}</span></div>`).join('');
+      const latest = (r.recent || []).slice(0, 4).map((x) => `<div class="at-field"><span class="k">${esc(x.author)} · ${esc((x.at || '').slice(0, 10))} · ${esc(x.codes.join(', '))}</span>`
+        + `“${esc(x.statement.slice(0, 140))}”${x.fixed_by ? ` <span class="st-good">→ fixed</span>` : ' <span class="st-dim">→ open</span>'}</div>`).join('');
+      return `<div class="at-card"><h5>Overclaims caught (${r.refused})</h5>
+        <div class="at-k">${r.fixed} came back honest · ${r.refused - r.fixed} open · bars: fixed / refused per author</div>${rows}
+        <div class="at-k" style="margin-top:6px">most common</div>${codes}
+        <div class="at-k" style="margin-top:6px">latest</div>${latest}</div>`;
     }
 
     // Spend: from the host's meter (Graph(spend=…)); nobody writes it.
