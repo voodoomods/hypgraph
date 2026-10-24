@@ -15,5 +15,33 @@
  "git": {
   "hypgraph": "14c4181c69ea1ae589848ba602544d6a75ab4fe4",
   "pegasus": "404c9ed993ad3d34b5f8726092c2a5db72ad0e5a+dirty"
- }
+ },
+ "deviations": [
+  {
+   "at": "2026-10-24T22:36:11Z",
+   "ids": [
+    "D-1",
+    "D-2",
+    "D-3",
+    "D-4",
+    "D-5",
+    "D-6"
+   ],
+   "note": "Approved by the operator 2026-10-24 after pilot 1; see DEVIATIONS.md",
+   "files": {
+    "analysis": "fbc0b4806936b22ec10831214fcaa753ef27875825b283b1e1845747ce3c8a81",
+    "runner": "62319bb0a3d97f8eeebc9205831219cbe85834b191eb78f8c7e233de93b5fe70",
+    "host": "76fb8fc7ec7506d2e010272a9b3e47a829fc97e7d0eb6538240ab4f1f9bea6e2"
+   },
+   "was": {
+    "analysis": "02aeeca68be2340904bb1720783f3c88ab5acb818625999b287c4b72dc216ddf",
+    "runner": "308978211ccfa59b1453d20b885956a94b76927fb663a84d582bdc37041380c3",
+    "host": "fc2659e685b9de6d5898ae42fae3149e8506d52671ae003426e6e3d8d657cedc"
+   },
+   "git": {
+    "hypgraph": "01ad496839b2ad9a8223ee56d5cee494000ce83a",
+    "pegasus": "8619997ccb4d5ed60493f7076e642be097fa175a+dirty"
+   }
+  }
+ ]
 }
