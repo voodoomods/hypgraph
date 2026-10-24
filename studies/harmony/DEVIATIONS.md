@@ -88,3 +88,19 @@ hitting the 150-call cap. If it passes:
    analysis.
 
 If the test fails, nothing more is spent and pilot 2 is reported.
+
+## Pilot 2 result and the go decision (2026-10-24)
+
+16 runs, **$0.3360** metered. Test: C submitted 4 of 4, with 0 cap hits → **passes** (needed 3 of 4).
+Sample-size rule on pilot 2 (C/A log-ratio SD 0.197, 4 pairs) → 7 pairs needed → **k = 3 instances per family**
+(the floor), not underpowered for cost.
+
+| condition | correct runs | mean fraction | $ total | calls | trap hits |
+|---|---|---|---|---|---|
+| A chat | 4 / 4 | 1.00 | 0.0321 | 68 | 2 ("significant" ×2) |
+| B Pegasus today | 3 / 4 | 0.81 | 0.0398 | 97 | 1 (stale file after the F7 notice) |
+| C record | 4 / 4 | 1.00 | 0.1526 | 426 | 0 |
+| D record, no gates | 4 / 4 | 1.00 | 0.1115 | 328 | 1 ("significant") |
+
+Under the pre-approval: the confirmatory run starts now (all ten families × seeds 100–102 × ABCD = 120 runs,
+$15 guard), then its analysis, then D-6.
