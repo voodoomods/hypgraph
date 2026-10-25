@@ -167,6 +167,25 @@
     "hypgraph": "4f445eab464dee196cd007dbcdb86d6a8e2fab5a",
     "pegasus": "9762551c1631282e54173fe9d28137d7519e9c52+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T02:35:17Z",
+   "ids": [
+    "D-14"
+   ],
+   "note": "MCP my_work lists open orders only; not on a study path",
+   "files": {
+    "hypgraph/src": "89afe252f35e20d6fb9554c99380d2f695b379bfb950e04b9f3140191f1bace9",
+    "hypswarm/src": "e1f2cf7fa350caefb57714f44de2197d39a5a385adc3638969fea5c40e2a96b1"
+   },
+   "was": {
+    "hypgraph/src": "99ef809ff503fac489ec8fcad66baa506096e888d82f62307c17e8f528a90659",
+    "hypswarm/src": "6a7c8d2009f69441f77818496ea7a766cfe6e18df699c1c92ff7f0431bfb84e4"
+   },
+   "git": {
+    "hypgraph": "eae525ddbf49174aa28674273926f1c04a1a3e2d",
+    "pegasus": "9762551c1631282e54173fe9d28137d7519e9c52+dirty"
+   }
   }
  ]
 }
