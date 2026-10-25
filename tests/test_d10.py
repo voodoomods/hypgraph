@@ -101,6 +101,11 @@ def test_a_third_rework_of_a_stuck_predicate_is_refused(env):
         g.rework(author="lead", order=r2["order"], missing="again nothing was written")
     r3 = g.rework(author="lead", order=r2["order"], missing="dropping result_exists", done_when=["claim_made"])
     assert g.get(r3["order"])["body"]["done_when"] == [{"p": "claim_made"}]
+    st = {x["code"]: x["status"] for x in g.orders(inv)}
+    assert st == {"T1": "reworked", "T2": "reworked", "T3": "reworked", "T4": "open"}   # the whole chain, not one step
+    g.withdraw(author="lead", node=r3["order"], why="the lead gave up on this line of work")
+    st = {x["code"]: x["status"] for x in g.orders(inv)}
+    assert st["T4"] == "cancelled" and st["T3"] == "returned"                      # a withdrawn replacement replaces nothing
 
 
 # ── question board, sufficiency, settle ──────────────────────────

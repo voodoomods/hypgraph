@@ -235,3 +235,11 @@ at-risk, fallen, bounds, test, sentence); no node acquires `restates`. The live 
 during the first run (ledger calls ten minutes apart; small calls answered in 4 s). The operator chose to let it
 run. Wall time is excluded from pilot 4's comparison; calls and metered cost are unaffected, since a timed-out
 call is not billed.
+
+## D-12 (2026-10-24): lifecycle follows a chain of replacements
+
+Found while building hypswarm on the D-10 engine: `lifecycle` called a node superseded only when its direct
+replacement was live, so in a rework chain T1 → T2 → T3 the first order read as live again once T2 was itself
+replaced, and the scheduler escalated it twice. A node is now superseded when its replacement is live or itself
+superseded (the chain ends in a live node); a withdrawn replacement still replaces nothing. Test in
+`tests/test_d10.py`. Pegasus's live record derives identically before and after (790 nodes, same chain head).

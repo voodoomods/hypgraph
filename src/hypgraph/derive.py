@@ -53,8 +53,10 @@ def lifecycle(s: Snap, nid: str, _seen: frozenset = frozenset()) -> str:
     if nid in s.withdrawn:
         return "withdrawn"
     for e in s.inn.get(nid, []):
-        # superseded by a live replacement (a cycle of supersedes edges can't recurse forever)
-        if e["rel"] in SAME_TYPE and e["src"] not in _seen and lifecycle(s, e["src"], _seen | {nid}) == "active":
+        # superseded by a replacement that is live, or itself superseded by one that is: a chain of replacements
+        # ends in a live node (a withdrawn replacement replaces nothing). A cycle can't recurse forever.
+        if e["rel"] in SAME_TYPE and e["src"] not in _seen and \
+                lifecycle(s, e["src"], _seen | {nid}) in ("active", "superseded"):
             return "superseded"
     n = s.nodes[nid]
     if n["type"] == "investigation":
