@@ -205,6 +205,25 @@
     "hypgraph": "6d80bdac86a4018ead021679b666d17fd7dca70f",
     "pegasus": "9762551c1631282e54173fe9d28137d7519e9c52+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T04:05:59Z",
+   "ids": [
+    "D-16"
+   ],
+   "note": "stalled runs killed, excluded and repeated under a fresh id; stall_affected flag; no run yet",
+   "files": {
+    "host": "74e0911d19b23c4177723dab4f3d970d3d20b0163f098cb4a40f2c18ba1c59e1",
+    "hypswarm/src": "d345d81a521a77d8c9ddacd45ad4329784c921f105d49bd79f6fb857bb32e5b2"
+   },
+   "was": {
+    "host": "b14a19251461965d5b93f926e7e82e685f8f11ea30624ee0ec65789b2746a504",
+    "hypswarm/src": "d8e5efffbc1b9b94a59b718e90c39b27f03db280acfd567d5d02d5112fe64aef"
+   },
+   "git": {
+    "hypgraph": "14bf1705d6365fe1a5d1242d6e4b67bfca0297e8+dirty",
+    "pegasus": "1d3ee5655b0f7d2abbc5f7a6954b77a062a1703f+dirty"
+   }
   }
  ]
 }

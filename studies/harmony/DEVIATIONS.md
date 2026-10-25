@@ -332,3 +332,21 @@ stop of the pilot — the stalled call's metered rows are excluded by run id, an
 instance with a fresh run id, at most twice. That keeps a stall from ending a pilot while the metered calls and
 cost of every kept run stay honest. To be implemented in `study_host.py` before the next rerun and recorded here
 when done.
+
+## D-16 (2026-10-25, implemented before any further run): stalls are per-run retries
+ `study_host.py` now runs the
+container runner under its own watch: while a real-model run is alive, the host polls the proxy ledger for that
+run's own metered calls (rows labelled `study-<run_id>`); a run none of whose calls has been metered for
+`--stall-gap-s` (150 s) is killed in the container, kept only as `stalled.json` (no `meta.json`, so
+`analysis.py` / `compare_pilots.py` never see it; its ledger rows stay under its run id and are excluded), and the
+instance is repeated under a fresh run id at most `--stall-retries` (2) times; after that the instance is reported
+as not run and the pilot exits 4 instead of pretending. The budget guard counts a stalled attempt's spend without
+counting it as done, and the resume rule skips neither. A completed run whose metered calls exceed the runner's
+count by more than three is written as `stall_affected: true` in `meta.json` (the harness note above). The stub
+model makes no calls and is never watched; the pod's own agents' calls don't reset the watch, because it reads
+the run's own rows, not the proxy's traffic. Checked without spend: the watch kills a fake runner that never
+meters a call (31 s at a 25 s gap); a fake `run_one` that stalls twice is repeated three times and then counted
+once, a resume repeats nothing, three stalls give up with exit 4; a stub run on F1-0 C through the watched runner
+gives the same 15 calls and score as the earlier stub run on the same instance. Outside watch
+(`dev/study_stallwatch.py`) stays as a backstop for single runs; it isn't run beside a pilot. The lock's file set
+already hashes `study_host.py`, so the next pilot's lock entry records this version.
