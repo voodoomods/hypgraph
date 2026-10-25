@@ -58,14 +58,22 @@ def negated(text: str, start: int) -> bool:
     return bool(_NEGATOR.search(head[c0:]))
 
 
+# "below zero", "crosses zero", "from zero to one": zero as a number on a scale, not "zero failures"
+_ZERO_ON_A_SCALE = re.compile(r"\b(below|above|near|to|from|of|than|at|cross(?:es|ed)?|includ(?:es|ed)?|"
+                              r"exclud(?:es|ed)?|around|about|approximately|spans?|toward|towards|between)\s+zero\b",
+                              re.I)
+
+
 def asserted(pattern: re.Pattern, text: str) -> list[str]:
-    """The distinct matches of a pattern that their sentence actually asserts: not negated in their clause, and not
-    an epistemic hedge ("cannot conclude")."""
+    """The distinct matches of a pattern that their sentence actually asserts: not negated in their clause, not an
+    epistemic hedge ("cannot conclude"), and not a number on a scale ("below zero")."""
     out = []
     for m in pattern.finditer(text or ""):
         if negated(text, m.start()):
             continue
         if _EPISTEMIC.match(text, m.start()):
+            continue
+        if m.group(0).lower() == "zero" and any(z.end() == m.end() for z in _ZERO_ON_A_SCALE.finditer(text)):
             continue
         out.append(m.group(0).lower())
     return list(dict.fromkeys(out))

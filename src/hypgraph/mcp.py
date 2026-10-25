@@ -568,6 +568,17 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         return f"{order} cancelled"
 
     @mcp.tool
+    def settle_work(investigation: str = "") -> str:
+        """For the orchestrator: accept every returned order whose predicates are all met (a decision each, based
+        on the evidence). The mechanical half of accepting; your judgement is for the rest."""
+        try:
+            done = g.settle(author=me, inv=inv_of(investigation))
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return "\n".join(f"{d['order']} ({d['assignee']}) accepted — {d['decision']}" for d in done) or \
+            "Nothing returned with every predicate met."
+
+    @mcp.tool
     def cancel_moot(investigation: str = "") -> str:
         """For the orchestrator: cancel exactly the orders whose target or a premise has fallen."""
         try:

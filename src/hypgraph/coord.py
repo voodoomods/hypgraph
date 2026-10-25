@@ -43,6 +43,39 @@ PREDICATES = {
     "report_clean": "the write-up passes check_text with no errors (pass text= to check_work)",
     "within_budget": "the spend metered for this order is within its budget (needs a spend meter)",
 }
+RECIPES = {
+    "run_registered": {"experiment": "register_run(…, experiment=<target>) — the run executes it",
+                       "*": "register a run while you hold this order (register_run)"},
+    "result_exists": {"*": "register a run with a result while you hold this order (register_run); a result "
+                           "linked to the target counts too"},
+    "claim_made": {"question": "graph_add(type=\"claim\", …, links=[{\"rel\": \"answers\", \"to\": <target>}]) "
+                               "with a measurement for every number, derived_from the result it comes from",
+                   "*": "graph_add(type=\"claim\", …, links=[{\"rel\": \"supports\" or \"challenges\", \"to\": "
+                        "<target>, \"why\": …}]) with a measurement for every number"},
+    "reviewed": {"*": "review(<target>, verdict, method, notes) — by a reviewer, never the claim's author"},
+    "no_open_objection": {"*": "a reviewer records 'resolved' on the target, or revise it to answer the objection"},
+    "report_clean": {"*": "pass the report text with the return / submit; it is linted against the record"},
+    "within_budget": {"*": "stay within the order's budget"},
+}
+_SPELLINGS = ("p", "predicate", "name", "check", "pred")
+
+
+def norm_pred(x) -> dict:
+    """A predicate as written by an agent — {"p": …}, {"predicate": …}, {"name": …} or a bare string — as {"p": …}."""
+    if isinstance(x, str):
+        return {"p": x.strip()}
+    if isinstance(x, dict):
+        for k in _SPELLINGS:
+            if x.get(k):
+                return {"p": str(x[k]).strip(), **{a: b for a, b in x.items() if a not in _SPELLINGS}}
+    return {"p": ""}
+
+
+def recipe(p: str, target_type: str) -> str:
+    r = RECIPES.get(p) or {}
+    return r.get(target_type) or r.get("*") or ""
+
+
 DEFAULT_DONE = {
     "experiment": [{"p": "run_registered"}, {"p": "result_exists"}],
     "hypothesis": [{"p": "result_exists"}, {"p": "claim_made"}],
@@ -61,6 +94,8 @@ RULES = (
     "cancel it. Accepting writes a decision based on the evidence.\n"
     "- When a premise falls, cancel_moot stops exactly the orders that rest on it; nothing else.\n"
     "- The final report starts from report() and must pass check_text before it is handed over.\n"
+    "- A question is settled by one checked claim that answers it. Don't order more reviews of a settled question; "
+    "order one review of an answered one.\n"
     "- Don't issue what is already in flight or done by the same method; don't do sub-agents' work yourself.")
 
 
@@ -208,14 +243,22 @@ def _eval(g: "Graph", s: D.Snap, oid: str, pred: dict, text: str) -> dict:
         return res | {"why": f"unknown predicate {p!r}"}
     if not t and p not in ("report_clean", "within_budget"):
         return res | {"why": "the order has no target"}
+    who = s.nodes[oid]["body"].get("assignee", "")
+    inv = s.nodes[oid]["inv"]
+
+    def under_order(ntype: str) -> list[str]:
+        """What the assignee wrote in this investigation while holding the order: work on the order by construction."""
+        return [i for i, n in s.nodes.items() if n["type"] == ntype and n["inv"] == inv and n["created_by"] == who
+                and _after(s, i, at) and _live(s, i)]
     if p == "run_registered":
-        ids = [r for r in _runs_executing(s, t) if _after(s, r, at) and _live(s, r)]
-        return res | {"met": bool(ids), "evidence": ids, "why": "" if ids else f"no run executes {_code(s, t)} since "
-                      "the order was issued"}
+        ids = [r for r in _runs_executing(s, t) if _after(s, r, at) and _live(s, r)] or under_order("run")
+        return res | {"met": bool(ids), "evidence": ids, "why": "" if ids else f"no run executes {_code(s, t)}, and "
+                      f"{who} registered none under this order"}
     if p == "result_exists":
-        ids = [r for r in _results_on(s, t) if _after(s, r, at) and _live(s, r)]
+        ids = [r for r in _results_on(s, t) if _after(s, r, at) and _live(s, r)] or under_order("result")
         return res | {"met": bool(ids), "evidence": ids,
-                      "why": "" if ids else f"no live result on {_code(s, t)} since the order was issued"}
+                      "why": "" if ids else f"no live result on {_code(s, t)}, and {who} registered none under this "
+                                            "order"}
     if p == "claim_made":
         ids = [c for c in _claims_on(s, t) if _after(s, c, at) and _live(s, c)]
         return res | {"met": bool(ids), "evidence": ids,
@@ -275,10 +318,12 @@ def check_work(g: "Graph", order: str, text: str = "") -> dict:
             "all_met": bool(checks) and all(c["met"] for c in checks), "predicates": checks}
 
 
-def _done_text(pred: dict) -> str:
+def _done_text(pred: dict, target_type: str = "") -> str:
     p = pred.get("p", "")
     extra = " ".join(f"{k}={v}" for k, v in sorted(pred.items()) if k != "p")
-    return f"[{p}{' ' + extra if extra else ''}] — {PREDICATES.get(p, 'unknown predicate')}"
+    how = recipe(p, target_type)
+    return (f"[{p}{' ' + extra if extra else ''}] — {PREDICATES.get(p, 'unknown predicate')}"
+            + (f"\n      how: {how}" if how else ""))
 
 
 # ── issuing and settling ──────────────────────────────────────────
@@ -294,7 +339,9 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
         t = g.resolve(target, inv)
         prem_ids = None if premises is None else [g.resolve(p, inv) for p in premises]
     except KeyError as e:
-        raise GraphError(str(e).strip("'\"")) from None
+        raise GraphError(str(e).strip("'\"") + " — a target is a code the record has (Q1, H2, X1, CL3; find lists "
+                         "them) or the investigation's id; add a hypothesis or experiment first if you need a new "
+                         "one") from None
     if D.out_of_play(s, t):
         raise GraphError(f"{_code(s, t)} is {D.lifecycle(s, t)}{' and fallen' if D.fallen(s, t) else ''} — "
                          "nothing to work on")
@@ -305,10 +352,11 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
     lease = s.leases.get(t)
     if lease and lease["agent"] != assignee:
         raise GraphError(f"{lease['agent']} holds {_code(s, t)} until {lease['expires']}")
-    preds = list(done_when or DEFAULT_DONE.get(s.nodes[t]["type"], [{"p": "result_exists"}]))
-    bad = [p for p in preds if not isinstance(p, dict) or p.get("p") not in PREDICATES]
+    preds = [norm_pred(p) for p in (done_when or DEFAULT_DONE.get(s.nodes[t]["type"], [{"p": "result_exists"}]))]
+    bad = [p["p"] for p in preds if p["p"] not in PREDICATES]
     if bad:
-        raise GraphError(f"unknown predicate(s) {bad}; predicates: {', '.join(PREDICATES)}")
+        raise GraphError(f"unknown predicate(s) {bad}: write each as {{\"p\": \"claim_made\"}}; predicates: "
+                         + ", ".join(PREDICATES))
     if premises is None:
         prem = [a for a, _r, _d in D.ancestors(s, t, limit=40) if s.nodes[a]["type"] not in ("artifact", "task")]
         if s.nodes[t]["type"] == "experiment":
@@ -401,6 +449,19 @@ def rework(g: "Graph", *, author: str, order: str, missing: str, done_when: list
         raise GraphError("missing: say what the return lacked")
     b = s.nodes[order]["body"]
     t = target_of(s, order)
+    chain = [order]
+    while True:                                                    # the orders this one already replaced
+        older = [e["dst"] for e in s.out.get(chain[-1], []) if e["rel"] == "supersedes"]
+        if not older or older[0] in chain:
+            break
+        chain.append(older[0])
+    if len(chain) >= 3 and not done_when:
+        missing_now = {x["p"] for x in check_work(g, order)["predicates"] if not x["met"]}
+        raise GraphError(f"{s.nodes[order]['code']} has been reworked twice already and "
+                         f"{', '.join(sorted(missing_now)) or 'its predicates'} still isn't met: the predicate may be "
+                         "unmeetable as tooled. Change it (rework with done_when=…), accept what was delivered with a "
+                         "reason (accept_work needs every predicate met — so change it first), or cancel_work.")
+    done_when = [norm_pred(x) for x in done_when] if done_when else None
     prem = [e["dst"] for e in premises_of(s, order)]
     fields = {"objective": objective or b["objective"], "assignee": b["assignee"], "role": b.get("role", ""),
               "done_when": done_when or b.get("done_when") or [], "prediction": b.get("prediction", ""),
@@ -501,7 +562,7 @@ def order_text(g: "Graph", order: str) -> str:
     if b.get("method"):
         L += [f"METHOD       {b['method']}"]
     L += ["", "DONE WHEN (checked against the record; only what you write after the order counts)"]
-    L += [f"  {_done_text(p)}" for p in b.get("done_when") or []]
+    L += [f"  {_done_text(p, s.nodes[t]['type'] if t else '')}" for p in b.get("done_when") or []]
     bud = b.get("budget") or {}
     if bud:
         L += ["", "BUDGET       " + ", ".join(f"{k} {v}" for k, v in sorted(bud.items()))]
@@ -541,6 +602,47 @@ def _since(g: "Graph", s: D.Snap, inv: str, seq: int) -> list[str]:
     return [f"  {k}: {', '.join(v[:14])}{' …' if len(v) > 14 else ''}" for k, v in by.items()]
 
 
+def question_board(g: "Graph", inv: str) -> list[dict]:
+    """Every live question with its status, derived: settled (a checked claim answers it) · contested · answered
+    (a live claim answers it, unchecked) · in progress (an order on it is open) · open."""
+    s = g.snapshot()
+    rows = []
+    open_orders = {o["target_id"]: o for o in orders(g, inv) if o["status"] in ("open", "overdue", "returned")}
+    for q, n in sorted(((i, n) for i, n in s.nodes.items() if n["inv"] == inv and n["type"] == "question"
+                        and _live(s, i)), key=lambda kv: kv[1]["code"]):
+        ans = [e["src"] for e in s.inn.get(q, []) if e["rel"] == "answers" and s.nodes[e["src"]]["type"] == "claim"
+               and _live(s, e["src"])]
+        states = {c: (D.state(s, c).get("review") or {}).get("state", "unchecked") for c in ans}
+        checked = [c for c in ans if states[c] == "checked"]
+        contested = [c for c in ans if states[c] == "contested"]
+        o = open_orders.get(q)
+        if checked:
+            status, by = "settled", f"{_code(s, checked[0])} (checked by " + ", ".join(
+                x.split(":")[0] for x in D.state(s, checked[0])["review"]["positive"][:2]) + ")"
+        elif contested:
+            status, by = "contested", _code(s, contested[0])
+        elif ans:
+            status, by = "answered", f"{_code(s, ans[-1])} unchecked" + (f"; order {o['code']} on it" if o else "")
+        elif o:
+            status, by = "in progress", f"{o['code']} → {o['assignee']} ({o['status']})"
+        else:
+            status, by = "open", ""
+        rows.append({"id": q, "code": n["code"], "text": _title(s, q), "status": status, "by": by,
+                     "answers": [_code(s, c) for c in ans]})
+    return rows
+
+
+def settle(g: "Graph", *, author: str, inv: str) -> list[dict]:
+    """Accept every returned order whose predicates are all met — the mechanical half of the lead's job, done by
+    the record. Returns what it accepted."""
+    out = []
+    for o in orders(g, inv, status="returned"):
+        if check_work(g, o["id"])["all_met"]:
+            a = accept_work(g, author=author, order=o["id"], reason="settled by the record: every predicate met")
+            out.append({"order": o["code"], "assignee": o["assignee"], "decision": a["decision"]})
+    return out
+
+
 def briefing(g: "Graph", inv: str, *, roster: list | None = None, since_seq: int = 0, budget_usd: float = 0,
              max_items: int = 8) -> dict:
     """The orchestrator's context, compiled from the record. Stable sections first (cache-friendly), then what moved.
@@ -557,7 +659,14 @@ def briefing(g: "Graph", inv: str, *, roster: list | None = None, since_seq: int
     sec["RULES"] = [RULES]
     if roster:
         sec["ROSTER"] = [f"  {r.get('name')}: {r.get('takes', '')}" for r in roster]
-    est, cont, fallen, risk = [], [], [], []
+    board = question_board(g, inv)
+    if board:
+        sec["BOARD"] = [f"  {q['code']} {q['status'].upper():<11} {q['text'][:90]}" + (f" — {q['by']}" if q["by"] else "")
+                        for q in board]
+        done = sum(q["status"] == "settled" for q in board)
+        sec["BOARD"].append(f"  {done} of {len(board)} settled" + (" — every question is settled: write the report"
+                                                                   if done == len(board) else ""))
+    cont, fallen, risk = [], [], []
     for i, n in sorted(s.nodes.items(), key=lambda kv: kv[1]["code"] or kv[0]):
         if n["inv"] != inv or n["type"] not in ("claim", "hypothesis", "result"):
             continue
@@ -566,38 +675,40 @@ def briefing(g: "Graph", inv: str, *, roster: list | None = None, since_seq: int
             if n["type"] != "result":
                 fallen.append(f"  {_line(s, i, 90)} — {st['lifecycle']}{', fallen' if st['fallen'] else ''}")
             continue
-        rv = (st.get("review") or {}).get("state")
         if st.get("at_risk"):
             risk.append(f"  {_standing_line(s, i)}")
-        elif rv == "contested":
+        elif (st.get("review") or {}).get("state") == "contested":
             cont.append(f"  {_standing_line(s, i)}")
-        elif n["type"] in ("claim", "hypothesis"):
-            est.append(f"  {_standing_line(s, i)}")
     def cap(xs):
         return xs[:max_items * 2] + ([f"  … {len(xs) - max_items * 2} more"] if len(xs) > max_items * 2 else [])
-    sec["STANDING"] = (["live claims and hypotheses:"] + cap(est) if est else ["nothing claimed yet"])
+    exc = []
     if cont:
-        sec["STANDING"] += ["contested:"] + cap(cont)
+        exc += ["contested:"] + cap(cont)
     if risk:
-        sec["STANDING"] += ["at risk (a premise fell):"] + cap(risk)
+        exc += ["at risk (a premise fell):"] + cap(risk)
     if fallen:
-        sec["STANDING"] += ["fallen / withdrawn:"] + cap(fallen)
+        exc += ["fallen / withdrawn:"] + cap(fallen)
+    sec["STANDING"] = exc or ["nothing contested, at risk or fallen (show <code> for any node's full standing)"]
     busy = {o["target_id"] for o in orders(g, inv) if o["status"] in ("open", "returned", "overdue")}
+    front = []
+    for q in board:                                       # the question board drives the frontier
+        if q["status"] == "open":
+            front.append(f"  {q['code']} open question: {q['text'][:90]} — issue_work on it")
+        elif q["status"] == "answered" and q["id"] not in busy:
+            front.append(f"  {q['code']} answered by {q['answers'][-1]}, unchecked — issue_work on {q['answers'][-1]} "
+                         "to a reviewer (one review settles it)")
+        elif q["status"] == "contested":
+            front.append(f"  {q['code']} contested ({q['by']}) — resolve the objection or revise")
     nx = plan.next_experiments(g, inv, limit=max_items * 2)
-    front = [f"  {r['experiment']['code']} {r['experiment']['title'][:100]} — separates {r['separates']}, "
-             f"~{r['cost_minutes']:.0f} min{', DUPLICATE' if r['duplicate'] else ''}"
-             for r in nx["ranked"] if r["experiment"]["id"] not in busy][:max_items]
+    front += [f"  {r['experiment']['code']} {r['experiment']['title'][:100]} — separates {r['separates']}, "
+              f"~{r['cost_minutes']:.0f} min{', DUPLICATE' if r['duplicate'] else ''}"
+              for r in nx["ranked"] if r["experiment"]["id"] not in busy][:max_items]
     front += [f"  {h['code']} untested hypothesis: {h['title'][:100]}" for h in nx["untested_hypotheses"]
               if h["id"] not in busy][:max_items]
     wm = plan.work_map(g, inv)
-    front += [f"  {c['code']} needs a review: {c['title'][:100]}" for c in wm["review_queue"]
-              if c["id"] not in busy][:max_items]
     front += [f"  {c['code']} needs revalidation: {c['title'][:100]}" for c in wm["revalidation"]
               if c["id"] not in busy][:max_items]
-    qs = [i for i, n in s.nodes.items() if n["inv"] == inv and n["type"] == "question" and _live(s, i)
-          and not any(e["rel"] == "answers" for e in s.inn.get(i, [])) and i not in busy]
-    front += [f"  {_line(s, i, 100)} — unanswered question" for i in sorted(qs, key=lambda x: s.nodes[x]["code"])]
-    sec["FRONTIER"] = front or ["nothing open: every question has an answer and nothing waits — consider the report"]
+    sec["FRONTIER"] = front or ["nothing open: every question is settled and nothing waits — write the report"]
     flight, back = [], []
     for o in orders(g, inv):
         if o["status"] in ("open", "overdue"):
@@ -607,10 +718,13 @@ def briefing(g: "Graph", inv: str, *, roster: list | None = None, since_seq: int
             chk = check_work(g, o["id"])
             marks = " ".join(f"{c['p']}={'MET' if c['met'] else 'NOT MET'}" for c in chk["predicates"])
             back.append(f"  {o['code']} from {o['assignee']} on {o['target']}: {marks}"
-                        f"{' — note: ' + o['returned_note'][:200] if o['returned_note'] else ''}")
-        elif o["status"] == "moot":
-            back.append(f"  {o['code']} ({o['assignee']}) is MOOT — its target or a premise fell: cancel_moot")
+                        + (" — ALL MET: settle_work accepts it" if chk["all_met"] else
+                           " — rework (say what is missing) or cancel_work")
+                        + (f" — note: {o['returned_note'][:200]}" if o["returned_note"] else ""))
     sec["IN FLIGHT"] = flight or ["no open orders"]
+    moot = [o for o in orders(g, inv) if o["status"] == "moot"]
+    if moot:
+        back.append(f"  {len(moot)} order(s) are MOOT — cancel_moot")
     sec["RETURNED"] = back or ["nothing waiting for acceptance"]
     if g.spend is not None or budget_usd:
         spent = None

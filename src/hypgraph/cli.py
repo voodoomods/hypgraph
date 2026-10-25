@@ -344,6 +344,14 @@ def cmd_refusals(args) -> int:
     return 0
 
 
+def cmd_replay(args) -> int:
+    from .refusals import replay_markdown
+    g = _graph(args)
+    r = g.replay_refusals(_inv(g, args.inv) if args.inv else "")
+    _out(args, r, replay_markdown(r))
+    return 0
+
+
 def cmd_check(args) -> int:
     g = _graph(args)
     text = Path(args.file).read_text(encoding="utf-8") if args.file != "-" else sys.stdin.read()
@@ -493,6 +501,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--inv", default="")
     s.add_argument("--since", default="", help="ISO date or time")
     s.add_argument("--author", dest="author_filter", default="", help="list one author's refusals in full")
+    s = cmd("replay-refusals", cmd_replay, "run every logged refusal through the checker as it is now")
+    s.add_argument("--inv", default="")
     s = cmd("check", cmd_check, "lint a write-up (markdown) against the record; exit 1 on errors")
     s.add_argument("file", help="the markdown file ('-' for stdin)")
     s.add_argument("--inv", default="", help="the investigation it reports on (default: inferred)")

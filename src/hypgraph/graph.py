@@ -586,7 +586,7 @@ class Graph:
                     if problems:
                         found = [p.to_dict() for p in problems]
                         refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
-                                                problems=found)
+                                                problems=found, support=self._support_ids(s, nid, pending))
                         raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems), found)
                 if type == "result" and author not in P.reserved:
                     same = self._restated_by(s, body, inv, nid)
@@ -759,7 +759,7 @@ class Graph:
                     if problems:
                         found = [p.to_dict() for p in problems]
                         refusals.record_refusal(self, author=author, op="revise", inv=n["inv"], node=node, body=body,
-                                                problems=found)
+                                                problems=found, support=self._support_ids(s, node, []))
                         raise GraphError("revision refused:\n- " + "\n- ".join(p.text() for p in problems), found)
                 at = self.clock()
 
@@ -1107,6 +1107,10 @@ class Graph:
         """Overclaims caught per author and per rule, fixed vs open, with the latest in full (and as markdown)."""
         return refusals.report(self, inv=inv, since=since)
 
+    def replay_refusals(self, inv: str = "") -> dict:
+        """Every logged refusal through the checker as it is now (refusals.replay)."""
+        return refusals.replay(self, inv)
+
     def verify_refusals(self) -> dict:
         """The refusal log's own hash chain."""
         return refusals.verify(self)
@@ -1159,6 +1163,16 @@ class Graph:
     def cancel_moot(self, *, author: str, inv: str) -> list[dict]:
         from . import coord
         return coord.cancel_moot(self, author=author, inv=inv)
+
+    def question_board(self, inv: str) -> list[dict]:
+        """Every live question with its derived status (coord.question_board)."""
+        from . import coord
+        return coord.question_board(self, inv)
+
+    def settle(self, *, author: str, inv: str) -> list[dict]:
+        """Accept every returned order whose predicates are all met (coord.settle)."""
+        from . import coord
+        return coord.settle(self, author=author, inv=inv)
 
     # ── method & coordination (plan.py) ─────────────────────────────
     def next_experiments(self, inv: str, limit: int = 10) -> dict:

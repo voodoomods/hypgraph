@@ -75,7 +75,7 @@ def test_only_evidence_after_the_order_counts_and_acceptance_needs_every_predica
     r0, _ = run_and_result(g, "analyst", inv, x1)             # done before anyone asked: doesn't count
     o = g.issue_work(author="lead", inv=inv, target="X1", assignee="analyst", objective="Run the paired comparison.")
     chk = g.check_work(o["order"])
-    assert not chk["all_met"] and all("since the order" in c["why"] for c in chk["predicates"])
+    assert not chk["all_met"] and all("under this order" in c["why"] for c in chk["predicates"])
     with pytest.raises(GraphError, match="isn't done"):
         g.accept_work(author="lead", order=o["order"])
     with pytest.raises(GraphError, match="RESULT_RESTATES"):   # the same numbers again, undeclared: refused

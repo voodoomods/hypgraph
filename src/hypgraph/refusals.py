@@ -62,11 +62,13 @@ def _append(con, row: dict) -> int:
     return cur.lastrowid
 
 
-def record_refusal(g: "Graph", *, author: str, op: str, inv: str, node: str, body: dict, problems: list) -> int:
-    """Log a refused claim (create or revise). Never raises: a logging problem must not change the refusal."""
+def record_refusal(g: "Graph", *, author: str, op: str, inv: str, node: str, body: dict, problems: list,
+                   support: list | None = None) -> int:
+    """Log a refused claim (create or revise), with the whole body and the support it had, so the refusal can be
+    replayed later against a changed checker. Never raises: a logging problem must not change the refusal."""
     try:
-        detail = {"problems": [{k: p.get(k) for k in ("code", "message", "fix")} for p in problems],
-                  "kind": body.get("kind") or "finding"}
+        detail = {"problems": [{k: p.get(k) for k in ("code", "message", "fix", "words")} for p in problems],
+                  "kind": body.get("kind") or "finding", "body": body, "support": list(support or [])}
         row = {"at": g.clock(), "kind": "refused", "author": author, "inv": inv or "", "node": node or "", "op": op,
                "statement": str(body.get("statement") or "")[:1500],
                "codes": canon(sorted({p["code"] for p in problems})), "detail": canon(detail), "ref": None}
@@ -166,6 +168,78 @@ def markdown(r: dict) -> str:
     for x in r["recent"][:10]:
         fix = f" → fixed as {x['fixed_by']['code'] or x['fixed_by']['node']}" if x["fixed_by"] else " → not fixed"
         L_.append(f"- {x['at'][:16]} **{x['author']}**: “{x['statement'][:140]}” — {', '.join(x['codes'])}{fix}")
+    return "\n".join(L_)
+
+
+def replay(g: "Graph", inv: str = "") -> dict:
+    """Run every logged refusal through the checker as it is now. For each: the codes it was refused with, the
+    codes it gets today, and the verdict — ``same``, ``changed`` (refused for other reasons), ``passes`` (it would
+    enter the record now), or ``partial`` when the log holds only the statement (older logs), so only the
+    language rules can be replayed and binding-dependent codes are marked unknown. The point: a rule change is
+    judged on the real corpus of what agents wrote, before it ships."""
+    from .checks import claim_issues
+    s = g.snapshot()
+    rows_ = rows(g, inv=inv, limit=5000)
+    out = []
+    for r in rows_:
+        if any(c == "RESULT_RESTATES" for c in r["codes"]):
+            continue
+        d = {}
+        try:
+            con = g._connect()
+            raw = con.execute("SELECT detail FROM refusal_log WHERE id=?", (r["id"],)).fetchone()
+            d = json.loads(raw[0]) if raw else {}
+        except Exception:  # noqa: BLE001
+            d = {}
+        body = d.get("body")
+        full = isinstance(body, dict) and "statement" in body
+        if not full:
+            body = {"statement": r["statement"], "kind": d.get("kind") or "finding", "scope": "(not logged)"}
+        support = [x for x in d.get("support") or [] if x in s.nodes]
+        now = [p.code for p in claim_issues(s, body, support, r["inv"])] if r["inv"] in s.nodes else []
+        binding = {"UNBOUND_NUMBER", "MEASUREMENT_MALFORMED", "MEASUREMENT_UNKNOWN_FIELD", "MEASUREMENT_MISMATCH",
+                   "EVIDENCE_MISSING", "SCOPE_MISSING", "ABSOLUTE_UNDERPOWERED", "ABSOLUTE_HIDES_DENOMINATOR",
+                   "ABSOLUTE_UNRELATED_COUNT", "SIGNIFICANCE_NOT_SHOWN", "SIGNIFICANCE_CONTRADICTED",
+                   "EXCLUSION_WITHOUT_POWER", "CAUSAL_WITHOUT_INTERVENTION"}
+        if not full:
+            now = [c for c in now if c not in binding]
+            was = [c for c in r["codes"] if c not in binding]
+            unknown = [c for c in r["codes"] if c in binding]
+        else:
+            was, unknown = list(r["codes"]), []
+        if not full and unknown and not was:
+            verdict = "unknown"
+        elif not now and (full or not unknown):
+            verdict = "passes"
+        elif not now:
+            verdict = "language passes"
+        elif set(now) == set(was):
+            verdict = "same"
+        else:
+            verdict = "changed"
+        out.append({"id": r["id"], "author": r["author"], "inv": r["inv"], "statement": r["statement"],
+                    "was": r["codes"], "now": now, "unknown": unknown, "full": full, "verdict": verdict})
+    tally = Counter(x["verdict"] for x in out)
+    by_code: dict = defaultdict(Counter)
+    for x in out:
+        for c in x["was"]:
+            by_code[c][x["verdict"]] += 1
+    return {"replayed": len(out), "verdicts": dict(tally), "by_code": {k: dict(v) for k, v in by_code.items()},
+            "rows": out}
+
+
+def replay_markdown(r: dict) -> str:
+    L_ = [f"## Refusals replayed — {r['replayed']}: " + ", ".join(f"{k} {v}" for k, v in sorted(r["verdicts"].items())),
+          "", "| refused as | same | changed | passes | language passes | unknown |", "|---|---|---|---|---|---|"]
+    for c, v in sorted(r["by_code"].items(), key=lambda kv: -sum(kv[1].values())):
+        L_.append(f"| `{c}` | {v.get('same', 0)} | {v.get('changed', 0)} | {v.get('passes', 0)} | "
+                  f"{v.get('language passes', 0)} | {v.get('unknown', 0)} |")
+    moved = [x for x in r["rows"] if x["verdict"] in ("passes", "language passes", "changed")]
+    if moved:
+        L_ += ["", "### Would be treated differently now", ""]
+        for x in moved[:40]:
+            L_.append(f"- **{x['verdict']}** ({', '.join(x['was'])} → {', '.join(x['now']) or 'accepted'}): "
+                      f"“{x['statement'][:160]}”")
     return "\n".join(L_)
 
 

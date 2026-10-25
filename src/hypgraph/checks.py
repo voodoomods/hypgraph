@@ -12,6 +12,8 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   UNBOUND_NUMBER                a number in the statement comes from nowhere: not a bound measurement, nothing
                                 computed from them (difference, ratio, percentage, interval), the scope or a constant
   ABSOLUTE_WITHOUT_COUNT        "never" / "always" / "eliminates" / "100%" with no count of 0 or n behind it
+                                (an absolute over a set the sentence enumerates — "all three subsets: …" — is
+                                not a generalisation and is left alone)
   ABSOLUTE_UNRELATED_COUNT      the 0-of-n it leans on counts something else
   ABSOLUTE_UNDERPOWERED         0 of n with n too small (the rate could still be above 5%), and the statement
                                 generalises past the n trials instead of saying them ("never leaks")
@@ -189,8 +191,30 @@ def _exposure_note(bound_rate: float, body: dict) -> str:
             "out.")
 
 
+_ENUM = re.compile(r"\b(all|every|each|none|neither|both)\b", re.I)
+_SMALL = r"(?:\d{1,3}(?:,\d{3})*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+_ENUM_COUNT = re.compile(r"^\s*(?:of\s+(?:the\s+)?|one\s+of\s+(?:the\s+)?)?" + _SMALL + r"\b", re.I)
+
+
+def _enumerated(stmt: str, word: str) -> bool:
+    """An absolute that quantifies over a set the sentence itself enumerates is not a generalisation past the
+    sample: "all three subsets", "in every subset: math −2.6, code −2.2, reading −0.4". The rule is lexical —
+    a small count right after the word, or a breakdown of two or more numbers after a colon or bracket in the
+    same sentence — so it can be replayed on a refusal log that holds only the statement."""
+    if not _ENUM.fullmatch(word):
+        return False
+    m = re.search(r"\b" + re.escape(word) + r"\b", stmt, re.I)
+    if not m:
+        return False
+    rest = re.split(r"[.!?](?:\s|$)", stmt[m.end():], maxsplit=1)[0]
+    if _ENUM_COUNT.match(rest):
+        return True
+    brk = re.search(r"[:(\[—]", rest)
+    return bool(brk) and len(numbers(rest[brk.end():])) >= 2
+
+
 def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
-    words = L.asserted(L.ABSOLUTE, stmt)
+    words = [w for w in L.asserted(L.ABSOLUTE, stmt) if not _enumerated(stmt, w)]
     if not words:
         return []
     w = words[0]

@@ -188,3 +188,29 @@ Sample-size rule on pilot 3: 3 instances per family, as before.
 6. `hypgraph replay-refusals`: replay every logged refusal (statement + the bindings available then) through the
    current checker and report what would now pass, so rule changes like (5) are made against the real corpus.
 7. The briefing becomes a question board with a sufficiency rule; fully met orders accept automatically.
+
+## D-10 applied (2026-10-24): orders meetable by construction, enumeration, the question board, replay
+
+Approved by the operator; built with tests (`tests/test_d10.py`), no model spend. In HypGraph:
+1. `done_when` accepts `predicate` / `name` / a bare string; a bad predicate's refusal shows `{"p": "claim_made"}`;
+   a missing target's refusal says what a target is.
+2. `result_exists` / `run_registered` count what the assignee wrote while holding the order (the lease window),
+   as well as structurally linked work. Claims still need `answers` / `supports` / `challenges`.
+3. Every predicate in an order carries how to meet it with the assignee's tools (`coord.RECIPES`).
+4. A third rework of an order whose predicate hasn't moved is refused unless `done_when` changes.
+5. Absolutes over a set the sentence enumerates ("every subset: math −2.6, code −2.2, reading −0.4", "all 818
+   items") pass; "below zero" is a number.
+6. Refusals now log the whole claim body and its support; `hypgraph replay-refusals` replays them.
+7. The briefing's unit is the question (`question_board`: settled / contested / answered / in progress / open,
+   with the sufficiency rule in RULES); standing shows exceptions only; `settle` / `settle_work` accepts every
+   returned order whose predicates are all met.
+
+**Replay of the three pilots' 263 logged refusals** (`replay-baseline-d8.md` → `replay-after-d10.md`; 139 are
+binding-dependent and undecidable because pilots 1–3 logged statements only):
+- `ABSOLUTE_WITHOUT_COUNT` (50): would pass 1 → 16. Every flipped statement read: "over all 818 items …",
+  "in every subset: …" — enumerations, as intended. 13 unchanged, 21 refused for other reasons.
+- `SIGNIFICANCE_WITHOUT_TEST` (71): would pass 39 (D-8's negation fix, measured on the corpus).
+- `COMPARATIVE_WITHOUT_COMPARISON` (10): unchanged, correctly.
+
+Not yet in the study runner: `settle` after each return and the `settle_work` tool. That change goes in with the
+next pilot's deviation, so the runner stays as pilot 3 ran it until then.

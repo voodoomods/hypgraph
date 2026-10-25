@@ -14,6 +14,21 @@
 - **The done signal.** After every write by an assignee, the reply carries its open orders with each predicate
   MET / NOT MET, and "return_work now" when all are (`coord.done_lines`; `orders` on create / revise / review
   results; shown by the MCP tools). In the pilot 8 of 9 sub-agents worked to their turn cap past done.
+- **Orders meetable by construction.** `done_when` accepts `predicate` / `name` / a bare string as spellings of
+  `p`, and a bad predicate's refusal shows the valid form. Each predicate in an order carries how to meet it with
+  the assignee's tools. `result_exists` and `run_registered` count what the assignee wrote while holding the
+  order, so no link vocabulary stands between an honest result and a met predicate. A third rework of an order
+  whose predicate hasn't moved is refused, with the choices spelled out.
+- **The question board.** The briefing's unit is the question: settled (a checked claim answers it), contested,
+  answered (unchecked), in progress, open; the frontier is driven by it, and one review settles a question
+  (`question_board`). `settle` / MCP `settle_work` accepts every returned order whose predicates are all met.
+  Standing in the briefing is now exceptions only (contested, at risk, fallen).
+- **Absolutes over an enumerated set pass.** "A trails B in every subset: math −2.6, code −2.2, reading −0.4",
+  "all three subsets", "over all 818 items" quantify over what the sentence lists; they are not
+  generalisations and are no longer refused. "below zero" is a number, not "never".
+- **Replay.** Refusals are logged with the whole claim body and its support, and `hypgraph replay-refusals`
+  (`Graph.replay_refusals`) runs every logged refusal through the checker as it is now: same, changed, passes.
+  A rule change is judged on the corpus of what agents wrote before it ships.
 - **A result written twice is written once.** The same author re-registering the same numbers (the multiset of
   a result's values, rounded, keys ignored) is refused with `RESULT_RESTATES`; a declared rerun (a run that
   `replicates`) is kept and marked; another author's restatement is kept and its standing says `RESTATES RSn`.
