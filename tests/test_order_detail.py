@@ -25,7 +25,7 @@ def test_review_order_carries_the_claim_and_its_evidence():
     assert "statement: A is right on 812 of 1000 items." in text
     assert "scope: The 1000 paired items" in text
     assert "rests on RS1: Counted the paired items" in text and "acc = 812 of 1000" in text
-    assert f"reproduced by {lab['code']}" in text and "no recomputation" in text
+    assert f"re-run by {lab['code']}" in text
     q_order = g.issue_work(author=H, inv=inv, target=q, assignee="stats", objective="Answer Q1 again, differently.",
                            done_when=[{"p": "claim_made"}])
     assert "question: What is A's accuracy?" in q_order["text"]

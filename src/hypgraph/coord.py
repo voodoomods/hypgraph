@@ -561,10 +561,17 @@ def _target_detail(s: D.Snap, t: str) -> list[str]:
                 out.append(f"  rests on {_code(s, e['dst'])}: {str(rb.get('summary', ''))[:160]}"
                            + (f" — {_values_line(rb['values'])}" if rb.get("values") else ""))
                 for r in (x["src"] for x in s.inn.get(e["dst"], []) if x["rel"] == "produced"):
-                    rep = [x["src"] for x in s.inn.get(r, []) if x["rel"] == "replicates"]
-                    if rep:
-                        out.append(f"    reproduced by {', '.join(_code(s, x) for x in rep)} — judge the method and the "
-                                   "wording; the numbers need no recomputation")
+                    src = str(((s.nodes[r]["body"].get("config") or {}).get("source")) or "")
+                    if src.strip():                        # the code behind the result, so a reviewer needn't fetch it
+                        out.append(f"    code of {_code(s, r)}:")
+                        out += ["      " + ln for ln in src.strip().splitlines()[:40]]
+                        if len(src.strip().splitlines()) > 40:
+                            out.append("      …")
+                    for x in s.inn.get(r, []):
+                        if x["rel"] != "replicates":
+                            continue
+                        lb = s.nodes[x["src"]]["body"]
+                        out.append(f"    re-run by {_code(s, x['src'])}: {(lb.get('note') or 'reproduced')[:300]}")
     elif tt == "result":
         out.append(f"  summary: {b.get('summary', '')}")
         if b.get("values"):
