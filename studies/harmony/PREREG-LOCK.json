@@ -146,6 +146,27 @@
     "hypgraph": "5b61fcdb38045f1a0c716db311444f31afef273b",
     "pegasus": "c9f4b9ae8a6756ab6442cc3f79b4387075cbb137+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T02:25:03Z",
+   "ids": [
+    "D-13"
+   ],
+   "note": "hypswarm as condition E; lock now hashes study_e.py and hypswarm/src",
+   "files": {
+    "host": "b14a19251461965d5b93f926e7e82e685f8f11ea30624ee0ec65789b2746a504",
+    "runner_e": "10a02fb452ea50aaa20eab44e66ecb8cd2afc67e7571cfae7c065078c2d77275",
+    "hypswarm/src": "6a7c8d2009f69441f77818496ea7a766cfe6e18df699c1c92ff7f0431bfb84e4"
+   },
+   "was": {
+    "host": "ab6cc4b75ac1d5b3602cca1e4046e84c00ccf1fa25f762f4d9a6f6be451b6781",
+    "runner_e": null,
+    "hypswarm/src": null
+   },
+   "git": {
+    "hypgraph": "4f445eab464dee196cd007dbcdb86d6a8e2fab5a",
+    "pegasus": "9762551c1631282e54173fe9d28137d7519e9c52+dirty"
+   }
   }
  ]
 }
