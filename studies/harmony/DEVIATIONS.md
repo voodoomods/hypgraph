@@ -415,3 +415,25 @@ alike and changes no instruction; it is recorded with the next rerun's lock entr
 rerun: a prefix the provider has already poisoned stays poisoned for as long as their cache keeps it.
 
 **D-17 applied (2026-10-25, operator's decision):** `--nonce` on for the F7 reruns — C and D on 906/907 (never completed) and E on 906/907 (the two failed runs are kept in `runs/pilot4/superseded-e/`, not counted); same seeds, same caps, $5 guard over the folder. hypswarm runs the ADR-005 fixes (reviewers review; unreviewable answers re-issued; report phase reads and submits only). The lock entry pins the harness and hypswarm source as run.
+
+**Pilot 4 complete under D-17 (2026-10-25 05:32–05:44Z): all 20 runs kept, every report submitted.** The F7 reruns
+with the per-run prompt prefix — the three record runs that had stalled ten times between them and the two
+hypswarm runs that had ended without a report — all finished: F7-906 C 113 calls, F7-907 C 142, F7-906 D 44, F7-907 E
+100, F7-906 E 116, each score 1.00 with no trap hit. Folder total $0.42 metered (20 kept runs $0.41; 10 stalled
+attempts $0.01, excluded). Prefix theory confirmed by the runs themselves, not only by the replay.
+
+| condition | runs | reports | calls / run | $ / run | score | traps |
+|---|---|---|---|---|---|---|
+| A chat | 4 | 4 | 14.5 | 0.0070 | 1.00 | 1 (`significance`, F1-907) |
+| B Pegasus today | 4 | 4 | 26.5 | 0.0109 | 0.81 | 2 (`stale_premise` F7-907 → 0.25; `significance` F1-907) |
+| C record | 4 | 4 | 130.8 | 0.0415 | 1.00 | 1 (`significance`, F1-907) |
+| D record, no gates | 4 | 4 | 53.5 | 0.0185 | 1.00 | 0 |
+| E hypswarm | 4 | 4 | 86.0 | 0.0244 | 1.00 | 0 |
+
+Read against D-13's predictions: E finished every run (met, after ADR-005), answered as many sub-questions as C
+(met), hit no trap (met), reworks 0 (met); calls per run 86 against C's 131 (met) but above D's 54 (not met — the
+reviewer round trip per question is what E pays and D doesn't); wall time not compared (D-9). Still a pilot:
+k = 4 per condition; the frozen analysis is not run on it. Two readings for the confirmatory design: the
+`significance` trap on F1-907 fires in A, B and C with a perfect score and should be read before it is counted as
+an error; and B's one stale-premise fall is the F7 family doing what it was built to show, with D and E not
+falling for it — the effect the study exists to measure, at n = 1 so far.
