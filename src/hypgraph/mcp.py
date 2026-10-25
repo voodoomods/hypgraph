@@ -508,13 +508,16 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
 
     @mcp.tool
     def my_work(investigation: str = "") -> str:
-        """Your open work orders, each with its full text."""
+        """Your open work orders, each with its full text. An order you have returned is no longer yours to work:
+        it waits for acceptance, and comes back as a new order if it is reworked."""
         try:
-            mine = [o for o in g.orders(inv_of(investigation)) if o["assignee"] == me
-                    and o["status"] in ("open", "overdue", "returned")]
+            allmine = [o for o in g.orders(inv_of(investigation)) if o["assignee"] == me]
         except (GraphError, KeyError) as e:
             fail(e)
-        return "\n\n---\n\n".join(g.order_text(o["id"]) for o in mine) or "No open work orders for you."
+        mine = [o for o in allmine if o["status"] in ("open", "overdue")]
+        waiting = [o["code"] for o in allmine if o["status"] == "returned"]
+        text = "\n\n---\n\n".join(g.order_text(o["id"]) for o in mine) or "No open work orders for you."
+        return text + (f"\n\n(returned, awaiting acceptance: {', '.join(waiting)})" if waiting else "")
 
     @mcp.tool
     def check_work(order: str, text: str = "", investigation: str = "") -> str:
