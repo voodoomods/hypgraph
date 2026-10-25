@@ -476,8 +476,27 @@ def rework(g: "Graph", *, author: str, order: str, missing: str, done_when: list
 
 
 def cancel_work(g: "Graph", *, author: str, order: str, why: str) -> dict:
+    """Withdraw an order. If its target is still leased for it (the order was open, never returned), the lease is
+    released too — otherwise the target stays blocked for the lease's remaining hours and nobody else can be
+    issued it (found 2026-10-25 when a resumed run cancelled an absent seat's order and then couldn't re-issue)."""
+    s = g.snapshot()
+    t = target_of(s, order) if _is_order(s, order) else ""
+    lease = s.leases.get(t) if t else None
     g.withdraw(author=author, node=order, why=why)
-    return {"order": order, "status": "cancelled"}
+    if lease and lease.get("task") == order:
+        assignee = lease["agent"]
+        with g._lock:
+            try:
+                at = g.clock()
+
+                def write(con):
+                    con.execute("INSERT INTO leases (node, agent, task, kind, at, expires, note) VALUES (?,?,?,?,?,?,?)",
+                                (t, assignee, order, "release", at, "", "order cancelled"))
+                    g._event(con, author, "lease_release", t, {"task": order, "cancelled": True, "for": assignee}, at)
+                g._transaction(write)
+            finally:
+                g._after_write()
+    return {"order": order, "status": "cancelled", "lease_released": bool(lease and lease.get("task") == order)}
 
 
 def cancel_moot(g: "Graph", *, author: str, inv: str) -> list[dict]:
