@@ -526,3 +526,39 @@ Failure: E not below 55 calls a run, or any new trap hit, or a cap hit on an ins
 reproduction that *fails* on a correct result (a value printed at another precision) is a cost the reviewer then
 pays; its rate is reported. To be run as E′ on the same 30 instances (seeds 100–102), paired with E, under the
 same guard; still a measurement, not a result of the preregistered study.
+
+**D-19 result (2026-10-25 15:30–15:50Z, E′ on the 30 confirmatory instances, ten lanes, $0.74): the prediction
+failed.** Paired with E on 26 instances (`compare_e.py`, `runs/d19/compare.md`):
+
+| | E | E′ | ratio |
+|---|---|---|---|
+| calls / run | 75.5 | **73.9** | 0.98 (predicted < 45; failure threshold 55) |
+| $ / run | 0.022 | 0.025 | **1.16 [1.07, 1.27]** |
+| critic calls | 28.6 | **32.3** | 1.13 (predicted < 12) |
+| `show` | 13.4 | **22.0** | 1.64 (predicted < 3) |
+| `graph_add` | 16.2 | 11.8 | 0.73 |
+| `register_run` | 12.9 | 15.8 | 1.23 |
+| correct | 24 | 24 | — |
+| traps | 1 | 2 | — |
+| cap hits | 1 | 0 | — |
+
+Reproductions ran 258 times at zero model cost; **116 came back "not reproduced"**, and that is where the design
+went wrong. Reading them: the authors register values their code *computes but does not print* (`n_items 1352`
+registered, the code prints only the accuracy; `discordant_total` registered, the code prints its two addends).
+The check asked for every registered value in the output and called anything else "not reproduced"; the review
+order then told the critic to recompute what was not reproduced — so the critic recomputed *more* than before
+(+13 % calls), and read the run nodes to get the code to do it (`show` on RUN nodes: 239 of 678 critic shows).
+A false "not reproduced" is more expensive than no reproduction at all. The one-call claim worked as far as it
+went: 289 of 495 `register_run` calls carried a claim and `graph_add` fell 27 %, but authors split their work into
+more runs (+23 %), and the lead still failed to submit a report in 2 of 30 runs (F1-100, F8-102 — every question
+settled, six report turns refused; E had 1 of 26).
+
+What changes before any rerun, each a correction of a measured defect, none a new idea: (1) the reproduction
+reports three things apart — values the output *confirms*, values the output *does not print* (not evidence
+against), and values the output *contradicts* (a different number where that one should be) — and the review
+order asks for recomputation only of the last; (2) the tool description tells authors to print every value they
+register; (3) the order carries the producing run's code excerpt for a review, so the critic needn't fetch it;
+(4) `report_missing` carries the refusal texts, since 3 of 56 E/E′ runs lost their score to a report the lead
+could not get past the linter and the record shows nothing of why. Prediction for E″, written now: calls below
+E's 75 (not the 45 claimed before, which assumed reproduction would be trusted), critic below 20, `show` below 8,
+correctness and traps unchanged. Measured the same way, paired, or not at all.
