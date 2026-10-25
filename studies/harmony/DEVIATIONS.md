@@ -225,3 +225,8 @@ the rest. Condition D keeps acceptance by the lead's judgement, which is the abl
 Pilot 4: F1 and F7, seeds 906–907, all four conditions, $5 guard, `runs/pilot4/`, on the D-10 engine. The
 question: does the record condition finish, in how many calls, at what cost, against pilots 2 and 3. Still a
 pilot.
+
+**D-10 engine checked against Pegasus's live record** (2026-10-24, while pilot 4 ran): a copy of `proxy-data/graph.db`
+(790 nodes, 1,357 events) derived under the proxy's installed 0.3.0 engine and under the D-10 source gives the same
+chain head and identical standing on every node in every dimension (lifecycle, review, evidence, independent lines,
+at-risk, fallen, bounds, test, sentence); no node acquires `restates`. The live refusal log has no rows yet.
