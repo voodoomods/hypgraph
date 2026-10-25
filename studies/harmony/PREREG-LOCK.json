@@ -186,6 +186,25 @@
     "hypgraph": "eae525ddbf49174aa28674273926f1c04a1a3e2d",
     "pegasus": "9762551c1631282e54173fe9d28137d7519e9c52+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T02:39:46Z",
+   "ids": [
+    "D-15"
+   ],
+   "note": "HTTP server coordination routes; not on a study path",
+   "files": {
+    "hypgraph/src": "d595a9b1432646d832804c58f2b1ba98c46338b9e7ec120a05bbba4b6c4edaf6",
+    "hypswarm/src": "d8e5efffbc1b9b94a59b718e90c39b27f03db280acfd567d5d02d5112fe64aef"
+   },
+   "was": {
+    "hypgraph/src": "89afe252f35e20d6fb9554c99380d2f695b379bfb950e04b9f3140191f1bace9",
+    "hypswarm/src": "e1f2cf7fa350caefb57714f44de2197d39a5a385adc3638969fea5c40e2a96b1"
+   },
+   "git": {
+    "hypgraph": "6d80bdac86a4018ead021679b666d17fd7dca70f",
+    "pegasus": "9762551c1631282e54173fe9d28137d7519e9c52+dirty"
+   }
   }
  ]
 }
