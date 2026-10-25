@@ -39,6 +39,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from . import profiles
 from .graph import Graph, GraphError
 from .schema import describe
 from .ui import static_dir
@@ -171,6 +172,10 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
             return 200, g.cost(inv, q.get("node", ""))
         if head == "report":
             return 200, g.report(inv)
+        if head == "completion":
+            return 200, g.completion(inv)
+        if head == "profiles":
+            return 200, profiles.describe()
         if head == "verify":
             return 200, g.verify_chain()
         if head == "refusals":

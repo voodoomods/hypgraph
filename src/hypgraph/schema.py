@@ -30,7 +30,8 @@ TYPES: dict[str, dict] = {
         "title": _f("str", 200, True), "objective": _f("text", 3000, True), "success_criteria": _f("text", 3000),
         "scope": _f("text", 3000), "state": _f("enum:active|archived|published"), "reviewers": _f("list", 20),
         "constants": _f("list", 60), "strict_claims": _f("bool"), "keywords": _f("list", 30), "projects": _f("list", 20),
-        "doi": _f("str", 120), "note": _f("text", 2000), "legacy_case": _f("str", 80)}},
+        "doi": _f("str", 120), "note": _f("text", 2000), "legacy_case": _f("str", 80),
+        "profile": _f("str", 60)}},                      # governance profile, e.g. software@1 (profiles.py)
     "question": {"prefix": "Q", "fields": {"text": _f("text", 1500, True), "why": _f("text", 1500)}},
     "hypothesis": {"prefix": "H", "fields": {
         "statement": _f("text", 1500, True), "assumptions": _f("list", 20), "predictions": _f("list", 20, True),

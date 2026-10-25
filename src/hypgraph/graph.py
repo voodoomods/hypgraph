@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from . import profiles
 from . import derive as D
 from . import refusals, store
 from .checks import claim_issues
@@ -455,6 +456,9 @@ class Graph:
         ids += [b for a, rel, b in pending if rel == "derived_from" and a == nid]
         ids += [e["src"] for e in s.inn.get(nid, []) if e["rel"] == "supports"]
         ids += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "derived_from"]
+        # a cited source is evidence too (knowledge profile: the source is what was read)
+        ids += [b for a, rel, b in pending if rel == "cites" and a == nid and s.nodes.get(b, {}).get("type") == "source"]
+        ids += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "cites" and s.nodes.get(e["dst"], {}).get("type") == "source"]
         return list(dict.fromkeys(ids))
 
     @staticmethod
@@ -531,6 +535,11 @@ class Graph:
                 s = self.snapshot()
                 if type == "investigation":
                     inv = ""
+                    if body.get("profile"):
+                        try:
+                            body["profile"] = profiles.validate_profile_id(body["profile"])   # unknown → refused
+                        except KeyError as e:
+                            raise GraphError(str(e).strip("'\"")) from None
                 elif not inv:
                     raise GraphError("inv: which investigation this belongs to (search(type='investigation') lists "
                                      "them)")
@@ -583,11 +592,20 @@ class Graph:
                                 links.append({"rel": "supports", "from": dst,
                                               "why": "bound by the record: the claim's numbers are this result's"})
                             problems = claim_issues(s, body, self._support_ids(s, nid, pending), inv)
+                    problems = list(problems) + profiles.claim_issues(s, inv, body, self._support_ids(s, nid, pending),
+                                                                      pending)
                     if problems:
                         found = [p.to_dict() for p in problems]
                         refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
                                                 problems=found, support=self._support_ids(s, nid, pending))
                         raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems), found)
+                if type == "result" and author not in P.curators:
+                    rp = profiles.result_issues(s, inv, body)
+                    if rp:
+                        found = [p.to_dict() for p in rp]
+                        refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
+                                                problems=found, support=[])
+                        raise GraphError("result refused:\n- " + "\n- ".join(p.text() for p in rp), found)
                 if type == "result" and author not in P.reserved:
                     same = self._restated_by(s, body, inv, nid)
                     runs = [a for a, rel, b in pending if rel == "produced" and b == nid]
@@ -1163,6 +1181,10 @@ class Graph:
     def cancel_moot(self, *, author: str, inv: str) -> list[dict]:
         from . import coord
         return coord.cancel_moot(self, author=author, inv=inv)
+
+    def completion(self, inv: str) -> dict:
+        """What the investigation's profile says "done" means, each criterion derived from the record."""
+        return profiles.completion(self.snapshot(), self.resolve(inv))
 
     def question_board(self, inv: str) -> list[dict]:
         """Every live question with its derived status (coord.question_board)."""

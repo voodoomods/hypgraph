@@ -24,6 +24,7 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
+from . import profiles
 from . import __version__
 from .graph import Graph, GraphError, file_sha256
 from .schema import TYPES, describe
@@ -569,6 +570,19 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         except (GraphError, KeyError) as e:
             fail(e)
         return f"{order} cancelled"
+
+    @mcp.tool
+    def completion(investigation: str = "") -> str:
+        """What this investigation's governance profile says "done" means, each criterion checked against the
+        record (questions settled; requirements verified by instrument runs; positions recorded; claims sourced;
+        a feasible bounded incumbent — by profile)."""
+        try:
+            c = g.completion(inv_of(investigation))
+        except (GraphError, KeyError) as e:
+            fail(e)
+        return f"{c['profile']}{'' if c['pinned'] else ' (default; no profile pinned)'} — " + \
+            ("COMPLETE" if c["complete"] else "not complete") + "\n" + \
+            "\n".join(f"  {x['name']}: {'MET' if x['met'] else 'NOT MET'} — {x['why']}" for x in c["criteria"])
 
     @mcp.tool
     def settle_work(investigation: str = "") -> str:

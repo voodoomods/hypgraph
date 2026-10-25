@@ -27,6 +27,7 @@ import hashlib
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
+from . import profiles
 from . import derive as D
 from . import plan
 
@@ -72,7 +73,7 @@ def norm_pred(x) -> dict:
 
 
 def recipe(p: str, target_type: str) -> str:
-    r = RECIPES.get(p) or {}
+    r = RECIPES.get(p) or profiles.RECIPES.get(p) or {}
     return r.get(target_type) or r.get("*") or ""
 
 
@@ -239,6 +240,8 @@ def _eval(g: "Graph", s: D.Snap, oid: str, pred: dict, text: str) -> dict:
     t = target_of(s, oid)
     at = s.nodes[oid]["created_at"]
     res = {"p": p, "met": False, "evidence": [], "why": ""}
+    if p in profiles.PRED_DESC:
+        return res | profiles.evaluate(p, s, oid, t, at, s.nodes[oid]["body"].get("assignee", ""), s.nodes[oid]["inv"])
     if p not in PREDICATES:
         return res | {"why": f"unknown predicate {p!r}"}
     if not t and p not in ("report_clean", "within_budget"):
@@ -322,7 +325,7 @@ def _done_text(pred: dict, target_type: str = "") -> str:
     p = pred.get("p", "")
     extra = " ".join(f"{k}={v}" for k, v in sorted(pred.items()) if k != "p")
     how = recipe(p, target_type)
-    return (f"[{p}{' ' + extra if extra else ''}] — {PREDICATES.get(p, 'unknown predicate')}"
+    return (f"[{p}{' ' + extra if extra else ''}] — {PREDICATES.get(p) or profiles.PRED_DESC.get(p) or 'unknown predicate'}"
             + (f"\n      how: {how}" if how else ""))
 
 
@@ -352,8 +355,9 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
     lease = s.leases.get(t)
     if lease and lease["agent"] != assignee:
         raise GraphError(f"{lease['agent']} holds {_code(s, t)} until {lease['expires']}")
-    preds = [norm_pred(p) for p in (done_when or DEFAULT_DONE.get(s.nodes[t]["type"], [{"p": "result_exists"}]))]
-    bad = [p["p"] for p in preds if p["p"] not in PREDICATES]
+    preds = [norm_pred(p) for p in (done_when or profiles.default_done(s, inv, s.nodes[t]["type"])
+                                     or DEFAULT_DONE.get(s.nodes[t]["type"], [{"p": "result_exists"}]))]
+    bad = [p["p"] for p in preds if p["p"] not in PREDICATES and p["p"] not in profiles.PRED_DESC]
     if bad:
         raise GraphError(f"unknown predicate(s) {bad}: write each as {{\"p\": \"claim_made\"}}; predicates: "
                          + ", ".join(PREDICATES))
@@ -745,6 +749,12 @@ def briefing(g: "Graph", inv: str, *, roster: list | None = None, since_seq: int
     ib = s.nodes[inv]["body"]
     sec: dict[str, list[str]] = {}
     sec["MISSION"] = [f"{ib.get('title', inv)} — {ib.get('objective', '')}".strip()]
+    prof = profiles.profile_of(s, inv)
+    if prof:
+        comp = profiles.completion(s, inv)
+        sec["MISSION"].append(f"Profile: {prof.id} — {prof.about}")
+        sec["MISSION"].append("Done when: " + "; ".join(f"{c['name']} {'MET' if c['met'] else 'NOT MET'} ({c['why']})"
+                                                       for c in comp["criteria"]))
     if ib.get("success_criteria"):
         sec["MISSION"].append(f"Success: {ib['success_criteria']}")
     sec["RULES"] = [RULES]
