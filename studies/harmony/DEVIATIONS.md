@@ -243,3 +243,15 @@ replacement was live, so in a rework chain T1 → T2 → T3 the first order read
 replaced, and the scheduler escalated it twice. A node is now superseded when its replacement is live or itself
 superseded (the chain ends in a live node); a withdrawn replacement still replaces nothing. Test in
 `tests/test_d10.py`. Pegasus's live record derives identically before and after (790 nodes, same chain head).
+
+**Pilot 4 stopped (2026-10-24, by the operator).** Its first run (F7-906, B) reached 55 metered calls in 48
+minutes against the 22–34 a B run takes, because the provider stalled long calls past the 600 s client timeout
+and then completed them anyway: the proxy meters the completed request, and the client's retry bills a second
+copy. So the stalls inflated metered calls and cost, not only wall time — contrary to the note above, which was
+written before the ledger showed it. Nothing from the run is kept (the partial folder was deleted; the ledger rows
+remain under `study-F7-906-B-20261024202041` and are excluded). Pilot 4 is rerun as specified under D-11 when
+the provider answers long calls normally; `runs/pilot4/` is reused. Spend on the stopped run: $0.0169.
+
+Harness note for the rerun: a stalled call that the provider later completes is billed. The runner's timeout
+and retry policy should be recorded with each pilot, and a run whose metered calls exceed its counted calls by
+more than a few is flagged as stall-affected in the analysis.
