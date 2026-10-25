@@ -214,3 +214,14 @@ binding-dependent and undecidable because pilots 1–3 logged statements only):
 
 Not yet in the study runner: `settle` after each return and the `settle_work` tool. That change goes in with the
 next pilot's deviation, so the runner stays as pilot 3 ran it until then.
+
+## D-11 (2026-10-24, approved by the operator): the runner settles, and pilot 4
+
+`dev/study_runner.py`, condition C only: after every order returns (issue_work and rework), the record accepts
+every returned order whose predicates are all met (`settle`), and the result is appended to the lead's tool
+output; the lead also gets `settle_work`. Its prompt says the record accepts met orders and it reworks or cancels
+the rest. Condition D keeps acceptance by the lead's judgement, which is the ablation. A and B are untouched.
+
+Pilot 4: F1 and F7, seeds 906–907, all four conditions, $5 guard, `runs/pilot4/`, on the D-10 engine. The
+question: does the record condition finish, in how many calls, at what cost, against pilots 2 and 3. Still a
+pilot.
