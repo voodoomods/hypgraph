@@ -16,7 +16,7 @@ Standing is derived on every read, never stored; every write is an event in a SH
 their numbers; reviews pin versions; independence is counted, not assumed. See https://hypgraph.com.
 """
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 from .bundle import verify_bundle  # noqa: E402
 from .graph import Author, Graph, GraphError, file_sha256  # noqa: E402

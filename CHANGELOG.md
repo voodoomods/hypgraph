@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2 — 2026-10-25
+
+- **A question is not an assertion.** `language.interrogative` / `asserted` return nothing for a sentence that ends
+  with a question mark, and the report check skips the language and number rules on a sentence that asks or that
+  quotes one of the investigation's own questions (citations are still checked). Found in the first real HypSwarm
+  mixed-swarm run: the lead headed a section "Q2 — Is A significantly more accurate than B…?" and lost its report
+  to `REPORT_SIGNIFICANCE_UNBACKED` three times.
+
 ## 0.4.1 — 2026-10-25
 
 Three rules the hypswarm examples exposed, each with a test:

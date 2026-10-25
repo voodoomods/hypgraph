@@ -64,9 +64,21 @@ _ZERO_ON_A_SCALE = re.compile(r"\b(below|above|near|to|from|of|than|at|cross(?:e
                               re.I)
 
 
+# a sentence that asks: it ends with a question mark (markdown emphasis or a closing quote may follow it)
+_INTERROGATIVE = re.compile(r"\?\s*[*_\"'’”)\]]*\s*$")
+
+
+def interrogative(text: str) -> bool:
+    """Does the sentence ask rather than assert? "Is A significantly better than B?" asserts nothing — found when a
+    lead headed a report section with the question it was answering and lost the report to the significance check."""
+    return bool(_INTERROGATIVE.search((text or "").strip()))
+
+
 def asserted(pattern: re.Pattern, text: str) -> list[str]:
     """The distinct matches of a pattern that their sentence actually asserts: not negated in their clause, not an
-    epistemic hedge ("cannot conclude"), and not a number on a scale ("below zero")."""
+    epistemic hedge ("cannot conclude"), not a number on a scale ("below zero"), and nothing in a question."""
+    if interrogative(text):
+        return []
     out = []
     for m in pattern.finditer(text or ""):
         if negated(text, m.start()):

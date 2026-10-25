@@ -71,6 +71,10 @@ _NEGATOR = re.compile(r"\b(not|cannot|can't|never|no|nor|without|hardly|unlikely
                       r"doesn't|didn't|won't)\b[\w\s-]{0,24}$", re.I)
 
 
+def _norm(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+
+
 def _own_words(sentence: str) -> str:
     """The writer's own words: quoted passages (often the very wording being corrected) blanked out."""
     return _QUOTE.sub(lambda m: " " * len(m.group(0)), sentence)
@@ -152,6 +156,10 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
         if n["code"] and (n["inv"] in invs or i in invs):
             by_code.setdefault(n["code"], []).append(i)
     plain, stat = _allowed(s, invs)
+    # the investigations' own questions: a report may quote the question it answers without asserting it
+    qtexts = [_norm(n["body"].get("text", "")) for i, n in s.nodes.items()
+              if n["type"] == "question" and (n["inv"] in invs or i in invs)]
+    qtexts = [q for q in qtexts if len(q) >= 20]
     findings: list[dict] = []
     counted = {"sentences": 0, "numbers": 0, "codes": 0}
 
@@ -170,6 +178,7 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
                 continue
             counted["sentences"] += 1
             own = _own_words(sent)
+            asks = L.interrogative(sent) or any(q in _norm(sent) for q in qtexts)
             qualified = bool(_QUALIFIED.search(sent))
             settled = _asserted(_SETTLED, own)
             cited = []
@@ -208,6 +217,8 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
                     add(ln, "warning", "REPORT_OMITS_DISPUTE", sent,
                         f"{code} is {'contested' if review == 'contested' else 'at risk'} in the record — say so where "
                         "you cite it.")
+            if asks:                     # a question, or the question's own words: citations checked, nothing asserted
+                continue
             # numbers
             for p in numbers(sent):
                 if _skip_number(p, sent) or re.search(rf"(?<![\w-])[A-Z]{{1,3}}{re.escape(p[3])}(?![\w-])", sent):
