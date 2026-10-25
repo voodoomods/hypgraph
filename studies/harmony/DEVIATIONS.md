@@ -564,3 +564,37 @@ E's 75 (not the 45 claimed before, which assumed reproduction would be trusted),
 correctness and traps unchanged. Measured the same way, paired, or not at all.
 
 **D-19b (2026-10-25, prediction written before the run): E″ with the corrected reproduction.** Same 30 instances (seeds 100–102), condition E, `--reproduce --nonce`, ten lanes, into `runs/d19b/`, $5 guard, paired with E and E′. Changes since E′: reproduction verdicts kept apart (confirmed / not printed / contradicted) and the review order asks for recomputation only of a contradiction; authors are told to print every registered value with its name; the review order carries the producing run's code and the re-run verdict; `report_missing` carries the refusal texts. **Prediction:** calls per run below E's 75.5 and below E′'s 73.9; critic below 20 (E 28.6, E′ 32.3); `show` below 8 (13.4, 22.0); share of reproductions "contradicted" under 5 %, "not printed" falling as authors print what they register; correctness 24/26 and trap hits ≤ 2 unchanged. **Failure:** calls not below 70, or critic not below 25, or any new cap hit, or a correct E answer lost. Measured paired; `compare_e.py` extended to three columns.
+
+**D-19b result (2026-10-25 15:51–16:12Z, E″, $0.70, 29 runs kept; F8-102 stopped by the operator at 127 calls and
+discarded): the prediction failed again, on three of its four counts.** On the 25 instances all three ran
+(`compare_e3.py`, `runs/d19b/compare.md`):
+
+| | E | E′ | E″ | prediction for E″ | met |
+|---|---|---|---|---|---|
+| calls / run | 72.5 | 72.9 | **71.1** | below both; fail if not < 70 | **no** (71.1) |
+| critic calls | 29.3 | 32.0 | **26.2** | < 20; fail if not < 25 | **no** |
+| `show` | 13.5 | 22.0 | 14.7 | < 8 | **no** |
+| `graph_add` | 16.1 | 11.8 | 11.2 | — | |
+| `register_run` | 12.9 | 15.8 | 14.5 | — | |
+| paired cost ratio vs E | | 1.18 [1.09, 1.28] | **1.13 [1.01, 1.26]** | | |
+| correct / traps / caps | 24 / 1 / 0 | 24 / 2 / 0 | 24 / 1 / **1** | unchanged | cap: **no** (F1-100) |
+| reproductions | — | 258, 116 false "not reproduced" | 216: 1,059 values confirmed, 13 not printed, 27 contradicted (2.5 %) | contradicted < 5 % | yes |
+
+The reproduction mechanism now works as a mechanism: with "print what you register" the not-printed count went
+from 116 runs to 13 values, and 2.5 % of values were contradicted by the author's own code re-run — real catches
+the reviewer could act on. It did not do what it was built for: the critic read the record anyway (348 `show`s
+in 29 runs: 184 results, 141 claims, 74 runs) with the same content already in its order, and spent 26 calls a
+run against E's 29. The one-call claim holds its 30 % saving on `graph_add`; `register_run` is up 12 % because
+the code now travels with it. Net: E″ is **1.13× E's cost** with the same correctness. Three E″ runs (F1-100,
+F8-101, F9-101) lost their report with **zero** refusals — the lead never called `submit_report` in its six turns
+— and E and E′ lost 1 and 2 the same way: a silent 7–10 % failure the next change must address before anything
+else (the lead's tool calls are not logged; they will be).
+
+**What this round establishes, in order of confidence.** (1) The record's coordination cost on these tasks is not
+in the mechanics the pilots pointed at — the reviewer verifies by reading whatever it is given, and a model given
+more context uses more calls, not fewer; two rounds of targeted mechanical fixes moved E by −2 % calls and +13 %
+cost. (2) Mechanical reproduction is sound and cheap and catches real contradictions (2.5 %), and belongs in the
+record regardless of cost. (3) The single-agent baseline remains the cheapest correct condition on every family
+except where a notice cascades (F7), and the record's measured advantage is in overclaim rate and stale-premise
+immunity, not in calls or dollars. No further E variants are run until the lost-report defect is understood;
+the preregistered study's result stands as reported above.
