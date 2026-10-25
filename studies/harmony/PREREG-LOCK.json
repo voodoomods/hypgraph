@@ -224,6 +224,33 @@
     "hypgraph": "14bf1705d6365fe1a5d1242d6e4b67bfca0297e8+dirty",
     "pegasus": "1d3ee5655b0f7d2abbc5f7a6954b77a062a1703f+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T05:31:33Z",
+   "ids": [
+    "D-17"
+   ],
+   "note": "per-run first line on every system prompt (--nonce); F7 reruns of C/D/E; hypswarm ADR-005 fixes",
+   "files": {
+    "hypgraph/coord": "17da38a547394ce9577b3d93e02a3cbc55e2f2e26d3319d70e177b21af34720e",
+    "hypgraph/src": "8570e8f1fb923bd289257e6983b933d2f82004ce88e7f9ac0761cc968d9b366b",
+    "runner": "dae5a1ceabd5bcc89df761bc076f4e2c5c9683aa3b416079e11686606929d111",
+    "host": "2939e7ef2765828e21fcb15b2a132fa7c67ba7ba98581346aa0ea5cfee5f887b",
+    "runner_e": "e1436ea9f58cd3f1f58004ed091622cdae1e106d47656a457adc26047992738a",
+    "hypswarm/src": "a20bf71166479f13abf5b7de9bc837dc41af6103a31d29cdb3f980a1900490b2"
+   },
+   "was": {
+    "hypgraph/coord": "ad0e7874b0ffa1bd19ed7eda258b48b8680d4bdf9b055b89fa53a93eae9b6354",
+    "hypgraph/src": "d595a9b1432646d832804c58f2b1ba98c46338b9e7ec120a05bbba4b6c4edaf6",
+    "runner": "cfd9388ba27c93bd8a677d9318d22e42d613063cf07662ced5b64b2a02adc985",
+    "host": "74e0911d19b23c4177723dab4f3d970d3d20b0163f098cb4a40f2c18ba1c59e1",
+    "runner_e": "10a02fb452ea50aaa20eab44e66ecb8cd2afc67e7571cfae7c065078c2d77275",
+    "hypswarm/src": "d345d81a521a77d8c9ddacd45ad4329784c921f105d49bd79f6fb857bb32e5b2"
+   },
+   "git": {
+    "hypgraph": "e45304ca630642128a8ce7d8e00dcc70077193e2+dirty",
+    "pegasus": "46e011131fc5ed4a1f5951bc923bd92db89c94de+dirty"
+   }
   }
  ]
 }

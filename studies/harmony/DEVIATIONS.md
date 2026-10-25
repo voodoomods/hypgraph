@@ -413,3 +413,5 @@ none of E (hypswarm's schemas differ). D-16's retry could never help: the repeat
 so no two runs share a prefix with a poisoned entry (`study_host.py --nonce`, `caps.nonce`). It is applied to A–E
 alike and changes no instruction; it is recorded with the next rerun's lock entry. Also worth knowing before any
 rerun: a prefix the provider has already poisoned stays poisoned for as long as their cache keeps it.
+
+**D-17 applied (2026-10-25, operator's decision):** `--nonce` on for the F7 reruns — C and D on 906/907 (never completed) and E on 906/907 (the two failed runs are kept in `runs/pilot4/superseded-e/`, not counted); same seeds, same caps, $5 guard over the folder. hypswarm runs the ADR-005 fixes (reviewers review; unreviewable answers re-issued; report phase reads and submits only). The lock entry pins the harness and hypswarm source as run.
