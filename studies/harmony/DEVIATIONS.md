@@ -445,3 +445,59 @@ falling for it — the effect the study exists to measure, at n = 1 so far.
 ## D-18 (2026-10-25, operator's decision): the confirmatory runs in parallel lanes
 
 PREREG §6 says one run at a time, for equal provider load and time of day across conditions. Sequentially the 150 runs take about seven hours; the operator chose **ten lanes, one family each**, every lane running all five conditions of its own three instances in its own shuffled order (seed 20261024), all into `runs/confirmatory/`, the $15 guard re-read over the whole folder before every run so lanes see each other's spend. Conditions stay interleaved within a lane, so the balance §6 wanted survives; what changes is that the order is per lane rather than one global order, and up to ten runs share the provider at once (the pod's one egress identity, the same model). Harness: per-run isolation — the container check is per run id, condition E is staged at `/root/hs-<run_id>` and imports from its own folder, kills are per run, a harness error cleans only its own run. Checked without spend: a stub E run completed beside a live real-model run. The sequential attempt's two finished runs (F1-100 C, F7-100 A) are kept; on the operator's word the pilot was then stopped mid-run and its partial F9-100 D discarded (ledger rows under that run id, excluded). Ten lanes started 14:04Z; because every lane shuffles a same-shaped list with the same seed, all ten began on their seed-101 D instance — the within-lane interleaving of conditions is what the balance rests on, not the cross-lane phase.
+
+**Confirmatory stopped early by the operator (2026-10-25 15:16Z), analysed as it stands.** Ten lanes ran from
+14:04Z; eight finished all 15 runs; F8 and F9 (the long-task families) were stopped at 10 and 7 kept runs. **142
+runs kept** of 150 (A 28, B 25, C 28, D 29, E 26, plus the two from the sequential attempt), $3.04 metered on
+kept runs, 6 stalled attempts (all F8/F9, excluded), 2 partial runs discarded at the stop, no harness error. Two
+harness fixes mid-run, logged: a killed runner now reaps the agent scripts it spawned (four orphaned numpy/scipy
+scripts from stalled F8/F9 attempts had burned ten cores for 10–40 minutes — root in the container has no
+`CAP_KILL` over the agent user, so the reap runs as that user), and a reaper ran beside the study from 15:10Z.
+The missing F8/F9 pairs are the hardest instances for the record conditions (their cap hits), so the C/A
+contrasts below are if anything **kinder to C** than the full set would have been.
+
+Frozen analysis (`analysis.py`, A–D as locked; 27 paired instances C vs A, 25 C vs B; Holm):
+
+| | runs | correct | $ total | calls | traps | cap hits |
+|---|---|---|---|---|---|---|
+| A chat | 28 | 28 | 0.25 | 510 | 5 | 0 |
+| B Pegasus today | 25 | 25 | 0.27 | 621 | 5 | 0 |
+| C record | 28 | 22 | 1.05 | 2,992 | 2 | 6 |
+| D record, no gates | 29 | 27 | 0.85 | 2,497 | 3 | 1 |
+
+| contrast | Δ correct [95 % CI] | p | cost ratio [95 % CI] | p |
+|---|---|---|---|---|
+| **C vs A** | −0.185 [−0.333, −0.037] | 0.069 | **3.96 [3.40, 4.59]** | < 0.0001 |
+| **C vs B** | −0.120 [−0.240, 0.000] | 0.13 | **3.11 [2.68, 3.59]** | < 0.0001 |
+| D vs C | +0.143 [0.000, 0.321] | 0.14 | 0.75 [0.62, 0.92] | 0.004 |
+| B vs A | 0.000 | 1.0 | 1.27 [1.17, 1.38] | < 0.0001 |
+
+- **H1 fails:** C costs about four times A per run; the interval is nowhere near 1.
+- **H2 fails:** A is correct on every run, so no condition can be 20 points *more* correct; C is less correct
+  (every C miss is a 150-call cap hit with no report — F1-100, F2-100, F6-101, F8-102, F9-102 — not a wrong answer).
+- **H3 fails** on both halves.
+- **H4** (F7 post-notice stale work): no condition read the stale file after the notice in any kept F7 run; nothing
+  to separate — reported as a null at k = 3.
+- **H5 (fewer trap hits in C than A) — direction right, not significant:** six paired instances differ, 5 to 1 in
+  C's favour; A's five hits (`significance`, `causal`, `no_effect`) all sit on **correct** answers: the right number
+  with an overclaimed sentence. B equals A on traps (5), so Pegasus's prose delegation adds nothing there.
+- **D vs C:** no gates is cheaper (0.75) and no less correct — the claim gates cost calls and bought no correctness
+  on these tasks.
+
+Secondary (post-lock, D-13), **E (hypswarm)**: 26 runs, 24 correct, 75 calls/run, $0.022/run, 1 trap hit, 1 cap
+hit. E vs A (26 pairs): Δ correct −0.077, cost ratio 2.57, traps 1 vs 5. E vs C (25 pairs): Δ correct +0.080,
+cost ratio 0.62, traps 1 vs 2. E is the best of the record family on every axis and still 2.6× A's cost.
+
+**What the data say, plainly.** On tasks of this size — one afternoon's work, 2–5 sub-questions, one notice at
+most — a single agent with a notebook answers everything correctly for a quarter of the record's cost, and the
+record's only measured advantage is in *how* answers are stated (fewer overclaims) and that no record condition
+ever fell for the stale premise where B did once (pilot 4). The study was preregistered to report that, and does.
+Where the calls go in the record conditions (per run, confirmatory): the critic 47 (C) / 34 (D) / 28 (E), re-deriving
+every answer with its own python; 31 `graph_add` for ~4 claims (8 refusals a run); 21 `register_run` for ~4 results;
+16 `show` reading back what the reply had said; 12 orchestrator calls in C/D against 4 for E's deterministic
+scheduler; 3 units a run at the 14-turn cap. These are the engine and harness changes made next (reproduction by
+the instrument instead of by a reviewer; one-call result+claim; the target's content in the order), to be measured
+against this run before any claim is made for them. The cost case for a coordination layer — if there is one — is a
+long-horizon, many-hand-off case (the Pegasus ledger that motivated the study: 15 % of spend on later-cancelled
+tasks, 15 % on repeats), which these families do not represent; a follow-up suite would need 10–20 sub-questions
+and several cascading notices per instance, and a budget cap the record conditions can finish under.
