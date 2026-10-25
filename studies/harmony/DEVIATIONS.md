@@ -255,3 +255,31 @@ the provider answers long calls normally; `runs/pilot4/` is reused. Spend on the
 Harness note for the rerun: a stalled call that the provider later completes is billed. The runner's timeout
 and retry policy should be recorded with each pilot, and a run whose metered calls exceed its counted calls by
 more than a few is flagged as stall-affected in the analysis.
+
+## D-13 (preregistered 2026-10-24, before any run): hypswarm as condition E
+
+**Condition E, "record-scheduled swarm".** The hypswarm alpha (`voodoomods/hypswarm`, commit recorded in the
+lock) runs the task: four worker seats (analyst, stats, engineer, and a fourth general worker), one reviewer
+(critic), and a lead called only at exceptions (an order NOT MET after two reworks, a contested claim, or an
+empty frontier with questions open) and for the report's interpretation. The scheduler issues orders from the
+question board to idle seats, settles every returned order whose predicates are met, reworks the rest at most
+twice, and cancels what a fallen premise made moot; workers run in parallel under leases. Same subject model
+for every seat (DeepSeek-V4.1-Flash, non-thinking), same sandboxed python tool, same caps (150 calls per run,
+14 turns per order, 40 calls per order), same final-answer format, same scoring against the sealed key. The F7
+notice is delivered after the first order returns, as in A–D: the corrected file is added to the working
+folder, the stale artifact is withdrawn in the record with the notice as the reason, and the notice text is
+prepended to every order issued afterwards and to the lead's prompts.
+
+**Instances.** The pilot-4 instances, F1 and F7 at seeds 906–907, so E is paired with A–D on the same data
+(output into `runs/pilot4/`, condition `E`). $5 guard. Still a pilot.
+
+**Predictions, written before the run** (from DESIGN.md §5 and the one unpreregistered plumbing run on seed 0):
+- E finishes every run (no cap hits) and answers at least as many sub-questions as C.
+- Calls per run near D's (≈ 80) and below C's; lead calls per run under 10.
+- Trap hits: none, as C.
+- Reworks per run ≤ 1 on average.
+- Wall time below C's on F1 (parallel sub-questions); no prediction on F7, whose cascade is sequential.
+
+**What counts as failure:** a cap hit, or calls per run not below C's on the same instances, or a trap hit.
+
+**Not changed:** A–D, the engine, the task suite, the scorer, the caps.
