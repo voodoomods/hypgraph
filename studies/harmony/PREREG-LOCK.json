@@ -251,6 +251,25 @@
     "hypgraph": "e45304ca630642128a8ce7d8e00dcc70077193e2+dirty",
     "pegasus": "46e011131fc5ed4a1f5951bc923bd92db89c94de+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T14:02:33Z",
+   "ids": [
+    "D-18"
+   ],
+   "note": "ten parallel lanes, one family each; per-run isolation in the harness",
+   "files": {
+    "host": "2ebc7baaff11e30383ffc83d244cacf1361d6ed221bdfca96f1b7ccddcfa6a14",
+    "runner_e": "3a3c67e4e5d2413ca969445367ce10edecb802f5fed16b329ce3b261d17cd28b"
+   },
+   "was": {
+    "host": "2939e7ef2765828e21fcb15b2a132fa7c67ba7ba98581346aa0ea5cfee5f887b",
+    "runner_e": "e1436ea9f58cd3f1f58004ed091622cdae1e106d47656a457adc26047992738a"
+   },
+   "git": {
+    "hypgraph": "1acc2fea9a73e5158bdde48906bd7860700252b8+dirty",
+    "pegasus": "cc9cfb1f5330c5af245154d631fd37f439ca37d1+dirty"
+   }
   }
  ]
 }
