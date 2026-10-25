@@ -283,3 +283,13 @@ prepended to every order issued afterwards and to the lead's prompts.
 **What counts as failure:** a cap hit, or calls per run not below C's on the same instances, or a trap hit.
 
 **Not changed:** A–D, the engine, the task suite, the scorer, the caps.
+
+**Pilot 4 rerun stopped again (2026-10-24 evening).** A long-call probe (three 14k-token calls, < 1 s each) passed,
+the rerun started, and its first run stalled within ten calls. The proxy's own audit log shows the cause is
+upstream: one inference request completed with `latency_ms` 1,800,105 (thirty minutes), long after the client
+that sent it had timed out, and the proxy metered it on completion. A second probe found no difference between
+streaming and non-streaming tool calls (first uncached 10k-token call ≈ 25 s, then ≈ 1 s), so it is not the
+runner's call path; the provider is intermittently hanging requests tonight. The hypswarm plumbing run of 59
+calls at the same time happened not to hit one. The partial run is discarded; the rerun waits for a day when
+the provider holds up across a whole run, which the long-call probe cannot guarantee. Spend on the stopped
+rerun: under $0.01.
