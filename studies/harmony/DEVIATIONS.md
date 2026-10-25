@@ -437,3 +437,5 @@ k = 4 per condition; the frozen analysis is not run on it. Two readings for the 
 `significance` trap on F1-907 fires in A, B and C with a perfect score and should be read before it is counted as
 an error; and B's one stale-premise fall is the F7 family doing what it was built to show, with D and E not
 falling for it — the effect the study exists to measure, at n = 1 so far.
+
+**Confirmatory run started (2026-10-25 05:50Z, operator-approved, $15 guard).** Sample-size rule on pilot 4: 4 costed C/A pairs, SD of the paired log cost ratio 0.358, 21 pairs needed → **k = 3 instances per family** (within [3, 6]; not underpowered for cost). Seeds 100–102 × ten families × five conditions (A–E; E under D-13) = 150 runs in the preregistered shuffled order, one at a time, D-16 stall retry and D-17 prefix on for every condition. The three runs of the attempt stopped on 2026-10-24 are kept in `runs/confirmatory/superseded-2026-10-24/` and do not enter the analysis. The frozen analysis (`analysis.py`) covers A–D as locked; E is reported beside it as a secondary, post-lock addition.
