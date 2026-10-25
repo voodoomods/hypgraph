@@ -100,6 +100,25 @@ Nothing in the record is ever *set* as known. How well each claim is known is **
 Every write is an event in a **SHA-256 hash chain**. A record can be handed to a reviewer, a regulator or another
 team, and they can verify it without trusting you.
 
+## One record, five disciplines
+
+The rules above are the scientific case written as code. A **profile** says what a domain means by evidence,
+acceptance and done — and the record enforces it, so it never depends on a prompt being followed. Pin one on the
+investigation (`"profile": "software@1"`); without one, the record behaves exactly as before.
+
+| profile | an order is done when… | the record refuses | the investigation is done when |
+|---|---|---|---|
+| `scientific@1` | a checked claim answers the question | numbers no result accounts for, "never" without the count, "significant" without the test | every question is settled |
+| `software@1` | **the instrument ran the tests** (`tests_pass`) and a claim states it | *"it passes"* without an instrument-recorded run | every requirement's claim rests on a passing run |
+| `trading@1` | a backtest is **out of sample and after costs** (`backtested_oos`) | a backtest without the costs it charged; *"edge"* without both | a sized paper position is a decision based on the claim |
+| `knowledge@1` | the claim **cites a source node** the record holds (`sourced`) | a factual claim with no source | every claim cites a source |
+| `optimization@1` | a result carries **objective, feasible, and a bound or gap** (`feasible_bounded`) | an objective without feasibility; *"optimal"* without a bound | a feasible incumbent with a bound exists |
+
+Profiles are versioned and frozen: a record written under `trading@1` means the same thing in a year, and a changed
+rule is `@2`. `completion(inv)` reports each criterion; the briefing names the profile and where it stands;
+`hypgraph serve` exposes `/api/graph/completion` and `/api/graph/profiles`. Adding a discipline is one `Profile` —
+vocabulary, default predicates, domain predicates, refusals, completion — and the rest of the record is unchanged.
+
 ## Connect your agent
 
 ```bash
