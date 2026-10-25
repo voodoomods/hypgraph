@@ -129,6 +129,23 @@
     "hypgraph": "f62edadba481a676751da0d5cba25eb8608cd886",
     "pegasus": "c9f4b9ae8a6756ab6442cc3f79b4387075cbb137+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T02:07:55Z",
+   "ids": [
+    "D-12"
+   ],
+   "note": "lifecycle follows a chain of replacements",
+   "files": {
+    "hypgraph/src": "99ef809ff503fac489ec8fcad66baa506096e888d82f62307c17e8f528a90659"
+   },
+   "was": {
+    "hypgraph/src": "fde273a63ea61a03a1a25fea70e8a0d582e06b4ffa675ee2050ae428647bfbfa"
+   },
+   "git": {
+    "hypgraph": "5b61fcdb38045f1a0c716db311444f31afef273b",
+    "pegasus": "c9f4b9ae8a6756ab6442cc3f79b4387075cbb137+dirty"
+   }
   }
  ]
 }
