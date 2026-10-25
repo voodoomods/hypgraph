@@ -69,6 +69,11 @@
      "kind": "str",
      "max": 80,
      "required": false
+    },
+    "profile": {
+     "kind": "str",
+     "max": 60,
+     "required": false
     }
    }
   },
@@ -479,16 +484,56 @@
   },
   "task": {
    "prefix": "T",
-   "about": "A unit of work in your tracker, linked to what it works on.",
+   "about": "A unit of work linked to what it works on — or a work order: objective, assignee, done-when predicates the record checks, budget (see coordination).",
    "fields": {
     "kanban_id": {
      "kind": "str",
      "max": 80,
-     "required": true
+     "required": false
     },
     "title": {
      "kind": "str",
      "max": 300,
+     "required": false
+    },
+    "objective": {
+     "kind": "text",
+     "max": 2000,
+     "required": false
+    },
+    "assignee": {
+     "kind": "str",
+     "max": 80,
+     "required": false
+    },
+    "role": {
+     "kind": "str",
+     "max": 80,
+     "required": false
+    },
+    "prediction": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    },
+    "method": {
+     "kind": "text",
+     "max": 1500,
+     "required": false
+    },
+    "done_when": {
+     "kind": "list",
+     "max": 12,
+     "required": false
+    },
+    "budget": {
+     "kind": "dict",
+     "max": 400,
+     "required": false
+    },
+    "note": {
+     "kind": "text",
+     "max": 1500,
      "required": false
     }
    }
@@ -740,7 +785,7 @@
     "run",
     "source"
    ],
-   "about": "a task works on a node"
+   "about": "a task works on a node (it is moot if that node falls)"
   },
   "blocked_by": {
    "from": [
@@ -750,6 +795,33 @@
     "task"
    ],
    "about": "a task waits on another task"
+  },
+  "rests_on": {
+   "from": [
+    "task"
+   ],
+   "to": [
+    "artifact",
+    "claim",
+    "decision",
+    "experiment",
+    "hypothesis",
+    "investigation",
+    "question",
+    "result",
+    "run",
+    "source"
+   ],
+   "about": "a work order rests on a premise, pinned to the version it was issued against"
+  },
+  "settles": {
+   "from": [
+    "decision"
+   ],
+   "to": [
+    "task"
+   ],
+   "about": "a decision accepts a work order (based_on the evidence that met its predicates)"
   }
  },
  "verdicts": {

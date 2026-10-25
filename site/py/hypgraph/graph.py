@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from . import profiles
 from . import derive as D
 from . import refusals, store
 from .checks import claim_issues
@@ -455,6 +456,9 @@ class Graph:
         ids += [b for a, rel, b in pending if rel == "derived_from" and a == nid]
         ids += [e["src"] for e in s.inn.get(nid, []) if e["rel"] == "supports"]
         ids += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "derived_from"]
+        # a cited source is evidence too (knowledge profile: the source is what was read)
+        ids += [b for a, rel, b in pending if rel == "cites" and a == nid and s.nodes.get(b, {}).get("type") == "source"]
+        ids += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "cites" and s.nodes.get(e["dst"], {}).get("type") == "source"]
         return list(dict.fromkeys(ids))
 
     @staticmethod
@@ -531,6 +535,11 @@ class Graph:
                 s = self.snapshot()
                 if type == "investigation":
                     inv = ""
+                    if body.get("profile"):
+                        try:
+                            body["profile"] = profiles.validate_profile_id(body["profile"])   # unknown → refused
+                        except KeyError as e:
+                            raise GraphError(str(e).strip("'\"")) from None
                 elif not inv:
                     raise GraphError("inv: which investigation this belongs to (search(type='investigation') lists "
                                      "them)")
@@ -564,16 +573,54 @@ class Graph:
                            for a, rel, b, f in oriented if f]
                 for a, rel, b in pending:
                     self._check_link(s, a, rel, b)
+                auto_notes: list[str] = []
                 if type == "claim":
                     body = self._bind_measurements(s, body, inv)
                     staged["body"] = body
                 if type == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, nid, pending), inv)
+                    loose = [w for p in problems if p.code == "UNBOUND_NUMBER" for w in p.words]
+                    if loose:                               # repair before refusing: bind what the record holds
+                        body, extra, auto_notes = self._auto_bind(s, body, inv, who,
+                                                                  self._support_ids(s, nid, pending), loose)
+                        if auto_notes:
+                            staged["body"] = body
+                            for dst in extra:
+                                a, rel, b, _f = self._orient(s, dst, "supports", nid)
+                                self._check_link(s, a, rel, b)
+                                pending.append((a, rel, b))
+                                links.append({"rel": "supports", "from": dst,
+                                              "why": "bound by the record: the claim's numbers are this result's"})
+                            problems = claim_issues(s, body, self._support_ids(s, nid, pending), inv)
+                    problems = list(problems) + profiles.claim_issues(s, inv, body, self._support_ids(s, nid, pending),
+                                                                      pending)
                     if problems:
                         found = [p.to_dict() for p in problems]
                         refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
-                                                problems=found)
+                                                problems=found, support=self._support_ids(s, nid, pending))
                         raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems), found)
+                if type == "result" and author not in P.curators:
+                    rp = profiles.result_issues(s, inv, body)
+                    if rp:
+                        found = [p.to_dict() for p in rp]
+                        refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
+                                                problems=found, support=[])
+                        raise GraphError("result refused:\n- " + "\n- ".join(p.text() for p in rp), found)
+                if type == "result" and author not in P.reserved:
+                    same = self._restated_by(s, body, inv, nid)
+                    runs = [a for a, rel, b in pending if rel == "produced" and b == nid]
+                    declared = any(e["rel"] == "replicates" for r in runs for e in s.out.get(r, []))
+                    mine = [i for i in same if s.nodes[i]["created_by"] == who]
+                    if mine and not declared:
+                        c = s.nodes[mine[0]]["code"] or mine[0]
+                        found = [{"code": "RESULT_RESTATES", "message": f"this result repeats the numbers of your own "
+                                  f"{c}", "fix": f"bind claims to {c} instead", "words": []}]
+                        refusals.record_refusal(self, author=author, op="create", inv=inv, node="",
+                                                body={"statement": body.get("summary", ""), "kind": "result"},
+                                                problems=found)
+                        raise GraphError(f"result refused: it repeats the numbers of your own {c} — bind claims to "
+                                         f"{c} instead of writing it again; a genuine rerun is a run that replicates "
+                                         f"{c}'s run [RESULT_RESTATES]", found)
 
                 def write(con):
                     self._rate(con, author)
@@ -592,14 +639,96 @@ class Graph:
                 # read loads the committed rows over it
                 self._after_write()
         out = self.get(nid)
-        if flipped:
-            out["notes"] = [f"link turned round to the direction the relation allows: {x}" for x in flipped]
+        notes = [f"link turned round to the direction the relation allows: {x}" for x in flipped]
+        if auto_notes:
+            notes.append("bound by the record: " + ", ".join(auto_notes))
+            out["auto_bound"] = auto_notes
+        if notes:
+            out["notes"] = notes
+        if out["state"].get("restates"):
+            out["restates"] = [self.get(r)["code"] for r in out["state"]["restates"]]
+        self._with_orders(out, author, inv)
         if type == "claim" and author not in P.curators:
             fixed = refusals.match_fix(self, author=author, inv=inv, node=nid, statement=body.get("statement", ""),
                                        op="create")
             if fixed:
                 out["fixes_refusals"] = fixed
         return out
+
+    @staticmethod
+    def _auto_bind(s: D.Snap, body: dict, inv: str, author: str, support: list[str], loose: list[str]) -> tuple:
+        """Bind the statement's loose numbers to results the claim already links, then to the author's own results
+        in this investigation (newest first). Small integers (≤ 12) bind only to counts (k, n), never to a value, so
+        a limit or a day of the month can't borrow a field by coincidence. Returns (body, results to link, notes)."""
+        from .checks import _arm, _matches, _nums, numbers
+        stmt = body.get("statement", "")
+        linked = [x for x in support if (s.nodes.get(x) or {}).get("type") == "result"]
+        mine = sorted((i for i, n in s.nodes.items() if n["type"] == "result" and n["inv"] == inv
+                       and n["created_by"] == author and i not in linked and not D.fallen(s, i)),
+                      key=lambda i: s.nodes[i]["created_at"], reverse=True)
+        cands = []
+        for rid in linked + mine:
+            for key, rv in (s.nodes[rid]["body"].get("values") or {}).items():
+                if isinstance(rv, (int, float)) and not isinstance(rv, bool):
+                    rv = {"value": rv}
+                if isinstance(rv, dict):
+                    cands.append((rid, key, rv))
+        meas = [m for m in body.get("measurements") or [] if isinstance(m, dict)]
+        taken = {(m.get("result"), m.get("key")) for m in meas}
+        added, notes = [], []
+        for printed in numbers(stmt):
+            if printed[3] not in loose:
+                continue
+            small = printed[1] == 0 and not printed[2] and printed[0] <= 12
+            for rid, key, rv in cands:
+                if (rid, key) in taken:
+                    continue
+                arm = _arm(rv)
+                vals = ([float(arm[0]), float(arm[1])] if arm else []) if small else _nums(rv) + \
+                    ([arm[0] / arm[1]] if arm else [])
+                if vals and _matches(printed, vals):
+                    m = {"name": key, "result": rid, "key": key}
+                    if arm:
+                        m.update(k=arm[0], n=arm[1])
+                    elif isinstance(rv.get("value"), (int, float)):
+                        m["value"] = rv["value"]
+                    added.append(m)
+                    taken.add((rid, key))
+                    notes.append(f"{printed[3]} → {s.nodes[rid]['code'] or rid}.{key}")
+                    break
+        if not added:
+            return body, [], []
+        extra = list(dict.fromkeys(m["result"] for m in added if m["result"] not in linked))
+        return {**body, "measurements": meas + added}, extra, notes
+
+    @staticmethod
+    def _restated_by(s: D.Snap, body: dict, inv: str, exclude: str = "") -> list[str]:
+        """Live results in the investigation whose numbers this body repeats, oldest first."""
+        sig = D.result_signature(body)
+        if not sig:
+            return []
+        hits = []
+        for i, n in s.nodes.items():
+            if i == exclude or n["type"] != "result" or n["inv"] != inv or i in s.withdrawn:
+                continue
+            other = D.result_signature(n["body"])
+            if other:
+                pool = list(other)
+                if all(D._take(pool, x) for x in sig):
+                    hits.append(i)
+        return sorted(hits, key=lambda i: s.nodes[i]["created_at"])
+
+    def _with_orders(self, out: dict, author: str, inv: str) -> None:
+        """The done signal: after a write, the author's open work orders with their predicates checked."""
+        if not inv or author in self.policy.reserved:
+            return
+        from . import coord
+        try:
+            lines = coord.done_lines(self, author, inv)
+        except Exception:  # noqa: BLE001 — advisory; never fails a write
+            lines = []
+        if lines:
+            out["orders"] = lines
 
     def _may_revise(self, s: D.Snap, author: str, n: dict) -> bool:
         return author in {n["created_by"]} | self.policy.curators or author in D.board(s, n["id"])
@@ -627,6 +756,8 @@ class Graph:
                     raise GraphError(f"only {n['created_by']} (its author), a reviewer or the {P.operator} revises "
                                      f"{n['code']}; challenge it, or propose a node that supersedes it")
                 body = clean_body(n["type"], {**n["body"], **(fields or {})})
+                extra: list[str] = []
+                auto_notes: list[str] = []
                 if n["type"] == "claim":
                     body = self._bind_measurements(s, body, n["inv"])
                 if n["type"] == "run" and body.get("kind") != n["body"].get("kind") and author != P.operator:
@@ -634,10 +765,19 @@ class Graph:
                                      "change")
                 if n["type"] == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, node, []), n["inv"])
+                    loose = [w for p in problems if p.code == "UNBOUND_NUMBER" for w in p.words]
+                    if loose:
+                        body, extra, auto_notes = self._auto_bind(s, body, n["inv"], n["created_by"],
+                                                                  self._support_ids(s, node, []), loose)
+                        if auto_notes:
+                            pend = [(dst, "supports", node) for dst in extra]
+                            for a, rel, b in pend:
+                                self._check_link(s, a, rel, b)
+                            problems = claim_issues(s, body, self._support_ids(s, node, pend), n["inv"])
                     if problems:
                         found = [p.to_dict() for p in problems]
                         refusals.record_refusal(self, author=author, op="revise", inv=n["inv"], node=node, body=body,
-                                                problems=found)
+                                                problems=found, support=self._support_ids(s, node, []))
                         raise GraphError("revision refused:\n- " + "\n- ".join(p.text() for p in problems), found)
                 at = self.clock()
 
@@ -645,10 +785,17 @@ class Graph:
                     v = con.execute("SELECT MAX(v) FROM versions WHERE node=?", (node,)).fetchone()[0] + 1
                     sha = self._version_row(con, node, v, at, author, reason, body)
                     self._event(con, author, "revise", node, {"v": v, "reason": str(reason)[:300], "body_sha": sha}, at)
+                    for dst in extra:
+                        self._insert_edge(con, s, dst, "supports", node, {},
+                                          "bound by the record: the claim's numbers are this result's", author, at)
                 self._transaction(write)
             finally:
                 self._after_write()
         out = self.get(node)
+        if auto_notes:
+            out["notes"] = ["bound by the record: " + ", ".join(auto_notes)]
+            out["auto_bound"] = auto_notes
+        self._with_orders(out, author, out["inv"])
         if out["type"] == "claim" and author not in P.curators:
             fixed = refusals.match_fix(self, author=author, inv=out["inv"], node=node,
                                        statement=out["body"].get("statement", ""), op="revise")
@@ -794,6 +941,7 @@ class Graph:
         out = self.get(target)
         if out["state"].get("fallen"):
             out["blast_radius"] = self.blast_radius(target)
+        self._with_orders(out, author, out["inv"])
         return out
 
     def lease(self, *, author: str, node: str, task: str = "", minutes: int = 240, release: bool = False,
@@ -977,6 +1125,10 @@ class Graph:
         """Overclaims caught per author and per rule, fixed vs open, with the latest in full (and as markdown)."""
         return refusals.report(self, inv=inv, since=since)
 
+    def replay_refusals(self, inv: str = "") -> dict:
+        """Every logged refusal through the checker as it is now (refusals.replay)."""
+        return refusals.replay(self, inv)
+
     def verify_refusals(self) -> dict:
         """The refusal log's own hash chain."""
         return refusals.verify(self)
@@ -986,6 +1138,63 @@ class Graph:
         the record has as contested / withdrawn / unchecked, codes that don't exist, absolutes nothing counts."""
         from . import report_check
         return report_check.check(self, text, inv)
+
+    # ── coordinating a team through the record (coord.py) ───────────
+    def briefing(self, inv: str, *, roster: list | None = None, since_seq: int = 0, budget_usd: float = 0) -> dict:
+        """The orchestrator's context, compiled from the record (coord.briefing)."""
+        from . import coord
+        return coord.briefing(self, inv, roster=roster, since_seq=since_seq, budget_usd=budget_usd)
+
+    def issue_work(self, **kw) -> dict:
+        """A work order on one target for one assignee, with done-when predicates (coord.issue_work)."""
+        from . import coord
+        return coord.issue_work(self, **kw)
+
+    def order_text(self, order: str) -> str:
+        from . import coord
+        return coord.order_text(self, self.resolve(order))
+
+    def orders(self, inv: str, status: str = "") -> list[dict]:
+        from . import coord
+        return coord.orders(self, inv, status)
+
+    def return_work(self, *, author: str, order: str, note: str = "") -> dict:
+        from . import coord
+        return coord.return_work(self, author=author, order=self.resolve(order), note=note)
+
+    def check_work(self, order: str, text: str = "") -> dict:
+        from . import coord
+        return coord.check_work(self, self.resolve(order), text)
+
+    def accept_work(self, *, author: str, order: str, reason: str = "", text: str = "") -> dict:
+        from . import coord
+        return coord.accept_work(self, author=author, order=self.resolve(order), reason=reason, text=text)
+
+    def rework(self, *, author: str, order: str, missing: str, done_when: list | None = None) -> dict:
+        from . import coord
+        return coord.rework(self, author=author, order=self.resolve(order), missing=missing, done_when=done_when)
+
+    def cancel_work(self, *, author: str, order: str, why: str) -> dict:
+        from . import coord
+        return coord.cancel_work(self, author=author, order=self.resolve(order), why=why)
+
+    def cancel_moot(self, *, author: str, inv: str) -> list[dict]:
+        from . import coord
+        return coord.cancel_moot(self, author=author, inv=inv)
+
+    def completion(self, inv: str) -> dict:
+        """What the investigation's profile says "done" means, each criterion derived from the record."""
+        return profiles.completion(self.snapshot(), self.resolve(inv))
+
+    def question_board(self, inv: str) -> list[dict]:
+        """Every live question with its derived status (coord.question_board)."""
+        from . import coord
+        return coord.question_board(self, inv)
+
+    def settle(self, *, author: str, inv: str) -> list[dict]:
+        """Accept every returned order whose predicates are all met (coord.settle)."""
+        from . import coord
+        return coord.settle(self, author=author, inv=inv)
 
     # ── method & coordination (plan.py) ─────────────────────────────
     def next_experiments(self, inv: str, limit: int = 10) -> dict:

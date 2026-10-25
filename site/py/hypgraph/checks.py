@@ -12,6 +12,8 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   UNBOUND_NUMBER                a number in the statement comes from nowhere: not a bound measurement, nothing
                                 computed from them (difference, ratio, percentage, interval), the scope or a constant
   ABSOLUTE_WITHOUT_COUNT        "never" / "always" / "eliminates" / "100%" with no count of 0 or n behind it
+                                (an absolute over a set the sentence enumerates — "all three subsets: …" — is
+                                not a generalisation and is left alone)
   ABSOLUTE_UNRELATED_COUNT      the 0-of-n it leans on counts something else
   ABSOLUTE_UNDERPOWERED         0 of n with n too small (the rate could still be above 5%), and the statement
                                 generalises past the n trials instead of saying them ("never leaks")
@@ -19,9 +21,13 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   COMPARATIVE_WITHOUT_COMPARISON "beats" / "outperforms" / "higher than" with fewer than two sides measured
   SIGNIFICANCE_WITHOUT_TEST     "significantly" with no test behind it
   SIGNIFICANCE_NOT_SHOWN        the test behind it isn't significant
+  SIGNIFICANCE_CONTRADICTED     "not significant", but the bound evidence is (p < 0.05)
   CAUSAL_WITHOUT_INTERVENTION   "causes" / "leads to" when no experiment intervened
   EXCLUSION_WITHOUT_POWER       "no effect" / "rules out" without a search shown to find a planted effect
   CONVENTION_HEDGED             a convention that hedges
+
+A word counts only when its sentence asserts it (language.asserted): "not significantly better", "no evidence
+that it ever fails" and "we cannot conclude that…" are honest and pass; the overclaim is the unnegated form.
 
 The arithmetic: a count of 0 in n trials bounds the rate at 1 - 0.05^(1/n) (95%, the "rule of three", ≈ 3/n).
 "Never, in 3 trials" means "below 63%". A claim may carry ``exposure`` — how many uses, users or units it will be
@@ -185,8 +191,30 @@ def _exposure_note(bound_rate: float, body: dict) -> str:
             "out.")
 
 
+_ENUM = re.compile(r"\b(all|every|each|none|neither|both)\b", re.I)
+_SMALL = r"(?:\d{1,3}(?:,\d{3})*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+_ENUM_COUNT = re.compile(r"^\s*(?:of\s+(?:the\s+)?|one\s+of\s+(?:the\s+)?)?" + _SMALL + r"\b", re.I)
+
+
+def _enumerated(stmt: str, word: str) -> bool:
+    """An absolute that quantifies over a set the sentence itself enumerates is not a generalisation past the
+    sample: "all three subsets", "in every subset: math −2.6, code −2.2, reading −0.4". The rule is lexical —
+    a small count right after the word, or a breakdown of two or more numbers after a colon or bracket in the
+    same sentence — so it can be replayed on a refusal log that holds only the statement."""
+    if not _ENUM.fullmatch(word):
+        return False
+    m = re.search(r"\b" + re.escape(word) + r"\b", stmt, re.I)
+    if not m:
+        return False
+    rest = re.split(r"[.!?](?:\s|$)", stmt[m.end():], maxsplit=1)[0]
+    if _ENUM_COUNT.match(rest):
+        return True
+    brk = re.search(r"[:(\[—]", rest)
+    return bool(brk) and len(numbers(rest[brk.end():])) >= 2
+
+
 def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
-    words = L.found(L.ABSOLUTE, stmt)
+    words = [w for w in L.asserted(L.ABSOLUTE, stmt) if not _enumerated(stmt, w)]
     if not words:
         return []
     w = words[0]
@@ -248,7 +276,7 @@ def _measured_claim(s: Snap, support: list[str]) -> bool:
 
 def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Problem]:
     out = []
-    comp = L.found(L.COMPARATIVE, stmt)
+    comp = L.asserted(L.COMPARATIVE, stmt)
     tested = any(isinstance(rv.get("p"), (int, float)) or rv.get("interval") for _m, rv in bound)
     if comp and len([1 for _m, rv in bound if _primary(rv) is not None]) < 2 and not tested \
             and not _measured_claim(s, support):
@@ -256,10 +284,18 @@ def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Pr
                            f"'{comp[0]}' compares, but there is nothing to compare: bind a measurement for each side "
                            "(a k/n or value for both), or a difference with its interval",
                            fix="bind both sides as measurements", words=comp))
-    sig = L.found(L.SIGNIFICANCE, stmt)
+    sig = L.asserted(L.SIGNIFICANCE, stmt)
+    bound_p = [float(rv["p"]) for _m, rv in bound if isinstance(rv.get("p"), (int, float))]
+    arms = [_arm(rv) for _m, rv in bound if _arm(rv)]
+    no_sig = L.denied(L.SIGNIFICANCE, stmt)
+    if no_sig and not sig:                      # "not significant": the record checks that too
+        p = min(bound_p) if bound_p else (stats.two_proportions(*arms[0], *arms[1])["p"] if len(arms) >= 2 else None)
+        if p is not None and p < 0.05:
+            out.append(Problem("SIGNIFICANCE_CONTRADICTED",
+                               f"the statement denies significance ('{no_sig[0]}'), but the bound evidence is "
+                               f"significant: p = {p:.2g} — say the difference and that it is significant at 0.05",
+                               words=no_sig))
     if sig:
-        bound_p = [float(rv["p"]) for _m, rv in bound if isinstance(rv.get("p"), (int, float))]
-        arms = [_arm(rv) for _m, rv in bound if _arm(rv)]
         if bound_p:
             if min(bound_p) > 0.05:
                 out.append(Problem("SIGNIFICANCE_NOT_SHOWN",
@@ -283,7 +319,7 @@ def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Pr
 
 
 def _causal(s: Snap, stmt: str, support: list[str]) -> list[Problem]:
-    words = L.found(L.CAUSAL, stmt)
+    words = L.asserted(L.CAUSAL, stmt)
     if not words:
         return []
     for sid in support:
@@ -298,7 +334,7 @@ def _causal(s: Snap, stmt: str, support: list[str]) -> list[Problem]:
 
 
 def _exclusion(s: Snap, stmt: str, kind: str, support: list[str], bound: list) -> list[Problem]:
-    words = L.found(L.EXCLUSION, stmt)
+    words = L.asserted(L.EXCLUSION, stmt)
     if kind != "exclusion" and not (words and kind not in ("inconclusive", "lead", "convention")):
         return []
     for sid in support:

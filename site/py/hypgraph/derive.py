@@ -53,8 +53,10 @@ def lifecycle(s: Snap, nid: str, _seen: frozenset = frozenset()) -> str:
     if nid in s.withdrawn:
         return "withdrawn"
     for e in s.inn.get(nid, []):
-        # superseded by a live replacement (a cycle of supersedes edges can't recurse forever)
-        if e["rel"] in SAME_TYPE and e["src"] not in _seen and lifecycle(s, e["src"], _seen | {nid}) == "active":
+        # superseded by a replacement that is live, or itself superseded by one that is: a chain of replacements
+        # ends in a live node (a withdrawn replacement replaces nothing). A cycle can't recurse forever.
+        if e["rel"] in SAME_TYPE and e["src"] not in _seen and \
+                lifecycle(s, e["src"], _seen | {nid}) in ("active", "superseded"):
             return "superseded"
     n = s.nodes[nid]
     if n["type"] == "investigation":
@@ -275,6 +277,53 @@ def independent_lines(s: Snap, nid: str) -> int:
     return len(groups)
 
 
+def result_signature(body: dict) -> tuple | None:
+    """The numbers a result carries, as a sorted tuple rounded to 4 decimals, keys ignored (two authors name the
+    same measurement differently). None when fewer than two numbers, or none of them is away from zero."""
+    nums = []
+    for v in (body.get("values") or {}).values():
+        if isinstance(v, dict):
+            nums += [round(float(x), 4) for x in v.values() if isinstance(x, (int, float)) and not isinstance(x, bool)]
+        elif isinstance(v, (int, float)) and not isinstance(v, bool):
+            nums.append(round(float(v), 4))
+    if len(nums) < 2 or not any(abs(x) >= 1e-4 for x in nums):
+        return None
+    if all(x.is_integer() and abs(x) <= 12 for x in nums):     # 0 of 3 is a coincidence waiting to happen
+        return None
+    return tuple(sorted(nums))
+
+
+def restates(s: Snap, nid: str) -> list[str]:
+    """Earlier live results in the same investigation whose numbers this result repeats (the same multiset, or a
+    subset of it): one measurement written twice is one line of evidence, however many times it is written."""
+    n = s.nodes[nid]
+    sig = result_signature(n["body"])
+    if not sig:
+        return []
+    mine = sorted(sig)
+    out = []
+    for i, m in s.nodes.items():
+        if i == nid or m["type"] != "result" or m["inv"] != n["inv"] or i in s.withdrawn:
+            continue
+        if (m["created_at"], i) >= (n["created_at"], nid):
+            continue
+        other = result_signature(m["body"])
+        if not other:
+            continue
+        pool = list(other)
+        if all(_take(pool, x) for x in mine):
+            out.append(i)
+    return out
+
+
+def _take(pool: list, x: float) -> bool:
+    try:
+        pool.remove(x)
+        return True
+    except ValueError:
+        return False
+
+
 def result_value(s: Snap, rid: str, key: str) -> Optional[dict]:
     """A result's value under ``key`` as a dict ({"value": …} for a bare number), or None."""
     r = s.nodes.get(rid)
@@ -323,7 +372,7 @@ def basis_changed(s: Snap, nid: str) -> list[dict]:
 # What a node's standing reads. Out-edges: what it rests on or is made of. In-edges: what reviews, supports,
 # challenges, supersedes or produced it. A change at y can alter the standing of x only if x reads y this way —
 # directly, or through a chain (at-risk and evidence are transitive).
-_READS_OUT = {"requires", "derived_from", "based_on", "cites", "uses", "replicates"}
+_READS_OUT = {"requires", "derived_from", "based_on", "cites", "uses", "replicates", "works_on", "rests_on"}
 _READS_IN = {"reviews", "supports", "challenges", "supersedes", "corrects", "produced", "replicates"}
 
 
@@ -359,11 +408,14 @@ def state(s: Snap, nid: str) -> dict:
         st["execution"] = n["body"].get("state") or "unknown"
     if t == "result":
         st["outcome"] = n["body"].get("outcome") or "unstated"
+        rs = restates(s, nid)
+        if rs:
+            st["restates"] = rs
     if t == "claim":
         b = bounds(s, nid)
         if b:
             st["bounds"] = b
-        if len(b) >= 2 and lang.found(lang.SIGNIFICANCE, n["body"].get("statement", "")):
+        if len(b) >= 2 and lang.found(lang.SIGNIFICANCE, n["body"].get("statement", "")):   # asserted or denied
             st["test"] = stats.two_proportions(b[0]["k"], b[0]["n"], b[1]["k"], b[1]["n"])
     if t in ("claim", "hypothesis"):
         st["evidence"] = profile(s, nid)
@@ -408,6 +460,8 @@ def sentence(s: Snap, nid: str, st: dict) -> str:
         parts.append(st["execution"])
     if "outcome" in st:
         parts.append(f"outcome {st['outcome']}")
+    if st.get("restates"):
+        parts.append("RESTATES " + ", ".join(s.nodes[r]["code"] or r for r in st["restates"][:4]))
     if "evidence" in st:
         k = st["independent_lines"]
         parts.append(f"{k} independent line{'s' if k != 1 else ''} of support" if k else "no live support")
@@ -418,7 +472,7 @@ def sentence(s: Snap, nid: str, st: dict) -> str:
             parts.append(f"{st['challenges']} challenge(s)")
         if st.get("unsupported"):
             parts.append("UNSUPPORTED — every support has fallen")
-    absolute = lang.found(lang.ABSOLUTE, n["body"].get("statement", "")) if n["type"] == "claim" else []
+    absolute = lang.asserted(lang.ABSOLUTE, n["body"].get("statement", "")) if n["type"] == "claim" else []
     for b in st.get("bounds") or []:
         if b["k"] in (0, b["n"]) and (absolute or b.get("unruled_out") is not None):
             worst = b["hi"] if b["k"] == 0 else 1 - b["lo"]

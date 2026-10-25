@@ -502,7 +502,7 @@ long-horizon, many-hand-off case (the Pegasus ledger that motivated the study: 1
 tasks, 15 % on repeats), which these families do not represent; a follow-up suite would need 10–20 sub-questions
 and several cascading notices per instance, and a budget cap the record conditions can finish under.
 
-## D-19 (2026-10-25, built, not yet run): reproduce, don't recompute — and one write for a result and its claim
+## D-19 (2026-10-25, run as E′ and E″ — results below): reproduce, don't recompute — and one write for a result and its claim
 
 From where the record conditions' calls went in the confirmatory (reviewer 47 / 34 / 28 calls a run in C / D / E
 re-deriving numbers; 31 / 18 / 16 `graph_add` for four claims; 16 / 11 / 13 `show`), three changes, each

@@ -238,6 +238,30 @@ def cmd_work(args) -> int:
     return 0
 
 
+def cmd_brief(args) -> int:
+    g = _graph(args)
+    b = g.briefing(_inv(g, args.inv), since_seq=args.since)
+    _out(args, b, b["text"] + f"\n\n(seq {b['seq']} · sha256 {b['sha256'][:12]} — pass --since {b['seq']} next time)")
+    return 0
+
+
+def cmd_orders(args) -> int:
+    g = _graph(args)
+    inv = _inv(g, args.inv)
+    if args.order:
+        o = g.resolve(args.order, inv)
+        c = g.check_work(o)
+        lines = [g.order_text(o), "", f"Status: {c['status']} — " + ("ALL MET" if c["all_met"] else "not done")]
+        lines += [f"  {'MET    ' if x['met'] else 'NOT MET'} {x['p']} {', '.join(x['evidence_codes'])} {x['why']}"
+                  for x in c["predicates"]]
+        _out(args, c, "\n".join(lines))
+        return 0
+    rows = g.orders(inv, args.status)
+    _out(args, rows, "\n".join(f"{o['code']:<5} {o['status']:<9} {o['assignee']:<12} {o['target']:<6} "
+                                f"{o['objective'][:70]}" for o in rows) or "No work orders.")
+    return 0
+
+
 def cmd_report(args) -> int:
     g = _graph(args)
     r = g.report(_inv(g, args.inv))
@@ -320,6 +344,14 @@ def cmd_refusals(args) -> int:
     return 0
 
 
+def cmd_replay(args) -> int:
+    from .refusals import replay_markdown
+    g = _graph(args)
+    r = g.replay_refusals(_inv(g, args.inv) if args.inv else "")
+    _out(args, r, replay_markdown(r))
+    return 0
+
+
 def cmd_check(args) -> int:
     g = _graph(args)
     text = Path(args.file).read_text(encoding="utf-8") if args.file != "-" else sys.stdin.read()
@@ -377,8 +409,16 @@ def cmd_skill(args) -> int:
 
 
 def cmd_serve(args) -> int:
-    from .server import serve
-    serve(args.db, host=args.host, port=args.port, writable=args.writable, open_browser=not args.no_browser)
+    import os
+    from .server import parse_tokens, serve
+    specs = list(args.token or [])
+    if os.environ.get("HYPGRAPH_TOKEN"):
+        specs.append(os.environ["HYPGRAPH_TOKEN"])
+    tokens = parse_tokens(specs, args.token_file or "")
+    if tokens and not args.writable:
+        print("note: --token only matters with --writable (reads are open)")
+    serve(args.db, host=args.host, port=args.port, writable=args.writable, open_browser=not args.no_browser,
+          tokens=tokens or None)
     return 0
 
 
@@ -445,6 +485,13 @@ def build_parser() -> argparse.ArgumentParser:
     for name, fn, h in (("next", cmd_next, "experiments ranked by how well they separate hypotheses"),
                         ("work", cmd_work, "review queue, revalidation, contested, decisions to revisit")):
         cmd(name, fn, h).add_argument("--inv", default="")
+    s = cmd("brief", cmd_brief, "an orchestrator's context, compiled from the record (deterministic)")
+    s.add_argument("--inv", default="")
+    s.add_argument("--since", type=int, default=0, help="the seq of the last brief read: show what changed")
+    s = cmd("orders", cmd_orders, "work orders and their derived status; with ORDER, its text and predicates")
+    s.add_argument("order", nargs="?", default="")
+    s.add_argument("--inv", default="")
+    s.add_argument("--status", default="", help="open | returned | overdue | accepted | reworked | cancelled | moot")
     s = cmd("report", cmd_report, "the facts of an investigation, generated from the record")
     s.add_argument("--inv", default="")
     s.add_argument("-o", "--output", default="")
@@ -462,6 +509,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--inv", default="")
     s.add_argument("--since", default="", help="ISO date or time")
     s.add_argument("--author", dest="author_filter", default="", help="list one author's refusals in full")
+    s = cmd("replay-refusals", cmd_replay, "run every logged refusal through the checker as it is now")
+    s.add_argument("--inv", default="")
     s = cmd("check", cmd_check, "lint a write-up (markdown) against the record; exit 1 on errors")
     s.add_argument("file", help="the markdown file ('-' for stdin)")
     s.add_argument("--inv", default="", help="the investigation it reports on (default: inferred)")
@@ -480,6 +529,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--port", type=int, default=8765)
     s.add_argument("--writable", action="store_true", help="also accept writes (POST /api/graph/write)")
     s.add_argument("--no-browser", action="store_true")
+    s.add_argument("--token", action="append", metavar="SECRET[=AUTHORS]",
+                   help="bind writes to a bearer token: SECRET=a,b (those authors) or SECRET=* (any non-reserved); "
+                        "repeatable; $HYPGRAPH_TOKEN adds one. With tokens, unauthenticated writes are 401.")
+    s.add_argument("--token-file", default="", help="a file with one SECRET[=AUTHORS] per line")
     s = cmd("mcp", cmd_mcp, "an MCP server for agents (needs hypgraph[mcp])")
     s.add_argument("--transport", default="stdio", choices=["stdio", "http"])
     s.add_argument("--port", type=int, default=8766)

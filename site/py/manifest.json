@@ -1,11 +1,12 @@
 {
- "version": "0.3.0",
+ "version": "0.4.0",
  "files": [
   "hypgraph/__init__.py",
   "hypgraph/__main__.py",
   "hypgraph/bundle.py",
   "hypgraph/checks.py",
   "hypgraph/cli.py",
+  "hypgraph/coord.py",
   "hypgraph/demos/__init__.py",
   "hypgraph/demos/broad_street.py",
   "hypgraph/derive.py",
@@ -13,6 +14,7 @@
   "hypgraph/language.py",
   "hypgraph/plan.py",
   "hypgraph/policy.py",
+  "hypgraph/profiles.py",
   "hypgraph/refusals.py",
   "hypgraph/report_check.py",
   "hypgraph/schema.py",

@@ -30,7 +30,8 @@ TYPES: dict[str, dict] = {
         "title": _f("str", 200, True), "objective": _f("text", 3000, True), "success_criteria": _f("text", 3000),
         "scope": _f("text", 3000), "state": _f("enum:active|archived|published"), "reviewers": _f("list", 20),
         "constants": _f("list", 60), "strict_claims": _f("bool"), "keywords": _f("list", 30), "projects": _f("list", 20),
-        "doi": _f("str", 120), "note": _f("text", 2000), "legacy_case": _f("str", 80)}},
+        "doi": _f("str", 120), "note": _f("text", 2000), "legacy_case": _f("str", 80),
+        "profile": _f("str", 60)}},                      # governance profile, e.g. software@1 (profiles.py)
     "question": {"prefix": "Q", "fields": {"text": _f("text", 1500, True), "why": _f("text", 1500)}},
     "hypothesis": {"prefix": "H", "fields": {
         "statement": _f("text", 1500, True), "assumptions": _f("list", 20), "predictions": _f("list", 20, True),
@@ -67,7 +68,10 @@ TYPES: dict[str, dict] = {
     "decision": {"prefix": "D", "fields": {
         "choice": _f("text", 1500, True), "alternatives": _f("list", 20), "reasons": _f("text", 3000, True),
         "revisit_if": _f("text", 1500), "meeting": _f("str", 80)}},
-    "task": {"prefix": "T", "fields": {"kanban_id": _f("str", 80, True), "title": _f("str", 300)}},
+    "task": {"prefix": "T", "fields": {
+        "kanban_id": _f("str", 80), "title": _f("str", 300), "objective": _f("text", 2000),
+        "assignee": _f("str", 80), "role": _f("str", 80), "prediction": _f("text", 1500), "method": _f("text", 1500),
+        "done_when": _f("list", 12), "budget": _f("dict", 400), "note": _f("text", 1500)}},
 }
 
 ANY = set(TYPES)
@@ -93,9 +97,12 @@ RELS: dict[str, tuple[set, set]] = {
     "based_on": ({"decision"}, {"claim", "result", "hypothesis"}),
     "works_on": ({"task"}, ANY - {"task", "artifact", "review"}),
     "blocked_by": ({"task"}, {"task"}),
+    "rests_on": ({"task"}, ANY - {"task", "review"}),
+    "settles": ({"decision"}, {"task"}),
 }
 REPLICATION = ("same_code", "new_seed", "new_impl", "new_data", "new_env")
-RISKY = ("requires", "derived_from", "based_on")
+# what a node rests on: if the far end falls, this node is at risk (a work order is moot)
+RISKY = ("requires", "derived_from", "based_on", "works_on", "rests_on")
 SAME_TYPE = ("supersedes", "corrects")
 
 # One line each — what the type is for. Shown by `hypgraph schema`, the MCP server and the site.
@@ -111,7 +118,8 @@ ABOUT = {
     "source": "Outside literature or data: citation, DOI, the passage that says it.",
     "review": "A verdict on one version of a claim, result, run, experiment or hypothesis.",
     "decision": "A choice made on the evidence; flagged when what it was based on changes.",
-    "task": "A unit of work in your tracker, linked to what it works on.",
+    "task": "A unit of work linked to what it works on — or a work order: objective, assignee, done-when "
+            "predicates the record checks, budget (see coordination).",
 }
 REL_ABOUT = {
     "part_of": "belongs to an investigation or question", "answers": "offers an answer to a question",
@@ -124,7 +132,9 @@ REL_ABOUT = {
     "reviews": "a review of a node (written by review())", "supersedes": "replaces an older node of the same type",
     "corrects": "fixes an error in a node of the same type", "motivated_by": "prompted by",
     "cites": "cites a source", "based_on": "a decision rests on this evidence (pinned to its version)",
-    "works_on": "a task works on a node", "blocked_by": "a task waits on another task",
+    "works_on": "a task works on a node (it is moot if that node falls)", "blocked_by": "a task waits on another task",
+    "rests_on": "a work order rests on a premise, pinned to the version it was issued against",
+    "settles": "a decision accepts a work order (based_on the evidence that met its predicates)",
 }
 
 

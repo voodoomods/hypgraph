@@ -34,6 +34,56 @@ EXCLUSION = re.compile(
 HEDGE = re.compile(r"\b(could|might|may|likely|probably|perhaps|possibly|suggests?|consistent with|"
                    r"aligns? with|plausibl\w*)\b", re.I)
 
+# A word asserts its claim only when its clause doesn't negate it: "not significantly better", "no evidence that
+# it ever fails", "we cannot conclude that…" are honest sentences, not overclaims. The clause is the text between the
+# last clause break and the word; a negator anywhere in it negates the word.
+_NEGATOR = re.compile(
+    r"\b(not|no|nor|neither|cannot|can't|couldn't|doesn't|don't|didn't|isn't|aren't|wasn't|weren't|hasn't|"
+    r"haven't|won't|wouldn't|without|fails?|failed|unable|insufficient|unclear|unlikely|whether|"
+    r"(?:no|little|weak|insufficient) evidence)\b", re.I)
+_CLAUSE = re.compile(r"[,;:()\[\]—]|\b(but|although|though|whereas|while|however|yet|except|unless)\b", re.I)
+_SENTENCE_END = re.compile(r"[.!?]")
+# "cannot conclude / say / rule out …" is an epistemic hedge, not an absolute about the world
+_EPISTEMIC = re.compile(
+    r"\b(cannot|can't|could not|couldn't|unable to|impossible to|not possible to)\s+(?:yet\s+|fully\s+|reliably\s+|"
+    r"safely\s+)?(conclude|say|tell|rule|determine|confirm|establish|show|claim|distinguish|exclude|prove|know|"
+    r"assess|infer|verify|support|demonstrate|decide|be sure|be certain)\b", re.I)
+
+
+def negated(text: str, start: int) -> bool:
+    """Is the word at ``start`` negated by its own clause?"""
+    head = text[:start]
+    s0 = max((m.end() for m in _SENTENCE_END.finditer(head)), default=0)
+    c0 = max((m.end() for m in _CLAUSE.finditer(head, s0)), default=s0)
+    return bool(_NEGATOR.search(head[c0:]))
+
+
+# "below zero", "crosses zero", "from zero to one": zero as a number on a scale, not "zero failures"
+_ZERO_ON_A_SCALE = re.compile(r"\b(below|above|near|to|from|of|than|at|cross(?:es|ed)?|includ(?:es|ed)?|"
+                              r"exclud(?:es|ed)?|around|about|approximately|spans?|toward|towards|between)\s+zero\b",
+                              re.I)
+
+
+def asserted(pattern: re.Pattern, text: str) -> list[str]:
+    """The distinct matches of a pattern that their sentence actually asserts: not negated in their clause, not an
+    epistemic hedge ("cannot conclude"), and not a number on a scale ("below zero")."""
+    out = []
+    for m in pattern.finditer(text or ""):
+        if negated(text, m.start()):
+            continue
+        if _EPISTEMIC.match(text, m.start()):
+            continue
+        if m.group(0).lower() == "zero" and any(z.end() == m.end() for z in _ZERO_ON_A_SCALE.finditer(text)):
+            continue
+        out.append(m.group(0).lower())
+    return list(dict.fromkeys(out))
+
+
+def denied(pattern: re.Pattern, text: str) -> list[str]:
+    """The matches a sentence negates: "not significantly", "no significant difference"."""
+    return [w for w in found(pattern, text) if w not in asserted(pattern, text)]
+
+
 STOP = set("""the a an of in on at to for and or but with without from by as is are was were be been being this that
 these those it its into over under than then there their they them which who whom what when where why how not no
 never always all every none any some each per our we you your his her one two three new data model models result
