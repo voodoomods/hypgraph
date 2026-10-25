@@ -306,3 +306,8 @@ Found by hypswarm's external-seat test: a returned order stayed in `my_work`, so
 same order twice. Returned orders are now noted as awaiting acceptance, not listed as work. The MCP surface is on
 no study condition's path (A–D use the runner's tools, E hypswarm's in-process tools); recorded so the lock
 stays exact.
+
+## D-15 (2026-10-24): coordination routes on the HTTP server
+
+`server.py` gains the coordination write ops and reads so hypswarm's workers can use a served record. No study
+condition goes over HTTP (E runs hypswarm's in-process record); recorded for the lock.
