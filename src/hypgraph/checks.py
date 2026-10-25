@@ -385,6 +385,9 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     plain, stat = derived_numbers(bound)
     allowed = plain + [v for v, *_ in numbers(scope)] + \
         [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
+    for src in support:                              # a cited source's own text accounts for the numbers in it
+        sb = s.nodes[src]["body"] if s.nodes[src]["type"] == "source" else {}
+        allowed += [v for v, *_ in numbers(" ".join(str(sb.get(k) or "") for k in ("passage", "citation", "title")))]
     if _CONVENTIONS.search(clean):                   # "95% interval", "α 0.05", "80% power" are conventions
         allowed += [95.0, 99.0, 90.0, 80.0, 0.05, 0.01]
     loose = [p for p in numbers(clean) if not _matches(p, allowed) and not _matches_stat(p, stat)]

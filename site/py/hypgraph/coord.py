@@ -235,10 +235,20 @@ def _claims_on(s: D.Snap, t: str) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+def chain_root(s: D.Snap, oid: str) -> str:
+    """The first order of a rework chain (follows ``supersedes``); an order that replaced nothing is its own root."""
+    seen = [oid]
+    while True:
+        older = [e["dst"] for e in s.out.get(seen[-1], []) if e["rel"] == "supersedes"]
+        if not older or older[0] in seen:
+            return seen[-1]
+        seen.append(older[0])
+
+
 def _eval(g: "Graph", s: D.Snap, oid: str, pred: dict, text: str) -> dict:
     p = pred.get("p", "")
     t = target_of(s, oid)
-    at = s.nodes[oid]["created_at"]
+    at = s.nodes[chain_root(s, oid)]["created_at"]     # a rework keeps what its earlier attempts wrote
     res = {"p": p, "met": False, "evidence": [], "why": ""}
     if p in profiles.PRED_DESC:
         return res | profiles.evaluate(p, s, oid, t, at, s.nodes[oid]["body"].get("assignee", ""), s.nodes[oid]["inv"])

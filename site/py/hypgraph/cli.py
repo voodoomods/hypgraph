@@ -515,7 +515,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("file", help="the markdown file ('-' for stdin)")
     s.add_argument("--inv", default="", help="the investigation it reports on (default: inferred)")
     s.add_argument("--strict", action="store_true", help="warnings (e.g. unsourced numbers) fail too")
-    s = cmd("bound", cmd_bound, "what k of n actually supports: the 95% bounds behind any 'never'")
+    s = cmd("bound", cmd_bound, "what k of n actually supports: the 95%% bounds behind any 'never'")
     s.add_argument("k", type=int, help="how many times it happened")
     s.add_argument("n", type=int, help="how many trials")
     s.add_argument("--exposure", type=float, default=0, help="how many uses / users / units it will apply to")

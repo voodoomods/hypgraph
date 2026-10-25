@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1 — 2026-10-25
+
+Three rules the hypswarm examples exposed, each with a test:
+- A claim's numbers that appear in a cited source's passage, citation or title are accounted for (a knowledge claim
+  "signed on 24 October 1648" citing the passage that says so is no longer `UNBOUND_NUMBER`).
+- A rework's predicates count evidence written since the **first** order of its chain (`coord.chain_root`): a
+  `tests_pass` met by the instrument's re-run under the original order stays met under the rework.
+- `PASS_WITHOUT_INSTRUMENT_RUN` accepts a claim resting on the author's result when a live lab run `replicates`
+  the run that produced it and the re-run's result is positive (`profiles._instrument_backed`).
+
 ## 0.4.0 — 2026-10-25: the coordination layer
 
 Held until the harmony study had exercised every path (pilots 1–4, a 142-run confirmatory, two follow-up rounds). Governance profiles, token-bound authors, work orders with predicates, order text that carries the target, instrument reproduction, replayable refusals.

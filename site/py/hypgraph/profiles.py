@@ -200,6 +200,23 @@ def _lab_positive(s: D.Snap, rid: str) -> bool:
     return bool(r) and s.nodes[r]["body"].get("kind") == "lab" and s.nodes[rid]["body"].get("outcome") == "positive"
 
 
+def _instrument_backed(s: D.Snap, rid: str) -> bool:
+    """A result is instrument-backed when it comes from a lab run, or when a lab run replicates the run that
+    produced it and that re-run's own result is positive (the instrument re-executed the author's code)."""
+    if _lab_positive(s, rid):
+        return True
+    r = _producing_run(s, rid)
+    if not r:
+        return False
+    for lab in (e["src"] for e in s.inn.get(r, []) if e["rel"] == "replicates"):
+        if s.nodes[lab]["body"].get("kind") != "lab" or not _live(s, lab):
+            continue
+        if any(e["rel"] == "produced" and s.nodes[e["dst"]]["body"].get("outcome") == "positive"
+               for e in s.out.get(lab, [])):
+            return True
+    return False
+
+
 def _bearing(s: D.Snap, t: str, ntype: str) -> list[str]:
     """Nodes of a type linked to the target by any relation, either way."""
     out = [e["src"] for e in s.inn.get(t, []) if s.nodes[e["src"]]["type"] == ntype]
@@ -287,11 +304,12 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
                                "or gap — an incumbent without a bound is a solution, not an optimum",
                                fix="bind a result with bound or gap, or say 'best found'"))
     if "pass_needs_instrument" in p.validators and L.asserted(_PASSES, stmt):
-        ok = any(_lab_positive(s, r) for r in results)
+        ok = any(_instrument_backed(s, r) for r in results)
         if not ok:
             out.append(Problem("PASS_WITHOUT_INSTRUMENT_RUN", "'passes' is asserted, but no supporting result comes "
                                "from an instrument-recorded run — tests must be run by the instrument, not reported",
-                               fix="register_run with the test command as code; the instrument's re-run is the evidence"))
+                               fix="register_run with the test command as code; the instrument's re-run is the evidence — write the "
+                "claim once the re-run has landed (the order's reply names it)"))
     if "claim_needs_source" in p.validators and kind in ("finding", "exclusion"):
         cites = any(rel == "cites" and s.nodes.get(b, {}).get("type") == "source" for a, rel, b in pending) or \
             any(_cites_source(s, x) for x in support if x in s.nodes and s.nodes[x]["type"] in ("claim", "result"))
