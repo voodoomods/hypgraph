@@ -112,6 +112,23 @@
     "hypgraph": "92b6a432ba93e470e1c6a72ff0cf82700059fe6e",
     "pegasus": "c14946cd4b714fc8d70e9c2e2e6399436c35026f+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T01:20:33Z",
+   "ids": [
+    "D-11"
+   ],
+   "note": "runner settles met orders after each return (C only); pilot 4 on the D-10 engine",
+   "files": {
+    "runner": "cfd9388ba27c93bd8a677d9318d22e42d613063cf07662ced5b64b2a02adc985"
+   },
+   "was": {
+    "runner": "e849003a6bd10f83e1b30614c59326ac555a44f943d65b7389b7b7a278667454"
+   },
+   "git": {
+    "hypgraph": "f62edadba481a676751da0d5cba25eb8608cd886",
+    "pegasus": "c9f4b9ae8a6756ab6442cc3f79b4387075cbb137+dirty"
+   }
   }
  ]
 }
