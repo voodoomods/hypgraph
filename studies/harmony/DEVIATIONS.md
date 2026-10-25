@@ -293,3 +293,9 @@ runner's call path; the provider is intermittently hanging requests tonight. The
 calls at the same time happened not to hit one. The partial run is discarded; the rerun waits for a day when
 the provider holds up across a whole run, which the long-call probe cannot guarantee. Spend on the stopped
 rerun: under $0.01.
+
+**D-13 harness ready (2026-10-24):** `dev/study_e.py` + `study_host.py --condition E` run a suite instance through
+hypswarm with the same spec in and the same `run.json` / `score.json` / `ledger.json` out. Stub dry runs on F1 and
+F7 pass (62 scripted calls each, report parsed, $0); on F7 the notice is delivered after the first return, the
+stale artifact is withdrawn, and 24 of 36 later tool calls are marked after-notice. The lock now also hashes
+`dev/study_e.py` and hypswarm's `src/` (`hypswarm/src`). Condition E has not run on a model.

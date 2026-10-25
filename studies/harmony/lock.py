@@ -22,12 +22,14 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 HYP = HERE.parents[1]
 POD = Path(os.environ.get("PEGASUS_REPO", HYP.parent / "Pegasus" / "pod"))
+HS = Path(os.environ.get("HYPSWARM_REPO", HYP.parent / "HypSwarm"))
 FILES = {
     "prereg": HERE / "PREREG.md", "analysis": HERE / "analysis.py", "suite/families": HERE / "suite" / "families.py",
     "suite/score": HERE / "suite" / "score.py", "suite/stats": HERE / "suite" / "stats.py",
     "hypgraph/coord": HYP / "src" / "hypgraph" / "coord.py", "hypgraph/schema": HYP / "src" / "hypgraph" / "schema.py",
     "hypgraph/src": HYP / "src" / "hypgraph",        # D-8: the whole engine, since the checks are part of condition C
     "runner": POD / "dev" / "study_runner.py", "host": POD / "dev" / "study_host.py",
+    "runner_e": POD / "dev" / "study_e.py", "hypswarm/src": HS / "src" / "hypswarm",       # D-13: condition E
 }
 LOCK = HERE / "PREREG-LOCK.json"
 
