@@ -350,3 +350,41 @@ once, a resume repeats nothing, three stalls give up with exit 4; a stub run on 
 gives the same 15 calls and score as the earlier stub run on the same instance. Outside watch
 (`dev/study_stallwatch.py`) stays as a backstop for single runs; it isn't run beside a pilot. The lock's file set
 already hashes `study_host.py`, so the next pilot's lock entry records this version.
+
+**Pilot 4, fourth attempt, complete (2026-10-25 04:07–05:08Z, D-16 harness, A–D then E; $0.32 metered, 20 runs
+kept, 10 stalled attempts excluded).** Still a pilot; frozen analysis is not run on it.
+
+| condition | runs kept | reports | calls / run | $ / run | score | traps |
+|---|---|---|---|---|---|---|
+| A chat | 4 | 4 | 14.5 | 0.0070 | 1.00 | 1 (`significance`, F1-907) |
+| B Pegasus today | 4 | 4 | 26.5 | 0.0109 | 0.81 | 2 (`stale_premise` F7-907 → 0.25; `significance` F1-907) |
+| C record | 2 (F1 only) | 2 | 134.0 | 0.0458 | 1.00 | 1 (`significance`, F1-907) |
+| D record, no gates | 3 | 3 | 56.7 | 0.0193 | 1.00 | 0 |
+| E hypswarm | 4 | 2 | 83.2 | 0.0227 | 0.50 | 0 |
+
+On F1 every condition answered correctly; C still costs the most calls (127, 141 — near the 150 cap), D about
+half of that, E 60–68. The `significance` trap on F1-907 fired in A, B and C with a score of 1.00 each time — a
+claim-wording trap, to be read before it is counted as an error. B fell for the stale premise on F7-907 (0.25),
+as the family is designed to show; D and E did not, and C never finished an F7 run.
+
+**Two defects found, neither a model's.**
+
+1. *Every F7 record-condition run (C/D) stalled at 2–3 metered calls, on every attempt* (F7-907-C ×3, F7-906-C
+   ×3, F7-906-D ×3; F7-907-D stalled once, then passed in 78 calls), while every F1 run and every F7 A/B run went
+   through. Ten attempts, one shape: that is deterministic, not provider weather. Suspects, in order: a prompt body
+   the provider hangs on (last night's eight 1,800 s stalls all had the same request size), the LangChain runner
+   path (E, on httpx, did not stall on F7), or the engine on that record. `study_host.py --capture` now writes every
+   request before it is sent and keeps a stalled attempt's files under `killed-state/`; a captured F7-906 D run is
+   the next step, then a replay of the hanging request with a short timeout.
+2. *Both F7 hypswarm runs ended `stuck` with no report.* The record shows the cause exactly: the critic — the only
+   reviewer seat — wrote the claim that answered a question (CL5 on F7-907, CL8 on F7-906) while holding a review
+   order; the scheduler excludes a claim's author from its reviewer pool, so no review could be issued and the
+   question never settled; the lead then spent its six report turns adding a question nobody would work and
+   submitted nothing. Fixed in hypswarm (ADR-005): a reviewer seat's `graph_add` refuses claims; a question whose
+   only answer is unreviewable is re-issued to a worker; the report phase has reading and submitting tools only.
+   Prediction "E finishes every run" from D-13 is therefore **not met** on this attempt; E is rerun on the two F7
+   instances after the fix, recorded as its own deviation, and the two failed runs stay in the folder.
+
+Also found and fixed on the way (HypGraph `harmony-study`): `cancel_work` left the target leased after cancelling
+an open order; the server now binds writes to tokens and the harness is a reserved author; the budget counts calls
+in flight (hypswarm). None of these change A–D's behaviour on the kept runs.
