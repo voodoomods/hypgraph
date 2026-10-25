@@ -148,3 +148,43 @@ were run without them and are reported as such; any later pilot or confirmatory 
 F1 and F7, seeds 904–905, all four conditions, $5 guard, output `runs/pilot3/`. Same model, caps and order rule
 as pilot 2. Its purpose: does the record condition finish, how many calls does it take, and what does it cost, on
 the D-8 engine, compared with pilot 2 on the pre-D-8 engine. Still a pilot: not confirmatory data.
+
+## Pilot 3 result (2026-10-24): the record condition did not finish faster
+
+16 runs, **$0.3468** metered. Full comparison: `python compare_pilots.py runs/pilot2 runs/pilot3`.
+
+| condition | pilot 2 → pilot 3 | correct runs | calls / run | $ / run | traps |
+|---|---|---|---|---|---|
+| A chat | | 4 → 3 | 17 → 16 | 0.008 → 0.008 | 2 → 1 |
+| B Pegasus today | | 3 → 3 | 24 → 27 | 0.010 → 0.012 | 1 → 1 |
+| C record | | 4 → 3 (one hit the 150-call cap) | 107 → 124 | 0.038 → 0.039 | 0 → 0 |
+| D record, no gates | | 4 → 4 | 82 → 78 | 0.028 → 0.028 | 1 → 0 |
+
+What D-8 did, measured on C's refusal mix: `SIGNIFICANCE_NOT_SHOWN` 28 → 1 (the negation fix), `UNBOUND_NUMBER`
+54 → 30 (auto-binding), `RESULT_RESTATES` 0 → 12 (dedup catching re-registration; each one is still a spent
+call). Sub-agent units that returned on their own: 14 of 29 → 19 of 36. Calls per unit 12.9 → 11.7.
+
+What it did not do: cut the run. The lead's own calls grew. Lead tool errors in C runs went from 3 to 17: a
+malformed `done_when` (`{"predicate": …}` instead of `{"p": …}`, 4 calls), orders on nodes that don't exist,
+and duplicate-order refusals; reworks went from 4 to 9, five of them chasing `result_exists` on a hypothesis,
+which the assignee's tools could not satisfy (a result has no link to a hypothesis unless the agent adds
+`supports` by hand). `ABSOLUTE_WITHOUT_COUNT` rose 10 → 22, mostly on honest enumerations ("A trails B in every
+subset: math −2.6, code −2.2, reading −0.4"). Wall time per call rose in every condition (A 3.2 → 4.4 s), so the
+longer runs are provider latency, not the engine.
+
+Reading: on this engine the record's cost is coordination friction at the lead (unmeetable predicates, rework
+loops, error retries), not the claim gates. D, with the same engine and no gates, finished every run in 78 calls.
+Sample-size rule on pilot 3: 3 instances per family, as before.
+
+## D-10 (proposed, not applied): orders meetable by construction, and a replay corpus
+
+1. `done_when` accepts `predicate` / `name` as spellings of `p`; every refusal shows the valid call.
+2. `result_exists` counts a live result written by the assignee under the order's lease; claims still need their
+   structural link (`answers` / `supports`).
+3. Each predicate in an order carries how to meet it with the assignee's tools.
+4. A third rework of an order whose failing predicate hasn't moved is refused, with the choice spelled out.
+5. Absolutes over an enumerated set the statement lists or binds ("every subset: …", "all three") are not
+   generalisations and pass.
+6. `hypgraph replay-refusals`: replay every logged refusal (statement + the bindings available then) through the
+   current checker and report what would now pass, so rule changes like (5) are made against the real corpus.
+7. The briefing becomes a question board with a sufficiency rule; fully met orders accept automatically.
