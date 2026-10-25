@@ -230,3 +230,8 @@ pilot.
 (790 nodes, 1,357 events) derived under the proxy's installed 0.3.0 engine and under the D-10 source gives the same
 chain head and identical standing on every node in every dimension (lifecycle, review, evidence, independent lines,
 at-risk, fallen, bounds, test, sentence); no node acquires `restates`. The live refusal log has no rows yet.
+
+**Pilot 4 note (recorded while it ran):** the provider stalled the lead's long calls for the full 600 s timeout
+during the first run (ledger calls ten minutes apart; small calls answered in 4 s). The operator chose to let it
+run. Wall time is excluded from pilot 4's comparison; calls and metered cost are unaffected, since a timed-out
+call is not billed.
