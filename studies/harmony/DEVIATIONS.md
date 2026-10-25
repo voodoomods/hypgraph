@@ -311,3 +311,24 @@ stays exact.
 
 `server.py` gains the coordination write ops and reads so hypswarm's workers can use a served record. No study
 condition goes over HTTP (E runs hypswarm's in-process record); recorded for the lock.
+
+**Pilot 4 rerun, third attempt, stopped by the stall watch (2026-10-25 03:41–03:51Z).** Before launch the provider
+looked healthy: 100 study-shaped calls (8 KB prompt, a tool schema, 300 tokens out; six concurrent, half streamed)
+all returned in 0.5–2.7 s, median 1.36 s, and nothing over 60 s had completed since 02:45Z. The rerun was started
+under a stall watch (`dev/study_stallwatch.py`: it kills the pilot and the container runner when a DeepInfra call
+completes after more than 120 s, or when no call completes for 150 s while a pilot is alive — a hanging call has
+no audit row yet). Two runs completed normally — F7-906 B (23 calls, $0.0093, score 1.00) and F1-906 C (127
+calls, $0.0454, score 1.00, no traps). The third, F7-907 B, made 14 calls in 40 s and then went silent at
+03:48:46Z; the watch stopped everything at 03:51:23Z (157 s of silence). After the client was killed the proxy
+still held an upstream connection to 38.101.151.20 (DeepInfra), consistent with a request hanging server-side.
+So a 100-call clean burst does not predict a clean pilot: the hang rate is low (one in ~165 calls here, 8 in
+~270 on the previous attempt) and the hangs last up to 30 minutes, which is exactly the shape that distorts
+calls and cost. The partial run is discarded (14 metered calls, $0.0050, ledger rows under
+`study-F7-907-B-20261024224806`, excluded); the two completed runs stay in `runs/pilot4/` and the resume rule
+keeps them. Total spend this attempt $0.0597. Condition E did not start (the chain aborts after a stop).
+
+Decision for the next attempt: keep the stall watch, and treat a stall as a *skip and retry of that run*, not a
+stop of the pilot — the stalled call's metered rows are excluded by run id, and the run is repeated on the same
+instance with a fresh run id, at most twice. That keeps a stall from ending a pilot while the metered calls and
+cost of every kept run stay honest. To be implemented in `study_host.py` before the next rerun and recorded here
+when done.
