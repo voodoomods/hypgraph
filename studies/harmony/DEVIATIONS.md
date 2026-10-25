@@ -501,3 +501,28 @@ against this run before any claim is made for them. The cost case for a coordina
 long-horizon, many-hand-off case (the Pegasus ledger that motivated the study: 15 % of spend on later-cancelled
 tasks, 15 % on repeats), which these families do not represent; a follow-up suite would need 10–20 sub-questions
 and several cascading notices per instance, and a budget cap the record conditions can finish under.
+
+## D-19 (2026-10-25, built, not yet run): reproduce, don't recompute — and one write for a result and its claim
+
+From where the record conditions' calls went in the confirmatory (reviewer 47 / 34 / 28 calls a run in C / D / E
+re-deriving numbers; 31 / 18 / 16 `graph_add` for four claims; 16 / 11 / 13 `show`), three changes, each
+measurable on its own:
+
+1. **Instrument reproduction (hypswarm, ADR-007).** `register_run(code=…)` keeps the source; before any review the
+   scheduler has the host's sandbox re-run it (`reproducer`, the same `python` tool the workers use, as the agent
+   user, 90 s) and files a `kind=lab` run by the instrument that `replicates` the author's run, with a result:
+   every registered value appears in the output, or which are missing. Zero model calls. The review order names
+   the replication and says to judge method and wording, recomputing only what is not reproduced. Harness flag
+   `--reproduce` (condition E only — A–D's runner stays as preregistered).
+2. **One write for a result and its claim (hypswarm).** `register_run(…, claim=, answers=, scope=)` writes the run,
+   the result and a claim derived from and supported by it, numbers bound by the engine; one call where the
+   confirmatory averaged three.
+3. **The order carries the target (HypGraph `coord.order_text`).** Statement, scope, measurements, the values of
+   the results a claim rests on, a question's text, an experiment's protocol, and the replication when there is one.
+
+Predictions, written before any run: on the confirmatory's instances, E's calls per run fall from 75 to under
+45; the critic's share from 28 to under 12; `show` to under 3; correctness and trap hits unchanged (24/26, 1).
+Failure: E not below 55 calls a run, or any new trap hit, or a cap hit on an instance E finished before. A
+reproduction that *fails* on a correct result (a value printed at another precision) is a cost the reviewer then
+pays; its rate is reported. To be run as E′ on the same 30 instances (seeds 100–102), paired with E, under the
+same guard; still a measurement, not a result of the preregistered study.
