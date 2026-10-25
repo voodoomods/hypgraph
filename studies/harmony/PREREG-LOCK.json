@@ -270,6 +270,31 @@
     "hypgraph": "1acc2fea9a73e5158bdde48906bd7860700252b8+dirty",
     "pegasus": "cc9cfb1f5330c5af245154d631fd37f439ca37d1+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T15:27:52Z",
+   "ids": [
+    "D-19"
+   ],
+   "note": "E-prime: instrument reproduction + one-call result+claim + order carries the target; 30 confirmatory instances, paired with E",
+   "files": {
+    "hypgraph/coord": "c1b44f2b8c2990578545ad9bccd457b5cff3bde2d51380339bf2bb8583408b63",
+    "hypgraph/src": "0698aae5fce69801b069ec08434e22b03bba0c72d732dae4e100544a05432f86",
+    "host": "bcc8cc589cda6941b3eec65c825cb792f43ebeb0ddb4277ba6296c2f9f4e93d6",
+    "runner_e": "adc27354afc950f6c1aae7407e17f66f2e239753cb2b5627bf62ab3fc834d97b",
+    "hypswarm/src": "174c2cc0aff60bc4a874261bdef0961b3e38afa80f0ccd10c35ecd17e93fe614"
+   },
+   "was": {
+    "hypgraph/coord": "17da38a547394ce9577b3d93e02a3cbc55e2f2e26d3319d70e177b21af34720e",
+    "hypgraph/src": "8570e8f1fb923bd289257e6983b933d2f82004ce88e7f9ac0761cc968d9b366b",
+    "host": "2ebc7baaff11e30383ffc83d244cacf1361d6ed221bdfca96f1b7ccddcfa6a14",
+    "runner_e": "3a3c67e4e5d2413ca969445367ce10edecb802f5fed16b329ce3b261d17cd28b",
+    "hypswarm/src": "a20bf71166479f13abf5b7de9bc837dc41af6103a31d29cdb3f980a1900490b2"
+   },
+   "git": {
+    "hypgraph": "5905f93fec0b9b9688a4701f233dc8a64eda9e2d",
+    "pegasus": "c4a12e7f755b0cb7a11741283170e3e7e9108942+dirty"
+   }
   }
  ]
 }
