@@ -523,6 +523,70 @@ def _standing_line(s: D.Snap, i: str) -> str:
     return f"{_line(s, i, 110)} — {st['sentence']}"
 
 
+def _values_line(values: dict) -> str:
+    parts = []
+    for k, v in list(values.items())[:12]:
+        if isinstance(v, dict) and "k" in v and "n" in v:
+            parts.append(f"{k} = {v['k']} of {v['n']}")
+        elif isinstance(v, dict) and "value" in v:
+            parts.append(f"{k} = {v['value']}{' ' + str(v['unit']) if v.get('unit') else ''}")
+        else:
+            parts.append(f"{k} = {v}")
+    return "; ".join(parts)
+
+
+def _target_detail(s: D.Snap, t: str) -> list[str]:
+    """The target's own content, in the order — so the assignee never needs a `show` to read what it was given.
+    Measured in the harmony confirmatory (2026-10-25): 11–16 `show` calls a run, reading back what the reply had
+    already said. A claim comes with its statement, scope, measurements and the values of the results it rests on;
+    a result with its values; a question with its text; an experiment with its protocol."""
+    n = s.nodes[t]
+    b = n["body"]
+    tt = n["type"]
+    out: list[str] = []
+    if tt == "claim":
+        out.append(f"  statement: {b.get('statement', '')}")
+        if b.get("scope"):
+            out.append(f"  scope: {b['scope']}")
+        if b.get("kind"):
+            out.append(f"  kind: {b['kind']}")
+        for m in (b.get("measurements") or [])[:12]:
+            if isinstance(m, dict):
+                rid = str(m.get("result") or "")
+                val = m.get("value", f"{m.get('k')} of {m.get('n')}" if "k" in m else "")
+                out.append(f"  measurement {m.get('name', '?')} = {val} ← {_code(s, rid) if rid in s.nodes else rid}.{m.get('key', '')}")
+        for e in s.out.get(t, []):
+            if e["rel"] == "derived_from" and s.nodes.get(e["dst"], {}).get("type") == "result":
+                rb = s.nodes[e["dst"]]["body"]
+                out.append(f"  rests on {_code(s, e['dst'])}: {str(rb.get('summary', ''))[:160]}"
+                           + (f" — {_values_line(rb['values'])}" if rb.get("values") else ""))
+                for r in (x["src"] for x in s.inn.get(e["dst"], []) if x["rel"] == "produced"):
+                    rep = [x["src"] for x in s.inn.get(r, []) if x["rel"] == "replicates"]
+                    if rep:
+                        out.append(f"    reproduced by {', '.join(_code(s, x) for x in rep)} — judge the method and the "
+                                   "wording; the numbers need no recomputation")
+    elif tt == "result":
+        out.append(f"  summary: {b.get('summary', '')}")
+        if b.get("values"):
+            out.append(f"  values: {_values_line(b['values'])}")
+        if b.get("outcome"):
+            out.append(f"  outcome: {b['outcome']}")
+    elif tt == "question":
+        out.append(f"  question: {b.get('text', '')}")
+        if b.get("why"):
+            out.append(f"  why: {b['why']}")
+    elif tt == "experiment":
+        out.append(f"  aim: {b.get('aim', '')}")
+        out.append(f"  protocol: {str(b.get('protocol', ''))[:600]}")
+        if b.get("success_criteria"):
+            out.append(f"  success: {b['success_criteria']}")
+    elif tt == "hypothesis":
+        out.append(f"  statement: {b.get('statement', '')}")
+        for p in (b.get("predictions") or [])[:6]:
+            out.append(f"  predicts: {p}")
+    return out
+
+
 def order_text(g: "Graph", order: str) -> str:
     """Everything the assignee needs and nothing else."""
     s = g.snapshot()
@@ -535,6 +599,7 @@ def order_text(g: "Graph", order: str) -> str:
         L.append(f"NOTE         {b['note']}")
     if t:
         L += ["", "TARGET       " + _standing_line(s, t)]
+        L += _target_detail(s, t)
     prem = premises_of(s, order)
     if prem:
         L += ["", "PREMISES"]

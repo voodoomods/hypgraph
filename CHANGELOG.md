@@ -4,6 +4,7 @@
 
 ### Identity and arithmetic (2026-10-25)
 - `hypgraph serve --token SECRET[=authors]` binds writes to bearer tokens (401 without one, 403 for an author the token isn't bound to; a reserved name needs a token that names it). `--token-file`, `$HYPGRAPH_TOKEN`. Without tokens: unchanged. `Policy.extra_reserved` lets a host reserve its own names (hypswarm reserves `harness`). ADR-001.
+- The order text carries the target's own content (a claim's statement, scope, measurements and the values of the results it rests on; a result's values; a question's text; an experiment's protocol), and names a replication of the author's run when one exists — the harmony confirmatory showed 11–16 `show` calls a run reading back what the reply had said.
 - `cancel_work` releases the target's lease when the order was still open, so the target can be issued to someone else at once (a resumed hypswarm run with a replaced seat found it blocked).
 - `stats.two_proportions` / `detectable` no longer divide by zero on an empty arm (undefined, p = 1, the whole range). `tests/test_stats_values.py` pins Wilson, rule-of-three, Newcombe and the z-test to reference values.
 
