@@ -21,12 +21,16 @@
     A swarm's workers (hypswarm) talk to a server started with --writable instead of sharing one process.
 
 It binds to 127.0.0.1 by default and refuses requests whose Host isn't the address it serves (DNS rebinding) and
-cross-origin writes. It authenticates nobody: put it behind your own auth before exposing it beyond your machine.
+cross-origin writes. Writes can be bound to bearer tokens (``--token SECRET=author1,author2`` or ``=*`` for any
+non-reserved author): with tokens configured, a write without a known token is 401, and a write as an author the
+token isn't bound to is 403 — a reserved name (the orchestrator, the operator) can be written only by a token that
+names it. Without tokens it authenticates nobody, as before: keep it on localhost or behind your own auth.
 ``dispatch()`` is the routing on its own, for hosts that bring their own web framework.
 """
 
 from __future__ import annotations
 
+import hmac
 import json
 import mimetypes
 import threading
@@ -66,9 +70,41 @@ def _int(q: dict, k: str, default: int, lo: int, hi: int) -> int:
         return default
 
 
+def parse_tokens(specs: list[str] | None, path: str = "") -> dict[str, frozenset]:
+    """``SECRET`` or ``SECRET=author1,author2`` or ``SECRET=*`` (any non-reserved author); one per entry, or one per
+    line of a file. A bare secret means ``*``."""
+    out: dict[str, frozenset] = {}
+    lines = list(specs or [])
+    if path:
+        lines += [ln.strip() for ln in Path(path).read_text(encoding="utf-8").splitlines()]
+    for ln in lines:
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        secret, _, authors = ln.partition("=")
+        names = frozenset(a.strip().lower() for a in authors.split(",") if a.strip()) or frozenset({"*"})
+        if len(secret) < 16:
+            raise ValueError("a token secret must be at least 16 characters")
+        out[secret] = names
+    return out
+
+
+def _author_allowed(g: Graph, author: str, allowed: frozenset | None) -> str:
+    """'' when the write may proceed as ``author``, else the refusal."""
+    if allowed is None:                                  # no token layer: reserved names are refused, the rest taken at word
+        return "author missing, or reserved (" + ", ".join(sorted(g.policy.reserved)) + ")" \
+            if not author or author in g.policy.reserved else ""
+    if author in allowed:
+        return ""                                        # named on the token — reserved or not, the operator chose it
+    if "*" in allowed and author and author not in g.policy.reserved:
+        return ""
+    return f"this token may not write as {author!r}"
+
+
 def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: dict | None = None,
-             writable: bool = False) -> tuple[int, object]:
-    """Route one API call. ``path`` is what follows /api/graph (e.g. "/node/n1a2b"). Returns (status, JSON value)."""
+             writable: bool = False, allowed: frozenset | None = None) -> tuple[int, object]:
+    """Route one API call. ``path`` is what follows /api/graph (e.g. "/node/n1a2b"). Returns (status, JSON value).
+    ``allowed``: the authors the caller's token is bound to (None = no token layer)."""
     q = {k: (v[0] if isinstance(v, list) else v) for k, v in (query or {}).items()}
     parts = [unquote(p) for p in path.strip("/").split("/") if p]
     try:
@@ -88,9 +124,10 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
             if not writable:
                 return 403, {"detail": "this server is read-only (start it with --writable to accept writes)"}
             b = body or {}
-            author = str(b.get("author") or "").strip()
-            if not author or author in g.policy.reserved:
-                return 403, {"detail": "author missing, or reserved (" + ", ".join(sorted(g.policy.reserved)) + ")"}
+            author = str(b.get("author") or "").strip().lower()
+            refused = _author_allowed(g, author, allowed)
+            if refused:
+                return 403, {"detail": refused}
             spec = WRITES.get(str(b.get("op") or ""))
             if not spec:
                 return 400, {"detail": f"op must be one of {', '.join(WRITES)}"}
@@ -151,21 +188,35 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
         return 400, {"detail": str(e)}
 
 
-def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path):
+def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
+                 tokens: dict[str, frozenset] | None = None):
     class Handler(BaseHTTPRequestHandler):
         server_version = "hypgraph"
 
         def log_message(self, fmt, *args):  # quiet by default
             pass
 
-        def _send(self, status: int, data: bytes, ctype: str) -> None:
+        def _send(self, status: int, data: bytes, ctype: str, extra: dict | None = None) -> None:
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(data)))
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Cache-Control", "no-store")
+            for k, v in (extra or {}).items():
+                self.send_header(k, v)
             self.end_headers()
             self.wfile.write(data)
+
+        def _identity(self) -> frozenset | None | str:
+            """The authors this request's token is bound to; None without a token layer; '' when refused."""
+            if not tokens:
+                return None
+            auth = self.headers.get("Authorization") or ""
+            given = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+            for secret, names in tokens.items():
+                if given and hmac.compare_digest(given, secret):
+                    return names
+            return ""
 
         def _json(self, status: int, obj) -> None:
             self._send(status, json.dumps(obj, ensure_ascii=False, default=str).encode(), "application/json")
@@ -206,27 +257,36 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path):
             u = urlparse(self.path)
             if not u.path.startswith("/api/graph"):
                 return self._json(404, {"detail": "no such route"})
-            status, obj = dispatch(g, "POST", u.path[len("/api/graph"):], body=body, writable=writable)
+            allowed: frozenset | None = None
+            if u.path[len("/api/graph"):].strip("/") == "write":
+                ident = self._identity()
+                if ident == "":
+                    data = json.dumps({"detail": "a bearer token this server knows is required to write"}).encode()
+                    return self._send(401, data, "application/json", {"WWW-Authenticate": 'Bearer realm="hypgraph"'})
+                allowed = ident if isinstance(ident, frozenset) else None
+            status, obj = dispatch(g, "POST", u.path[len("/api/graph"):], body=body, writable=writable, allowed=allowed)
             self._json(status, obj)
     return Handler
 
 
-def make_server(graph: Graph | str, host: str = "127.0.0.1", port: int = 8765, *, writable: bool = False):
+def make_server(graph: Graph | str, host: str = "127.0.0.1", port: int = 8765, *, writable: bool = False,
+                tokens: dict[str, frozenset] | None = None):
     g = graph if isinstance(graph, Graph) else Graph(graph)
     hosts = {host.lower(), "localhost", "127.0.0.1", "::1"} if host in ("127.0.0.1", "localhost", "::1") else \
         {host.lower()}
     root = static_dir().resolve()
-    return ThreadingHTTPServer((host, port), make_handler(g, writable=writable, hosts=hosts, root=root))
+    return ThreadingHTTPServer((host, port), make_handler(g, writable=writable, hosts=hosts, root=root, tokens=tokens))
 
 
 def serve(db: str, host: str = "127.0.0.1", port: int = 8765, *, writable: bool = False,
-          open_browser: bool = True) -> None:
+          open_browser: bool = True, tokens: dict[str, frozenset] | None = None) -> None:
     if not Path(db).exists():
         print(f"{db} doesn't exist yet — `hypgraph demo` builds one to explore, `hypgraph init` starts your own.")
         return
-    srv = make_server(db, host, port, writable=writable)
+    srv = make_server(db, host, port, writable=writable, tokens=tokens)
     url = f"http://{host}:{srv.server_address[1]}/"
-    print(f"HypGraph Atlas on {url}  ({db}{', writable' if writable else ', read-only'})  — Ctrl+C to stop")
+    auth = f", {len(tokens)} write token(s)" if tokens else (", writes unauthenticated" if writable else "")
+    print(f"HypGraph Atlas on {url}  ({db}{', writable' if writable else ', read-only'}{auth})  — Ctrl+C to stop")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

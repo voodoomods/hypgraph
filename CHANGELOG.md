@@ -2,6 +2,11 @@
 
 ## Unreleased: coordination layer (held back until the harmony study is done)
 
+### Identity and arithmetic (2026-10-25)
+- `hypgraph serve --token SECRET[=authors]` binds writes to bearer tokens (401 without one, 403 for an author the token isn't bound to; a reserved name needs a token that names it). `--token-file`, `$HYPGRAPH_TOKEN`. Without tokens: unchanged. `Policy.extra_reserved` lets a host reserve its own names (hypswarm reserves `harness`). ADR-001.
+- `stats.two_proportions` / `detectable` no longer divide by zero on an empty arm (undefined, p = 1, the whole range). `tests/test_stats_values.py` pins Wilson, rule-of-three, Newcombe and the z-test to reference values.
+
+
 - **Honest negations pass.** A word counts only when its sentence asserts it (`language.asserted`): "A is not
   significantly better", "no evidence that it ever fails", "we cannot conclude that…" are accepted; the unnegated
   overclaim is refused as before. New code `SIGNIFICANCE_CONTRADICTED`: "not significant" when the bound counts

@@ -43,7 +43,12 @@ def _norm_sf(z: float) -> float:
 
 
 def two_proportions(k1: int, n1: int, k2: int, n2: int) -> dict:
-    """Rate 1 minus rate 2, with a 95% interval (Newcombe's hybrid score method) and a two-sided p-value."""
+    """Rate 1 minus rate 2, with a 95% interval (Newcombe's hybrid score method) and a two-sided p-value.
+    An empty arm has no rate: the difference is undefined, the interval is the whole range and p = 1 (nothing is
+    shown), so a claim on it can be refused instead of crashing the check."""
+    if n1 <= 0 or n2 <= 0:
+        return {"diff": 0.0, "lo": -1.0, "hi": 1.0, "p": 1.0, "rate1": k1 / n1 if n1 > 0 else float("nan"),
+                "rate2": k2 / n2 if n2 > 0 else float("nan"), "undefined": True}
     p1, p2 = k1 / n1, k2 / n2
     l1, u1 = _wilson(k1, n1)
     l2, u2 = _wilson(k2, n2)
@@ -65,7 +70,10 @@ def _wilson(k: int, n: int) -> tuple[float, float]:
 
 
 def detectable(k1: int, n1: int, k2: int, n2: int) -> float:
-    """Smallest rate difference these sample sizes detect with 80% power at two-sided α = 0.05 (normal approx.)."""
+    """Smallest rate difference these sample sizes detect with 80% power at two-sided α = 0.05 (normal approx.).
+    With an empty arm nothing is detectable: 1.0 (the whole range)."""
+    if n1 <= 0 or n2 <= 0:
+        return 1.0
     pool = (k1 + k2) / (n1 + n2)
     pool = min(max(pool, 1 / (n1 + n2)), 1 - 1 / (n1 + n2))
     return (Z95 + Z80) * math.sqrt(pool * (1 - pool) * (1 / n1 + 1 / n2))

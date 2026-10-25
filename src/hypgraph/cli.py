@@ -409,8 +409,16 @@ def cmd_skill(args) -> int:
 
 
 def cmd_serve(args) -> int:
-    from .server import serve
-    serve(args.db, host=args.host, port=args.port, writable=args.writable, open_browser=not args.no_browser)
+    import os
+    from .server import parse_tokens, serve
+    specs = list(args.token or [])
+    if os.environ.get("HYPGRAPH_TOKEN"):
+        specs.append(os.environ["HYPGRAPH_TOKEN"])
+    tokens = parse_tokens(specs, args.token_file or "")
+    if tokens and not args.writable:
+        print("note: --token only matters with --writable (reads are open)")
+    serve(args.db, host=args.host, port=args.port, writable=args.writable, open_browser=not args.no_browser,
+          tokens=tokens or None)
     return 0
 
 
@@ -521,6 +529,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--port", type=int, default=8765)
     s.add_argument("--writable", action="store_true", help="also accept writes (POST /api/graph/write)")
     s.add_argument("--no-browser", action="store_true")
+    s.add_argument("--token", action="append", metavar="SECRET[=AUTHORS]",
+                   help="bind writes to a bearer token: SECRET=a,b (those authors) or SECRET=* (any non-reserved); "
+                        "repeatable; $HYPGRAPH_TOKEN adds one. With tokens, unauthenticated writes are 401.")
+    s.add_argument("--token-file", default="", help="a file with one SECRET[=AUTHORS] per line")
     s = cmd("mcp", cmd_mcp, "an MCP server for agents (needs hypgraph[mcp])")
     s.add_argument("--transport", default="stdio", choices=["stdio", "http"])
     s.add_argument("--port", type=int, default=8766)

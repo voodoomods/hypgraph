@@ -25,9 +25,12 @@ class Policy:
     importer: str = "importer"
     system: str = "system"
     max_creates_per_minute: int = 60
+    extra_reserved: frozenset = field(default_factory=frozenset)   # more names a host keeps for itself (e.g. its
+                                                                   # orchestrator), refused to outside callers
 
     def __post_init__(self):
         object.__setattr__(self, "reviewers", frozenset(self.reviewers))
+        object.__setattr__(self, "extra_reserved", frozenset(self.extra_reserved))
 
     @property
     def curators(self) -> frozenset:
@@ -37,15 +40,16 @@ class Policy:
     @property
     def reserved(self) -> frozenset:
         """Names a host must never let an outside caller write as."""
-        return frozenset({self.instrument, self.operator, self.importer, self.system})
+        return frozenset({self.instrument, self.operator, self.importer, self.system}) | self.extra_reserved
 
     def to_dict(self) -> dict:
         return {"reviewers": sorted(self.reviewers), "instrument": self.instrument, "operator": self.operator,
                 "importer": self.importer, "system": self.system,
-                "max_creates_per_minute": self.max_creates_per_minute}
+                "max_creates_per_minute": self.max_creates_per_minute, "extra_reserved": sorted(self.extra_reserved)}
 
     @classmethod
     def from_dict(cls, d: dict) -> "Policy":
         d = dict(d or {})
         return cls(reviewers=frozenset(d.pop("reviewers", ()) or ()),
+                   extra_reserved=frozenset(d.pop("extra_reserved", ()) or ()),
                    **{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
