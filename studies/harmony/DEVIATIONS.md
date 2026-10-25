@@ -388,3 +388,28 @@ as the family is designed to show; D and E did not, and C never finished an F7 r
 Also found and fixed on the way (HypGraph `harmony-study`): `cancel_work` left the target leased after cancelling
 an open order; the server now binds writes to tokens and the harness is a reserved author; the budget counts calls
 in flight (hypswarm). None of these change A–D's behaviour on the kept runs.
+
+**The F7 record-condition stall, diagnosed (2026-10-25 05:09–05:30Z, two captured runs, $0.0013).** With
+`--capture`, a fresh F7-906 D run stalled at the analyst's first call both times (after 2 and 4 metered calls:
+the lead's briefing / issue_work calls go through). Replaying that exact request through the proxy:
+
+| request | result |
+|---|---|
+| messages only, no tools | 200 in 1.0–1.5 s, twice |
+| messages + all 8 tool schemas (as sent) | timeout at 50 s, twice; again at 30 s, twice |
+| any 7 of the 8 tools (python alone; files alone; record tools alone; all-but-python; all-but-files; python+files) | 200 in 0.4–1.9 s, every time |
+| all 8 tools, a trailing space added to the **user** message | timeout, twice |
+| all 8 tools, `max_tokens` changed | timeout, twice |
+| all 8 tools, a leading space added to the **system** message | 200 in 0.4–1.0 s, twice |
+
+So the hang is keyed on the request's *prefix* — the system message plus the tool schemas — not on its meaning,
+its tail, or the sampled answer: a provider-side cached-prefix entry that never returns. It explains the whole
+night: the first stall poisoned that prefix (last night's eight 1,800 s completions all had the same request
+size), and every later request sharing it hung — all F7 C/D analyst calls (same mission text, same eight tools,
+across seeds 906 and 907), none of F1 (different mission → different prefix), none of A/B (different tool set),
+none of E (hypswarm's schemas differ). D-16's retry could never help: the repeat sends the same prefix.
+
+**D-17 (proposed, not applied):** every system prompt in every condition starts with one line, `[run <run_id>]`,
+so no two runs share a prefix with a poisoned entry (`study_host.py --nonce`, `caps.nonce`). It is applied to A–E
+alike and changes no instruction; it is recorded with the next rerun's lock entry. Also worth knowing before any
+rerun: a prefix the provider has already poisoned stays poisoned for as long as their cache keeps it.
