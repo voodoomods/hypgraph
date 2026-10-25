@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased: coordination layer (held back until the harmony study is done)
+## 0.4.0 — 2026-10-25: the coordination layer
+
+Held until the harmony study had exercised every path (pilots 1–4, a 142-run confirmatory, two follow-up rounds). Governance profiles, token-bound authors, work orders with predicates, order text that carries the target, instrument reproduction, replayable refusals.
 
 ### Identity and arithmetic (2026-10-25)
 - `hypgraph serve --token SECRET[=authors]` binds writes to bearer tokens (401 without one, 403 for an author the token isn't bound to; a reserved name needs a token that names it). `--token-file`, `$HYPGRAPH_TOKEN`. Without tokens: unchanged. `Policy.extra_reserved` lets a host reserve its own names (hypswarm reserves `harness`). ADR-001.
