@@ -295,6 +295,27 @@
     "hypgraph": "5905f93fec0b9b9688a4701f233dc8a64eda9e2d",
     "pegasus": "c4a12e7f755b0cb7a11741283170e3e7e9108942+dirty"
    }
+  },
+  {
+   "at": "2026-10-25T15:50:23Z",
+   "ids": [
+    "D-19b"
+   ],
+   "note": "E-double-prime: three-way reproduction verdicts, code in the review order, print-what-you-register",
+   "files": {
+    "hypgraph/coord": "b3d2a150ace3cffc6d966dd2dd991991e328cd72bbf072e479fff8c6dc9d4b52",
+    "hypgraph/src": "66b7da6b83ad7c65449ea1e20b2ab6873833233e620cb5dbf9b40bb281d2f97b",
+    "hypswarm/src": "da4ffd89a4a79488abda897594409f730a89a08fed205f0cb63705d50bf439a4"
+   },
+   "was": {
+    "hypgraph/coord": "c1b44f2b8c2990578545ad9bccd457b5cff3bde2d51380339bf2bb8583408b63",
+    "hypgraph/src": "0698aae5fce69801b069ec08434e22b03bba0c72d732dae4e100544a05432f86",
+    "hypswarm/src": "174c2cc0aff60bc4a874261bdef0961b3e38afa80f0ccd10c35ecd17e93fe614"
+   },
+   "git": {
+    "hypgraph": "186e90b7791c72843ba33628001c6acb90f5af3f+dirty",
+    "pegasus": "c4a12e7f755b0cb7a11741283170e3e7e9108942+dirty"
+   }
   }
  ]
 }
