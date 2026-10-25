@@ -83,13 +83,57 @@
           <div class="d" id="bound-d">at most 1 in 20, at 95% confidence</div></div>
         <div class="stat"><div class="k">failures not ruled out at your scale</div><div class="big red" id="unruled">58,155</div>
           <div class="d" id="unruled-d">across 1,000,000 people</div></div>
-        <canvas class="grid-dots" id="dots" width="1000" height="400" aria-label="One thousand people; the red ones are failures your evidence can't rule out"></canvas>
-        <p class="note" style="margin:6px 0 14px">A thousand of them. Red: the failures your evidence doesn't rule out.</p>
         <div class="stat"><div class="k">to say "below 1 in 1,000"</div><div class="d" id="need"></div></div>
         <div class="k" style="font:12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px">if a claim says "never" — HypGraph replies</div>
         <div class="verdict" id="verdict"></div>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="block" id="telephone">
+  <div class="wrap">
+    <div class="kicker">The telephone game</div>
+    <h2 class="h">One agent says "never". Watch the word travel.</h2>
+    <p class="sub">An orchestrator hands a question to a few agents; each hands pieces to a few more. One of them runs
+      the trials, sees nothing, and writes <i>never</i>. Every agent above it repeats the word and drops the number
+      it came from — that is the game. The work built on the word is the cost already paid; finding the word again
+      when the case turns up is the cost of correcting course. Set the team and the trials; the arithmetic is the
+      same as above.</p>
+    <div class="calc">
+      <div class="card">
+        <div class="ctl"><label for="tg-f">agents per lead (fan-out)</label>
+          <input type="range" id="tg-fr" min="2" max="5" step="1" value="3"><input type="number" id="tg-f" min="2" max="5" value="3"></div>
+        <div class="ctl"><label for="tg-d">levels below the orchestrator</label>
+          <input type="range" id="tg-dr" min="1" max="3" step="1" value="2"><input type="number" id="tg-d" min="1" max="3" value="2"></div>
+        <div class="ctl"><label for="tg-c">cost of one agent's task ($)</label>
+          <input type="range" id="tg-cr" min="-2" max="2" step="0.01" value="-0.3"><input type="number" id="tg-c" min="0.01" step="0.01" value="0.5"></div>
+        <div class="ctl"><label for="tg-r">what the rate really is (1 in …)</label>
+          <input type="range" id="tg-rr" min="1" max="5" step="0.01" value="3"><input type="number" id="tg-r" min="2" value="1000"></div>
+        <p class="note" style="margin:0 0 12px">Trials and exposure come from the calculator above. A task is one agent's
+          unit of work — an order, a sub-question, a review; price it at what your agents cost you per task.</p>
+        <div class="tabs" role="tablist" style="margin:0">
+          <button role="tab" aria-selected="true" data-tg="without">Without a record</button>
+          <button role="tab" aria-selected="false" data-tg="with">With HypGraph</button>
+          <button class="btn primary" id="tg-play" type="button" style="margin-left:auto">▶ Play</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="stat"><div class="k">how likely the leaf saw nothing, when it's really 1 in <span id="tg-r-lbl">1,000</span></div>
+          <div class="big amber" id="tg-seen">95%</div><div class="d" id="tg-seen-d">— so "never" is what an honest agent usually sees</div></div>
+        <div class="stat"><div class="k">work resting on the word</div><div class="big red" id="tg-sunk">$6.00</div>
+          <div class="d" id="tg-sunk-d">12 tasks built on it before anyone could know</div></div>
+        <div class="stat"><div class="k">to course-correct without a record</div><div class="big red" id="tg-fix">$8.00</div>
+          <div class="d" id="tg-fix-d">re-read every agent's work to find the word, then redo what rested on it</div></div>
+        <div class="stat"><div class="k">with HypGraph</div><div class="big green" id="tg-with">$0.50</div>
+          <div class="d" id="tg-with-d">one sentence rewritten at the leaf; the bound rides up as a number</div></div>
+      </div>
+    </div>
+    <svg class="cascade" id="tg-svg" viewBox="0 0 900 420" role="img" aria-label="An orchestrator, its leads and workers; one worker's 'never' travels up" style="margin-top:18px">
+      <g id="tg-layer"></g>
+    </svg>
+    <div class="trace" id="tg-strip" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
+    <p class="note" id="tg-cap">Press play to run the game.</p>
   </div>
 </section>
 
@@ -170,21 +214,7 @@
   }
 
   const n = $('n'), k = $('k'), x = $('x'), nr = $('nr'), kr = $('kr'), xr = $('xr');
-  const cv = $('dots'), ctx = cv.getContext('2d');
   function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
-  function draw(rate) {
-    const W = cv.width, H = cv.height, cols = 50, rows = 20, cw = W / cols, ch = H / rows, r = Math.min(cw, ch) * 0.32;
-    ctx.clearRect(0, 0, W, H);
-    const red = Math.round(rate * 1000), bad = css('--red'), dim = css('--line2');
-    // spread the red dots through the grid deterministically
-    const order = Array.from({ length: 1000 }, (_, i) => i).sort((a, b) => ((a * 7919) % 1000) - ((b * 7919) % 1000));
-    const isRed = new Set(order.slice(0, Math.min(1000, red)));
-    for (let i = 0; i < 1000; i++) {
-      const cx = (i % cols) * cw + cw / 2, cy = Math.floor(i / cols) * ch + ch / 2;
-      ctx.beginPath(); ctx.arc(cx, cy, isRed.has(i) ? r * 1.15 : r * 0.8, 0, 6.283);
-      ctx.fillStyle = isRed.has(i) ? bad : dim; ctx.fill();
-    }
-  }
   function update(from) {
     if (from === 'nr') n.value = Math.max(1, Math.round(Math.pow(10, +nr.value)));
     if (from === 'xr') x.value = Math.round(Math.pow(10, +xr.value));
@@ -203,7 +233,7 @@
     $('need').textContent = K > 0 ? `it has happened (${K.toLocaleString()} times), so no number of trials makes "never" true — report the rate and its interval` :
       worst > 0.001 ? `about ${fmt(trialsFor(0.001))} trials with none (you ran ${N.toLocaleString()})` :
       `you have it: ${N.toLocaleString()} trials bound the rate below 1 in 1,000`;
-    draw(worst);
+    if (TG) TG.update();
     const v = $('verdict');
     if (K > 0) {
       v.className = 'verdict';
@@ -221,10 +251,131 @@
         `Accepted, and its standing carries: 'never' = at most ${pct(worst)} (0 of ${N.toLocaleString()}, 95%), up to ${fmt(worst * X)} of ${fmt(X)} not ruled out`;
     }
   }
+  var TG = null;   // the telephone game, built below; the calculator's update() feeds it once it exists
   [n, k, x].forEach((el) => el.addEventListener('input', () => update(el.id)));
   [nr, kr, xr].forEach((el) => el.addEventListener('input', () => update(el.id)));
   if (window.HG) window.HG.onTheme.push(() => update());
   update();
+
+  // ── the telephone game ──
+  TG = (() => {
+    const svg = $('tg-svg'), layer = $('tg-layer'), strip = $('tg-strip'), cap = $('tg-cap');
+    if (!svg) return null;
+    const S2 = 'http://www.w3.org/2000/svg';
+    const F = $('tg-f'), D = $('tg-d'), C = $('tg-c'), R = $('tg-r'), FR = $('tg-fr'), DR = $('tg-dr'), CR = $('tg-cr'), RR = $('tg-rr');
+    let mode = 'without', timers = [], nodes = [], badLeaf = null;
+    const wait = (ms) => new Promise((res) => timers.push(setTimeout(res, reduce ? 0 : ms)));
+    const money = (v) => v >= 100 ? '$' + fmt(v) : '$' + v.toFixed(2);
+    function mk(tag, attrs, parent) { const e = document.createElementNS(S2, tag); Object.entries(attrs).forEach(([a, v]) => e.setAttribute(a, v)); (parent || layer).appendChild(e); return e; }
+    function params() {
+      const f = Math.max(2, Math.min(5, +F.value || 3)), d = Math.max(1, Math.min(3, +D.value || 2));
+      const c = Math.max(0.01, +C.value || 0.5), r = Math.max(2, +R.value || 1000);
+      const N = Math.max(1, +$('n').value || 1), X = Math.max(1, +$('x').value || 1);
+      return { f, d, c, r, N, X };
+    }
+    function build() {
+      layer.innerHTML = ''; nodes = [];
+      const { f, d } = params();
+      const levels = d + 1, W = 900, H = 420, top = 36, gapY = (H - 90) / d;
+      // the tree: level 0 = orchestrator; a 'never' lives in the last leaf of the first lead's subtree
+      const counts = Array.from({ length: levels }, (_, l) => Math.pow(f, l));
+      for (let l = 0; l < levels; l++) {
+        const n = counts[l], w = Math.min(170, (W - 40) / n - 8), h = 44;
+        for (let i = 0; i < n; i++) {
+          const x = 20 + (W - 40) * (i + 0.5) / n - w / 2, y = top + l * gapY;
+          const g = mk('g', { class: 'node' });
+          mk('rect', { x, y, width: w, height: h, rx: 10 }, g);
+          const label = l === 0 ? 'orchestrator' : l === levels - 1 ? `agent ${i + 1}` : `lead ${i + 1}`;
+          mk('text', { x: x + w / 2, y: y + 19, class: 'lbl', 'text-anchor': 'middle', style: `font-size:${w < 90 ? 10 : 12}px` }, g).textContent = w < 60 ? (l === 0 ? 'orch' : `${l === levels - 1 ? 'a' : 'L'}${i + 1}`) : label;
+          const sub = mk('text', { x: x + w / 2, y: y + 35, class: 'sub', 'text-anchor': 'middle', style: `font-size:${w < 90 ? 9 : 11}px` }, g);
+          const node = { l, i, x, y, w, h, g, sub, parent: l ? nodes.find((p) => p.l === l - 1 && p.i === Math.floor(i / f)) : null, kids: [] };
+          if (node.parent) node.parent.kids.push(node);
+          nodes.push(node);
+        }
+      }
+      nodes.filter((n) => n.parent).forEach((n) => {
+        const P = n.parent;
+        n.edge = mk('path', { d: `M${n.x + n.w / 2},${n.y} L${P.x + P.w / 2},${P.y + P.h}`, class: 'edge' });
+        layer.insertBefore(n.edge, layer.firstChild);
+      });
+      badLeaf = nodes.filter((n) => n.l === levels - 1)[0];
+      update();
+    }
+    function chain(n) { const out = []; for (let p = n; p; p = p.parent) out.push(p); return out; }
+    function descendantsOfDecision() {
+      // everything the orchestrator's decision touches: every task in the tree except the leaf's own line is
+      // *integrated* at the top, so the work that now rests on the word is: the leaf's ancestors' integration
+      // tasks plus every sibling branch that was merged after the word arrived (counted once, at the merge)
+      return nodes.length - 1;      // every task except the leaf's own measurement is downstream of the merge
+    }
+    function update() {
+      if (!nodes.length) return;
+      const { f, d, c, r, N, X } = params();
+      $('tg-r-lbl').textContent = fmt(r);
+      const rate = 1 / r, seen = Math.pow(1 - rate, N);
+      $('tg-seen').textContent = pct(seen);
+      $('tg-seen').className = 'big ' + (seen > 0.5 ? 'amber' : 'green');
+      $('tg-seen-d').textContent = seen > 0.5 ? `0 of ${fmt(N)} is what an honest agent usually sees at this rate — the word is wrong, the observation isn't`
+        : `at ${fmt(N)} trials the agent would usually have seen it — "never" would already be contradicted`;
+      const resting = descendantsOfDecision();
+      $('tg-sunk').textContent = money(resting * c);
+      $('tg-sunk-d').textContent = `${resting} tasks built on or merged with the word (${nodes.length} agents, ${d} level${d > 1 ? 's' : ''}, fan-out ${f})`;
+      const reread = nodes.length, redo = chain(badLeaf).length - 1 + nodes.filter((n) => n.l === 0).length;
+      const [, hi] = bounds(0, N), live = Math.round(hi * X);
+      const fix = (reread + resting) * c;
+      $('tg-fix').textContent = money(fix);
+      $('tg-fix-d').textContent = `re-read all ${reread} agents' work to find which word did it, redo the ${resting} tasks that rested on it — and ${fmt(live)} of ${fmt(X)} uses were never ruled out`;
+      const withRec = 1 * c;
+      $('tg-with').textContent = money(withRec);
+      $('tg-with-d').textContent = `the leaf's "never" is refused as it's written and rewritten as "0 of ${fmt(N)} (≤ ${pct(hi)})"; every node above carries that number; if the case still turns up, the record names exactly which ${redo} nodes rest on it`;
+    }
+    function reset() {
+      timers.forEach(clearTimeout); timers = [];
+      nodes.forEach((n) => { n.g.setAttribute('class', 'node'); n.sub.textContent = ''; if (n.edge) n.edge.setAttribute('class', 'edge'); });
+      strip.innerHTML = ''; cap.textContent = 'Press play to run the game.';
+    }
+    function say(n, text, cls) { n.sub.textContent = text; if (cls) n.g.setAttribute('class', 'node ' + cls); }
+    function card(step, text, cls) {
+      const d = document.createElement('div'); d.className = 'verdict' + (cls ? ' ' + cls : ''); d.style.fontSize = '12.5px';
+      d.textContent = `${step}\n${text}`; strip.appendChild(d);
+    }
+    async function play() {
+      reset(); const { N, X, f } = params(); const [, hi] = bounds(0, N);
+      const up = chain(badLeaf);   // leaf → … → orchestrator
+      say(badLeaf, `0 of ${fmt(N)}`, ''); card('the trials', `${fmt(N)} tried, none happened.`, 'ok'); cap.textContent = 'The agent runs the trials and sees nothing. True, so far.'; await wait(900);
+      if (mode === 'with') {
+        say(badLeaf, 'refused: "never"', 'refused'); card('the write', `"never" → refused [ABSOLUTE_UNDERPOWERED]`, ''); cap.textContent = '"Never" is refused at the write. The honest sentence replaces it.'; await wait(1400);
+        say(badLeaf, `≤ ${pct(hi)} (0/${fmt(N)})`, 'ok'); card('the honest sentence', `"no occurrences in ${fmt(N)} trials (95% upper bound ${pct(hi)})"`, 'ok'); await wait(900);
+        for (let k = 1; k < up.length; k++) {
+          const n = up[k]; if (up[k - 1].edge) up[k - 1].edge.setAttribute('class', 'edge');
+          say(n, `carries ≤ ${pct(hi)}`, 'ok'); card(k === up.length - 1 ? 'the decision' : `lead ${n.i + 1}`, k === up.length - 1 ? `decided with "up to ${fmt(Math.round(hi * X))} of ${fmt(X)} not ruled out" in view` : `restates the bound, not the word — the record checks the number against the result`, 'ok'); await wait(800);
+        }
+        cap.textContent = 'The number never degrades: every hop is checked against the result it came from. Whoever decides, decides on arithmetic.';
+        return;
+      }
+      say(badLeaf, '"never"', 'fall'); card('the write', '"the model never leaks" — nothing checks it.'); cap.textContent = 'The agent writes the word. Nobody asks for the number.'; await wait(1100);
+      const words = ['"never leaks"', '"safe"', '"no risk — ship"', '"done"'];
+      for (let k = 1; k < up.length; k++) {
+        const n = up[k]; if (up[k - 1].edge) up[k - 1].edge.setAttribute('class', 'edge fall');
+        say(n, words[Math.min(k - 1, words.length - 1)], 'fall');
+        card(k === up.length - 1 ? 'the decision' : `lead ${n.i + 1}`, k === up.length - 1 ? `${words[Math.min(k - 1, 3)]} — ${nodes.length - 1} tasks merged behind it` : `repeats ${words[Math.min(k - 1, 3)]}; the ${fmt(N)} is gone`); await wait(900);
+      }
+      cap.textContent = `Every branch merges at the top. The 1-in-${fmt(params().r)} case arrives with ${fmt(Math.round(hi * X))} of ${fmt(X)} never ruled out — and nobody can say which sentence it was.`; await wait(1200);
+      nodes.forEach((n) => { if (!up.includes(n)) n.g.setAttribute('class', 'node fall'); say(n, n.l === 0 ? 'REVISIT' : 'AT RISK?', 'fall'); });
+      card('course-correcting', `re-read ${nodes.length} agents' work; redo ${nodes.length - 1} tasks; the exposure already happened.`);
+    }
+    [F, D, C, R].forEach((el) => el.addEventListener('input', () => { if (el === F || el === D) build(); else update(); }));
+    FR.addEventListener('input', () => { F.value = FR.value; build(); });
+    DR.addEventListener('input', () => { D.value = DR.value; build(); });
+    CR.addEventListener('input', () => { C.value = Math.pow(10, +CR.value).toFixed(2); update(); });
+    RR.addEventListener('input', () => { R.value = Math.round(Math.pow(10, +RR.value)); update(); });
+    document.querySelectorAll('[data-tg]').forEach((b) => b.addEventListener('click', () => {
+      mode = b.dataset.tg; document.querySelectorAll('[data-tg]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); play();
+    }));
+    $('tg-play').addEventListener('click', play);
+    build();
+    return { update };
+  })();
 
   // ── the cascade ──
   const S = 'http://www.w3.org/2000/svg';
