@@ -14,7 +14,11 @@
     GET  /api/graph/refusals?inv=&since=    the overclaims caught, per author and rule
     POST /api/graph/check                   {text, inv?} → lint a write-up against the record (always allowed)
     POST /api/graph/write                   only with --writable: {op, author, ...} (create | revise | link | retract |
-                                            withdraw | review | lease); the policy's reserved authors are refused
+                                            withdraw | review | lease | issue_work | return_work | accept_work |
+                                            rework | cancel_work | cancel_moot | settle); reserved authors refused
+    Coordination (read): GET /api/graph/board?inv=  /orders?inv=&status=  /order/{id}  /resolve?ref=&inv=
+                         POST /api/graph/briefing {inv, roster?, since_seq?}   POST /api/graph/check_work {order, text?}
+    A swarm's workers (hypswarm) talk to a server started with --writable instead of sharing one process.
 
 It binds to 127.0.0.1 by default and refuses requests whose Host isn't the address it serves (DNS rebinding) and
 cross-origin writes. It authenticates nobody: put it behind your own auth before exposing it beyond your machine.
@@ -43,6 +47,15 @@ WRITES = {
     "withdraw": ("withdraw", ("node", "why")),
     "review": ("review", ("target", "verdict", "method", "notes")),
     "lease": ("lease", ("node", "task", "minutes", "release", "note")),
+    # coordination (coord.py): orders issued, returned, accepted, reworked, cancelled through the record
+    "issue_work": ("issue_work", ("inv", "target", "assignee", "objective", "role", "done_when", "prediction", "method",
+                                  "budget", "premises", "lease_minutes", "note")),
+    "return_work": ("return_work", ("order", "note")),
+    "accept_work": ("accept_work", ("order", "reason", "text")),
+    "rework": ("rework", ("order", "missing", "done_when")),
+    "cancel_work": ("cancel_work", ("order", "why")),
+    "cancel_moot": ("cancel_moot", ("inv",)),
+    "settle": ("settle", ("inv",)),
 }
 
 
@@ -63,6 +76,13 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
             if parts == ["check"]:
                 b = body or {}
                 return 200, g.check_text(str(b.get("text") or ""), str(b.get("inv") or ""))
+            if parts == ["briefing"]:                       # a read with a structured argument (the roster)
+                b = body or {}
+                return 200, g.briefing(str(b.get("inv") or ""), roster=b.get("roster"),
+                                       since_seq=int(b.get("since_seq") or 0))
+            if parts == ["check_work"]:
+                b = body or {}
+                return 200, g.check_work(str(b.get("order") or ""), str(b.get("text") or ""))
             if parts != ["write"]:
                 return 404, {"detail": "no such route"}
             if not writable:
@@ -82,6 +102,14 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
         inv = q.get("inv", "")
         if head == "investigations":
             return 200, {"investigations": g.investigations(), "stats": g.stats()}
+        if head == "board":
+            return 200, {"board": g.question_board(inv)}
+        if head == "orders":
+            return 200, {"orders": g.orders(inv, q.get("status", ""))}
+        if head == "order" and arg:
+            return 200, {"text": g.order_text(arg), "check": g.check_work(arg)}
+        if head == "resolve":
+            return 200, {"id": g.resolve(q.get("ref", ""), inv)}
         if head == "subgraph":
             types = [t for t in str(q.get("types", "")).split(",") if t] or None
             return 200, g.subgraph(inv, types=types)
