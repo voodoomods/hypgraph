@@ -299,3 +299,10 @@ hypswarm with the same spec in and the same `run.json` / `score.json` / `ledger.
 F7 pass (62 scripted calls each, report parsed, $0); on F7 the notice is delivered after the first return, the
 stale artifact is withdrawn, and 24 of 36 later tool calls are marked after-notice. The lock now also hashes
 `dev/study_e.py` and hypswarm's `src/` (`hypswarm/src`). Condition E has not run on a model.
+
+## D-14 (2026-10-24): MCP `my_work` lists only orders still to be worked
+
+Found by hypswarm's external-seat test: a returned order stayed in `my_work`, so an agent polling it worked the
+same order twice. Returned orders are now noted as awaiting acceptance, not listed as work. The MCP surface is on
+no study condition's path (A–D use the runner's tools, E hypswarm's in-process tools); recorded so the lock
+stays exact.
