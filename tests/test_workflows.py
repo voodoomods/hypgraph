@@ -430,3 +430,24 @@ def test_registering_the_same_bytes_again_types_and_links_the_one_node():
     with pytest.raises(GraphError, match="ARTIFACT_MISSING_FIELDS"):
         g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_B, "path": "x.py"})
         g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_B, "path": "x.py", "kind": "diff"})
+
+
+def test_a_verified_failure_settles_a_software_requirement():
+    g, inv, q = _g("software@2")
+    a1 = _diff(g, inv, q, "dev", SHA_A, "1111111")
+    run = g.create(author="tester", type="run", inv=inv, fields={"kind": "agent", "name": "checks", "state": "succeeded"},
+                   links=[{"rel": "uses", "to": a1, "data": {"role": "code"}}])["id"]
+    rs = g.create(author="tester", type="result", inv=inv, fields={"summary": "Ran the checks: 1 of 2 pass.",
+                  "values": {"passed": {"k": 1, "n": 2}}, "outcome": "negative"}, links=[{"rel": "produced", "from": run}])["id"]
+    lab = g.create(author="lab", type="run", inv=inv, fields={"kind": "lab", "name": "re-run", "state": "succeeded"},
+                   links=[{"rel": "replicates", "to": run, "data": {"differs": "same_code"}}, {"rel": "uses", "to": a1, "data": {"role": "code"}}])["id"]
+    g.create(author="lab", type="result", inv=inv, fields={"summary": "Re-ran the checks: 1 of 2 pass.",
+             "values": {"passed": {"k": 1, "n": 2}}, "outcome": "negative"}, links=[{"rel": "produced", "from": lab}])
+    c = g.create(author="tester", type="claim", inv=inv, fields={"statement": "The change does not meet the requirement: 1 of 2 checks pass.",
+                 "scope": "mod.py at head 1111111."}, links=[{"rel": "answers", "to": q}, {"rel": "derived_from", "to": rs}])["id"]
+    assert _stage(g, q) == ("verified", 3, False)                    # no passing run on the head, and there never will be
+    g.review(author="critic", target=c, verdict="checked", method="Read the lab run.", notes="One of two, as stated.")
+    x = g.stage(q)
+    assert x["complete"] and "verified failure" in x["settled_how"] and x["settled_by"] == "CL1"
+    assert not _gate(g, q, "tests_pass_current")["met"]
+    assert not next(c_ for c_ in g.completion(inv)["criteria"] if c_["name"] == "requirements_verified_current")["met"]

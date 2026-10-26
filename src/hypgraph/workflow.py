@@ -422,6 +422,25 @@ def evaluate_predicate(p: str, s: D.Snap, t: str, at: str, inv: str, who: str = 
     return GATES[p](Scope(s, t, since=at, who=who), s.now)
 
 
+def _claim_results(s: D.Snap, c: str) -> list[str]:
+    rs = [e["src"] for e in s.inn.get(c, []) if e["rel"] == "supports" and s.nodes[e["src"]]["type"] == "result"]
+    rs += [e["dst"] for e in s.out.get(c, []) if e["rel"] == "derived_from" and s.nodes[e["dst"]]["type"] == "result"]
+    return _uniq(rs)
+
+
+def _lab_negative(s: D.Snap, r: str) -> bool:
+    """The instrument stands behind a failure: the result's own lab run, or a live lab run replicating the run that
+    produced it, has a live result with outcome negative."""
+    run = _producing_run(s, r)
+    if not run:
+        return False
+    labs = [run] if s.nodes[run]["body"].get("kind") == "lab" else []
+    labs += [e["src"] for e in s.inn.get(run, []) if e["rel"] == "replicates" and s.nodes[e["src"]]["body"].get("kind") == "lab"]
+    return any(_live(s, lab) and any(s.nodes[e["dst"]]["type"] == "result" and s.nodes[e["dst"]]["body"].get("outcome") == "negative"
+                                     and _live(s, e["dst"]) for e in s.out.get(lab, []) if e["rel"] == "produced")
+               for lab in labs)
+
+
 # ── the derived stage ──────────────────────────────────────────────
 
 def stage_of(s: D.Snap, t: str, now: str = "") -> dict:
@@ -445,14 +464,21 @@ def stage_of(s: D.Snap, t: str, now: str = "") -> dict:
     stages = p.workflow.stages
     # An honest "it can't be answered" ends a question whatever its stage: a checked claim of kind inconclusive
     # (or exclusion) that answers it — no source found, too few trades, infeasible. The record holds the reason.
-    settled = [c for c in sc.claims if _live(s, c) and (s.nodes[c]["body"].get("kind") or "finding")
-               in ("inconclusive", "exclusion") and (D.state(s, c).get("review") or {}).get("state") == "checked"
-               and not D.stale(s, c)]
+    checked = [c for c in sc.claims if _live(s, c) and not D.stale(s, c)
+               and (D.state(s, c).get("review") or {}).get("state") == "checked"]
+    settled = [(c, f"{s.nodes[c]['body'].get('kind')} answer, checked") for c in checked
+               if (s.nodes[c]["body"].get("kind") or "finding") in ("inconclusive", "exclusion")]
+    # A verified failure settles a requirement too: a checked claim resting on an instrument-recorded negative
+    # result ("1 of 2 checks pass", re-run by the instrument) — the gate that asks for a passing run can never be met,
+    # and the record now holds why. Only workflows whose gate is an instrument pass have this ending.
+    if any(st.gate == "tests_pass_current" for st in stages):
+        settled += [(c, "verified failure: an instrument-recorded negative result, checked") for c in checked
+                    if any(_lab_negative(s, r) for r in _claim_results(s, c))]
     if stage is not None and settled:
         rv = next((i for i, st in enumerate(stages) if st.gate == "reviewed"), len(stages) - 1)
         return {**base, "workflow": True, "stage": stages[rv].name, "index": rv + 1, "of": len(stages),
-                "complete": True, "next": "", "gates": gates, "settled_by": sc.code(settled[0]),
-                "settled_how": f"{s.nodes[settled[0]]['body'].get('kind')} answer, checked"}
+                "complete": True, "next": "", "gates": gates, "settled_by": sc.code(settled[0][0]),
+                "settled_how": settled[0][1]}
     if stage is None:                            # every required gate met: the stage is the last one whose gate is
         last = max(i for i, gt in enumerate(gates) if gt["met"])
         return {**base, "workflow": True, "stage": stages[last].name, "index": last + 1, "of": len(stages),
