@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1 — 2026-10-26
+
+Two things the workflows had no honest ending for, found wiring HypSwarm's scheduler to the stages:
+- **Declining a thesis is a decision.** A decision `kind=no_position` based on the claim meets `positioned` and
+  `position_sized` ("1 declined"); only `kind=position` needs size, stop, review date and `paper=true`.
+- **An honest "it can't be answered" settles a question whatever its stage.** A checked claim of kind
+  `inconclusive` or `exclusion` that answers the question (no source says it; too few trades; infeasible) completes
+  it; `stage()` reports `settled_by` and `settled_how`. The claim still needs its evidence — the search's own
+  result ("read 3 of 3 pages; 0 mention it") is what it derives from.
+
 ## 0.5.0 — 2026-10-26: profiles carry their discipline's workflow
 
 Each discipline's method, as the record enforces it — one page each in `docs/workflows/`, taken from the method

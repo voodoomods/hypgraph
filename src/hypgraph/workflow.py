@@ -331,12 +331,18 @@ def _positions(sc: Scope) -> list[str]:
     return [d for d in sc.decisions if _live(sc.s, d) and (sc.s.nodes[d]["body"].get("kind") or "") == "position"]
 
 
+def _no_positions(sc: Scope) -> list[str]:
+    """Decisions not to trade (kind=no_position): a decision too — the thesis was judged and declined."""
+    return [d for d in sc.decisions if _live(sc.s, d) and (sc.s.nodes[d]["body"].get("kind") or "") == "no_position"]
+
+
 def g_positioned(sc: Scope, now: str) -> dict:
     s = sc.s
     ds = [d for d in _positions(sc) if (not sc.since or s.nodes[d]["created_at"] >= sc.since)
           and not _position_missing(s.nodes[d]["body"])]
-    return _g(bool(ds), ds, f"no decision kind=position (size, stop, review_date, paper=true) based on a claim on "
-                            f"{sc.code(sc.root)}")
+    ds += [d for d in _no_positions(sc) if not sc.since or s.nodes[d]["created_at"] >= sc.since]
+    return _g(bool(ds), ds, f"no decision based on a claim on {sc.code(sc.root)}: kind=position (size, stop, "
+                            "review_date, paper=true), or kind=no_position when the thesis is declined")
 
 
 def _past_review(sc: Scope, d: str, now: str) -> bool:
@@ -422,6 +428,16 @@ def stage_of(s: D.Snap, t: str, now: str = "") -> dict:
         if stage is None and not r["met"] and not st.optional:
             stage, nxt = (i, st.name), r["why"]
     stages = p.workflow.stages
+    # An honest "it can't be answered" ends a question whatever its stage: a checked claim of kind inconclusive
+    # (or exclusion) that answers it — no source found, too few trades, infeasible. The record holds the reason.
+    settled = [c for c in sc.claims if _live(s, c) and (s.nodes[c]["body"].get("kind") or "finding")
+               in ("inconclusive", "exclusion") and (D.state(s, c).get("review") or {}).get("state") == "checked"
+               and not D.stale(s, c)]
+    if stage is not None and settled:
+        rv = next((i for i, st in enumerate(stages) if st.gate == "reviewed"), len(stages) - 1)
+        return {**base, "workflow": True, "stage": stages[rv].name, "index": rv + 1, "of": len(stages),
+                "complete": True, "next": "", "gates": gates, "settled_by": sc.code(settled[0]),
+                "settled_how": f"{s.nodes[settled[0]]['body'].get('kind')} answer, checked"}
     if stage is None:                            # every required gate met: the stage is the last one whose gate is
         last = max(i for i, gt in enumerate(gates) if gt["met"])
         return {**base, "workflow": True, "stage": stages[last].name, "index": last + 1, "of": len(stages),
@@ -566,10 +582,14 @@ def criterion(name: str, s: D.Snap, inv: str) -> dict:
                 "current head" if qs and not bad else "no current instrument-run evidence for: " + ", ".join(bad)}
     if name == "position_sized":
         ds = [i for i, n in s.nodes.items() if n["inv"] == inv and n["type"] == "decision" and _live(s, i)
-              and (n["body"].get("kind") or "") == "position" and not _position_missing(n["body"])
-              and any(e["rel"] == "based_on" for e in s.out.get(i, []))]
-        return {"met": bool(ds), "why": f"{len(ds)} paper position(s) with size, stop and review date" if ds else
-                "no decision kind=position with size, stop, review_date and paper=true based on a claim"}
+              and any(e["rel"] == "based_on" for e in s.out.get(i, []))
+              and (((n["body"].get("kind") or "") == "position" and not _position_missing(n["body"]))
+                   or (n["body"].get("kind") or "") == "no_position")]
+        taken = sum(1 for d in ds if s.nodes[d]["body"].get("kind") == "position")
+        return {"met": bool(ds), "why": f"{taken} paper position(s) with size, stop and review date, "
+                f"{len(ds) - taken} declined" if ds else
+                "no decision based on a claim: kind=position with size, stop, review_date and paper=true, or "
+                "kind=no_position"}
     if name == "nothing_past_review":
         late = []
         for i, n in s.nodes.items():

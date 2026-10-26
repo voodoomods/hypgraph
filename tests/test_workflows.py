@@ -361,3 +361,45 @@ def test_server_serves_stages():
     assert st == 200 and body["code"] == "Q1" and [x["gate"] for x in body["gates"]][:3] == ["stated", "diff_registered", "tests_pass_current"]
     st, body = dispatch(g, "GET", "/profiles")
     assert st == 200 and body["trading@2"]["workflow"]["decisions"] == {"position": ["size", "stop", "review_date", "paper"]}
+
+
+# ── 0.5.1: declining a thesis is a decision; an honest "can't be answered" settles a question ──
+
+def test_no_position_is_a_decision():
+    g, inv, q = _g("trading@2", reviewers=("risk",))
+    h = g.create(author="quant", type="hypothesis", inv=inv, fields={"statement": "Momentum over 12 months persists for a month.",
+                 "predictions": ["the top decile outperforms after costs out of sample"]}, links=[{"rel": "answers", "to": q}])["id"]
+    x = g.create(author="quant", type="experiment", inv=inv, fields={"aim": "Backtest 12-1 momentum.",
+                 "protocol": "In sample 2015-2021, out of sample 2022-2024; fees 10 bp, slippage 5 bp; 24 configurations.",
+                 "success_criteria": "positive out-of-sample return after costs"},
+                 links=[{"rel": "tests", "to": h, "data": {"expected": "positive oos return after costs"}}])["id"]
+    rs = _bt(g, inv, "quant", {"oos_return": {"value": -0.02}, "fees": {"value": 0.002}, "trials": {"value": 24}},
+             summary="Backtested the thesis out of sample: it loses after costs.", q=q, x=x)
+    c = g.create(author="quant", type="claim", inv=inv, fields={"statement": "The thesis has no edge out of sample: -0.02 a year after fees.",
+                 "scope": "Daily bars, 2022–2024 held out, after fees, 24 configurations tried."},
+                 links=[{"rel": "answers", "to": q}, {"rel": "derived_from", "to": rs}])["id"]
+    g.review(author="risk", target=c, verdict="checked", method="Re-ran the OOS window.", notes="Negative after costs, as stated.")
+    assert _stage(g, q) == ("positioned", 7, False)
+    g.create(author=H, type="decision", inv=inv, fields={"choice": "No position: the thesis loses after costs out of sample.",
+             "reasons": "A negative out-of-sample return after costs is not a thesis to fund.", "kind": "no_position"},
+             links=[{"rel": "based_on", "to": c}])
+    assert g.stage(q)["complete"]
+    comp = {x_["name"]: x_ for x_ in g.completion(inv)["criteria"]}
+    assert comp["position_sized"]["met"] and "1 declined" in comp["position_sized"]["why"] and comp["nothing_past_review"]["met"]
+
+
+def test_a_checked_inconclusive_answer_settles_a_question_without_a_source():
+    g, inv, q = _g("knowledge@2")
+    assert _stage(g, q) == ("sourced", 3, False)
+    # the search is a run; what it found (nothing) is a result; the honest answer derives from it
+    run = g.create(author="r", type="run", inv=inv, fields={"kind": "agent", "name": "search", "state": "succeeded"})["id"]
+    rs = g.create(author="r", type="result", inv=inv, fields={"summary": "Read 3 of 3 pages on the host; 0 mention decommissioning.",
+                  "values": {"pages_read": {"k": 3, "n": 3}, "mentions": {"value": 0}}, "outcome": "negative", "kind": "observed"},
+                  links=[{"rel": "produced", "from": run}])["id"]
+    c = g.create(author="r", type="claim", inv=inv, fields={"statement": "No page on the source host says when the dam was decommissioned.",
+                 "scope": "The 3 of 3 pages on the source host, read in full.", "kind": "inconclusive"},
+                 links=[{"rel": "answers", "to": q}, {"rel": "derived_from", "to": rs}])["id"]
+    assert _stage(g, q) == ("sourced", 3, False)                     # a claim alone settles nothing
+    g.review(author="critic", target=c, verdict="checked", method="Read the three pages.", notes="Nothing on decommissioning.")
+    x = g.stage(q)
+    assert x["complete"] and x["stage"] == "checked" and x["settled_by"] == "CL1" and "inconclusive" in x["settled_how"]
