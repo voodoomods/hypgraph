@@ -101,15 +101,14 @@ def test_binding_prefers_linked_results_and_only_the_authors_own(env):
     assert other
 
 
-def test_small_integers_bind_only_to_counts(env):
+def test_small_integers_bind_only_to_counts_or_a_named_value(env):
     g, me, inv, r = env
     me.add("result", inv, summary="Seven of nine probes leaked.", values={"leaks": {"k": 7, "n": 9}, "limit": {"value": 5}})
-    with pytest.raises(GraphError) as e:                   # 5 is not bound to the value field 'limit'
-        me.add("claim", inv, statement="7 of 9 probes leaked, against a limit of 5 mg/L.", scope=SCOPE)
+    with pytest.raises(GraphError) as e:                   # 5 is not bound to 'limit' when the sentence doesn't name it
+        me.add("claim", inv, statement="7 of 9 probes leaked, 5 of them twice.", scope=SCOPE)
     assert e.value.problems[0]["words"] == ["5"]
-    n = me.add("claim", inv, statement="7 of 9 probes leaked, against a limit of 5 mg/L.",
-               scope=SCOPE + " The limit is 5 mg/L.")       # a design constant belongs in the scope
-    assert {m["key"] for m in n["body"]["measurements"]} == {"leaks"}
+    n = me.add("claim", inv, statement="7 of 9 probes leaked, against a limit of 5 mg/L.", scope=SCOPE)
+    assert {m["key"] for m in n["body"]["measurements"]} == {"leaks", "limit"}   # 0.4.3: the sentence names the field
 
 
 def test_revise_binds_too(env):

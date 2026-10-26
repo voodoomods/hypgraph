@@ -31,7 +31,7 @@ from . import derive as D
 from . import refusals, store
 from .checks import claim_issues
 from .policy import Policy
-from .schema import REPLICATION, RELS, SAME_TYPE, TYPES, VERDICTS
+from .schema import REPLICATION, RELS, SAME_TYPE, SYNONYMS, TYPES, VERDICTS
 from .store import canon, now
 
 
@@ -69,6 +69,7 @@ def clean_body(ntype: str, body: dict, *, partial_ok: bool = False) -> dict:
             if req and len(v) < (3 if kind == "str" else 10):
                 raise GraphError(f"{k}: say it in a full sentence")
         elif kind.startswith("enum:"):
+            v = SYNONYMS.get((ntype, k), {}).get(str(v).strip().lower().replace(" ", "_").replace("-", "_"), str(v).strip())
             if str(v) not in kind[5:].split("|"):
                 raise GraphError(f"{k} must be one of {kind[5:].replace('|', ', ')}")
             v = str(v)
@@ -406,8 +407,12 @@ class Graph:
         st, dt = s.nodes[src]["type"], s.nodes[dst]["type"]
         srcs, dsts = RELS[rel]
         if st not in srcs or dt not in dsts:
+            joins = [r for r, (a, b) in RELS.items() if st in a and dt in b and r not in SAME_TYPE]
+            back = [r for r, (a, b) in RELS.items() if dt in a and st in b and r not in SAME_TYPE and r not in joins]
+            hint = (f" — a {st} joins a {dt} with {', '.join(joins)}" if joins else "") + \
+                   (f"; the other way round, a {dt} joins a {st} with {', '.join(back)}" if back else "")
             raise GraphError(f"{rel} can't join {st} → {dt} (allowed: {', '.join(sorted(srcs))} → "
-                             f"{', '.join(sorted(dsts))})")
+                             f"{', '.join(sorted(dsts))}){hint}")
         if rel in SAME_TYPE and st != dt:
             raise GraphError(f"{rel} joins two nodes of the same type")
         if src == dst:
@@ -577,6 +582,19 @@ class Graph:
                 if type == "claim":
                     body = self._bind_measurements(s, body, inv)
                     staged["body"] = body
+                    # a measurement names the result its number comes from: that result supports the claim, so the
+                    # standing counts it as a line of support without a separate link from the writer
+                    for m in body.get("measurements") or []:
+                        rid = m.get("result") if isinstance(m, dict) else None
+                        if rid not in s.nodes:
+                            rid = next((i for i, n in s.nodes.items() if n.get("code") == rid and n["inv"] == inv), None)
+                        if rid and s.nodes[rid]["type"] == "result" and rid != nid and not any(
+                                (a == rid and b == nid and rel == "supports") or (a == nid and b == rid and rel == "derived_from")
+                                for a, rel, b in pending):
+                            a, rel, b, _f = self._orient(s, rid, "supports", nid)
+                            self._check_link(s, a, rel, b)
+                            pending.append((a, rel, b))
+                            links.append({"rel": "supports", "from": rid, "why": "a measurement of this claim is this result's"})
                 if type == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, nid, pending), inv)
                     loose = [w for p in problems if p.code == "UNBOUND_NUMBER" for w in p.words]
@@ -658,9 +676,17 @@ class Graph:
     @staticmethod
     def _auto_bind(s: D.Snap, body: dict, inv: str, author: str, support: list[str], loose: list[str]) -> tuple:
         """Bind the statement's loose numbers to results the claim already links, then to the author's own results
-        in this investigation (newest first). Small integers (≤ 12) bind only to counts (k, n), never to a value, so
-        a limit or a day of the month can't borrow a field by coincidence. Returns (body, results to link, notes)."""
+        in this investigation (newest first). Small integers (≤ 12) bind only to counts (k, n) — or to a value whose
+        field the sentence names ("0 trades" to `oos_trades`, "capacity is 7" to `capacity_total`) — never to an
+        unnamed value, so a limit or a day of the month can't borrow a field by coincidence.
+        Returns (body, results to link, notes)."""
+        import re as _re
         from .checks import _arm, _matches, _nums, numbers
+
+        def named(key: str, text: str) -> bool:
+            words = [w for w in _re.split(r"[^a-z0-9]+", key.lower()) if len(w) >= 3]
+            low = text.lower()
+            return bool(words) and any(_re.search(r"\b" + _re.escape(w), low) for w in words)
         stmt = body.get("statement", "")
         linked = [x for x in support if (s.nodes.get(x) or {}).get("type") == "result"]
         mine = sorted((i for i, n in s.nodes.items() if n["type"] == "result" and n["inv"] == inv
@@ -686,6 +712,9 @@ class Graph:
                 arm = _arm(rv)
                 vals = ([float(arm[0]), float(arm[1])] if arm else []) if small else _nums(rv) + \
                     ([arm[0] / arm[1]] if arm else [])
+                if small and not arm and isinstance(rv.get("value"), (int, float)) and not isinstance(rv.get("value"), bool) \
+                        and named(key, stmt):
+                    vals = [float(rv["value"])]
                 if vals and _matches(printed, vals):
                     m = {"name": key, "result": rid, "key": key}
                     if arm:

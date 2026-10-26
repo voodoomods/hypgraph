@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.3 — 2026-10-26
+
+Five vocabulary-friction fixes from the HypSwarm discovery study, where 110 of 118 refusals were binding, naming
+and shape errors rather than overclaims — and one correct answer was refused fifteen times.
+- **A named p-value backs "significantly".** A bound field named `p`, `p_value` or `p_<test>` (an exact McNemar
+  `p_exact`), or such a field on a supporting result, satisfies the significance check; below 0.05 the word is
+  accepted, above it `SIGNIFICANCE_NOT_SHOWN` quotes it. The record's own two-proportion test stays the fallback.
+- **A bound measurement's result supports the claim.** A claim written with `measurements` that name a result gets
+  a `supports` edge from that result, so its standing counts the line of support the writer already bound.
+- **A wrong relation names the right one.** `executes can't join run → question … — a run joins a question with
+  part_of, motivated_by; the other way round, a question joins a run with …`.
+- **Enum synonyms** (`schema.SYNONYMS`): `outcome=success` → `positive`, `kind=fact` → `finding`,
+  `state=done` → `succeeded`, and more; the stored value is canonical.
+- **Small integers bind to a value the sentence names.** "produced 0 trades" binds to `oos_trades`,
+  "capacity is 7" to `capacity_total`; an unnamed small integer still binds only to a count.
+
 ## 0.4.2 — 2026-10-25
 
 - **A question is not an assertion.** `language.interrogative` / `asserted` return nothing for a sentence that ends
