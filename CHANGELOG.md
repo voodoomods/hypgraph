@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.3 — 2026-10-26: results that name no file can go stale
 
 - **A result that names no file it read can go stale.** Under a workflow (`@2` profiles), a result whose run has no
   `uses` link was fresh forever, however the files changed. It now goes STALE once an input file of its
