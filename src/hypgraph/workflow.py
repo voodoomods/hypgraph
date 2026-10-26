@@ -224,7 +224,8 @@ def g_reviewed(sc: Scope, now: str) -> dict:
 
 
 def g_decided(sc: Scope, now: str) -> dict:
-    ds = sc.fresh(sc.decisions)
+    # a decision that settles a work order is the harness accepting work, not a decision on the question
+    ds = [d for d in sc.fresh(sc.decisions) if not any(e["rel"] == "settles" for e in sc.s.out.get(d, []))]
     return _g(bool(ds), ds, f"no decision is based on a claim or result on {sc.code(sc.root)}")
 
 

@@ -403,3 +403,14 @@ def test_a_checked_inconclusive_answer_settles_a_question_without_a_source():
     g.review(author="critic", target=c, verdict="checked", method="Read the three pages.", notes="Nothing on decommissioning.")
     x = g.stage(q)
     assert x["complete"] and x["stage"] == "checked" and x["settled_by"] == "CL1" and "inconclusive" in x["settled_how"]
+
+
+def test_accepting_an_order_is_not_the_questions_decision():
+    g, inv, q = _g("scientific@2")
+    o = g.issue_work(author=H, inv=inv, target=q, assignee="w", objective="State a hypothesis for Q1.", done_when=[{"p": "hypothesis_stated"}])
+    g.create(author="w", type="hypothesis", inv=inv, fields={"statement": "Caching halves the latency.", "predictions": ["p50 halves"]},
+             links=[{"rel": "answers", "to": q}])
+    g.return_work(author="w", order=o["order"], note="stated")
+    assert g.settle(author=H, inv=inv)                               # a decision that settles the order, based on H1
+    assert not _gate(g, q, "decided")["met"]                         # … is the harness accepting work, not a decision on Q1
+    assert "X1" not in g.report(inv)["markdown"] or "n" not in g.report(inv)["markdown"]
