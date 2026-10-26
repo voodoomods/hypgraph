@@ -239,7 +239,11 @@ def g_reviewed(sc: Scope, now: str) -> dict:
 def g_decided(sc: Scope, now: str) -> dict:
     # a decision that settles a work order is the harness accepting work, not a decision on the question
     ds = [d for d in sc.fresh(sc.decisions) if not any(e["rel"] == "settles" for e in sc.s.out.get(d, []))]
-    return _g(bool(ds), ds, f"no decision is based on a claim or result on {sc.code(sc.root)}")
+    fresh = [d for d in ds if not D.stale(sc.s, d)]
+    if fresh:
+        return _g(True, fresh, "")
+    return _g(False, [], f"{sc.code(ds[-1])} was decided on evidence that is now stale — decide again on what stands"
+              if ds else f"no decision is based on a claim or result on {sc.code(sc.root)}")
 
 
 def _current_diffs(sc: Scope, kind: str) -> tuple[list[str], list[str]]:
@@ -370,8 +374,12 @@ def g_positioned(sc: Scope, now: str) -> dict:
     ds = [d for d in _positions(sc) if (not sc.since or s.nodes[d]["created_at"] >= sc.since)
           and not _position_missing(s.nodes[d]["body"])]
     ds += [d for d in _no_positions(sc) if not sc.since or s.nodes[d]["created_at"] >= sc.since]
-    return _g(bool(ds), ds, f"no decision based on a claim on {sc.code(sc.root)}: kind=position (size, stop, "
-                            "review_date, paper=true), or kind=no_position when the thesis is declined")
+    fresh = [d for d in ds if not D.stale(s, d)]
+    if ds and not fresh:
+        return _g(False, [], f"{sc.code(ds[-1])} was decided on evidence that is now stale — decide again on the "
+                             "claim as it stands")
+    return _g(bool(fresh), fresh, f"no decision based on a claim on {sc.code(sc.root)}: kind=position (size, stop, "
+                                  "review_date, paper=true), or kind=no_position when the thesis is declined")
 
 
 def _past_review(sc: Scope, d: str, now: str) -> bool:
@@ -413,7 +421,11 @@ def g_solved(sc: Scope, now: str) -> dict:
 
 def g_result_reviewed(sc: Scope, now: str) -> dict:
     s = sc.s
-    rs = [r for r in sc.results if _live(s, r) and _checked_since(sc, r)]
+    checked = [r for r in sc.results if _live(s, r) and _checked_since(sc, r)]
+    rs = [r for r in checked if not D.stale(s, r)]
+    if checked and not rs:
+        return _g(False, [], f"{sc.code(checked[-1])} was checked, but on evidence that is now stale: "
+                             f"{'; '.join(D.stale(s, checked[-1])[:1])}")
     return _g(bool(rs), rs, f"no result on {sc.code(sc.root)} is checked by a reviewer")
 
 

@@ -503,3 +503,37 @@ def test_an_edit_elsewhere_on_the_page_keeps_the_source_fresh():
     e1 = _excerpt(g, inv, src, "Harlow Reservoir was opened in 1931. Its dam is 30 m tall.", True)
     _excerpt(g, inv, src, "Harlow Reservoir was opened in 1931. Its dam is 31 m tall.", True, prev=e1)
     assert not g.state(src).get("stale")                                     # the page changed; its passage didn't
+
+
+def test_a_decision_on_stale_evidence_and_a_check_of_a_stale_solve_do_not_count():
+    g, inv, q = _g("trading@2", reviewers=("risk",))
+    data = g.create(author="quant", type="artifact", inv=inv, fields={"sha256": SHA_A, "path": "prices.csv"})["id"]
+    run_ = g.create(author="quant", type="run", inv=inv, fields={"kind": "agent", "name": "backtest", "state": "succeeded"},
+                    links=[{"rel": "uses", "to": data}])["id"]
+    rs = g.create(author="quant", type="result", inv=inv, fields={"summary": "Backtested the thesis out of sample.",
+                  "values": {"oos_return": {"value": 0.08}, "fees": {"value": 0.002}, "trials": {"value": 1}}, "outcome": "positive"},
+                  links=[{"rel": "produced", "from": run_}, {"rel": "part_of", "to": q}])["id"]
+    c = g.create(author="quant", type="claim", inv=inv, fields={"statement": "The strategy has an edge of 0.08 a year out of sample.",
+                 "scope": "Held-out window, after fees, one configuration."}, links=[{"rel": "answers", "to": q}, {"rel": "derived_from", "to": rs}])["id"]
+    d = g.create(author=H, type="decision", inv=inv, fields={"choice": "Paper position: 1 % of book, stop at -3 %.",
+                 "reasons": "The out-of-sample edge survives costs.", "kind": "position", "size": "1 %", "stop": "-3 %",
+                 "review_date": "2099-01-01", "paper": True}, links=[{"rel": "based_on", "to": c}])["id"]
+    assert _gate(g, q, "positioned")["met"]
+    g.create(author="vendor", type="artifact", inv=inv, fields={"sha256": SHA_B, "path": "prices.csv"},
+             links=[{"rel": "supersedes", "to": data}])                       # the vendor corrected the file
+    assert g.state(d)["stale"] and not _gate(g, q, "positioned")["met"]
+    assert "decided on evidence that is now stale" in _gate(g, q, "positioned")["why"]
+    g2, inv2, q2 = _g("optimization@2", reviewers=("verifier",))
+    inst = g2.create(author="lead", type="artifact", inv=inv2, fields={"sha256": SHA_A, "path": "instance.csv", "kind": "instance"},
+                     links=[{"rel": "part_of", "to": q2}])["id"]
+    r2 = g2.create(author="solver", type="run", inv=inv2, fields={"kind": "agent", "name": "solve", "state": "succeeded"},
+                   links=[{"rel": "uses", "to": inst}])["id"]
+    s2 = g2.create(author="solver", type="result", inv=inv2, fields={"summary": "Enumerated the instance.",
+                   "values": {"objective": {"value": 40}, "feasible": {"value": True}, "gap": {"value": 0.0}}, "outcome": "positive"},
+                   links=[{"rel": "produced", "from": r2}, {"rel": "part_of", "to": q2}])["id"]
+    g2.review(author="verifier", target=s2, verdict="checked", method="Recomputed every constraint.", notes="Feasible, 40.")
+    assert _gate(g2, q2, "result_reviewed")["met"]
+    g2.create(author="lead", type="artifact", inv=inv2, fields={"sha256": SHA_B, "path": "instance.csv", "kind": "instance"},
+              links=[{"rel": "part_of", "to": q2}, {"rel": "supersedes", "to": inst}])
+    gate = _gate(g2, q2, "result_reviewed")
+    assert not gate["met"] and "stale" in gate["why"]

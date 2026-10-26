@@ -204,6 +204,13 @@ def stale(s: Snap, nid: str) -> list[str]:
         if vu and s.now and s.now[:len(vu)] > vu:
             out.append(f"valid_until {vu} has passed")
         return out
+    if n["type"] == "decision":
+        # a decision is stale when everything it was based on is (a position taken on a backtest the vendor corrected)
+        basis = [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "based_on" and not fallen(s, e["dst"])]
+        reasons = [stale(s, b) for b in basis]
+        if basis and all(reasons):
+            return list(dict.fromkeys(x for r in reasons for x in r))
+        return []
     if n["type"] == "claim":
         rs = [e["src"] for e in s.inn.get(nid, []) if e["rel"] == "supports" and s.nodes[e["src"]]["type"] == "result"
               and not fallen(s, e["src"])]
@@ -503,7 +510,7 @@ def state(s: Snap, nid: str) -> dict:
         moved = basis_changed(s, nid)
         if moved:
             st["basis_changed"] = moved
-    if t in ("result", "claim", "source"):
+    if t in ("result", "claim", "source", "decision"):
         old = stale(s, nid)
         if old:
             st["stale"] = old
