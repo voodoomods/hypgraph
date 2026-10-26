@@ -20,7 +20,8 @@ model is a hypothesis about the problem and can be wrong independently of the so
 | 4 | solved | run `executes` the experiment, `uses` the instance; result with `objective`, `feasible`, `bound`, `gap`, `runtime_s`, `solution` artifact | `feasible_bounded` (today) | solver, instrument |
 | 5 | verified | review by the verifier: the solution satisfies the constraints of the **instance artifact** (recomputed, not trusted) | `reviewed` with method naming the check | verifier |
 | 6 | claimed | claim "best found, gap g" or "optimal" with the bound; `OPTIMAL_WITHOUT_BOUND` (today) | `claim_made` | solver |
-| 7 | recommended | decision `based_on` the claim: the incumbent to use, with the sensitivity note | `decided` **new** | lead |
+| 7 | checked | the verifier checks the claim's wording against the result (a question settles on a checked claim) | `reviewed` | verifier |
+| 8 | recommended | decision `based_on` the claim: the incumbent to use, with the sensitivity note | `decided` **new** (optional) | lead |
 
 Infeasibility is a settled outcome: a result with `feasible: false` and a claim of `kind=exclusion` ("no feasible
 assignment exists: total capacity 7 < 8 customers") settles the question. Today that path trips

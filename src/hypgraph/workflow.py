@@ -559,6 +559,25 @@ def review_refusal(p: Profile, s: D.Snap, target: str, author: str) -> str:
 
 # ── completion criteria the workflows add ──────────────────────────
 
+def _backed_fresh(s: D.Snap, r: str) -> bool:
+    """A result the instrument stands behind on the current artifacts: its own lab run, or a live lab run that
+    replicates the run that produced it with a positive result — and every artifact that lab run used is live, and
+    the result itself is not stale."""
+    if D.stale(s, r):
+        return False
+    run = _producing_run(s, r)
+    if not run:
+        return False
+    labs = [run] if s.nodes[run]["body"].get("kind") == "lab" else []
+    labs += [e["src"] for e in s.inn.get(run, []) if e["rel"] == "replicates" and s.nodes[e["src"]]["body"].get("kind") == "lab"]
+    for lab in labs:
+        if not _live(s, lab) or not _positive_results(s, lab):
+            continue
+        if all(D.lifecycle(s, a) == "active" for a in _uses(s, lab)):
+            return True
+    return False
+
+
 def _checked_claims(s: D.Snap, q: str) -> list[str]:
     return [e["src"] for e in s.inn.get(q, []) if e["rel"] == "answers" and s.nodes[e["src"]]["type"] == "claim"
             and _live(s, e["src"]) and (D.state(s, e["src"]).get("review") or {}).get("state") == "checked"]
@@ -575,7 +594,7 @@ def criterion(name: str, s: D.Snap, inv: str) -> dict:
             for c in _checked_claims(s, q):              # any checked answer resting on a fresh instrument run
                 rs = [e["src"] for e in s.inn.get(c, []) if e["rel"] == "supports"] + \
                      [e["dst"] for e in s.out.get(c, []) if e["rel"] == "derived_from"]
-                if any(s.nodes[r]["type"] == "result" and _lab_positive(s, r) and not D.stale(s, r) for r in rs):
+                if any(s.nodes[r]["type"] == "result" and _backed_fresh(s, r) for r in rs):
                     ok = True
                     break
             if not ok:

@@ -347,6 +347,7 @@ OPTIMIZATION2 = _add(Profile(
                 _S("solved", "a result: objective, feasible, bound / gap (or infeasible)", "solved", "solver, instrument"),
                 _S("verified", "a verifier recomputed feasibility and checked the result", "result_reviewed", "verifier"),
                 _S("claimed", "a claim: best found with its gap, or optimal with its bound", "claim_made", "solver"),
+                _S("checked", "the verifier checked the claim's wording against the result", "reviewed", "verifier"),
                 _S("recommended", "a decision: the incumbent to use, with its sensitivity", "decided", "lead", optional=True)),
         invalidates=("uses",),
         artifacts={"instance": (), "solution": ("objective", "feasible"), "model": ("solver",)},
