@@ -201,9 +201,21 @@ def g_run_registered(sc: Scope, now: str) -> dict:
     return _g(bool(rs), rs, f"no run executes an experiment on {sc.code(sc.root)}")
 
 
+def _current_results(sc: Scope) -> list[str]:
+    """Live results on the target that still speak for it — a result whose run used a file that has since changed
+    is evidence about the old file, not about the question now."""
+    return [r for r in sc.fresh(sc.results) if not D.stale(sc.s, r)]
+
+
+def _stale_why(sc: Scope) -> str:
+    old = [r for r in sc.fresh(sc.results) if D.stale(sc.s, r)]
+    return (f" (the results on it are stale: {'; '.join(D.stale(sc.s, old[-1])[:1])} — recompute from the files as they are "
+            "now)") if old else ""
+
+
 def g_result_exists(sc: Scope, now: str) -> dict:
-    rs = sc.fresh(sc.results)
-    return _g(bool(rs), rs, f"no live result on {sc.code(sc.root)}")
+    rs = _current_results(sc)
+    return _g(bool(rs), rs, f"no live result on {sc.code(sc.root)}{_stale_why(sc)}")
 
 
 def g_claim_made(sc: Scope, now: str) -> dict:
@@ -335,7 +347,7 @@ def _trials(v: dict) -> bool:
 def g_backtested(sc: Scope, now: str) -> dict:
     s = sc.s
     nearest, missing = "", []
-    for r in sc.fresh(sc.results):
+    for r in _current_results(sc):
         v = _vals(s.nodes[r]["body"])
         miss = []
         if not _has(v, r"oos|out_of_sample|holdout|test_"):
@@ -350,7 +362,7 @@ def g_backtested(sc: Scope, now: str) -> dict:
             nearest, missing = r, miss
     if nearest:
         return _g(False, [], f"{sc.code(nearest)} lacks {', '.join(missing)}")
-    return _g(False, [], f"no backtest result on {sc.code(sc.root)}")
+    return _g(False, [], f"no backtest result on {sc.code(sc.root)}{_stale_why(sc)}")
 
 
 def _position_missing(body: dict) -> list[str]:
@@ -409,14 +421,14 @@ def g_still_valid(sc: Scope, now: str) -> dict:
 
 def g_solved(sc: Scope, now: str) -> dict:
     s = sc.s
-    for r in sc.fresh(sc.results):
+    for r in _current_results(sc):
         v = _vals(s.nodes[r]["body"])
         if "feasible" in v and v["feasible"] in (False, 0, "false", "False", "no"):
             return _g(True, [r], "")
         if "objective" in v and v.get("feasible") in _TRUE and ("bound" in v or "gap" in v):
             return _g(True, [r], "")
     return _g(False, [], f"no result on {sc.code(sc.root)} with objective, feasible=true and a bound or gap (or "
-                         "feasible=false)")
+                         "feasible=false)" + _stale_why(sc))
 
 
 def g_result_reviewed(sc: Scope, now: str) -> dict:

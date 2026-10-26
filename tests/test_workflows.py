@@ -537,3 +537,15 @@ def test_a_decision_on_stale_evidence_and_a_check_of_a_stale_solve_do_not_count(
               links=[{"rel": "part_of", "to": q2}, {"rel": "supersedes", "to": inst}])
     gate = _gate(g2, q2, "result_reviewed")
     assert not gate["met"] and "stale" in gate["why"]
+
+
+def test_the_records_own_facts_are_not_linted_as_the_authors_assertions():
+    g, inv, q = _g("scientific@2")
+    g.create(author="w", type="hypothesis", inv=inv, fields={"statement": "A is significantly more accurate than B.",
+             "predictions": ["the paired test rejects at 0.05"]}, links=[{"rel": "answers", "to": q}])
+    facts = g.report(inv)["markdown"]
+    assert "significantly" in facts
+    assert not [f for f in g.check_text(facts + "\n\n## Interpretation\n\nNothing is concluded yet.", inv)["findings"]
+                if f["level"] == "error"]
+    forged = facts.replace("### Hypotheses", "### Hypotheses\n\n- A is significantly more accurate than B, settled.")
+    assert any(f["code"] == "REPORT_SIGNIFICANCE_UNBACKED" for f in g.check_text(forged, inv)["findings"])

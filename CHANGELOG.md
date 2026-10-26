@@ -13,6 +13,14 @@ file:
 - **The report marks it.** Claims and results on stale evidence read `checked · STALE` in the facts tables, a new
   open item lists them, the workflow section lists stale sources too, and the report check treats calling a stale
   claim settled as `REPORT_OVERSTATES_STANDING`.
+- **Gates count only what still speaks for the question.** `result_exists`, `backtested` and `solved` take only
+  fresh results (their message says which went stale and why); `result_reviewed` doesn't count a check of a stale
+  result; a decision is stale when everything it was based on is, and `positioned` / `decided` take only fresh ones
+  — a position taken on a backtest the vendor later corrected has to be decided again.
+- **The report check skips the record's own facts.** A line inside a "Facts from the research graph" block is not
+  linted when it is exactly a line the record generates now (a hypothesis that says "significantly" is a conjecture
+  the record lists, not the author's assertion). Anything else written under that heading is checked as usual.
+  Found when a report was refused for the hypothesis line the record itself had written.
 
 ## 0.5.1 — 2026-10-26
 

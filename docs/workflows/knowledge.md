@@ -73,7 +73,11 @@ review.
 
 1. *Is `searched` required?* **Optional** (reported, never blocks); a task that wants a systematic answer puts
    `search_recorded` in its `done_when`.
-2. *The re-fetch check?* **P3**, with `NUMBER_NOT_IN_PASSAGE`; both need the host's fetch at review time.
+2. *The re-fetch check?* **Built in P3** (hypgraph 0.5.2 + HypSwarm 0.1.0a5): a host's `refetch(url)` files each
+   source's page as an `excerpt` artifact with `contains_passage`; a page that no longer says the passage makes the
+   source and the claims citing it stale, and the question returns to *sourced*. `NUMBER_NOT_IN_PASSAGE` is not a
+   separate refusal: a claim number that is in no bound result and not in the cited passage is already
+   `UNBOUND_NUMBER`.
 3. *Can the fact-checker re-kind a source?* **Yes**: `corrects` now joins sources; the correcting source carries
    the kind, and the old one is superseded.
 

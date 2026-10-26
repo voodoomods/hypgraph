@@ -70,8 +70,10 @@ passed without a newer result.
 
 ## Review questions and decisions (2026-10-26)
 
-1. *Will agents report `trials` honestly?* **Required now, checked later**: `backtested` and `EDGE_WITHOUT_TRIALS`
-   need the value; the instrument's count of the parameter grid is P3.
+1. *Will agents report `trials` honestly?* **Required, and checked like any value**: `backtested` and
+   `EDGE_WITHOUT_TRIALS` need it, and the instrument's re-run confirms or contradicts the printed `trials` as it does
+   every registered value. Counting a parameter grid statically from arbitrary code was not built (P3): it can't be
+   done reliably, and a wrong count would be worse than the confirmed one.
 2. *`review_date` default?* **Required, no default** (`POSITION_WITHOUT_STOP` names what is missing).
 3. *Who raises a regime notice?* **The host or the risk seat**: it is a withdrawal (or supersession) of the data
    artifact, which only they write; `uses` then carries it to every position.

@@ -162,6 +162,18 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
     qtexts = [q for q in qtexts if len(q) >= 20]
     findings: list[dict] = []
     counted = {"sentences": 0, "numbers": 0, "codes": 0}
+    # The record's own facts section (report()) lists hypotheses, statements and verdicts as the record holds them —
+    # its lines are the record speaking, not the author asserting. A line inside a "Facts from the research graph"
+    # block is skipped when it is exactly a line the record generates now; anything else written there is checked
+    # like any other line, so the heading can't be used to slip a claim past the check.
+    generated: set[str] = set()
+    for i in invs:
+        if i in s.nodes and s.nodes[i]["type"] == "investigation":
+            try:
+                generated |= {x.strip() for x in g.report(i)["markdown"].splitlines() if x.strip()}
+            except Exception:  # noqa: BLE001 — without the facts, every line is checked
+                pass
+    in_facts = False
 
     def add(line: int, level: str, code: str, excerpt: str, message: str) -> None:
         findings.append({"line": line, "level": level, "code": code, "excerpt": excerpt.strip()[:200],
@@ -169,6 +181,13 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
 
     for ln, raw in enumerate(clean.splitlines(), start=1):
         line = raw.strip()
+        if re.match(r"^##\s+Facts from the research graph", line):
+            in_facts = True
+            continue
+        if re.match(r"^##\s", line):
+            in_facts = False
+        if in_facts and line in generated:
+            continue
         if not line or re.fullmatch(r"[|:\-\s]+", line):
             continue
         body = re.sub(r"^(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)", "", line)
