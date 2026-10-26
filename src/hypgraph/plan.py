@@ -229,7 +229,8 @@ def _brief_min(s: D.Snap, i: str) -> dict:
     m = s.nodes[i]
     b = m["body"]
     return {"id": i, "code": m.get("code", ""), "type": m["type"],
-            "title": str(b.get("title") or b.get("statement") or b.get("text") or b.get("summary") or i)[:160]}
+            "title": str(b.get("title") or b.get("statement") or b.get("text") or b.get("summary") or b.get("aim")
+                         or b.get("choice") or b.get("citation") or b.get("name") or b.get("path") or i)[:160]}
 
 
 def report(g: "Graph", inv: str) -> dict:

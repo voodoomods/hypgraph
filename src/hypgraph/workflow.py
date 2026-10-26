@@ -27,6 +27,7 @@ from . import language as L
 from .checks import Problem
 from .profiles import (_EDGE, _OPTIMAL, _PASSES, Profile, _cites_source, _has, _instrument_backed, _lab_positive,
                        _live, _producing_run, _vals, profile_of)
+from .schema import POSITIVE
 
 _LIVE_ORDER = re.compile(r"\b(live (order|trade|position)|market order|limit order|place[ds]? (an? )?order|"
                          r"execute[sd]? (a |the )?trade|sen[dt] (it |the order )?to (the )?(exchange|broker|venue)|"
@@ -210,9 +211,21 @@ def g_claim_made(sc: Scope, now: str) -> dict:
     return _g(bool(cs), cs, f"no live claim answers {sc.code(sc.root)}")
 
 
+def _checked_since(sc: Scope, nid: str) -> bool:
+    """Checked — and, under an order, by a review written since the order (the node itself may well predate it:
+    a review order's target is the claim or result it is to review)."""
+    s = sc.s
+    if (D.state(s, nid).get("review") or {}).get("state") != "checked":
+        return False
+    if not sc.since:
+        return True
+    return any(e["rel"] == "reviews" and s.nodes[e["src"]]["created_at"] >= sc.since
+               and s.nodes[e["src"]]["body"].get("verdict") in POSITIVE for e in s.inn.get(nid, []))
+
+
 def g_reviewed(sc: Scope, now: str) -> dict:
     s = sc.s
-    checked = [c for c in sc.fresh(sc.claims) if (D.state(s, c).get("review") or {}).get("state") == "checked"]
+    checked = [c for c in sc.claims if _live(s, c) and _checked_since(sc, c)]
     fresh = [c for c in checked if not D.stale(s, c)]
     if fresh:
         return _g(True, fresh, "")
@@ -224,7 +237,8 @@ def g_reviewed(sc: Scope, now: str) -> dict:
 
 
 def g_decided(sc: Scope, now: str) -> dict:
-    ds = sc.fresh(sc.decisions)
+    # a decision that settles a work order is the harness accepting work, not a decision on the question
+    ds = [d for d in sc.fresh(sc.decisions) if not any(e["rel"] == "settles" for e in sc.s.out.get(d, []))]
     return _g(bool(ds), ds, f"no decision is based on a claim or result on {sc.code(sc.root)}")
 
 
@@ -238,8 +252,9 @@ def _current_diffs(sc: Scope, kind: str) -> tuple[list[str], list[str]]:
 
 
 def g_diff_registered(sc: Scope, now: str) -> dict:
+    # the question's current diff is a state, not work since the order: a change registered before the order (the
+    # task's own files are artifacts from the start, and the same bytes are one node) meets it
     live, _old = _current_diffs(sc, "diff")
-    live = [a for a in live if not sc.since or sc.s.nodes[a]["created_at"] >= sc.since]
     return _g(bool(live), live[:1], f"no live artifact kind=diff (meta: base_sha, head_sha, files) part_of "
                                     f"{sc.code(sc.root)}")
 
@@ -331,12 +346,18 @@ def _positions(sc: Scope) -> list[str]:
     return [d for d in sc.decisions if _live(sc.s, d) and (sc.s.nodes[d]["body"].get("kind") or "") == "position"]
 
 
+def _no_positions(sc: Scope) -> list[str]:
+    """Decisions not to trade (kind=no_position): a decision too — the thesis was judged and declined."""
+    return [d for d in sc.decisions if _live(sc.s, d) and (sc.s.nodes[d]["body"].get("kind") or "") == "no_position"]
+
+
 def g_positioned(sc: Scope, now: str) -> dict:
     s = sc.s
     ds = [d for d in _positions(sc) if (not sc.since or s.nodes[d]["created_at"] >= sc.since)
           and not _position_missing(s.nodes[d]["body"])]
-    return _g(bool(ds), ds, f"no decision kind=position (size, stop, review_date, paper=true) based on a claim on "
-                            f"{sc.code(sc.root)}")
+    ds += [d for d in _no_positions(sc) if not sc.since or s.nodes[d]["created_at"] >= sc.since]
+    return _g(bool(ds), ds, f"no decision based on a claim on {sc.code(sc.root)}: kind=position (size, stop, "
+                            "review_date, paper=true), or kind=no_position when the thesis is declined")
 
 
 def _past_review(sc: Scope, d: str, now: str) -> bool:
@@ -378,7 +399,7 @@ def g_solved(sc: Scope, now: str) -> dict:
 
 def g_result_reviewed(sc: Scope, now: str) -> dict:
     s = sc.s
-    rs = [r for r in sc.fresh(sc.results) if (D.state(s, r).get("review") or {}).get("state") == "checked"]
+    rs = [r for r in sc.results if _live(s, r) and _checked_since(sc, r)]
     return _g(bool(rs), rs, f"no result on {sc.code(sc.root)} is checked by a reviewer")
 
 
@@ -399,6 +420,25 @@ def evaluate_predicate(p: str, s: D.Snap, t: str, at: str, inv: str, who: str = 
     if not t or t not in s.nodes:
         return {"met": False, "evidence": [], "why": "the order has no target"}
     return GATES[p](Scope(s, t, since=at, who=who), s.now)
+
+
+def _claim_results(s: D.Snap, c: str) -> list[str]:
+    rs = [e["src"] for e in s.inn.get(c, []) if e["rel"] == "supports" and s.nodes[e["src"]]["type"] == "result"]
+    rs += [e["dst"] for e in s.out.get(c, []) if e["rel"] == "derived_from" and s.nodes[e["dst"]]["type"] == "result"]
+    return _uniq(rs)
+
+
+def _lab_negative(s: D.Snap, r: str) -> bool:
+    """The instrument stands behind a failure: the result's own lab run, or a live lab run replicating the run that
+    produced it, has a live result with outcome negative."""
+    run = _producing_run(s, r)
+    if not run:
+        return False
+    labs = [run] if s.nodes[run]["body"].get("kind") == "lab" else []
+    labs += [e["src"] for e in s.inn.get(run, []) if e["rel"] == "replicates" and s.nodes[e["src"]]["body"].get("kind") == "lab"]
+    return any(_live(s, lab) and any(s.nodes[e["dst"]]["type"] == "result" and s.nodes[e["dst"]]["body"].get("outcome") == "negative"
+                                     and _live(s, e["dst"]) for e in s.out.get(lab, []) if e["rel"] == "produced")
+               for lab in labs)
 
 
 # ── the derived stage ──────────────────────────────────────────────
@@ -422,6 +462,23 @@ def stage_of(s: D.Snap, t: str, now: str = "") -> dict:
         if stage is None and not r["met"] and not st.optional:
             stage, nxt = (i, st.name), r["why"]
     stages = p.workflow.stages
+    # An honest "it can't be answered" ends a question whatever its stage: a checked claim of kind inconclusive
+    # (or exclusion) that answers it — no source found, too few trades, infeasible. The record holds the reason.
+    checked = [c for c in sc.claims if _live(s, c) and not D.stale(s, c)
+               and (D.state(s, c).get("review") or {}).get("state") == "checked"]
+    settled = [(c, f"{s.nodes[c]['body'].get('kind')} answer, checked") for c in checked
+               if (s.nodes[c]["body"].get("kind") or "finding") in ("inconclusive", "exclusion")]
+    # A verified failure settles a requirement too: a checked claim resting on an instrument-recorded negative
+    # result ("1 of 2 checks pass", re-run by the instrument) — the gate that asks for a passing run can never be met,
+    # and the record now holds why. Only workflows whose gate is an instrument pass have this ending.
+    if any(st.gate == "tests_pass_current" for st in stages):
+        settled += [(c, "verified failure: an instrument-recorded negative result, checked") for c in checked
+                    if any(_lab_negative(s, r) for r in _claim_results(s, c))]
+    if stage is not None and settled:
+        rv = next((i for i, st in enumerate(stages) if st.gate == "reviewed"), len(stages) - 1)
+        return {**base, "workflow": True, "stage": stages[rv].name, "index": rv + 1, "of": len(stages),
+                "complete": True, "next": "", "gates": gates, "settled_by": sc.code(settled[0][0]),
+                "settled_how": settled[0][1]}
     if stage is None:                            # every required gate met: the stage is the last one whose gate is
         last = max(i for i, gt in enumerate(gates) if gt["met"])
         return {**base, "workflow": True, "stage": stages[last].name, "index": last + 1, "of": len(stages),
@@ -541,6 +598,25 @@ def review_refusal(p: Profile, s: D.Snap, target: str, author: str) -> str:
 
 # ── completion criteria the workflows add ──────────────────────────
 
+def _backed_fresh(s: D.Snap, r: str) -> bool:
+    """A result the instrument stands behind on the current artifacts: its own lab run, or a live lab run that
+    replicates the run that produced it with a positive result — and every artifact that lab run used is live, and
+    the result itself is not stale."""
+    if D.stale(s, r):
+        return False
+    run = _producing_run(s, r)
+    if not run:
+        return False
+    labs = [run] if s.nodes[run]["body"].get("kind") == "lab" else []
+    labs += [e["src"] for e in s.inn.get(run, []) if e["rel"] == "replicates" and s.nodes[e["src"]]["body"].get("kind") == "lab"]
+    for lab in labs:
+        if not _live(s, lab) or not _positive_results(s, lab):
+            continue
+        if all(D.lifecycle(s, a) == "active" for a in _uses(s, lab)):
+            return True
+    return False
+
+
 def _checked_claims(s: D.Snap, q: str) -> list[str]:
     return [e["src"] for e in s.inn.get(q, []) if e["rel"] == "answers" and s.nodes[e["src"]]["type"] == "claim"
             and _live(s, e["src"]) and (D.state(s, e["src"]).get("review") or {}).get("state") == "checked"]
@@ -557,7 +633,7 @@ def criterion(name: str, s: D.Snap, inv: str) -> dict:
             for c in _checked_claims(s, q):              # any checked answer resting on a fresh instrument run
                 rs = [e["src"] for e in s.inn.get(c, []) if e["rel"] == "supports"] + \
                      [e["dst"] for e in s.out.get(c, []) if e["rel"] == "derived_from"]
-                if any(s.nodes[r]["type"] == "result" and _lab_positive(s, r) and not D.stale(s, r) for r in rs):
+                if any(s.nodes[r]["type"] == "result" and _backed_fresh(s, r) for r in rs):
                     ok = True
                     break
             if not ok:
@@ -566,10 +642,14 @@ def criterion(name: str, s: D.Snap, inv: str) -> dict:
                 "current head" if qs and not bad else "no current instrument-run evidence for: " + ", ".join(bad)}
     if name == "position_sized":
         ds = [i for i, n in s.nodes.items() if n["inv"] == inv and n["type"] == "decision" and _live(s, i)
-              and (n["body"].get("kind") or "") == "position" and not _position_missing(n["body"])
-              and any(e["rel"] == "based_on" for e in s.out.get(i, []))]
-        return {"met": bool(ds), "why": f"{len(ds)} paper position(s) with size, stop and review date" if ds else
-                "no decision kind=position with size, stop, review_date and paper=true based on a claim"}
+              and any(e["rel"] == "based_on" for e in s.out.get(i, []))
+              and (((n["body"].get("kind") or "") == "position" and not _position_missing(n["body"]))
+                   or (n["body"].get("kind") or "") == "no_position")]
+        taken = sum(1 for d in ds if s.nodes[d]["body"].get("kind") == "position")
+        return {"met": bool(ds), "why": f"{taken} paper position(s) with size, stop and review date, "
+                f"{len(ds) - taken} declined" if ds else
+                "no decision based on a claim: kind=position with size, stop, review_date and paper=true, or "
+                "kind=no_position"}
     if name == "nothing_past_review":
         late = []
         for i, n in s.nodes.items():

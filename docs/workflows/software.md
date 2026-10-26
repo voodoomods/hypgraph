@@ -76,3 +76,8 @@ superseded heads, listed as superseded); open requirements.
    reads, so a CI reproducer only has to file a lab run that `uses` the diff.
 
 Also decided: `REVIEW_BY_AUTHOR` covers the diff's author (built); `supersedes` joins artifacts (built).
+
+**Verified failure (0.5.1).** When the instrument's run on the current head records a negative result ("1 of 2
+checks pass"), `tests_pass_current` can never be met; a checked claim resting on that result settles the
+requirement as a verified failure (`stage()` says so), and `requirements_verified_current` stays unmet. The record
+holds why the change did not ship.

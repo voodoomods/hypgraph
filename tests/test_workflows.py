@@ -361,3 +361,93 @@ def test_server_serves_stages():
     assert st == 200 and body["code"] == "Q1" and [x["gate"] for x in body["gates"]][:3] == ["stated", "diff_registered", "tests_pass_current"]
     st, body = dispatch(g, "GET", "/profiles")
     assert st == 200 and body["trading@2"]["workflow"]["decisions"] == {"position": ["size", "stop", "review_date", "paper"]}
+
+
+# ── 0.5.1: declining a thesis is a decision; an honest "can't be answered" settles a question ──
+
+def test_no_position_is_a_decision():
+    g, inv, q = _g("trading@2", reviewers=("risk",))
+    h = g.create(author="quant", type="hypothesis", inv=inv, fields={"statement": "Momentum over 12 months persists for a month.",
+                 "predictions": ["the top decile outperforms after costs out of sample"]}, links=[{"rel": "answers", "to": q}])["id"]
+    x = g.create(author="quant", type="experiment", inv=inv, fields={"aim": "Backtest 12-1 momentum.",
+                 "protocol": "In sample 2015-2021, out of sample 2022-2024; fees 10 bp, slippage 5 bp; 24 configurations.",
+                 "success_criteria": "positive out-of-sample return after costs"},
+                 links=[{"rel": "tests", "to": h, "data": {"expected": "positive oos return after costs"}}])["id"]
+    rs = _bt(g, inv, "quant", {"oos_return": {"value": -0.02}, "fees": {"value": 0.002}, "trials": {"value": 24}},
+             summary="Backtested the thesis out of sample: it loses after costs.", q=q, x=x)
+    c = g.create(author="quant", type="claim", inv=inv, fields={"statement": "The thesis has no edge out of sample: -0.02 a year after fees.",
+                 "scope": "Daily bars, 2022–2024 held out, after fees, 24 configurations tried."},
+                 links=[{"rel": "answers", "to": q}, {"rel": "derived_from", "to": rs}])["id"]
+    g.review(author="risk", target=c, verdict="checked", method="Re-ran the OOS window.", notes="Negative after costs, as stated.")
+    assert _stage(g, q) == ("positioned", 7, False)
+    g.create(author=H, type="decision", inv=inv, fields={"choice": "No position: the thesis loses after costs out of sample.",
+             "reasons": "A negative out-of-sample return after costs is not a thesis to fund.", "kind": "no_position"},
+             links=[{"rel": "based_on", "to": c}])
+    assert g.stage(q)["complete"]
+    comp = {x_["name"]: x_ for x_ in g.completion(inv)["criteria"]}
+    assert comp["position_sized"]["met"] and "1 declined" in comp["position_sized"]["why"] and comp["nothing_past_review"]["met"]
+
+
+def test_a_checked_inconclusive_answer_settles_a_question_without_a_source():
+    g, inv, q = _g("knowledge@2")
+    assert _stage(g, q) == ("sourced", 3, False)
+    # the search is a run; what it found (nothing) is a result; the honest answer derives from it
+    run = g.create(author="r", type="run", inv=inv, fields={"kind": "agent", "name": "search", "state": "succeeded"})["id"]
+    rs = g.create(author="r", type="result", inv=inv, fields={"summary": "Read 3 of 3 pages on the host; 0 mention decommissioning.",
+                  "values": {"pages_read": {"k": 3, "n": 3}, "mentions": {"value": 0}}, "outcome": "negative", "kind": "observed"},
+                  links=[{"rel": "produced", "from": run}])["id"]
+    c = g.create(author="r", type="claim", inv=inv, fields={"statement": "No page on the source host says when the dam was decommissioned.",
+                 "scope": "The 3 of 3 pages on the source host, read in full.", "kind": "inconclusive"},
+                 links=[{"rel": "answers", "to": q}, {"rel": "derived_from", "to": rs}])["id"]
+    assert _stage(g, q) == ("sourced", 3, False)                     # a claim alone settles nothing
+    g.review(author="critic", target=c, verdict="checked", method="Read the three pages.", notes="Nothing on decommissioning.")
+    x = g.stage(q)
+    assert x["complete"] and x["stage"] == "checked" and x["settled_by"] == "CL1" and "inconclusive" in x["settled_how"]
+
+
+def test_accepting_an_order_is_not_the_questions_decision():
+    g, inv, q = _g("scientific@2")
+    o = g.issue_work(author=H, inv=inv, target=q, assignee="w", objective="State a hypothesis for Q1.", done_when=[{"p": "hypothesis_stated"}])
+    g.create(author="w", type="hypothesis", inv=inv, fields={"statement": "Caching halves the latency.", "predictions": ["p50 halves"]},
+             links=[{"rel": "answers", "to": q}])
+    g.return_work(author="w", order=o["order"], note="stated")
+    assert g.settle(author=H, inv=inv)                               # a decision that settles the order, based on H1
+    assert not _gate(g, q, "decided")["met"]                         # … is the harness accepting work, not a decision on Q1
+    assert "X1" not in g.report(inv)["markdown"] or "n" not in g.report(inv)["markdown"]
+
+
+def test_registering_the_same_bytes_again_types_and_links_the_one_node():
+    g, inv, q = _g("software@2")
+    a = g.create(author=H, type="artifact", inv=inv, fields={"sha256": SHA_A, "path": "mod.py", "size": 20})   # the task's file
+    assert a["body"].get("kind") is None and not _gate(g, q, "diff_registered")["met"]
+    b = g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_A, "path": "mod.py", "kind": "diff",
+                 "meta": {"base_sha": "0000000", "head_sha": "1111111", "files": ["mod.py"]}}, links=[{"rel": "part_of", "to": q}])
+    assert b["id"] == a["id"] and b["v"] == 2 and b["body"]["kind"] == "diff" and "typed as diff" in " ".join(b["notes"])
+    assert any(e["rel"] == "part_of" for e in b["out"])
+    assert _gate(g, q, "diff_registered")["met"] and _gate(g, q, "diff_registered")["evidence"] == ["A1"]
+    c = g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_A, "kind": "diff"}, links=[{"rel": "part_of", "to": q}])
+    assert c["v"] == 2 and len([e for e in c["out"] if e["rel"] == "part_of"]) == 1       # idempotent: nothing added twice
+    with pytest.raises(GraphError, match="ARTIFACT_MISSING_FIELDS"):
+        g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_B, "path": "x.py"})
+        g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_B, "path": "x.py", "kind": "diff"})
+
+
+def test_a_verified_failure_settles_a_software_requirement():
+    g, inv, q = _g("software@2")
+    a1 = _diff(g, inv, q, "dev", SHA_A, "1111111")
+    run = g.create(author="tester", type="run", inv=inv, fields={"kind": "agent", "name": "checks", "state": "succeeded"},
+                   links=[{"rel": "uses", "to": a1, "data": {"role": "code"}}])["id"]
+    rs = g.create(author="tester", type="result", inv=inv, fields={"summary": "Ran the checks: 1 of 2 pass.",
+                  "values": {"passed": {"k": 1, "n": 2}}, "outcome": "negative"}, links=[{"rel": "produced", "from": run}])["id"]
+    lab = g.create(author="lab", type="run", inv=inv, fields={"kind": "lab", "name": "re-run", "state": "succeeded"},
+                   links=[{"rel": "replicates", "to": run, "data": {"differs": "same_code"}}, {"rel": "uses", "to": a1, "data": {"role": "code"}}])["id"]
+    g.create(author="lab", type="result", inv=inv, fields={"summary": "Re-ran the checks: 1 of 2 pass.",
+             "values": {"passed": {"k": 1, "n": 2}}, "outcome": "negative"}, links=[{"rel": "produced", "from": lab}])
+    c = g.create(author="tester", type="claim", inv=inv, fields={"statement": "The change does not meet the requirement: 1 of 2 checks pass.",
+                 "scope": "mod.py at head 1111111."}, links=[{"rel": "answers", "to": q}, {"rel": "derived_from", "to": rs}])["id"]
+    assert _stage(g, q) == ("verified", 3, False)                    # no passing run on the head, and there never will be
+    g.review(author="critic", target=c, verdict="checked", method="Read the lab run.", notes="One of two, as stated.")
+    x = g.stage(q)
+    assert x["complete"] and "verified failure" in x["settled_how"] and x["settled_by"] == "CL1"
+    assert not _gate(g, q, "tests_pass_current")["met"]
+    assert not next(c_ for c_ in g.completion(inv)["criteria"] if c_["name"] == "requirements_verified_current")["met"]
