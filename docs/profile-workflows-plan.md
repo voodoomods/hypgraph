@@ -91,7 +91,11 @@ needs a migration story. P0 is a day and decides whether P1 is right. P3 is the 
 `tests/test_workflows.py`; CHANGELOG). The schema change turned out additive (fields and relation endpoints), so
 no migration: `@1` records derive exactly as before, the `@2` profiles opt in. Left for later phases, each named in
 its spec: per-workflow evidence rank (documented, not derived), the knowledge re-fetch check, CI as the software
-instrument, mechanical feasibility recomputation (P3). P2 (HypSwarm issues orders from stages) is next.
+instrument, mechanical feasibility recomputation (P3). **P2 built in HypSwarm 0.1.0a4** (`scheduler.py`: stage
+orders, review on the node the previous gate produced, the record's word on done; the examples' scripted models walk
+the stages; the discovery stub run through its stages). P2 fed back into hypgraph 0.5.1: honest endings the stages
+lacked (a declined thesis, an inconclusive answer, a verified failure), artifacts that learn their kind on
+re-registration, optimization's `checked` stage. P3 is next.
 
 ## 4. What stays as it is, on purpose
 

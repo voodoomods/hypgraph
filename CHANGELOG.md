@@ -2,13 +2,24 @@
 
 ## 0.5.1 — 2026-10-26
 
-Two things the workflows had no honest ending for, found wiring HypSwarm's scheduler to the stages:
+What wiring HypSwarm's scheduler to the stages (P2) found the workflows had no honest ending or no right answer for:
 - **Declining a thesis is a decision.** A decision `kind=no_position` based on the claim meets `positioned` and
   `position_sized` ("1 declined"); only `kind=position` needs size, stop, review date and `paper=true`.
 - **An honest "it can't be answered" settles a question whatever its stage.** A checked claim of kind
   `inconclusive` or `exclusion` that answers the question (no source says it; too few trades; infeasible) completes
   it; `stage()` reports `settled_by` and `settled_how`. The claim still needs its evidence — the search's own
   result ("read 3 of 3 pages; 0 mention it") is what it derives from.
+- **A verified failure settles a software requirement.** A checked claim resting on an instrument-recorded
+  *negative* result ("1 of 2 checks pass", re-run by the instrument) completes the question; `tests_pass_current`
+  stays unmet and `requirements_verified_current` says so.
+- **The same bytes, registered again, are one node that learns.** A second `create` of an artifact with the same
+  sha adds the links given now (`part_of` a question, `supersedes`) and, when the node was untyped, its `kind` /
+  `meta` / `path` as a new version. Before, the task's own file silently swallowed the diff registered on it.
+- **A decision that settles a work order is the harness's, not the question's** (`decided` ignores it).
+- **optimization gains a `checked` stage** (the verifier checks the claim after the result): a question settles on a
+  checked claim, so the workflow had to ask for one.
+- A review order's target predates the order; `reviewed` / `result_reviewed` now ask that the *review* be new.
+- `report()` names experiments by aim and decisions by choice.
 
 ## 0.5.0 — 2026-10-26: profiles carry their discipline's workflow
 
