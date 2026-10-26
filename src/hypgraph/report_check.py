@@ -204,11 +204,12 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
                 if st["lifecycle"] == "superseded" and not qualified:
                     add(ln, "warning", "REPORT_CITES_SUPERSEDED", sent,
                         f"{code} has been superseded — cite the replacement, or say this is the older version.")
-                weak = review in ("unchecked", "needs_revalidation", "contested") or st.get("at_risk")
+                weak = review in ("unchecked", "needs_revalidation", "contested") or st.get("at_risk") or st.get("stale")
                 overstatable = n["type"] in ("claim", "hypothesis") or (n["type"] == "result" and
                                                                        (review == "contested" or st.get("at_risk")))
                 if overstatable and weak and settled and not qualified:
                     why = ("contested" if review == "contested" else "AT RISK — a premise fell" if st.get("at_risk")
+                           else f"STALE — {st['stale'][0]}" if st.get("stale")
                            else f"not re-checked since v{n['v']}" if review == "needs_revalidation" else "unchecked")
                     add(ln, "error", "REPORT_OVERSTATES_STANDING", sent,
                         f"'{settled[0]}' — but {code} is {why} in the record: {st['sentence']}. Report its standing "

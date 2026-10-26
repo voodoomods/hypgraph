@@ -260,9 +260,10 @@ def report(g: "Graph", inv: str) -> dict:
         st = D.state(s, c)
         claims.append({**_brief_min(s, c), "lifecycle": st["lifecycle"], "review": (st.get("review") or {}).get("state"),
                        "verdicts": verdicts(c), "v": s.nodes[c]["v"], "evidence": st.get("evidence"),
-                       "lines": st.get("independent_lines")})
+                       "lines": st.get("independent_lines"), "stale": list(st.get("stale") or [])})
     results = [{**_brief_min(s, r), "outcome": D.state(s, r).get("outcome"), "by": s.nodes[r]["created_by"],
-                "in_a_claim": r in cited_by_claim, "lifecycle": D.state(s, r)["lifecycle"]} for r in by_type["result"]]
+                "in_a_claim": r in cited_by_claim, "lifecycle": D.state(s, r)["lifecycle"],
+                "stale": list(D.state(s, r).get("stale") or [])} for r in by_type["result"]]
     hyps = [{**_brief_min(s, h), "lifecycle": D.state(s, h)["lifecycle"],
              "support": D.state(s, h).get("independent_lines"), "challenges": D.state(s, h).get("challenges")}
             for h in by_type["hypothesis"]]
@@ -277,6 +278,8 @@ def report(g: "Graph", inv: str) -> dict:
     open_items = {
         "claims_unreviewed": [c["code"] for c in live if c["review"] in (None, "unchecked", "needs_revalidation")],
         "claims_contested": [c["code"] for c in live if c["review"] == "contested"],
+        # a check made on evidence that has since gone stale (a file superseded, a page changed) is not a check now
+        "claims_stale": [c["code"] for c in live if c["stale"]],
         "results_in_no_claim": [r["code"] for r in results if not r["in_a_claim"] and r["lifecycle"] != "withdrawn"
                                 and r["by"] != g.policy.instrument],
         "experiments_not_preregistered": [x["code"] for x in exps if not x["preregistered"]],
@@ -295,7 +298,7 @@ def report(g: "Graph", inv: str) -> dict:
     prof = profiles.profile_of(s, inv)
     if prof and prof.workflow:
         stale = [{"code": s.nodes[i]["code"], "type": s.nodes[i]["type"], "why": D.state(s, i)["stale"]}
-                 for i in by_type["result"] + by_type["claim"] if D.state(s, i).get("stale")
+                 for i in by_type["result"] + by_type["claim"] + by_type["source"] if D.state(s, i).get("stale")
                  and D.state(s, i)["lifecycle"] != "withdrawn"]
         out["workflow"] = {"profile": prof.id, "report": prof.workflow.report, "method": prof.workflow.method,
                            "questions": workflow.stages(s, inv, s.now), "stale": stale}
@@ -310,11 +313,13 @@ def report_markdown(r: dict) -> str:
          "Interpretation goes below this section._", "", "### Claims", "",
          "| claim | standing | review | verdicts | statement |", "|---|---|---|---|---|"]
     for c in r["claims"]:
-        L.append(f"| {c['code']} v{c['v']} | {c['lifecycle']} | {c['review'] or '-'} | "
+        rv = (c['review'] or '-') + (" · STALE" if c.get("stale") else "")
+        L.append(f"| {c['code']} v{c['v']} | {c['lifecycle']} | {rv} | "
                  f"{'; '.join(c['verdicts']) or '-'} | {cut(c['title'])} |")
     L += ["", "### Results", "", "| result | outcome | by | carried by a claim | summary |", "|---|---|---|---|---|"]
     for x in r["results"]:
-        L.append(f"| {x['code']} | {x['outcome'] or '-'} | {x['by']} | {'yes' if x['in_a_claim'] else 'NO'} | "
+        oc = (x['outcome'] or '-') + (" · STALE" if x.get("stale") else "")
+        L.append(f"| {x['code']} | {oc} | {x['by']} | {'yes' if x['in_a_claim'] else 'NO'} | "
                  f"{cut(x['title'])} |")
     L += ["", "### Hypotheses", ""]
     L += [f"- {h['code']} ({h['lifecycle']}; support lines {h['support']}, challenges {h['challenges']}): "
@@ -329,12 +334,14 @@ def report_markdown(r: dict) -> str:
         for q in w["questions"]:
             nxt = "complete" if q["complete"] else cut(q["next"], 140)
             L.append(f"| {q['code']} | {q['stage']} ({q['index']}/{q['of']}) | {nxt} |")
-        L += ["", "Stale evidence (the run used an artifact since superseded or withdrawn, or valid_until passed): "
+        L += ["", "Stale evidence (a file it used was superseded or withdrawn, its page changed, or valid_until passed): "
               + ("; ".join(f"{x['code']} — {x['why'][0]}" for x in w["stale"]) if w["stale"] else "none")]
     o = r["open"]
     L += ["", "### Open items", "",
           f"- claims not yet reviewed: {', '.join(o['claims_unreviewed']) or 'none'}",
           f"- claims contested: {', '.join(o['claims_contested']) or 'none'}",
+          f"- claims on stale evidence (what they rest on has changed since; a check of them no longer counts): "
+          f"{', '.join(o.get('claims_stale') or []) or 'none'}",
           f"- results no claim carries (their conclusions are unreviewed): {', '.join(o['results_in_no_claim']) or 'none'}",
           f"- experiments not preregistered: {', '.join(o['experiments_not_preregistered']) or 'none'}"]
     sp = r["spend"]

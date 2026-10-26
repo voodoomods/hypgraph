@@ -451,3 +451,55 @@ def test_a_verified_failure_settles_a_software_requirement():
     assert x["complete"] and "verified failure" in x["settled_how"] and x["settled_by"] == "CL1"
     assert not _gate(g, q, "tests_pass_current")["met"]
     assert not next(c_ for c_ in g.completion(inv)["criteria"] if c_["name"] == "requirements_verified_current")["met"]
+
+
+# ── 0.5.2: a source is fresh while its page still says it; stale evidence is marked in the report ──
+
+def _excerpt(g, inv, src, text, contains, prev=None):
+    import hashlib
+    links = [{"rel": "derived_from", "to": src}] + ([{"rel": "supersedes", "to": prev}] if prev else [])
+    return g.create(author="host", type="artifact", inv=inv,
+                    fields={"sha256": hashlib.sha256(f"{src}\n{text}".encode()).hexdigest(), "path": "https://example.org/harlow",
+                            "kind": "excerpt", "meta": {"source": src, "contains_passage": contains, "fetched": "2026-10-26T04:00"}},
+                    links=links)["id"]
+
+
+def test_a_source_whose_page_changed_is_stale_and_reopens_the_question():
+    g, inv, q = _g("knowledge@2")
+    src = g.create(author="r", type="source", inv=inv, fields={"citation": "Harlow Reservoir page.", "url": "https://example.org/harlow",
+                   "passage": "capacity is 4,200 megalitres", "retrieved": "2026-10-26", "kind": "secondary"},
+                   links=[{"rel": "part_of", "to": q}])["id"]
+    c = g.create(author="r", type="claim", inv=inv, fields={"statement": "Harlow Reservoir holds 4,200 megalitres.", "kind": "finding",
+                 "scope": "The Harlow Reservoir page on the source host."}, links=[{"rel": "answers", "to": q}, {"rel": "cites", "to": src}])["id"]
+    g.review(author="critic", target=c, verdict="checked", method="Opened the page.", notes="The page says 4,200.")
+    assert g.stage(q)["complete"] and not g.state(src).get("stale")          # never re-fetched: nothing says it moved
+    e1 = _excerpt(g, inv, src, "… capacity is 4,200 megalitres …", True)
+    assert g.stage(q)["complete"] and not g.state(src).get("stale")          # re-fetched, still says it
+    _excerpt(g, inv, src, "… capacity is 4,600 megalitres (revised) …", False, prev=e1)
+    assert "no longer contains its passage" in g.state(src)["stale"][0]
+    assert g.state(c)["stale"] and "STALE" in g.state(c)["sentence"]         # the claim rests only on that source
+    x = g.stage(q)
+    assert not x["complete"] and x["stage"] == "sourced" and "stale" in x["next"]
+    r = g.report(inv)
+    assert "checked · STALE" in r["markdown"] and r["open"]["claims_stale"] == ["CL1"]
+    assert any(s_["type"] == "source" for s_ in r["workflow"]["stale"])
+    chk = g.check_text("CL1 is confirmed: the reservoir holds 4,200 megalitres.", inv)
+    assert any(f["code"] == "REPORT_OVERSTATES_STANDING" and "STALE" in f["message"] for f in chk["findings"])
+    # the researcher reads the page again: a new source, a new claim, checked → complete
+    src2 = g.create(author="r", type="source", inv=inv, fields={"citation": "Harlow Reservoir page (revised).", "url": "https://example.org/harlow",
+                    "passage": "capacity is 4,600 megalitres", "retrieved": "2026-10-26", "kind": "secondary"},
+                    links=[{"rel": "part_of", "to": q}])["id"]
+    _excerpt(g, inv, src2, "… capacity is 4,600 megalitres (revised) …", True)
+    c2 = g.create(author="r", type="claim", inv=inv, fields={"statement": "Harlow Reservoir holds 4,600 megalitres.", "kind": "finding",
+                  "scope": "The revised Harlow Reservoir page."}, links=[{"rel": "answers", "to": q}, {"rel": "cites", "to": src2}])["id"]
+    g.review(author="critic", target=c2, verdict="checked", method="Opened the page.", notes="The page says 4,600.")
+    assert g.stage(q)["complete"]
+
+
+def test_an_edit_elsewhere_on_the_page_keeps_the_source_fresh():
+    g, inv, q = _g("knowledge@2")
+    src = g.create(author="r", type="source", inv=inv, fields={"citation": "Harlow Reservoir page.", "url": "https://example.org/harlow",
+                   "passage": "opened in 1931", "retrieved": "2026-10-26", "kind": "secondary"})["id"]
+    e1 = _excerpt(g, inv, src, "Harlow Reservoir was opened in 1931. Its dam is 30 m tall.", True)
+    _excerpt(g, inv, src, "Harlow Reservoir was opened in 1931. Its dam is 31 m tall.", True, prev=e1)
+    assert not g.state(src).get("stale")                                     # the page changed; its passage didn't

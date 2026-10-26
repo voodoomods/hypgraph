@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.2 — 2026-10-26: freshness for sources, stale evidence in the report
+
+For P3 (the change suite and the instruments in HypSwarm), the record had to know when a *page* moved, not only a
+file:
+- **A source is fresh while its page still says it.** A host that re-fetches a source's page registers an
+  `excerpt` artifact (`derived_from` the source; `meta.contains_passage`, `meta.fetched`). The source is STALE when
+  every excerpt of it was superseded, or the live one says the page no longer contains its passage — an edit
+  elsewhere on the page keeps it fresh. A source never re-fetched is not stale: nothing says it moved.
+- **A claim is stale when every result and every cited source behind it is.** The knowledge gates
+  (`source_quoted`, `sourced`) take only fresh sources, so a changed page reopens the question at *sourced*.
+- **The report marks it.** Claims and results on stale evidence read `checked · STALE` in the facts tables, a new
+  open item lists them, the workflow section lists stale sources too, and the report check treats calling a stale
+  claim settled as `REPORT_OVERSTATES_STANDING`.
+
 ## 0.5.1 — 2026-10-26
 
 What wiring HypSwarm's scheduler to the stages (P2) found the workflows had no honest ending or no right answer for:

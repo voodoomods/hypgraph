@@ -288,10 +288,15 @@ def g_instance_registered(sc: Scope, now: str) -> dict:
 
 def g_source_quoted(sc: Scope, now: str) -> dict:
     s = sc.s
-    good = [x for x in sc.fresh(sc.sources) if str(s.nodes[x]["body"].get("passage") or "").strip()
-            and str(s.nodes[x]["body"].get("retrieved") or "").strip()]
+    quoted = [x for x in sc.fresh(sc.sources) if str(s.nodes[x]["body"].get("passage") or "").strip()
+              and str(s.nodes[x]["body"].get("retrieved") or "").strip()]
+    good = [x for x in quoted if not D.stale(s, x)]
     if good:
         return _g(True, good, "")
+    if quoted:
+        x = quoted[-1]
+        return _g(False, [], f"{sc.code(x)} is stale: {'; '.join(D.stale(s, x)[:1])} — read the page again and add "
+                             "the source as it is now")
     partial = sc.fresh(sc.sources)
     if partial:
         miss = [k for k in ("passage", "retrieved") if not str(s.nodes[partial[0]]["body"].get(k) or "").strip()]
@@ -305,9 +310,18 @@ def g_search_recorded(sc: Scope, now: str) -> dict:
     return _g(bool(xs), xs, f"no experiment method=search records where {sc.code(sc.root)} was looked for")
 
 
+def _cites_fresh_source(s: D.Snap, c: str) -> bool:
+    return any(e["rel"] == "cites" and s.nodes[e["dst"]]["type"] == "source" and _live(s, e["dst"])
+               and not D.stale(s, e["dst"]) for e in s.out.get(c, []))
+
+
 def g_sourced(sc: Scope, now: str) -> dict:
-    cs = [c for c in sc.fresh(sc.claims) if _cites_source(sc.s, c)]
-    return _g(bool(cs), cs, f"no claim answering {sc.code(sc.root)} cites a live source")
+    cs = [c for c in sc.fresh(sc.claims) if _cites_fresh_source(sc.s, c)]
+    if cs:
+        return _g(True, cs, "")
+    old = [c for c in sc.fresh(sc.claims) if _cites_source(sc.s, c)]
+    return _g(False, [], f"{sc.code(old[-1])} cites a source whose page changed — cite the page as it is now" if old
+              else f"no claim answering {sc.code(sc.root)} cites a live source")
 
 
 def _trials(v: dict) -> bool:

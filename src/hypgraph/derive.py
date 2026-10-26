@@ -163,11 +163,32 @@ def downstream(s: Snap, x: str) -> list[tuple[str, str]]:
     return downs
 
 
+def excerpts(s: Snap, sid: str) -> list[str]:
+    """The pages a host fetched for a source: artifacts ``kind=excerpt`` derived_from it (oldest first)."""
+    return [e["src"] for e in s.inn.get(sid, []) if e["rel"] == "derived_from"
+            and s.nodes[e["src"]]["type"] == "artifact" and (s.nodes[e["src"]]["body"].get("kind") or "") == "excerpt"]
+
+
 def stale(s: Snap, nid: str) -> list[str]:
     """Why a result (or a claim through its results) no longer speaks for what it measured; [] when fresh. A result
     is stale when the run that produced it used an artifact that is now superseded or withdrawn, or when its
-    ``valid_until`` has passed. A claim is stale when it has results and every one of them is stale."""
+    ``valid_until`` has passed. A source is stale when the host re-fetched its page and the page as it is now no
+    longer contains its passage (the live excerpt says ``contains_passage: false``), or every excerpt of it was
+    superseded. A claim is stale when it has results or cited sources and every one of them is stale."""
     n = s.nodes[nid]
+    if n["type"] == "source":
+        ex = excerpts(s, nid)
+        if not ex:
+            return []                                  # never re-fetched: nothing says the page moved
+        live = [a for a in ex if lifecycle(s, a) == "active"]
+        if not live:
+            return [f"its page changed since it was read ({', '.join(s.nodes[a]['code'] or a for a in ex[-2:])} "
+                    "superseded)"]
+        meta = [s.nodes[a]["body"].get("meta") or {} for a in live]
+        if all(m.get("contains_passage") is False for m in meta):
+            when = max((str(m.get("fetched") or "") for m in meta), default="")
+            return [f"the page no longer contains its passage (re-fetched{' ' + when if when else ''})"]
+        return []
     if n["type"] == "result":
         out = []
         run = producing_run(s, nid)
@@ -188,6 +209,8 @@ def stale(s: Snap, nid: str) -> list[str]:
               and not fallen(s, e["src"])]
         rs += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "derived_from" and s.nodes[e["dst"]]["type"] == "result"
                and not fallen(s, e["dst"])]
+        rs += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "cites" and s.nodes[e["dst"]]["type"] == "source"
+               and lifecycle(s, e["dst"]) == "active" and not fallen(s, e["dst"])]
         rs = list(dict.fromkeys(rs))
         if not rs:
             return []
@@ -480,7 +503,7 @@ def state(s: Snap, nid: str) -> dict:
         moved = basis_changed(s, nid)
         if moved:
             st["basis_changed"] = moved
-    if t in ("result", "claim"):
+    if t in ("result", "claim", "source"):
         old = stale(s, nid)
         if old:
             st["stale"] = old
