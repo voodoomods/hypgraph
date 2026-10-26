@@ -27,6 +27,7 @@ from . import language as L
 from .checks import Problem
 from .profiles import (_EDGE, _OPTIMAL, _PASSES, Profile, _cites_source, _has, _instrument_backed, _lab_positive,
                        _live, _producing_run, _vals, profile_of)
+from .schema import POSITIVE
 
 _LIVE_ORDER = re.compile(r"\b(live (order|trade|position)|market order|limit order|place[ds]? (an? )?order|"
                          r"execute[sd]? (a |the )?trade|sen[dt] (it |the order )?to (the )?(exchange|broker|venue)|"
@@ -210,9 +211,21 @@ def g_claim_made(sc: Scope, now: str) -> dict:
     return _g(bool(cs), cs, f"no live claim answers {sc.code(sc.root)}")
 
 
+def _checked_since(sc: Scope, nid: str) -> bool:
+    """Checked — and, under an order, by a review written since the order (the node itself may well predate it:
+    a review order's target is the claim or result it is to review)."""
+    s = sc.s
+    if (D.state(s, nid).get("review") or {}).get("state") != "checked":
+        return False
+    if not sc.since:
+        return True
+    return any(e["rel"] == "reviews" and s.nodes[e["src"]]["created_at"] >= sc.since
+               and s.nodes[e["src"]]["body"].get("verdict") in POSITIVE for e in s.inn.get(nid, []))
+
+
 def g_reviewed(sc: Scope, now: str) -> dict:
     s = sc.s
-    checked = [c for c in sc.fresh(sc.claims) if (D.state(s, c).get("review") or {}).get("state") == "checked"]
+    checked = [c for c in sc.claims if _live(s, c) and _checked_since(sc, c)]
     fresh = [c for c in checked if not D.stale(s, c)]
     if fresh:
         return _g(True, fresh, "")
@@ -386,7 +399,7 @@ def g_solved(sc: Scope, now: str) -> dict:
 
 def g_result_reviewed(sc: Scope, now: str) -> dict:
     s = sc.s
-    rs = [r for r in sc.fresh(sc.results) if (D.state(s, r).get("review") or {}).get("state") == "checked"]
+    rs = [r for r in sc.results if _live(s, r) and _checked_since(sc, r)]
     return _g(bool(rs), rs, f"no result on {sc.code(sc.root)} is checked by a reviewer")
 
 
