@@ -146,6 +146,14 @@ def risky(s: Snap, x: str) -> tuple:
     return RISKY + extra if extra else RISKY
 
 
+def workflow_profile(s: Snap, x: str) -> bool:
+    """Whether x's investigation runs a profile with a workflow (the @2 profiles): freshness rules that need the files
+    to be registered apply only there."""
+    inv = s.nodes.get(s.nodes[x]["inv"]) if x in s.nodes else None
+    pid = str((inv or {}).get("body", {}).get("profile") or "").lower()
+    return bool(pid) and pid in EXTRA_RISKY
+
+
 def upstream(s: Snap, x: str) -> list[tuple[str, str]]:
     """What x rests on, one step: premises (requires), derivations, a decision's basis, and the run that produced it.
     Support is counted separately (unsupported): one fallen support among several doesn't break a claim."""
@@ -169,10 +177,68 @@ def excerpts(s: Snap, sid: str) -> list[str]:
             and s.nodes[e["src"]]["type"] == "artifact" and (s.nodes[e["src"]]["body"].get("kind") or "") == "excerpt"]
 
 
+def _order(s: Snap) -> tuple[dict, dict, dict]:
+    """When each node was created, each edge linked and each node withdrawn, as event sequence numbers (timestamps
+    are only to the second). Cached on the snapshot until the next event."""
+    cached = getattr(s, "_order_cache", None)
+    if cached and cached[0] == s.seq:
+        return cached[1]
+    made: dict[str, int] = {}
+    linked: dict[int, int] = {}
+    gone: dict[str, int] = {}
+    for e in s.events:
+        if e["kind"] == "create":
+            made.setdefault(e["ref"], e["seq"])
+        elif e["kind"] == "link" and isinstance(e.get("payload"), dict) and e["payload"].get("edge") is not None:
+            linked[int(e["payload"]["edge"])] = e["seq"]
+        elif e["kind"] == "withdraw":
+            gone.setdefault(e["ref"], e["seq"])
+    out = (made, linked, gone)
+    s._order_cache = (s.seq, out)                      # type: ignore[attr-defined]
+    return out
+
+
+def _moved_since(s: Snap, rid: str) -> list[str]:
+    """Input files of the result's investigation that were replaced or withdrawn after the result was written. A run
+    output (an artifact some run produced) and a page excerpt (a re-fetch supersedes it every time) don't count, and a
+    file registered on other questions only (``part_of``) doesn't count against a result on a different one."""
+    from .workflow import question_of                  # workflow imports derive; read lazily
+    made, linked, gone = _order(s)
+    t = made.get(rid)
+    if t is None:
+        return []
+    inv = s.nodes[rid]["inv"]
+    q: set | None = None
+    out = []
+    for aid, a in s.nodes.items():
+        if a["type"] != "artifact" or a["inv"] != inv or (a["body"].get("kind") or "") == "excerpt":
+            continue
+        if any(e["rel"] == "produced" for e in s.inn.get(aid, [])):
+            continue
+        on = {e["dst"] for e in s.out.get(aid, []) if e["rel"] == "part_of" and s.nodes[e["dst"]]["type"] == "question"}
+        if on:
+            if q is None:
+                # a result reaches its question through the claims built on it, as often as through its run
+                qs = {question_of(s, rid)} | {question_of(s, e["src"]) for e in s.inn.get(rid, [])
+                                               if e["rel"] == "derived_from"}
+                qs |= {question_of(s, e["dst"]) for e in s.out.get(rid, []) if e["rel"] == "supports"}
+                q = {x for x in qs if x}
+            if q and not (q & on):
+                continue
+        when = [linked.get(e["id"], 0) for e in s.inn.get(aid, []) if e["rel"] == "supersedes"]
+        if aid in gone:
+            when.append(gone[aid])
+        if any(w > t for w in when):
+            out.append(a["code"] or aid)
+    return out
+
+
 def stale(s: Snap, nid: str) -> list[str]:
     """Why a result (or a claim through its results) no longer speaks for what it measured; [] when fresh. A result
     is stale when the run that produced it used an artifact that is now superseded or withdrawn, or when its
-    ``valid_until`` has passed. A source is stale when the host re-fetched its page and the page as it is now no
+    ``valid_until`` has passed. Under a workflow, a result whose run names no file it read (no ``uses``) is stale once
+    any input file of its investigation is replaced or withdrawn after it was written: nothing shows it read the
+    new one. A source is stale when the host re-fetched its page and the page as it is now no
     longer contains its passage (the live excerpt says ``contains_passage: false``), or every excerpt of it was
     superseded. A claim is stale when it has results or cited sources and every one of them is stale."""
     n = s.nodes[nid]
@@ -200,6 +266,11 @@ def stale(s: Snap, nid: str) -> list[str]:
                 a = s.nodes[e["dst"]]
                 kind = a["body"].get("kind") or "artifact"
                 out.append(f"{kind} {a['code'] or e['dst']} is {lc}")
+        named = run and any(e["rel"] == "uses" for e in s.out.get(run, []))
+        if not named and workflow_profile(s, nid):
+            moved = _moved_since(s, nid)
+            if moved:
+                out.append(f"it names no file it read, and {', '.join(moved[:3])} changed after it was written")
         vu = str(n["body"].get("valid_until") or "").strip()
         if vu and s.now and s.now[:len(vu)] > vu:
             out.append(f"valid_until {vu} has passed")
@@ -469,6 +540,15 @@ def affected_by(s: Snap, touched: set) -> set:
     invs = {x for x in stack if s.nodes[x]["type"] == "investigation"}
     if invs:
         stack += [i for i, n in s.nodes.items() if n["inv"] in invs]
+    # a changed file reaches the results that name no file through no edge (see stale): under a workflow, every such
+    # result in the file's investigation may have gone stale
+    moved = {s.nodes[x]["inv"] for x in stack if s.nodes[x]["type"] == "artifact"}
+    if moved:
+        for i, n in s.nodes.items():
+            if n["type"] == "result" and n["inv"] in moved and workflow_profile(s, i):
+                run = producing_run(s, i)
+                if not (run and any(e["rel"] == "uses" for e in s.out.get(run, []))):
+                    stack.append(i)
     while stack:
         y = stack.pop()
         if y in out:

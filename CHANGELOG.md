@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **A result that names no file it read can go stale.** Under a workflow (`@2` profiles), a result whose run has no
+  `uses` link was fresh forever, however the files changed. It now goes STALE once an input file of its
+  investigation is replaced or withdrawn after the result was written ("it names no file it read, and A1 changed
+  after it was written"), and claims resting only on it with it. A file registered on another question only
+  (`part_of`) doesn't count against it; run outputs and page excerpts never do; a result written after the change
+  is fresh; a result that names its files keeps the usual rule (only those files count). Ordered by the event log,
+  not timestamps. Records without a workflow are unchanged. Measured on 851 results in HypSwarm's stored study
+  records: none changes standing.
+
 ## 0.5.2 — 2026-10-26: freshness for sources, stale evidence in the report
 
 For P3 (the change suite and the instruments in HypSwarm), the record had to know when a *page* moved, not only a

@@ -120,7 +120,8 @@ record behaves exactly as before.
 met, every gate MET / NOT MET with what would meet it); `GET /api/graph/stages`; MCP tool `stage`. A workflow
 widens what puts dependants AT RISK — `uses` (a corrected data file, a superseded diff or instance), `cites` (a
 withdrawn source) — and evidence goes **stale** when the artifact it used is superseded or its `valid_until` has
-passed. An honest "it can't be answered" (a checked `inconclusive` claim), a declined thesis (`no_position`) and a
+passed. A result whose run names no file it read goes stale when an input file of its question changes after it:
+nothing shows it read the new version (name the files with `uses` and only those count). An honest "it can't be answered" (a checked `inconclusive` claim), a declined thesis (`no_position`) and a
 verified failure each complete a question the gates alone never would.
 
 Profiles are versioned and frozen: a record written under `trading@1` means the same thing in a year, and the `@1`
