@@ -65,10 +65,11 @@ hypotheses, experiments (preregistered or not), open items, spend; interpretatio
   marks the result exploratory and says so.
 - `STALE_EVIDENCE`: a review on a claim whose only results are stale is recorded as `comment`, not `checked`.
 
-## For review
+## Review questions and decisions (2026-10-26)
 
-1. Should preregistration be a gate (stage 3) or only a label on the result's evidence rank? The plan proposes
-   both: the stage for teams that preregister, the label for records that don't.
-2. Is `decided` a stage of the scientific workflow or only of the applied ones? Proposed: optional here.
-3. `uses` as an at-risk relation changes standing on existing records (claims over withdrawn data files become
-   AT RISK). Correct, but a visible change — version `scientific@2`.
+1. *Preregistration: a gate or a label?* **A gate** (`preregistered`: the experiment, with its expected outcome,
+   precedes any run that executes it; one written after is named as such). The evidence-rank cap is not built:
+   `report()` already lists experiments as preregistered or not, and the gate's reason says why.
+2. *Is `decided` a scientific stage?* **Optional**: reported, never blocks; a question is complete at `reviewed`.
+3. *`uses` as at-risk changes old records?* **Only under `scientific@2`** (`derive.EXTRA_RISKY`); `@1` records derive
+   exactly as before. Freshness (`stale`) is universal, since no record could have had a superseded artifact.

@@ -585,6 +585,29 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             "\n".join(f"  {x['name']}: {'MET' if x['met'] else 'NOT MET'} — {x['why']}" for x in c["criteria"])
 
     @mcp.tool
+    def stage(question: str = "", investigation: str = "") -> str:
+        """Where a question stands in its profile's workflow (@2 profiles: scientific, software, trading, knowledge,
+        optimization): the stage it is in — derived from the record, never set — and every gate MET / NOT MET with
+        what would meet it. Without a question: every question of the investigation."""
+        try:
+            inv = inv_of(investigation)
+            rows = [g.stage(g.resolve(question, inv), inv)] if question else g.stages(inv)
+        except (GraphError, KeyError) as e:
+            fail(e)
+        out = []
+        for x in rows:
+            if not x["workflow"]:
+                out.append(f"{x['code']}: {x['next']}")
+                continue
+            out.append(f"{x['code']}: {x['stage']} ({x['index']}/{x['of']})" +
+                       (" — complete" if x["complete"] else f" — next: {x['next']}"))
+            out += [f"  {'MET    ' if gt['met'] else 'NOT MET'} {gt['stage']} [{gt['gate']}]"
+                    + (" (optional)" if gt["optional"] else "") + (f" — {gt['why']}" if gt["why"] else
+                                                                   (f" — {', '.join(gt['evidence'])}" if gt["evidence"] else ""))
+                    for gt in x["gates"]]
+        return "\n".join(out) or "no live questions"
+
+    @mcp.tool
     def settle_work(investigation: str = "") -> str:
         """For the orchestrator: accept every returned order whose predicates are all met (a decision each, based
         on the evidence). The mechanical half of accepting; your judgement is for the rest."""

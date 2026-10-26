@@ -66,11 +66,13 @@ superseded heads, listed as superseded); open requirements.
 - `REVIEW_BY_AUTHOR`: a review of a claim whose diff the reviewer authored (today only the claim's author is
   blocked; the diff's author should be too).
 
-## For review
+## Review questions and decisions (2026-10-26)
 
-1. Is the requirement a `question` (proposed) or an `experiment` (the test plan)? Proposed: question with the test
-   plan as a linked experiment, so "verified" has a preregistered acceptance criterion.
-2. Should the record hold the diff bytes (as an artifact file) or only its hashes and file list? Proposed: hashes
-   and list; the host keeps the bytes.
-3. CI as the instrument: the reproducer is a GitHub Actions job that checks out `head_sha` and runs `command`.
-   That is P3's software case.
+1. *Requirement = question or experiment?* **Question**, with the test plan as an experiment linked to it. Stage 1's
+   gate is the question itself (`stated`); an acceptance criterion in `success_criteria` is encouraged, not gated.
+2. *Diff bytes or hashes?* **Hashes and the file list** (`artifact.kind=diff`, `meta: base_sha, head_sha, files`,
+   `sha256` of the patch); the host keeps the bytes.
+3. *CI as the instrument?* **P3.** Built now: the `uses` relation to the current diff is what `tests_pass_current`
+   reads, so a CI reproducer only has to file a lab run that `uses` the diff.
+
+Also decided: `REVIEW_BY_AUTHOR` covers the diff's author (built); `supersedes` joins artifacts (built).

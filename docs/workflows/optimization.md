@@ -67,12 +67,14 @@ recomputed feasibility.
 - `VERIFIED_BY_SOLVER`: a review of a solution by its own author.
 - `OPTIMAL_ON_STALE_INSTANCE`: "optimal" bound to a solve whose instance is superseded.
 
-## For review
+## Review questions and decisions (2026-10-26)
 
-1. Is the modelling choice a hypothesis (proposed) or part of the experiment? Proposed: hypothesis, because it can
-   be wrong independently of the solve and should be revisable with its own version.
-2. Should the verifier's recomputation be an instrument job (the record re-checks feasibility mechanically, like it
-   re-runs code)? Proposed: yes in P3 — a `check_solution` reproducer that reads the instance and the solution
-   artifacts and prints `feasible`.
-3. Sensitivity: required field on the recommendation, or a separate result? Proposed: a `sensitivity` text field
-   on the decision, optional.
+1. *The model: hypothesis or experiment?* **Hypothesis** (`modelled`, gate `hypothesis_stated`): it can be wrong
+   independently of the solve and is revisable with its own version.
+2. *Mechanical feasibility recomputation?* **P3** (`check_solution` reproducer). Built now: `result_reviewed` —
+   the verifier's check on the result, by someone who is not its author — and `incumbent_verified` needs it on the
+   current instance.
+3. *Sensitivity?* **An optional `sensitivity` field on the decision.**
+
+Also decided: `SOLVED_WITHOUT_INSTANCE` refuses a solve result with no producing run as well as one whose run uses
+no instance — otherwise the gate is dodged by not linking the run.
