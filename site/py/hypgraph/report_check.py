@@ -311,6 +311,20 @@ _PAST_FIGURES = re.compile(r"\b(earlier|previous(?:ly)?|prior|older|original(?:l
                            re.I)
 
 
+_K_OF_N = re.compile(r"(?<![\w.,])(\d{1,3}(?:,\d{3})+|\d+)\s+(?:of|out of)\s+(?:the\s+)?(\d{1,3}(?:,\d{3})+|\d+)(?![\w.,])",
+                     re.I)
+
+
+def _rates(text: str) -> list[float]:
+    """The rate each count written as "k of n" implies: "812 of 1000" backs an answer of 0.812."""
+    out = []
+    for m in _K_OF_N.finditer(text or ""):
+        k, n = float(m.group(1).replace(",", "")), float(m.group(2).replace(",", ""))
+        if n > 0 and k <= n:
+            out.append(k / n)
+    return out
+
+
 def _num(v: object) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
@@ -328,6 +342,8 @@ class _Evidence:
     def add_values(self, values: dict) -> None:
         for k, v in values.items():
             if isinstance(v, dict):
+                if _num(v.get("k")) and _num(v.get("n")) and v["n"]:
+                    self.nums.append(float(v["k"]) / float(v["n"]))
                 v = v.get("value") if v.get("value") is not None else v.get("k")
             if _num(v) or isinstance(v, bool):
                 self.keyed.setdefault(str(k), []).append(v)
@@ -340,6 +356,7 @@ class _Evidence:
         for part in (b.get("statement", ""), b.get("scope", "")):
             for clause in _CLAUSE.split(part or ""):
                 found = [y for x, _d, pct, _p in numbers(clause) for y in ((x, x / 100) if pct else (x,))]
+                found += _rates(clause)
                 (self.past if _PAST_FIGURES.search(clause) else self.nums).extend(found)
         for m in b.get("measurements") or []:
             if not isinstance(m, dict):
@@ -349,6 +366,9 @@ class _Evidence:
             if isinstance(got["value"], dict):
                 got["value"] = got["value"].get("value")
             self.nums += [float(x) for x in got.values() if isinstance(x, (int, float)) and not isinstance(x, bool)]
+            k_, n_ = got["k"], got["n"]
+            if isinstance(k_, (int, float)) and isinstance(n_, (int, float)) and not isinstance(k_, bool) and n_:
+                self.nums.append(float(k_) / float(n_))             # a count backs its rate
             key = str(m.get("key") or m.get("name") or "")
             val = got["value"] if got["value"] is not None else got["k"]          # a count k of n is keyed by k
             if key and (_num(val) or isinstance(val, bool)):
@@ -427,7 +447,8 @@ def _check_answers(s: D.Snap, text: str, invs: set, by_code: dict, add, counted:
       REPORT_ANSWER_UNBACKED  no claim on the question states or binds the value; or the question has no claim at all
 
     Keys that are question codes (Q1, q1) scope each answer to its question; any other shape is checked against the
-    whole investigation. Results count through the claims that bind them — a result alone isn't an answer, and a
+    whole investigation. A count k of n (bound, or written "k of n") backs its rate. Results count through the claims
+    that bind them — a result alone isn't an answer, and a
     result with no link to the files it read can't go stale. True / false answers are checked by field: against a
     claim's measurement with the same key, when there is one."""
     blocks = list(_ANSWERS_BLOCK.finditer(text))

@@ -171,3 +171,14 @@ def test_numbers_in_answer_strings_count_and_urls_do_not():
     assert _codes(g, _report(ok), inv) == []
     found = g.check_text(_report({"Q1": {"answer": "830 of 1,000 items"}, "Q2": {"answer": "789"}}), inv)["findings"]
     assert [f["code"] for f in found] == ["REPORT_ANSWER_UNBACKED"] and "Q1.answer: 830" in found[0]["excerpt"]
+
+
+def test_a_count_backs_its_rate():
+    """HypSwarm's scripted reports answer accuracy as a rate (0.812) where the claim says "812 of 1000"."""
+    g, inv, q1, q2 = _record()
+    a1 = _file(g, inv, q2, SHA_A)
+    _count(g, inv, q1, a1, "a_correct", 827)
+    _count(g, inv, q2, a1, "b_correct", 789)
+    assert _codes(g, _report({"Q1": 0.827, "Q2": {"b_rate": 0.789}}), inv) == []
+    assert _codes(g, _report({"Q1": 0.83, "Q2": 0.789}), inv) == []                  # at the precision written
+    assert _codes(g, _report({"Q1": 0.828, "Q2": 0.789}), inv) == ["REPORT_ANSWER_UNBACKED"]
