@@ -103,21 +103,30 @@ team, and they can verify it without trusting you.
 ## One record, five disciplines
 
 The rules above are the scientific case written as code. A **profile** says what a domain means by evidence,
-acceptance and done — and the record enforces it, so it never depends on a prompt being followed. Pin one on the
-investigation (`"profile": "software@1"`); without one, the record behaves exactly as before.
+acceptance and done — and, from 0.5, carries the discipline's own **workflow**: the stages a question passes
+through, the gate out of each, what invalidates evidence, the typed shapes. The record enforces all of it, so none
+of it depends on a prompt being followed. Pin one on the investigation (`"profile": "software@2"`); without one, the
+record behaves exactly as before.
 
-| profile | an order is done when… | the record refuses | the investigation is done when |
+| profile | the stages a question passes through | the record refuses | done when |
 |---|---|---|---|
-| `scientific@1` | a checked claim answers the question | numbers no result accounts for, "never" without the count, "significant" without the test | every question is settled |
-| `software@1` | **the instrument ran the tests** (`tests_pass`) and a claim states it | *"it passes"* without an instrument-recorded run | every requirement's claim rests on a passing run |
-| `trading@1` | a backtest is **out of sample and after costs** (`backtested_oos`) | a backtest without the costs it charged; *"edge"* without both | a sized paper position is a decision based on the claim |
-| `knowledge@1` | the claim **cites a source node** the record holds (`sourced`) | a factual claim with no source | every claim cites a source |
-| `optimization@1` | a result carries **objective, feasible, and a bound or gap** (`feasible_bounded`) | an objective without feasibility; *"optimal"* without a bound | a feasible incumbent with a bound exists |
+| `scientific@2` | asked → conjectured → preregistered (**before** any run) → run → evidenced → claimed → reviewed | numbers no result accounts for, "never" without the count, "significant" without the test, a check on stale evidence | every question settled |
+| `software@2` | specified → implemented (a diff by hash) → verified (**the instrument ran the tests on that head**) → claimed → reviewed | *"it passes"* without an instrument run, or on a superseded head; the diff's author as its reviewer | every requirement's claim rests on a passing run on the current head |
+| `trading@2` | asked → thesised → preregistered → backtested (**out of sample, after costs, trials declared**) → claimed → risk-reviewed → positioned → monitored | a backtest without its costs; *"edge"* without both, or without the configurations tried; a position without size, stop, review date; any live order | questions settled, a position taken or declined, nothing past its review date |
+| `knowledge@2` | asked → (searched) → sourced (**the passage**, retrieved, kind) → claimed → checked | a claim with no source; a source without its passage | every claim cites a source and is checked |
+| `optimization@2` | posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked | an objective without feasibility; *"optimal"* without a bound, or on a changed instance; a solve that uses no instance | a feasible bounded incumbent, verified on the current instance |
 
-Profiles are versioned and frozen: a record written under `trading@1` means the same thing in a year, and a changed
-rule is `@2`. `completion(inv)` reports each criterion; the briefing names the profile and where it stands;
-`hypgraph serve` exposes `/api/graph/completion` and `/api/graph/profiles`. Adding a discipline is one `Profile` —
-vocabulary, default predicates, domain predicates, refusals, completion — and the rest of the record is unchanged.
+**The stage is derived, never set**: `g.stage(question)` reads it off the record (the first stage whose gate is not
+met, every gate MET / NOT MET with what would meet it); `GET /api/graph/stages`; MCP tool `stage`. A workflow
+widens what puts dependants AT RISK — `uses` (a corrected data file, a superseded diff or instance), `cites` (a
+withdrawn source) — and evidence goes **stale** when the artifact it used is superseded or its `valid_until` has
+passed. An honest "it can't be answered" (a checked `inconclusive` claim), a declined thesis (`no_position`) and a
+verified failure each complete a question the gates alone never would.
+
+Profiles are versioned and frozen: a record written under `trading@1` means the same thing in a year, and the `@1`
+profiles stay exactly as they were. `completion(inv)` reports each criterion; `hypgraph serve` exposes
+`/api/graph/completion` and `/api/graph/profiles`. The method each workflow is taken from is quoted, one page each,
+in [docs/workflows/](docs/workflows/). Adding a discipline is one `Profile` with a `Workflow`.
 
 ## Connect your agent
 
