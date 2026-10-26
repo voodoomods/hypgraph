@@ -68,10 +68,14 @@ passed without a newer result.
 - `BACKTEST_AFTER_PROTOCOL_EDIT`: an experiment revised after its run (a changed window) — allowed, but the result
   is re-ranked `in_sample`.
 
-## For review
+## Review questions and decisions (2026-10-26)
 
-1. Is `trials` (configurations tried) something agents will report honestly? Proposed: the instrument counts the
-   parameter grid in the registered code where it can, and the agent's number is checked against it.
-2. `review_date` default: 30 days? Proposed: required, no default.
-3. Should the regime notice be a host action only (as now) or can the quant raise it? Proposed: host or risk seat,
-   never the quant who holds the thesis.
+1. *Will agents report `trials` honestly?* **Required now, checked later**: `backtested` and `EDGE_WITHOUT_TRIALS`
+   need the value; the instrument's count of the parameter grid is P3.
+2. *`review_date` default?* **Required, no default** (`POSITION_WITHOUT_STOP` names what is missing).
+3. *Who raises a regime notice?* **The host or the risk seat**: it is a withdrawal (or supersession) of the data
+   artifact, which only they write; `uses` then carries it to every position.
+
+Also decided: `still_valid` counts a result as newer only if written after both the review date and the position
+(the evidence a position was taken on doesn't renew it). `BACKTEST_AFTER_PROTOCOL_EDIT` is not a separate refusal:
+`preregistered` already names an experiment written after its run.

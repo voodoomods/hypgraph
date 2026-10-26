@@ -6,16 +6,20 @@ A profile is a named, versioned set of
   vocabulary     what each node type means in the domain (shown to agents, never enforced)
   done_when      the default predicates an order on each target type must meet
   predicates     domain predicates the record can check (beyond coord.PREDICATES)
-  validators     domain refusals at write time, on claims and results
+  validators     domain refusals at write time, on claims, results, artifacts, sources and decisions
   completion     what "the investigation is done" means, as criteria the record derives
+  workflow       (@2) the discipline's own method as stages with gates, what invalidates evidence, what "fresh"
+                 means, the typed artifacts — see docs/workflows/ and workflow.py
 
 An investigation pins ``profile: "software@1"``. Without one, nothing changes: ``scientific@1`` is today's behaviour
-and is what the engine does with no profile at all. Rules never change under a version; a changed rule is @2.
+and is what the engine does with no profile at all. Rules never change under a version; a changed rule is @2. The
+``@2`` profiles carry a workflow; the ``@1`` profiles are frozen as they were.
 
     from hypgraph import profiles
-    profiles.get("trading@1").about
-    g.create(author=..., type="investigation", fields={..., "profile": "software@1"})
+    profiles.get("trading@2").workflow.stages
+    g.create(author=..., type="investigation", fields={..., "profile": "software@2"})
     g.completion(inv)      # {"profile", "criteria": [{name, met, why}], "complete"}
+    g.stage(q)             # the stage a question is in, derived from the record, never set
 """
 
 from __future__ import annotations
@@ -31,6 +35,29 @@ from .checks import Problem
 
 
 @dataclass(frozen=True)
+class Stage:
+    """One stage of a discipline's workflow. A question is in the first stage whose gate is not met; the stage is
+    read off the record, never written. ``gate`` names a check in workflow.GATES."""
+    name: str
+    holds: str                                            # what the record holds at this stage, one line
+    gate: str                                             # the gate out of it
+    who: str = ""                                         # the seat that works it (suggested)
+    optional: bool = False                                # reported, never blocks the stage derivation
+
+
+@dataclass(frozen=True)
+class Workflow:
+    """A discipline's method as the record enforces it: stages and gates, the relations whose far end falling puts
+    dependants AT RISK beyond schema.RISKY, the typed artifacts / sources / decisions and their required fields."""
+    method: str                                           # the method it is taken from (quoted in docs/workflows/)
+    stages: tuple = ()                                    # Stage, in order
+    invalidates: tuple = ()                               # relations added to schema.RISKY for this profile
+    artifacts: dict = field(default_factory=dict)         # artifact kind → required meta keys (path always required)
+    decisions: dict = field(default_factory=dict)         # decision kind → required fields
+    report: str = "Facts from the record"                 # the report's name
+
+
+@dataclass(frozen=True)
 class Profile:
     name: str
     version: int
@@ -41,6 +68,7 @@ class Profile:
     validators: tuple = ()                                # names from _CLAIM_VALIDATORS / _RESULT_VALIDATORS
     completion: tuple = ("questions_settled",)            # names from _CRITERIA
     seats: tuple = ()                                     # suggested seat templates: (name, role, takes...)
+    workflow: Workflow | None = None                      # @2: the discipline's workflow (None = kernel defaults)
 
     @property
     def id(self) -> str:
@@ -55,6 +83,26 @@ PRED_DESC = {
     "sourced": "a claim on the target that cites a live source node, written after the order",
     "feasible_bounded": "a result on the target whose values carry objective, feasible (true) and a bound or gap, "
                         "written after the order",
+    # workflow gates usable as order predicates (evaluated over the target's question by workflow.py)
+    "hypothesis_stated": "a live hypothesis answers the target's question, with at least one prediction",
+    "preregistered": "an experiment tests a hypothesis on the target with its expected outcome stated, written "
+                     "before any run that executes it",
+    "decided": "a live decision based_on a claim or result on the target",
+    "diff_registered": "an artifact kind=diff (meta: base_sha, head_sha, files) part_of the target's question",
+    "tests_pass_current": "a positive result from an instrument run that uses the current diff — tests on a "
+                          "superseded head don't count",
+    "instance_registered": "an artifact kind=instance part_of the target's question",
+    "source_quoted": "a live source with the passage that says it and a retrieved date, part_of the question or "
+                     "cited on it",
+    "search_recorded": "an experiment with method=search on the question: where it looked and what it excluded",
+    "backtested": "a result on the target with an out-of-sample measure, a cost measure and the number of "
+                  "configurations tried (trials)",
+    "positioned": "a decision kind=position based_on a claim on the target, with size, stop, review_date and "
+                  "paper=true",
+    "still_valid": "no position on the target is past its review_date without a newer result",
+    "solved": "a result on the target with objective, feasible and a bound or gap — or feasible=false, which "
+              "settles infeasibility",
+    "result_reviewed": "a live result on the target checked by a reviewer who is not its author",
 }
 RECIPES = {
     "tests_pass": {"*": "register_run with the exact test command as code — the instrument re-executes it and files "
@@ -64,6 +112,28 @@ RECIPES = {
     "sourced": {"*": "graph_add(type=\"source\", {citation, url|doi, passage}) then the claim with links "
                      "[{\"rel\": \"cites\", \"to\": <source>}]"},
     "feasible_bounded": {"*": "register_run with values {objective: …, feasible: true, bound: … | gap: …}"},
+    "hypothesis_stated": {"*": "graph_add(type=\"hypothesis\", {statement, predictions: [...]}, links=[{\"rel\": "
+                               "\"answers\", \"to\": <question>}])"},
+    "preregistered": {"*": "graph_add(type=\"experiment\", {aim, protocol, success_criteria}, links=[{\"rel\": "
+                            "\"tests\", \"to\": <hypothesis>, \"data\": {\"expected\": …}}]) BEFORE register_run"},
+    "decided": {"*": "graph_add(type=\"decision\", {choice, reasons}, links=[{\"rel\": \"based_on\", \"to\": <claim>}])"},
+    "diff_registered": {"*": "graph_add(type=\"artifact\", {sha256, path, kind: \"diff\", meta: {base_sha, head_sha, "
+                             "files}}, links=[{\"rel\": \"part_of\", \"to\": <question>}])"},
+    "tests_pass_current": {"*": "register_run with the test command as code and the diff artifact in uses; the "
+                                "instrument's re-run on the current head is what meets this"},
+    "instance_registered": {"*": "graph_add(type=\"artifact\", {sha256, path, kind: \"instance\"}, links=[{\"rel\": "
+                                 "\"part_of\", \"to\": <question>}]); the solve run then uses it"},
+    "source_quoted": {"*": "graph_add(type=\"source\", {citation, url|doi, passage, retrieved, kind}, links=[{\"rel\": "
+                           "\"part_of\", \"to\": <question>}])"},
+    "search_recorded": {"*": "graph_add(type=\"experiment\", {aim, protocol: where you looked and what you excluded, "
+                             "success_criteria, method: \"search\"}, links=[{\"rel\": \"part_of\", \"to\": <question>}])"},
+    "backtested": {"*": "register_run with values {oos_return…, fees…, trials: <configurations tried>}"},
+    "positioned": {"*": "graph_add(type=\"decision\", {choice, reasons, kind: \"position\", size, stop, review_date, "
+                        "paper: true}, links=[{\"rel\": \"based_on\", \"to\": <claim>}])"},
+    "still_valid": {"*": "register a newer result on the thesis before the position's review_date passes"},
+    "solved": {"*": "register_run that uses the instance artifact, with values {objective, feasible, bound | gap}"},
+    "result_reviewed": {"*": "a verifier reviews the result: recompute feasibility against the instance, then "
+                             "review(<result>, \"checked\", method, notes)"},
 }
 
 PROFILES: dict[str, Profile] = {}
@@ -71,6 +141,8 @@ PROFILES: dict[str, Profile] = {}
 
 def _add(p: Profile) -> Profile:
     PROFILES[p.id] = p
+    if p.workflow and p.workflow.invalidates:
+        D.EXTRA_RISKY[p.id] = tuple(p.workflow.invalidates)
     return p
 
 
@@ -142,11 +214,164 @@ OPTIMIZATION = _add(Profile(
 ))
 
 
+# ── @2: the same disciplines with their workflows (docs/workflows/<name>.md). @1 stays as it was. ──────────────
+
+_S = Stage
+
+SCIENTIFIC2 = _add(Profile(
+    "scientific", 2, SCIENTIFIC.about + " With the hypothetico-deductive workflow: preregistered tests, a corrected "
+    "data file puts what rested on it at risk, stale evidence can't be checked.",
+    vocabulary=SCIENTIFIC.vocabulary,
+    done_when={"question": [{"p": "hypothesis_stated"}, {"p": "preregistered"}, {"p": "claim_made"}],
+               "hypothesis": [{"p": "preregistered"}, {"p": "result_exists"}, {"p": "claim_made"}],
+               "experiment": [{"p": "run_registered"}, {"p": "result_exists"}], "claim": [{"p": "reviewed"}]},
+    predicates=("hypothesis_stated", "preregistered", "decided"),
+    completion=("questions_settled",), seats=SCIENTIFIC.seats,
+    workflow=Workflow(
+        method="The hypothetico-deductive method with preregistration: hypothesis and analysis stated before the "
+               "outcome is seen; a finding stands on independent lines of evidence (Popper; Center for Open Science).",
+        stages=(_S("asked", "a question", "stated", "lead"),
+                _S("conjectured", "a hypothesis with predictions answers it", "hypothesis_stated", "lead / worker"),
+                _S("preregistered", "an experiment tests it with the expected outcome, before any run", "preregistered", "worker"),
+                _S("run", "a run executes the experiment", "run_registered", "worker, instrument"),
+                _S("evidenced", "a result the run produced", "result_exists", "worker, instrument"),
+                _S("claimed", "a claim with its numbers bound answers the question", "claim_made", "worker"),
+                _S("reviewed", "a reviewer who is not the author checked it, on fresh evidence", "reviewed", "reviewer"),
+                _S("decided", "a decision based on the claim", "decided", "lead", optional=True)),
+        invalidates=("uses",),
+        artifacts={"data": (), "protocol": (), "figure": ()},
+    )))
+
+SOFTWARE2 = _add(Profile(
+    "software", 2, SOFTWARE.about + " With the continuous-integration workflow: a diff by base and head sha, tests "
+    "that count only on the current head, a newer head supersedes the old evidence.",
+    vocabulary=SOFTWARE.vocabulary | {"artifact": "a diff (kind=diff: base_sha, head_sha, files), a test run, a build"},
+    done_when={"question": [{"p": "diff_registered"}, {"p": "tests_pass_current"}, {"p": "claim_made"}],
+               "experiment": [{"p": "tests_pass"}], "claim": [{"p": "reviewed"}]},
+    predicates=("tests_pass", "diff_registered", "tests_pass_current", "decided"),
+    validators=("pass_needs_instrument", "pass_needs_current_head"),
+    completion=("questions_settled", "requirements_verified_current"),
+    seats=SOFTWARE.seats,
+    workflow=Workflow(
+        method="Continuous integration and code review: every change is built and tested by a machine on that "
+               "change; author and approver differ; a later commit re-opens the question (Fowler; the pull-request "
+               "review norm; trunk-based delivery).",
+        stages=(_S("specified", "the requirement with its acceptance (an experiment = the test plan)", "stated", "lead"),
+                _S("implemented", "a diff artifact: base_sha → head_sha, files", "diff_registered", "implementer"),
+                _S("verified", "the instrument ran the tests on that head", "tests_pass_current", "tester, instrument"),
+                _S("claimed", "a claim 'requirement met' bound to the lab result", "claim_made", "tester"),
+                _S("reviewed", "a reviewer who authored neither the claim nor the diff checked it", "reviewed", "reviewer"),
+                _S("released", "a decision: merge / ship / hold, with the head it releases", "decided", "lead", optional=True)),
+        invalidates=("uses",),
+        artifacts={"diff": ("base_sha", "head_sha", "files"), "test_run": ("command", "exit_code"), "build": ("head_sha",)},
+        report="Change report",
+    )))
+
+TRADING2 = _add(Profile(
+    "trading", 2, TRADING.about + " With the preregistered-backtest workflow: windows and costs fixed before the run, "
+    "configurations tried declared, a position with size, stop and review date, evidence that expires.",
+    vocabulary=TRADING.vocabulary | {"decision": "a paper position (kind=position): size, stop, review_date, paper=true",
+                                     "artifact": "the price data (kind=prices) and the backtest code (kind=backtest)"},
+    done_when={"question": [{"p": "hypothesis_stated"}, {"p": "preregistered"}, {"p": "backtested"}, {"p": "claim_made"}],
+               "hypothesis": [{"p": "preregistered"}, {"p": "backtested"}],
+               "experiment": [{"p": "run_registered"}, {"p": "backtested"}], "claim": [{"p": "reviewed"}]},
+    predicates=("backtested_oos", "hypothesis_stated", "preregistered", "backtested", "positioned", "still_valid"),
+    validators=("edge_needs_oos_costs", "backtest_needs_costs", "edge_needs_trials", "position_needs_risk", "no_live_orders"),
+    completion=("questions_settled", "position_sized", "nothing_past_review"),
+    seats=TRADING.seats,
+    workflow=Workflow(
+        method="Quantitative strategy research as its sceptics practise it: the backtest's windows, costs and rules "
+               "are fixed before it runs; only out-of-sample, after-cost results speak to an edge; the number of "
+               "configurations tried is part of the result (Bailey, Borwein, López de Prado & Zhu on backtest "
+               "overfitting; walk-forward validation); a position is a sized decision with a stop and a review date, "
+               "taken by someone other than the analyst. No live-order path exists.",
+        stages=(_S("asked", "the market question", "stated", "lead"),
+                _S("thesised", "a hypothesis: the move, the horizon, the universe", "hypothesis_stated", "quant"),
+                _S("preregistered", "an experiment: windows, costs, rules, configurations to try — before the run", "preregistered", "quant"),
+                _S("backtested", "a result out of sample, after costs, with trials declared", "backtested", "quant, instrument"),
+                _S("claimed", "a claim about the edge or its absence", "claim_made", "quant"),
+                _S("risk-reviewed", "the risk seat checked it", "reviewed", "risk"),
+                _S("positioned", "a decision kind=position: size, stop, review_date, paper", "positioned", "lead"),
+                _S("monitored", "nothing past its review date without a newer result", "still_valid", "quant, risk")),
+        invalidates=("uses",),
+        artifacts={"prices": ("from", "to", "frequency"), "backtest": ("trials",)},
+        decisions={"position": ("size", "stop", "review_date", "paper")},
+        report="Desk note",
+    )))
+
+KNOWLEDGE2 = _add(Profile(
+    "knowledge", 2, KNOWLEDGE.about + " With the source-criticism workflow: the passage that says it, the source's "
+    "kind and date, a check by someone else, and a withdrawn source puts every claim citing it at risk.",
+    vocabulary=KNOWLEDGE.vocabulary | {"source": "a document, page or dataset: citation, url|doi, the passage that "
+                                       "says it, retrieved date, kind (primary / secondary / tertiary)"},
+    done_when={"question": [{"p": "source_quoted"}, {"p": "sourced"}], "claim": [{"p": "reviewed"}]},
+    predicates=("sourced", "source_quoted", "search_recorded"),
+    validators=("claim_needs_source", "source_needs_passage"),
+    completion=("questions_settled", "all_sourced", "all_checked"),
+    seats=KNOWLEDGE.seats,
+    workflow=Workflow(
+        method="Source criticism and professional fact-checking: a statement is as good as the source that says it, "
+               "the passage is quoted, the source's kind and date are part of the claim, and a check is done by "
+               "someone who did not write it (external and internal criticism of sources; the IFCN code; the "
+               "systematic-review record of what was searched).",
+        stages=(_S("asked", "a question", "stated", "lead"),
+                _S("searched", "an experiment method=search: where it looked, what it excluded", "search_recorded", "researcher", optional=True),
+                _S("sourced", "a source with the passage and the retrieved date", "source_quoted", "researcher"),
+                _S("claimed", "a claim that cites the source", "sourced", "researcher"),
+                _S("checked", "the fact-checker opened the source and checked it", "reviewed", "fact_checker")),
+        invalidates=("cites",),
+        artifacts={"excerpt": ("source",)},
+        report="Sourced brief",
+    )))
+
+OPTIMIZATION2 = _add(Profile(
+    "optimization", 2, OPTIMIZATION.about + " With the operations-research workflow: the instance registered by hash, "
+    "the model as a hypothesis, the configuration before the solve, feasibility recomputed by a verifier, a changed "
+    "instance supersedes the solve.",
+    vocabulary=OPTIMIZATION.vocabulary | {"artifact": "the instance (kind=instance) and the solution (kind=solution)"},
+    done_when={"question": [{"p": "instance_registered"}, {"p": "solved"}, {"p": "claim_made"}],
+               "experiment": [{"p": "solved"}], "result": [{"p": "result_reviewed"}], "claim": [{"p": "reviewed"}]},
+    predicates=("feasible_bounded", "instance_registered", "hypothesis_stated", "preregistered", "solved",
+                "result_reviewed", "decided"),
+    validators=("optimal_needs_bound", "objective_needs_feasibility", "solve_needs_instance", "optimal_needs_fresh_instance"),
+    completion=("questions_settled", "incumbent_feasible", "incumbent_verified"),
+    seats=OPTIMIZATION.seats,
+    workflow=Workflow(
+        method="Operations-research practice: model before solving; a solution is only a solution if feasible; "
+               "'optimal' is a statement about a bound (the MIP gap convention); the solver's answer is verified "
+               "against the instance by someone other than the modeller; a recommendation says how it moves with "
+               "the data (Williams, Model Building in Mathematical Programming).",
+        stages=(_S("posed", "the question and the instance artifact", "instance_registered", "lead"),
+                _S("modelled", "a hypothesis: the modelling choice", "hypothesis_stated", "modeller"),
+                _S("configured", "an experiment: solver, limits, tolerances — before the solve", "preregistered", "solver"),
+                _S("solved", "a result: objective, feasible, bound / gap (or infeasible)", "solved", "solver, instrument"),
+                _S("verified", "a verifier recomputed feasibility and checked the result", "result_reviewed", "verifier"),
+                _S("claimed", "a claim: best found with its gap, or optimal with its bound", "claim_made", "solver"),
+                _S("recommended", "a decision: the incumbent to use, with its sensitivity", "decided", "lead", optional=True)),
+        invalidates=("uses",),
+        artifacts={"instance": (), "solution": ("objective", "feasible"), "model": ("solver",)},
+        report="Solution report",
+    )))
+
+
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
     if not p:
         raise KeyError(f"unknown profile {pid!r}; profiles: {', '.join(sorted(PROFILES))}")
     return p
+
+
+def latest(name: str) -> Profile:
+    """The newest version of a profile by name."""
+    cands = [p for p in PROFILES.values() if p.name == str(name or "").strip().lower()]
+    if not cands:
+        raise KeyError(f"unknown profile {name!r}")
+    return max(cands, key=lambda p: p.version)
+
+
+def workflow_of(s: D.Snap, inv: str) -> Workflow | None:
+    p = profile_of(s, inv)
+    return p.workflow if p else None
 
 
 def validate_profile_id(pid) -> str:
@@ -272,6 +497,9 @@ def evaluate(p: str, s: D.Snap, oid: str, t: str, at: str, who: str, inv: str) -
                 ids.append(r)
         return {"met": bool(ids), "evidence": ids,
                 "why": "" if ids else "no result with objective, feasible=true and a bound or gap since the order"}
+    from . import workflow as W                 # the workflow gates double as order predicates
+    if p in W.GATES:
+        return W.evaluate_predicate(p, s, t, at, inv, who)
     return {"met": False, "evidence": [], "why": f"unknown predicate {p!r}"}
 
 
@@ -317,10 +545,13 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
             out.append(Problem("CLAIM_WITHOUT_SOURCE", "a knowledge claim must cite a source node (citation, url or doi, "
                                "the passage) — the record holds what was read, not what was recalled",
                                fix="graph_add a source, then link the claim with {\"rel\": \"cites\", \"to\": <source>}"))
+    if p.workflow:
+        from . import workflow as W
+        out += W.claim_issues(p, s, inv, body, support, pending)
     return out
 
 
-def result_issues(s: D.Snap, inv: str, body: dict) -> list[Problem]:
+def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None) -> list[Problem]:
     p = profile_of(s, inv)
     if not p:
         return []
@@ -333,7 +564,28 @@ def result_issues(s: D.Snap, inv: str, body: dict) -> list[Problem]:
             not _has(v, r"fee|cost|slippage|commission"):
         out.append(Problem("BACKTEST_WITHOUT_COSTS", "a backtest result reports returns without the costs it charged",
                            fix="add values for fees and slippage (zero is a value; absence isn't)"))
+    if p.workflow:
+        from . import workflow as W
+        out += W.result_issues(p, s, inv, body, pending or [])
     return out
+
+
+def node_issues(s: D.Snap, inv: str, ntype: str, body: dict, pending: list) -> list[Problem]:
+    """Workflow refusals on artifacts, sources and decisions (@2 profiles only)."""
+    p = profile_of(s, inv)
+    if not p or not p.workflow:
+        return []
+    from . import workflow as W
+    return W.node_issues(p, s, inv, ntype, body, pending)
+
+
+def review_refusal(s: D.Snap, inv: str, target: str, author: str) -> str:
+    """Why a workflow refuses this review ('' = none): e.g. the reviewer authored the diff under the claim."""
+    p = profile_of(s, inv)
+    if not p or not p.workflow:
+        return ""
+    from . import workflow as W
+    return W.review_refusal(p, s, target, author)
 
 
 # ── completion ────────────────────────────────────────────────────
@@ -385,6 +637,10 @@ def _criterion(name: str, s: D.Snap, inv: str) -> dict:
                 in (True, 1, "true", "True") and ({"bound", "gap"} & set(_vals(s.nodes[r]["body"])))]
         return {"name": name, "met": bool(good), "why": f"{len(good)} feasible incumbent(s) with a bound" if good else
                 "no result with objective, feasible=true and a bound or gap"}
+    if name in ("requirements_verified_current", "position_sized", "nothing_past_review", "all_checked",
+                "incumbent_verified"):
+        from . import workflow as W
+        return {"name": name, **W.criterion(name, s, inv)}
     return {"name": name, "met": False, "why": "unknown criterion"}
 
 
@@ -395,11 +651,22 @@ def completion(s: D.Snap, inv: str) -> dict:
             "criteria": crit, "complete": all(c["met"] for c in crit)}
 
 
+def _wf(w: Workflow | None) -> dict | None:
+    if not w:
+        return None
+    return {"method": w.method, "report": w.report, "invalidates": list(w.invalidates),
+            "stages": [{"name": st.name, "holds": st.holds, "gate": st.gate, "who": st.who, "optional": st.optional}
+                       for st in w.stages],
+            "artifacts": {k: ["path", *v] for k, v in w.artifacts.items()},
+            "decisions": {k: list(v) for k, v in w.decisions.items()}}
+
+
 def describe() -> dict:
     return {pid: {"about": p.about, "vocabulary": p.vocabulary, "done_when": p.done_when, "predicates": list(p.predicates),
                   "validators": list(p.validators), "completion": list(p.completion),
-                  "seats": [list(x) for x in p.seats]} for pid, p in PROFILES.items()}
+                  "seats": [list(x) for x in p.seats], "workflow": _wf(p.workflow)} for pid, p in PROFILES.items()}
 
 
-__all__ = ["PRED_DESC", "PROFILES", "Profile", "RECIPES", "claim_issues", "completion", "default_done", "describe",
-           "evaluate", "get", "profile_of", "result_issues", "validate_profile_id"]
+__all__ = ["PRED_DESC", "PROFILES", "Profile", "RECIPES", "Stage", "Workflow", "claim_issues", "completion",
+           "default_done", "describe", "evaluate", "get", "latest", "node_issues", "profile_of", "result_issues",
+           "review_refusal", "validate_profile_id", "workflow_of"]

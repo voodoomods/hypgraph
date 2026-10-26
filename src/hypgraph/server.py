@@ -174,6 +174,10 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
             return 200, g.report(inv)
         if head == "completion":
             return 200, g.completion(inv)
+        if head == "stages":
+            return 200, {"stages": g.stages(inv)}
+        if head == "stage" and arg:
+            return 200, g.stage(arg, inv)
         if head == "profiles":
             return 200, profiles.describe()
         if head == "verify":

@@ -241,15 +241,20 @@ class Graph:
             if any(v["expires"] <= t for v in s.leases.values()):          # leases expire without a write
                 s.leases = {k: v for k, v in s.leases.items() if v["expires"] > t}
                 s._state.clear()
+            if t[:10] != (s.now or "")[:10]:                                # a day turned: freshness may have changed
+                s._state.clear()
+            s.now = t
             return s
         with self._snap_lock:
             if self._snap is not None and self._snap.sig == sig:
+                self._snap.now = self.clock()
                 return self._snap
             con = self._connect()
             snap = self._delta(con, self._snap) if self._snap is not None else None
             if snap is None:
                 snap = self._rebuild(con)
             snap.sig = sig
+            snap.now = self.clock()
             self._snap = snap
             return snap
 
@@ -618,12 +623,21 @@ class Graph:
                                                 problems=found, support=self._support_ids(s, nid, pending))
                         raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems), found)
                 if type == "result" and author not in P.curators:
-                    rp = profiles.result_issues(s, inv, body)
+                    rp = profiles.result_issues(s, inv, body, pending)
                     if rp:
                         found = [p.to_dict() for p in rp]
                         refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
                                                 problems=found, support=[])
                         raise GraphError("result refused:\n- " + "\n- ".join(p.text() for p in rp), found)
+                if type in ("artifact", "source", "decision") and author not in P.curators:
+                    np_ = profiles.node_issues(s, inv, type, body, pending)       # the workflow's typed shapes
+                    if np_:
+                        found = [p.to_dict() for p in np_]
+                        refusals.record_refusal(self, author=author, op="create", inv=inv, node="",
+                                                body={"statement": str(body.get("choice") or body.get("citation")
+                                                                       or body.get("path") or ""), "kind": type},
+                                                problems=found)
+                        raise GraphError(f"{type} refused:\n- " + "\n- ".join(p.text() for p in np_), found)
                 if type == "result" and author not in P.reserved:
                     same = self._restated_by(s, body, inv, nid)
                     runs = [a for a, rel, b in pending if rel == "produced" and b == nid]
@@ -943,6 +957,10 @@ class Graph:
                 if official and author == n["created_by"] and author not in P.curators:
                     who = ", ".join(sorted(D.board(s, target) - P.curators - {author})[:6]) or "another reviewer"
                     raise GraphError(f"you can't review your own work — ask a reviewer ({who})")
+                if official and author not in P.curators:
+                    why = profiles.review_refusal(s, n["inv"], target, author)
+                    if why:
+                        raise GraphError(why)
                 if verdict not in VERDICTS:
                     raise GraphError(f"verdict must be one of {', '.join(sorted(VERDICTS))}")
                 body = clean_body("review", {"verdict": verdict if official or verdict == "comment" else "comment",
@@ -1214,6 +1232,19 @@ class Graph:
     def completion(self, inv: str) -> dict:
         """What the investigation's profile says "done" means, each criterion derived from the record."""
         return profiles.completion(self.snapshot(), self.resolve(inv))
+
+    def stage(self, node: str, inv: str = "") -> dict:
+        """The workflow stage a question (or the question a node is about) is in — derived from the record, never
+        set: the first stage whose gate is not met, with every gate's status (workflow.stage_of)."""
+        from . import workflow
+        s = self.snapshot()
+        return workflow.stage_of(s, self.resolve(node, inv), s.now)
+
+    def stages(self, inv: str) -> list[dict]:
+        """stage() for every live question of an investigation."""
+        from . import workflow
+        s = self.snapshot()
+        return workflow.stages(s, self.resolve(inv), s.now)
 
     def question_board(self, inv: str) -> list[dict]:
         """Every live question with its derived status (coord.question_board)."""

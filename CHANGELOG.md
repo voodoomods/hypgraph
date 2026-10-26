@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.5.0 — 2026-10-26: profiles carry their discipline's workflow
+
+Each discipline's method, as the record enforces it — one page each in `docs/workflows/`, taken from the method
+itself (hypothetico-deductive with preregistration; continuous integration and code review; preregistered
+backtesting and risk management; source criticism and fact-checking; operations-research practice). The `@1`
+profiles are frozen as they were; `scientific@2` … `optimization@2` add the workflow. No profile → unchanged.
+
+- **The stage is derived, never set.** `Graph.stage(question)` / `stages(inv)`, `GET /stage/{id}` / `/stages`, MCP
+  `stage`: a question is in the first stage whose gate the record does not meet, every gate MET / NOT MET with what
+  would meet it. `Profile.workflow` (`Workflow`, `Stage`) holds the stages, gates, invalidation, typed shapes.
+- **Gates double as order predicates**: `hypothesis_stated`, `preregistered` (the experiment, with its expected
+  outcome, precedes any run that executes it), `decided`, `diff_registered`, `tests_pass_current`,
+  `instance_registered`, `source_quoted`, `search_recorded`, `backtested` (out of sample, after costs, trials
+  declared), `positioned`, `still_valid`, `solved`, `result_reviewed`. The `@2` profiles' `done_when` use them.
+- **A workflow widens what counts as resting on.** `uses` (scientific, software, trading, optimization) and `cites`
+  (knowledge) join `schema.RISKY` for that profile only (`derive.EXTRA_RISKY`): a corrected data file, a superseded
+  diff or instance, a withdrawn source puts what rested on it AT RISK. Records under `@1` keep exactly the standing
+  they had.
+- **Freshness** (`derive.stale`, in every standing): a result whose run used an artifact that is now superseded or
+  withdrawn, or whose new `valid_until` has passed, is STALE; a claim is stale when every result behind it is. A
+  check on stale evidence doesn't meet `reviewed`; `requirements_verified_current` and `incumbent_verified` need
+  fresh instrument runs.
+- **Typed shapes.** `artifact.kind` + `artifact.meta` with required fields per workflow (`diff`: base_sha,
+  head_sha, files; `instance`; `prices`; `solution`: objective, feasible …) → `ARTIFACT_MISSING_FIELDS`;
+  `source.kind` primary / secondary / tertiary and `reliability`; `decision.kind` with `size`, `stop`,
+  `review_date`, `paper`, `sensitivity`. `supersedes` now joins artifacts; `corrects` joins sources.
+- **The disciplines' refusals**: `TESTS_ON_STALE_HEAD`, `REVIEW_BY_AUTHOR` (the diff's author can't check the
+  claim), `EDGE_WITHOUT_TRIALS`, `POSITION_WITHOUT_STOP`, `LIVE_ORDER` (no such path exists), `PASSAGE_MISSING`,
+  `SOLVED_WITHOUT_INSTANCE`, `OPTIMAL_ON_STALE_INSTANCE`.
+- **Report**: under an `@2` profile, `report()` adds the workflow's section — each question's stage and next gate,
+  and the evidence that has gone stale.
+- Schema additions are fields and relation endpoints only; no migration. Deferred to later phases, and said so in
+  the specs: per-workflow evidence rank (documented, not derived), the knowledge re-fetch check and
+  `NUMBER_NOT_IN_PASSAGE`, CI as the software instrument, mechanical feasibility recomputation.
+
 ## 0.4.3 — 2026-10-26
 
 Five vocabulary-friction fixes from the HypSwarm discovery study, where 110 of 118 refusals were binding, naming

@@ -87,6 +87,12 @@ Two cross-cutting rules the workflow makes possible and the kernel can't express
 P1 is the considerable part: two to three days of kernel work with tests, and the first schema version bump that
 needs a migration story. P0 is a day and decides whether P1 is right. P3 is the only spend.
 
+**Status (2026-10-26).** P0 written (`docs/workflows/`), P1 built as hypgraph 0.5.0 (`workflow.py`,
+`tests/test_workflows.py`; CHANGELOG). The schema change turned out additive (fields and relation endpoints), so
+no migration: `@1` records derive exactly as before, the `@2` profiles opt in. Left for later phases, each named in
+its spec: per-workflow evidence rank (documented, not derived), the knowledge re-fetch check, CI as the software
+instrument, mechanical feasibility recomputation (P3). P2 (HypSwarm issues orders from stages) is next.
+
 ## 4. What stays as it is, on purpose
 
 - Twelve node types. A commit is an artifact with required fields, not a new type; a position is a decision with

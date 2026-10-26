@@ -69,9 +69,14 @@ review.
   this is the converse refusal).
 - `TERTIARY_ONLY` (warning): a finding resting only on tertiary sources.
 
-## For review
+## Review questions and decisions (2026-10-26)
 
-1. Should `search_recorded` be a required stage? Proposed: optional, required by task (`systematic: true`).
-2. The re-fetch check needs the host's fetch tool at review time; is that in scope for P1 or P3? Proposed: P3.
-3. Source `kind` is the researcher's judgement; should the fact-checker be able to re-kind it (a review that
-   `corrects` the source)? Proposed: yes, via `corrects`.
+1. *Is `searched` required?* **Optional** (reported, never blocks); a task that wants a systematic answer puts
+   `search_recorded` in its `done_when`.
+2. *The re-fetch check?* **P3**, with `NUMBER_NOT_IN_PASSAGE`; both need the host's fetch at review time.
+3. *Can the fact-checker re-kind a source?* **Yes**: `corrects` now joins sources; the correcting source carries
+   the kind, and the old one is superseded.
+
+Also decided: "compiled" is not a question stage — the report is investigation-level and stays under completion
+(`report_clean` on the investigation order). The knowledge stages are asked → searched (optional) → sourced →
+claimed → checked.

@@ -24,4 +24,7 @@ Conventions used in every spec:
 | [knowledge](knowledge.md) | source criticism, fact-checking practice | a retracted or superseded source |
 | [optimization](optimization.md) | operations-research practice: model, solve, bound, verify | a changed instance after the solve |
 
-Review questions are at the end of each spec. Nothing here is implemented.
+Each spec ends with its review questions and the decision taken on each (2026-10-26). **Built as hypgraph 0.5.0**
+(`src/hypgraph/workflow.py`, the `@2` profiles in `profiles.py`, `tests/test_workflows.py`): the stages and gates,
+`Graph.stage()`, the invalidation relations, freshness, the typed shapes and the refusals. What each spec defers to
+a later phase is named in its decisions.
