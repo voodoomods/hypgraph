@@ -129,6 +129,7 @@ def markdown(md: str) -> tuple[str, list[tuple[str, str]]]:
 def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str) -> str:
     nav = "".join(f'<a href="{h}"{" aria-current=\"page\"" if h == current else ""}{c}>{t}</a>'
                   for h, t, c in (("../agents/", "Agents", ""), ("../engineers/", "Engineers", ""), ("../never/", "Never", ""),
+                                  ("../#workflows", "Workflows", ' class="hide-sm"'),
                                   ("../play/", "Playground", ' class="hide-sm"'), ("../verify/", "Verify", ' class="hide-sm"'),
                                   ("../spec/", "Spec", ' class="hide-sm"'),
                                   ("https://github.com/voodoomods/hypgraph", "GitHub", ' class="hide-sm"')))
