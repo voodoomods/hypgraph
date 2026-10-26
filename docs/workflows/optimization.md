@@ -72,7 +72,10 @@ recomputed feasibility.
 
 1. *The model: hypothesis or experiment?* **Hypothesis** (`modelled`, gate `hypothesis_stated`): it can be wrong
    independently of the solve and is revisable with its own version.
-2. *Mechanical feasibility recomputation?* **P3** (`check_solution` reproducer). Built now: `result_reviewed` —
+2. *Mechanical feasibility recomputation?* **Built in P3 as re-execution**: the instrument re-runs the solver's
+   registered code on the instance as it is now (a changed instance is a new artifact that supersedes the old), so
+   objective, feasibility and bound are recomputed mechanically; a domain-specific `check_solution` reading a
+   solution artifact stays a host hook for later. Built in P1: `result_reviewed` —
    the verifier's check on the result, by someone who is not its author — and `incumbent_verified` needs it on the
    current instance.
 3. *Sensitivity?* **An optional `sensitivity` field on the decision.**

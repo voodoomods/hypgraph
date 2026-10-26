@@ -95,7 +95,7 @@ instrument, mechanical feasibility recomputation (P3). **P2 built in HypSwarm 0.
 orders, review on the node the previous gate produced, the record's word on done; the examples' scripted models walk
 the stages; the discovery stub run through its stages). P2 fed back into hypgraph 0.5.1: honest endings the stages
 lacked (a declined thesis, an inconclusive answer, a verified failure), artifacts that learn their kind on
-re-registration, optimization's `checked` stage. P3 is next.
+re-registration, optimization's `checked` stage. **P3 built (2026-10-26):** the instruments in HypSwarm 0.1.0a5 (world watcher, re-verification, source re-fetch, refresh orders) and hypgraph 0.5.2 (source freshness, fresh-only gates, stale in the report); the change suite in HypSwarm `studies/discovery/PLAN-CHANGE.md`, self-test and stub run at $0, predictions locked; the model run waits for the spend approval.
 
 ## 4. What stays as it is, on purpose
 

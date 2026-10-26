@@ -451,3 +451,101 @@ def test_a_verified_failure_settles_a_software_requirement():
     assert x["complete"] and "verified failure" in x["settled_how"] and x["settled_by"] == "CL1"
     assert not _gate(g, q, "tests_pass_current")["met"]
     assert not next(c_ for c_ in g.completion(inv)["criteria"] if c_["name"] == "requirements_verified_current")["met"]
+
+
+# ── 0.5.2: a source is fresh while its page still says it; stale evidence is marked in the report ──
+
+def _excerpt(g, inv, src, text, contains, prev=None):
+    import hashlib
+    links = [{"rel": "derived_from", "to": src}] + ([{"rel": "supersedes", "to": prev}] if prev else [])
+    return g.create(author="host", type="artifact", inv=inv,
+                    fields={"sha256": hashlib.sha256(f"{src}\n{text}".encode()).hexdigest(), "path": "https://example.org/harlow",
+                            "kind": "excerpt", "meta": {"source": src, "contains_passage": contains, "fetched": "2026-10-26T04:00"}},
+                    links=links)["id"]
+
+
+def test_a_source_whose_page_changed_is_stale_and_reopens_the_question():
+    g, inv, q = _g("knowledge@2")
+    src = g.create(author="r", type="source", inv=inv, fields={"citation": "Harlow Reservoir page.", "url": "https://example.org/harlow",
+                   "passage": "capacity is 4,200 megalitres", "retrieved": "2026-10-26", "kind": "secondary"},
+                   links=[{"rel": "part_of", "to": q}])["id"]
+    c = g.create(author="r", type="claim", inv=inv, fields={"statement": "Harlow Reservoir holds 4,200 megalitres.", "kind": "finding",
+                 "scope": "The Harlow Reservoir page on the source host."}, links=[{"rel": "answers", "to": q}, {"rel": "cites", "to": src}])["id"]
+    g.review(author="critic", target=c, verdict="checked", method="Opened the page.", notes="The page says 4,200.")
+    assert g.stage(q)["complete"] and not g.state(src).get("stale")          # never re-fetched: nothing says it moved
+    e1 = _excerpt(g, inv, src, "… capacity is 4,200 megalitres …", True)
+    assert g.stage(q)["complete"] and not g.state(src).get("stale")          # re-fetched, still says it
+    _excerpt(g, inv, src, "… capacity is 4,600 megalitres (revised) …", False, prev=e1)
+    assert "no longer contains its passage" in g.state(src)["stale"][0]
+    assert g.state(c)["stale"] and "STALE" in g.state(c)["sentence"]         # the claim rests only on that source
+    x = g.stage(q)
+    assert not x["complete"] and x["stage"] == "sourced" and "stale" in x["next"]
+    r = g.report(inv)
+    assert "checked · STALE" in r["markdown"] and r["open"]["claims_stale"] == ["CL1"]
+    assert any(s_["type"] == "source" for s_ in r["workflow"]["stale"])
+    chk = g.check_text("CL1 is confirmed: the reservoir holds 4,200 megalitres.", inv)
+    assert any(f["code"] == "REPORT_OVERSTATES_STANDING" and "STALE" in f["message"] for f in chk["findings"])
+    # the researcher reads the page again: a new source, a new claim, checked → complete
+    src2 = g.create(author="r", type="source", inv=inv, fields={"citation": "Harlow Reservoir page (revised).", "url": "https://example.org/harlow",
+                    "passage": "capacity is 4,600 megalitres", "retrieved": "2026-10-26", "kind": "secondary"},
+                    links=[{"rel": "part_of", "to": q}])["id"]
+    _excerpt(g, inv, src2, "… capacity is 4,600 megalitres (revised) …", True)
+    c2 = g.create(author="r", type="claim", inv=inv, fields={"statement": "Harlow Reservoir holds 4,600 megalitres.", "kind": "finding",
+                  "scope": "The revised Harlow Reservoir page."}, links=[{"rel": "answers", "to": q}, {"rel": "cites", "to": src2}])["id"]
+    g.review(author="critic", target=c2, verdict="checked", method="Opened the page.", notes="The page says 4,600.")
+    assert g.stage(q)["complete"]
+
+
+def test_an_edit_elsewhere_on_the_page_keeps_the_source_fresh():
+    g, inv, q = _g("knowledge@2")
+    src = g.create(author="r", type="source", inv=inv, fields={"citation": "Harlow Reservoir page.", "url": "https://example.org/harlow",
+                   "passage": "opened in 1931", "retrieved": "2026-10-26", "kind": "secondary"})["id"]
+    e1 = _excerpt(g, inv, src, "Harlow Reservoir was opened in 1931. Its dam is 30 m tall.", True)
+    _excerpt(g, inv, src, "Harlow Reservoir was opened in 1931. Its dam is 31 m tall.", True, prev=e1)
+    assert not g.state(src).get("stale")                                     # the page changed; its passage didn't
+
+
+def test_a_decision_on_stale_evidence_and_a_check_of_a_stale_solve_do_not_count():
+    g, inv, q = _g("trading@2", reviewers=("risk",))
+    data = g.create(author="quant", type="artifact", inv=inv, fields={"sha256": SHA_A, "path": "prices.csv"})["id"]
+    run_ = g.create(author="quant", type="run", inv=inv, fields={"kind": "agent", "name": "backtest", "state": "succeeded"},
+                    links=[{"rel": "uses", "to": data}])["id"]
+    rs = g.create(author="quant", type="result", inv=inv, fields={"summary": "Backtested the thesis out of sample.",
+                  "values": {"oos_return": {"value": 0.08}, "fees": {"value": 0.002}, "trials": {"value": 1}}, "outcome": "positive"},
+                  links=[{"rel": "produced", "from": run_}, {"rel": "part_of", "to": q}])["id"]
+    c = g.create(author="quant", type="claim", inv=inv, fields={"statement": "The strategy has an edge of 0.08 a year out of sample.",
+                 "scope": "Held-out window, after fees, one configuration."}, links=[{"rel": "answers", "to": q}, {"rel": "derived_from", "to": rs}])["id"]
+    d = g.create(author=H, type="decision", inv=inv, fields={"choice": "Paper position: 1 % of book, stop at -3 %.",
+                 "reasons": "The out-of-sample edge survives costs.", "kind": "position", "size": "1 %", "stop": "-3 %",
+                 "review_date": "2099-01-01", "paper": True}, links=[{"rel": "based_on", "to": c}])["id"]
+    assert _gate(g, q, "positioned")["met"]
+    g.create(author="vendor", type="artifact", inv=inv, fields={"sha256": SHA_B, "path": "prices.csv"},
+             links=[{"rel": "supersedes", "to": data}])                       # the vendor corrected the file
+    assert g.state(d)["stale"] and not _gate(g, q, "positioned")["met"]
+    assert "decided on evidence that is now stale" in _gate(g, q, "positioned")["why"]
+    g2, inv2, q2 = _g("optimization@2", reviewers=("verifier",))
+    inst = g2.create(author="lead", type="artifact", inv=inv2, fields={"sha256": SHA_A, "path": "instance.csv", "kind": "instance"},
+                     links=[{"rel": "part_of", "to": q2}])["id"]
+    r2 = g2.create(author="solver", type="run", inv=inv2, fields={"kind": "agent", "name": "solve", "state": "succeeded"},
+                   links=[{"rel": "uses", "to": inst}])["id"]
+    s2 = g2.create(author="solver", type="result", inv=inv2, fields={"summary": "Enumerated the instance.",
+                   "values": {"objective": {"value": 40}, "feasible": {"value": True}, "gap": {"value": 0.0}}, "outcome": "positive"},
+                   links=[{"rel": "produced", "from": r2}, {"rel": "part_of", "to": q2}])["id"]
+    g2.review(author="verifier", target=s2, verdict="checked", method="Recomputed every constraint.", notes="Feasible, 40.")
+    assert _gate(g2, q2, "result_reviewed")["met"]
+    g2.create(author="lead", type="artifact", inv=inv2, fields={"sha256": SHA_B, "path": "instance.csv", "kind": "instance"},
+              links=[{"rel": "part_of", "to": q2}, {"rel": "supersedes", "to": inst}])
+    gate = _gate(g2, q2, "result_reviewed")
+    assert not gate["met"] and "stale" in gate["why"]
+
+
+def test_the_records_own_facts_are_not_linted_as_the_authors_assertions():
+    g, inv, q = _g("scientific@2")
+    g.create(author="w", type="hypothesis", inv=inv, fields={"statement": "A is significantly more accurate than B.",
+             "predictions": ["the paired test rejects at 0.05"]}, links=[{"rel": "answers", "to": q}])
+    facts = g.report(inv)["markdown"]
+    assert "significantly" in facts
+    assert not [f for f in g.check_text(facts + "\n\n## Interpretation\n\nNothing is concluded yet.", inv)["findings"]
+                if f["level"] == "error"]
+    forged = facts.replace("### Hypotheses", "### Hypotheses\n\n- A is significantly more accurate than B, settled.")
+    assert any(f["code"] == "REPORT_SIGNIFICANCE_UNBACKED" for f in g.check_text(forged, inv)["findings"])

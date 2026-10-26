@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.2 — 2026-10-26: freshness for sources, stale evidence in the report
+
+For P3 (the change suite and the instruments in HypSwarm), the record had to know when a *page* moved, not only a
+file:
+- **A source is fresh while its page still says it.** A host that re-fetches a source's page registers an
+  `excerpt` artifact (`derived_from` the source; `meta.contains_passage`, `meta.fetched`). The source is STALE when
+  every excerpt of it was superseded, or the live one says the page no longer contains its passage — an edit
+  elsewhere on the page keeps it fresh. A source never re-fetched is not stale: nothing says it moved.
+- **A claim is stale when every result and every cited source behind it is.** The knowledge gates
+  (`source_quoted`, `sourced`) take only fresh sources, so a changed page reopens the question at *sourced*.
+- **The report marks it.** Claims and results on stale evidence read `checked · STALE` in the facts tables, a new
+  open item lists them, the workflow section lists stale sources too, and the report check treats calling a stale
+  claim settled as `REPORT_OVERSTATES_STANDING`.
+- **Gates count only what still speaks for the question.** `result_exists`, `backtested` and `solved` take only
+  fresh results (their message says which went stale and why); `result_reviewed` doesn't count a check of a stale
+  result; a decision is stale when everything it was based on is, and `positioned` / `decided` take only fresh ones
+  — a position taken on a backtest the vendor later corrected has to be decided again.
+- **The report check reads the answers block.** A fenced ```answers block (the part of a report a harness scores and a
+  reader copies) was skipped like any code block, so a report could carry an answer only stale evidence gave and pass.
+  Now each answer has to be one a current claim on its question makes — live, not stale — at the precision written and
+  with its sign: `REPORT_ANSWER_STALE` when only old claims or stale results give it (or a current claim binds the
+  same field to another value), `REPORT_ANSWER_UNBACKED` when no claim does or the question has no claim,
+  `REPORT_ANSWERS_UNREADABLE` for invalid JSON. Results count through the claims that bind them, and a count k of n
+  backs its rate; a number a claim names only as a superseded figure doesn't back an answer; URLs, paths and hashes
+  are provenance. Keys are question codes in any case, or a flat object checked against the investigation. Found by
+  HypSwarm's change suite.
+- **The report check skips the record's own facts.** A line inside a "Facts from the research graph" block is not
+  linted when it is exactly a line the record generates now (a hypothesis that says "significantly" is a conjecture
+  the record lists, not the author's assertion). Anything else written under that heading is checked as usual.
+  Found when a report was refused for the hypothesis line the record itself had written.
+
 ## 0.5.1 — 2026-10-26
 
 What wiring HypSwarm's scheduler to the stages (P2) found the workflows had no honest ending or no right answer for:
