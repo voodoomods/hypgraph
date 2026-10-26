@@ -229,7 +229,8 @@ def _brief_min(s: D.Snap, i: str) -> dict:
     m = s.nodes[i]
     b = m["body"]
     return {"id": i, "code": m.get("code", ""), "type": m["type"],
-            "title": str(b.get("title") or b.get("statement") or b.get("text") or b.get("summary") or i)[:160]}
+            "title": str(b.get("title") or b.get("statement") or b.get("text") or b.get("summary") or b.get("aim")
+                         or b.get("choice") or b.get("citation") or b.get("name") or b.get("path") or i)[:160]}
 
 
 def report(g: "Graph", inv: str) -> dict:
@@ -289,6 +290,15 @@ def report(g: "Graph", inv: str) -> dict:
            "state": n["body"].get("state") or "active", "objective": n["body"].get("objective", ""),
            "claims": claims, "results": results, "hypotheses": hyps, "experiments": exps,
            "open": open_items, "spend": spend, "seq": s.seq}
+    # the workflow's view (@2 profiles): each question's derived stage, and the evidence that has gone stale
+    from . import profiles, workflow
+    prof = profiles.profile_of(s, inv)
+    if prof and prof.workflow:
+        stale = [{"code": s.nodes[i]["code"], "type": s.nodes[i]["type"], "why": D.state(s, i)["stale"]}
+                 for i in by_type["result"] + by_type["claim"] if D.state(s, i).get("stale")
+                 and D.state(s, i)["lifecycle"] != "withdrawn"]
+        out["workflow"] = {"profile": prof.id, "report": prof.workflow.report, "method": prof.workflow.method,
+                           "questions": workflow.stages(s, inv, s.now), "stale": stale}
     out["markdown"] = report_markdown(out)
     return out
 
@@ -313,6 +323,14 @@ def report_markdown(r: dict) -> str:
     L += [f"- {x['code']} tests {', '.join(x['tests']) or '-'}: "
           f"{'preregistered' if x['preregistered'] else 'NOT preregistered'}, "
           f"{'run' if x['executed'] else 'not run'} — {cut(x['title'], 120)}" for x in r["experiments"]] or ["- none"]
+    w = r.get("workflow")
+    if w:
+        L += ["", f"### Workflow — {w['report']} ({w['profile']})", "", "| question | stage | next gate |", "|---|---|---|"]
+        for q in w["questions"]:
+            nxt = "complete" if q["complete"] else cut(q["next"], 140)
+            L.append(f"| {q['code']} | {q['stage']} ({q['index']}/{q['of']}) | {nxt} |")
+        L += ["", "Stale evidence (the run used an artifact since superseded or withdrawn, or valid_until passed): "
+              + ("; ".join(f"{x['code']} — {x['why'][0]}" for x in w["stale"]) if w["stale"] else "none")]
     o = r["open"]
     L += ["", "### Open items", "",
           f"- claims not yet reviewed: {', '.join(o['claims_unreviewed']) or 'none'}",

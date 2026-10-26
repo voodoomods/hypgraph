@@ -15,7 +15,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
   <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="../agents/" aria-current="page">Agents</a><a href="../engineers/">Engineers</a><a href="../never/">Never</a>
+  <nav aria-label="Site"><a href="../agents/" aria-current="page">Agents</a><a href="../engineers/">Engineers</a><a href="../never/">Never</a><a href="../#workflows" class="hide-sm">Workflows</a>
     <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
     <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
@@ -81,6 +81,16 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
   <li><b><code>report()</code></b> at the top of every summary; interpretation below it — then
     <b><code>check_report(text)</code></b> on the write-up before you hand it over. Fix every error.</li>
 </ol>
+<h3>Under a workflow profile</h3>
+<p>An investigation pinned to <code>scientific@2</code>, <code>software@2</code>, <code>trading@2</code>,
+  <code>knowledge@2</code> or <code>optimization@2</code> carries its discipline's <a href="../#workflows">workflow</a>.
+  Call <code>stage(question)</code>: it names the stage the question is in — derived from the record, never set — and
+  every gate MET or NOT MET with what would meet it. Write the next gate in order (a hypothesis with predictions; an
+  experiment with its expected outcome <i>before</i> the run; the diff or the instance as an artifact with its
+  <code>kind</code>; the run that <code>uses</code> it). A corrected file, a newer commit, a changed instance or a
+  withdrawn source makes earlier evidence <b>stale</b>; the reply says so, and a check on stale evidence doesn't count.
+  When the honest answer is "it can't be answered", register what you did find and write a claim of kind
+  <code>inconclusive</code> derived from it — checked, it settles the question.</p>
 
 <h2 id="tools">Tools</h2>
 <table>
@@ -97,6 +107,7 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
     <tr><td><code>check_report(text)</code></td><td>Lint a write-up against the record: unsourced numbers, claims called settled that aren't, withdrawn or unknown codes, never / no effect / significantly with nothing behind them.</td></tr>
     <tr><td><code>refusal_log(author?)</code></td><td>The overclaims the record refused — yours or the team's — and whether each came back honest.</td></tr>
     <tr><td><code>bound(k, n, exposure)</code></td><td>What a count supports: the 95% bounds behind any "never", trials needed, failures not ruled out at scale.</td></tr>
+    <tr><td><code>stage(question?)</code> · <code>completion()</code></td><td>Under a workflow profile: the stage each question is in and every gate's status; what the profile means by done for the whole investigation.</td></tr>
     <tr><td><code>next_experiments</code> · <code>work_queue</code> · <code>claim_work</code></td><td>What to run next; what's waiting; take a node so others see who's on it.</td></tr>
     <tr><td><code>register_run(name, code_paths, input_paths, output_paths, result_summary, result_values)</code></td><td>Record a computation with hashed files.</td></tr>
     <tr><td><code>report</code> · <code>verify</code> · <code>schema</code></td><td>The generated facts; the chain check; the vocabulary.</td></tr>
@@ -153,7 +164,7 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
 </div>
 </main>
 <footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
-<span>Made by Nicolas Houghtaling · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
 <script src="../assets/site.js" defer></script>
 </body>
 </html>

@@ -9,6 +9,12 @@ Standing, derived on every read. Nothing here is stored or settable:
               > project_rerun > lab_recorded > agent_reported > unverified
   lines       independent lines of support (lines sharing a run, a data artifact or a source count once)
   at_risk     the fallen nodes it rests on; ``unsupported`` when every support it had has fallen
+  stale       for results and claims: the run used an artifact that is now superseded or withdrawn (a newer diff, a
+              corrected data file, a changed instance), or ``valid_until`` has passed — the evidence no longer speaks
+              for the thing it measured. A claim is stale when every result behind it is.
+
+A profile's workflow may widen what counts as resting on (EXTRA_RISKY: ``uses``, ``cites``); it is read per
+investigation, so records under the frozen ``@1`` profiles keep exactly the standing they had.
 """
 
 from __future__ import annotations
@@ -38,6 +44,7 @@ class Snap:
         self.sig: Any = None
         self.versions: dict[str, list] = defaultdict(list)
         self.events: list[dict] = []
+        self.now: str = ""                       # the clock at the last snapshot() — freshness is read against it
         # highest rowid / id loaded per table: every table is append-only, so a later read loads only what's newer
         self.marks: dict[str, int] = {"nodes": 0, "versions": 0, "edges": 0, "withdrawals": 0, "leases": 0}
 
@@ -127,20 +134,67 @@ def fallen(s: Snap, nid: str) -> bool:
     return False
 
 
+# profile id → relations its workflow adds to RISKY (filled by profiles.py; read per investigation)
+EXTRA_RISKY: dict[str, tuple] = {}
+
+
+def risky(s: Snap, x: str) -> tuple:
+    """The relations along which x rests on something: the kernel's, plus its investigation's workflow's."""
+    inv = s.nodes.get(s.nodes[x]["inv"]) if x in s.nodes else None
+    pid = str((inv or {}).get("body", {}).get("profile") or "").lower()
+    extra = EXTRA_RISKY.get(pid) if pid else None
+    return RISKY + extra if extra else RISKY
+
+
 def upstream(s: Snap, x: str) -> list[tuple[str, str]]:
     """What x rests on, one step: premises (requires), derivations, a decision's basis, and the run that produced it.
     Support is counted separately (unsupported): one fallen support among several doesn't break a claim."""
-    ups = [(e["dst"], e["rel"]) for e in s.out.get(x, []) if e["rel"] in RISKY]
+    rk = risky(s, x)
+    ups = [(e["dst"], e["rel"]) for e in s.out.get(x, []) if e["rel"] in rk]
     ups += [(e["src"], "produced_by") for e in s.inn.get(x, []) if e["rel"] == "produced"]
     return ups
 
 
 def downstream(s: Snap, x: str) -> list[tuple[str, str]]:
     """What rests on x, one step: the inverse of upstream, plus what x supports."""
-    downs = [(e["src"], e["rel"]) for e in s.inn.get(x, []) if e["rel"] in RISKY]
+    downs = [(e["src"], e["rel"]) for e in s.inn.get(x, []) if e["rel"] in risky(s, e["src"])]
     downs += [(e["dst"], "produced") for e in s.out.get(x, []) if e["rel"] == "produced"]
     downs += [(e["dst"], "supports") for e in s.out.get(x, []) if e["rel"] == "supports"]
     return downs
+
+
+def stale(s: Snap, nid: str) -> list[str]:
+    """Why a result (or a claim through its results) no longer speaks for what it measured; [] when fresh. A result
+    is stale when the run that produced it used an artifact that is now superseded or withdrawn, or when its
+    ``valid_until`` has passed. A claim is stale when it has results and every one of them is stale."""
+    n = s.nodes[nid]
+    if n["type"] == "result":
+        out = []
+        run = producing_run(s, nid)
+        for e in (s.out.get(run, []) if run else []):
+            if e["rel"] != "uses":
+                continue
+            lc = lifecycle(s, e["dst"])
+            if lc != "active":
+                a = s.nodes[e["dst"]]
+                kind = a["body"].get("kind") or "artifact"
+                out.append(f"{kind} {a['code'] or e['dst']} is {lc}")
+        vu = str(n["body"].get("valid_until") or "").strip()
+        if vu and s.now and s.now[:len(vu)] > vu:
+            out.append(f"valid_until {vu} has passed")
+        return out
+    if n["type"] == "claim":
+        rs = [e["src"] for e in s.inn.get(nid, []) if e["rel"] == "supports" and s.nodes[e["src"]]["type"] == "result"
+              and not fallen(s, e["src"])]
+        rs += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "derived_from" and s.nodes[e["dst"]]["type"] == "result"
+               and not fallen(s, e["dst"])]
+        rs = list(dict.fromkeys(rs))
+        if not rs:
+            return []
+        reasons = [stale(s, r) for r in rs]
+        if all(reasons):
+            return list(dict.fromkeys(x for r in reasons for x in r))
+    return []
 
 
 def walk(s: Snap, nid: str, step, limit: int) -> list[tuple[str, str, int]]:
@@ -426,6 +480,10 @@ def state(s: Snap, nid: str) -> dict:
         moved = basis_changed(s, nid)
         if moved:
             st["basis_changed"] = moved
+    if t in ("result", "claim"):
+        old = stale(s, nid)
+        if old:
+            st["stale"] = old
     risk = at_risk(s, nid)
     if risk:
         st["at_risk"] = risk
@@ -487,6 +545,8 @@ def sentence(s: Snap, nid: str, st: dict) -> str:
         x = st["test"]
         parts.append(f"tested from its counts: difference {x['diff'] * 100:.1f} points, 95% interval "
                      f"{x['lo'] * 100:.1f} to {x['hi'] * 100:.1f}, p = {x['p']:.2g}")
+    if st.get("stale"):
+        parts.append("STALE — " + "; ".join(st["stale"][:3]))
     if st.get("basis_changed"):
         parts.append("REVISIT — its basis changed: " + ", ".join(
             f"{b['code']} v{b['was_v']}→v{b['now_v']}" for b in st["basis_changed"][:5]))

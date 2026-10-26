@@ -356,6 +356,11 @@
      "max": 1500,
      "required": false
     },
+    "valid_until": {
+     "kind": "str",
+     "max": 40,
+     "required": false
+    },
     "legacy": {
      "kind": "dict",
      "max": 4000,
@@ -385,6 +390,16 @@
     "format": {
      "kind": "str",
      "max": 40,
+     "required": false
+    },
+    "kind": {
+     "kind": "str",
+     "max": 40,
+     "required": false
+    },
+    "meta": {
+     "kind": "dict",
+     "max": 4000,
      "required": false
     }
    }
@@ -421,6 +436,16 @@
     "says": {
      "kind": "text",
      "max": 1500,
+     "required": false
+    },
+    "kind": {
+     "kind": "enum:primary|secondary|tertiary",
+     "max": 2000,
+     "required": false
+    },
+    "reliability": {
+     "kind": "text",
+     "max": 1000,
      "required": false
     }
    }
@@ -478,6 +503,36 @@
     "meeting": {
      "kind": "str",
      "max": 80,
+     "required": false
+    },
+    "kind": {
+     "kind": "str",
+     "max": 40,
+     "required": false
+    },
+    "size": {
+     "kind": "str",
+     "max": 120,
+     "required": false
+    },
+    "stop": {
+     "kind": "str",
+     "max": 120,
+     "required": false
+    },
+    "review_date": {
+     "kind": "str",
+     "max": 40,
+     "required": false
+    },
+    "paper": {
+     "kind": "bool",
+     "max": 2000,
+     "required": false
+    },
+    "sensitivity": {
+     "kind": "text",
+     "max": 1500,
      "required": false
     }
    }
@@ -689,6 +744,7 @@
   },
   "supersedes": {
    "from": [
+    "artifact",
     "claim",
     "decision",
     "experiment",
@@ -700,6 +756,7 @@
     "task"
    ],
    "to": [
+    "artifact",
     "claim",
     "decision",
     "experiment",
@@ -716,14 +773,16 @@
    "from": [
     "claim",
     "decision",
-    "result"
+    "result",
+    "source"
    ],
    "to": [
     "claim",
     "decision",
-    "result"
+    "result",
+    "source"
    ],
-   "about": "fixes an error in a node of the same type"
+   "about": "fixes an error in a node of the same type (a fact-checker re-kinds a source this way)"
   },
   "motivated_by": {
    "from": [

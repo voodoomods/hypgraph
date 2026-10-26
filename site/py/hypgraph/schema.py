@@ -56,18 +56,24 @@ TYPES: dict[str, dict] = {
         "outcome": _f("enum:positive|negative|inconclusive|expected_failure|skipped|failed"),
         "values": _f("dict", 20000), "expected": _f("text", 1500), "limitations": _f("text", 1500),
         "power": _f("enum:demonstrated|not_demonstrated|not_applicable"), "evidence_note": _f("text", 1500),
+        "valid_until": _f("str", 40),                     # a workflow's shelf life: past it the result is stale
         "legacy": _f("dict", 4000)}},
     "artifact": {"prefix": "A", "fields": {
-        "sha256": _f("str", 64, True), "path": _f("str", 500), "size": _f("num"), "format": _f("str", 40)}},
+        "sha256": _f("str", 64, True), "path": _f("str", 500), "size": _f("num"), "format": _f("str", 40),
+        "kind": _f("str", 40), "meta": _f("dict", 4000)}},   # typed by the workflow: diff {base_sha, head_sha, files}…
     "source": {"prefix": "S", "fields": {
         "citation": _f("text", 1000, True), "doi": _f("str", 200), "url": _f("str", 500), "passage": _f("text", 3000),
-        "retrieved": _f("str", 40), "says": _f("text", 1500)}},
+        "retrieved": _f("str", 40), "says": _f("text", 1500), "kind": _f("enum:primary|secondary|tertiary"),
+        "reliability": _f("text", 1000)}},
     "review": {"prefix": "RV", "fields": {
         "verdict": _f("enum:" + "|".join(sorted(VERDICTS)), req=True), "method": _f("text", 1500, True),
         "notes": _f("text", 4000, True), "official": _f("bool")}},
     "decision": {"prefix": "D", "fields": {
         "choice": _f("text", 1500, True), "alternatives": _f("list", 20), "reasons": _f("text", 3000, True),
-        "revisit_if": _f("text", 1500), "meeting": _f("str", 80)}},
+        "revisit_if": _f("text", 1500), "meeting": _f("str", 80),
+        # typed by the workflow: a trading position carries size, stop, review_date and paper=true
+        "kind": _f("str", 40), "size": _f("str", 120), "stop": _f("str", 120), "review_date": _f("str", 40),
+        "paper": _f("bool"), "sensitivity": _f("text", 1500)}},
     "task": {"prefix": "T", "fields": {
         "kanban_id": _f("str", 80), "title": _f("str", 300), "objective": _f("text", 2000),
         "assignee": _f("str", 80), "role": _f("str", 80), "prediction": _f("text", 1500), "method": _f("text", 1500),
@@ -90,8 +96,8 @@ RELS: dict[str, tuple[set, set]] = {
     "requires": ({"claim", "hypothesis"}, {"claim"}),
     "replicates": ({"run"}, {"run"}),
     "reviews": ({"review"}, {"claim", "result", "run", "experiment", "hypothesis"}),
-    "supersedes": (ANY - {"artifact", "review", "investigation"}, ANY - {"artifact", "review", "investigation"}),
-    "corrects": ({"claim", "result", "decision"}, {"claim", "result", "decision"}),
+    "supersedes": (ANY - {"review", "investigation"}, ANY - {"review", "investigation"}),   # an artifact too: a newer diff, instance, data file
+    "corrects": ({"claim", "result", "decision", "source"}, {"claim", "result", "decision", "source"}),
     "motivated_by": ({"experiment", "hypothesis", "question"}, ANY),
     "cites": ({"claim", "result", "hypothesis", "experiment"}, {"source"}),
     "based_on": ({"decision"}, {"claim", "result", "hypothesis"}),
@@ -119,7 +125,8 @@ SYNONYMS: dict[tuple[str, str], dict[str, str]] = {
                       "complete": "succeeded", "ok": "succeeded", "error": "failed", "failure": "failed", "fail": "failed",
                       "crashed": "failed", "timed_out": "timeout", "killed": "cancelled", "stopped": "interrupted"},
 }
-# what a node rests on: if the far end falls, this node is at risk (a work order is moot)
+# what a node rests on: if the far end falls, this node is at risk (a work order is moot). A profile's workflow
+# may add relations (profiles.Workflow.invalidates: `uses`, `cites`); derive reads them per investigation.
 RISKY = ("requires", "derived_from", "based_on", "works_on", "rests_on")
 SAME_TYPE = ("supersedes", "corrects")
 
@@ -148,7 +155,8 @@ REL_ABOUT = {
     "challenges": "evidence against (why required)", "requires": "rests on another claim as a premise",
     "replicates": "a run repeats another (data.differs: same_code / new_seed / new_impl / new_data / new_env)",
     "reviews": "a review of a node (written by review())", "supersedes": "replaces an older node of the same type",
-    "corrects": "fixes an error in a node of the same type", "motivated_by": "prompted by",
+    "corrects": "fixes an error in a node of the same type (a fact-checker re-kinds a source this way)",
+    "motivated_by": "prompted by",
     "cites": "cites a source", "based_on": "a decision rests on this evidence (pinned to its version)",
     "works_on": "a task works on a node (it is moot if that node falls)", "blocked_by": "a task waits on another task",
     "rests_on": "a work order rests on a premise, pinned to the version it was issued against",

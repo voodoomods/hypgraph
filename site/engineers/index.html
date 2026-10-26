@@ -13,7 +13,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
   <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/" aria-current="page">Engineers</a><a href="../never/">Never</a>
+  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/" aria-current="page">Engineers</a><a href="../never/">Never</a><a href="../#workflows" class="hide-sm">Workflows</a>
     <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
     <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
@@ -28,7 +28,7 @@
 <div class="wrap doc">
 <nav class="toc" aria-label="On this page">
   <a href="#install">Install</a><a href="#model">The model</a><a href="#policy">Policy &amp; roles</a>
-  <a href="#connect">Connecting agents</a><a href="#runs">Recording runs</a><a href="#evals">Recipe: eval reports</a>
+  <a href="#connect">Connecting agents</a><a href="#runs">Recording runs</a><a href="#workflows">Profiles &amp; workflows</a><a href="#evals">Recipe: eval reports</a>
   <a href="#spend">Cost</a><a href="#http">HTTP &amp; the Atlas</a><a href="#ci">Bundles in CI</a>
   <a href="#lint">Lint the write-up</a><a href="#refusals">The refusal log</a>
   <a href="#perf">Performance</a><a href="#reference">Reference deployment</a>
@@ -123,6 +123,37 @@ res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced
 <p>Artifacts are content-addressed (same bytes, one node), so two results computed from the same data merge into
   one line of evidence automatically. A rerun links <code>replicates</code> with <code>data.differs</code>
   (<code>new_seed</code>, <code>new_impl</code>, <code>new_data</code> …) and raises the evidence profile.</p>
+
+<h2 id="workflows">Profiles &amp; workflows</h2>
+<p>Pin a profile on the investigation and the record enforces that discipline's rules — and, with the <code>@2</code>
+  profiles, its <a href="../#workflows">workflow</a>: stages with gates, what invalidates evidence, the typed shapes a
+  diff, an instance, a source or a position must have. The stage is derived on every read, like standing.</p>
+<div class="code"><pre>inv = g.create(author="operator", type="investigation",
+               fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@2"})["id"]
+q = g.create(author="operator", type="question", inv=inv, fields={"text": "Does the importer keep quoted commas?"})["id"]
+
+g.stage(q)        # {"stage": "implemented", "index": 2, "of": 6, "complete": False,
+                  #  "next": "no live artifact kind=diff (meta: base_sha, head_sha, files) part_of Q1", "gates": [...]}
+g.stages(inv)     # one row per live question;  GET /api/graph/stages?inv=…  ·  MCP tool: stage
+g.completion(inv) # the profile's criteria for the whole investigation</pre></div>
+<ul>
+  <li><b>Gates are predicates.</b> <code>hypothesis_stated</code>, <code>preregistered</code>, <code>diff_registered</code>,
+    <code>tests_pass_current</code>, <code>backtested</code>, <code>positioned</code>, <code>still_valid</code>,
+    <code>solved</code>, <code>result_reviewed</code> … — usable as an order's <code>done_when</code> too.</li>
+  <li><b>What invalidates.</b> Besides premises, a workflow adds <code>uses</code> (a corrected data file, a superseded diff
+    or instance) or <code>cites</code> (a withdrawn source) to what puts dependants AT RISK — per profile, so records
+    under <code>@1</code> keep exactly the standing they had.</li>
+  <li><b>Freshness.</b> A result whose run used a now-superseded artifact, or whose <code>valid_until</code> has passed, is
+    STALE; a claim is stale when every result behind it is. A check on stale evidence doesn't meet <code>reviewed</code>.</li>
+  <li><b>Typed shapes.</b> <code>artifact.kind</code> + <code>meta</code> (a <code>diff</code> needs base_sha, head_sha,
+    files), <code>source.kind</code>, <code>decision.kind=position</code> with size, stop, review_date, paper — refused
+    incomplete. Registering the same bytes again types an untyped artifact and adds the links given.</li>
+  <li><b>Honest endings.</b> A checked <code>inconclusive</code> answer, a <code>no_position</code> decision, a verified
+    failure (an instrument-recorded negative result, checked) each complete a question the gates alone never would.</li>
+</ul>
+<p>The method each workflow is taken from, and the decision behind each gate, are one page each in
+  <a href="https://github.com/voodoomods/hypgraph/tree/main/docs/workflows">docs/workflows</a>.
+  <a href="https://hypswarm.com">HypSwarm</a>'s scheduler issues each question's stage order from exactly this.</p>
 
 <h2 id="evals">Recipe: eval reports that hold up</h2>
 <ol>
@@ -230,7 +261,7 @@ hypgraph refusals --author analyst     # one agent's refusals in full</pre></div
 </div>
 </main>
 <footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
-<span>Made by Nicolas Houghtaling · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
 <script src="../assets/site.js" defer></script>
 </body>
 </html>
