@@ -414,3 +414,19 @@ def test_accepting_an_order_is_not_the_questions_decision():
     assert g.settle(author=H, inv=inv)                               # a decision that settles the order, based on H1
     assert not _gate(g, q, "decided")["met"]                         # … is the harness accepting work, not a decision on Q1
     assert "X1" not in g.report(inv)["markdown"] or "n" not in g.report(inv)["markdown"]
+
+
+def test_registering_the_same_bytes_again_types_and_links_the_one_node():
+    g, inv, q = _g("software@2")
+    a = g.create(author=H, type="artifact", inv=inv, fields={"sha256": SHA_A, "path": "mod.py", "size": 20})   # the task's file
+    assert a["body"].get("kind") is None and not _gate(g, q, "diff_registered")["met"]
+    b = g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_A, "path": "mod.py", "kind": "diff",
+                 "meta": {"base_sha": "0000000", "head_sha": "1111111", "files": ["mod.py"]}}, links=[{"rel": "part_of", "to": q}])
+    assert b["id"] == a["id"] and b["v"] == 2 and b["body"]["kind"] == "diff" and "typed as diff" in " ".join(b["notes"])
+    assert any(e["rel"] == "part_of" for e in b["out"])
+    assert _gate(g, q, "diff_registered")["met"] and _gate(g, q, "diff_registered")["evidence"] == ["A1"]
+    c = g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_A, "kind": "diff"}, links=[{"rel": "part_of", "to": q}])
+    assert c["v"] == 2 and len([e for e in c["out"] if e["rel"] == "part_of"]) == 1       # idempotent: nothing added twice
+    with pytest.raises(GraphError, match="ARTIFACT_MISSING_FIELDS"):
+        g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_B, "path": "x.py"})
+        g.create(author="dev", type="artifact", inv=inv, fields={"sha256": SHA_B, "path": "x.py", "kind": "diff"})

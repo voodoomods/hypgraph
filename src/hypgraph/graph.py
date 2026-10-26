@@ -558,7 +558,7 @@ class Graph:
                 if type == "artifact":
                     node_id = "a-" + str(body["sha256"]).lower()[:16]
                     if node_id in s.nodes:
-                        return self.get(node_id)
+                        return self._absorb_artifact(s, node_id, body, links, author, at=at)
                 nid = node_id or ("inv-" + secrets.token_hex(4) if type == "investigation"
                                   else "n" + secrets.token_hex(6))
                 if nid in s.nodes:
@@ -772,6 +772,50 @@ class Graph:
             lines = []
         if lines:
             out["orders"] = lines
+
+    def _absorb_artifact(self, s: D.Snap, nid: str, body: dict, links: list, author: str, *, at: str = "") -> dict:
+        """The same bytes are one node. A second registration adds what the first lacked: the links given now
+        (part_of a question, supersedes an older file) and, when the node was untyped, its kind / meta / path — a
+        classification of the bytes, by anyone, as a new version (the bytes never change). Called inside create()'s
+        lock; the caller's finally refreshes the snapshot."""
+        n = s.nodes[nid]
+        at = self._when(author, at)
+        have = {(e["rel"], e["dst"]) for e in s.out.get(nid, [])} | {(e["rel"], e["src"]) for e in s.inn.get(nid, [])}
+        oriented = [self._orient(s, *self._link_spec(nid, l)) for l in links]
+        pending = [(a, rel, b, l) for (a, rel, b, _f), l in zip(oriented, links)
+                   if (rel, b if a == nid else a) not in have]
+        for a, rel, b, _l in pending:
+            self._check_link(s, a, rel, b)
+        merged = None
+        if not n["body"].get("kind") and body.get("kind"):
+            merged = clean_body("artifact", {**n["body"], **{k: v for k, v in body.items()
+                                                             if k in ("kind", "meta", "path", "format", "size") and v}})
+            if author not in self.policy.curators:
+                np_ = profiles.node_issues(s, n["inv"], "artifact", merged, [(a, rel, b) for a, rel, b, _l in pending])
+                if np_:
+                    raise GraphError("artifact refused:\n- " + "\n- ".join(p.text() for p in np_), [p.to_dict() for p in np_])
+        if not pending and merged is None:
+            return self.get(nid)
+
+        def write(con):
+            if merged is not None:
+                v = con.execute("SELECT MAX(v) FROM versions WHERE node=?", (nid,)).fetchone()[0] + 1
+                sha = self._version_row(con, nid, v, at, author, f"typed as {merged.get('kind')}", merged)
+                self._event(con, author, "revise", nid, {"v": v, "reason": f"typed as {merged.get('kind')}",
+                                                         "body_sha": sha}, at)
+            for a, rel, b, l in pending:
+                self._insert_edge(con, s, a, rel, b, l.get("data") or {}, l.get("why") or "", author, at)
+        self._transaction(write)
+        self._after_write()
+        out = self.get(nid)
+        notes = ["the same bytes were already registered: one node"]
+        if merged is not None:
+            notes.append(f"typed as {merged.get('kind')} (v{out['v']})")
+        if pending:
+            notes.append("linked: " + ", ".join(f"{rel} {s.nodes[b if a == nid else a].get('code') or b}"
+                                                for a, rel, b, _l in pending))
+        out["notes"] = notes
+        return out
 
     def _may_revise(self, s: D.Snap, author: str, n: dict) -> bool:
         return author in {n["created_by"]} | self.policy.curators or author in D.board(s, n["id"])

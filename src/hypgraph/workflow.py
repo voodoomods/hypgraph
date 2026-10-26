@@ -239,8 +239,9 @@ def _current_diffs(sc: Scope, kind: str) -> tuple[list[str], list[str]]:
 
 
 def g_diff_registered(sc: Scope, now: str) -> dict:
+    # the question's current diff is a state, not work since the order: a change registered before the order (the
+    # task's own files are artifacts from the start, and the same bytes are one node) meets it
     live, _old = _current_diffs(sc, "diff")
-    live = [a for a in live if not sc.since or sc.s.nodes[a]["created_at"] >= sc.since]
     return _g(bool(live), live[:1], f"no live artifact kind=diff (meta: base_sha, head_sha, files) part_of "
                                     f"{sc.code(sc.root)}")
 
