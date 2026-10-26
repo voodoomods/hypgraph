@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HypGraph — fixture</title>
+<link rel="stylesheet" href="../../src/hypgraph/ui/hypgraph.css">
+<style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>
+</head>
+<body>
+<!-- dev/ui-fixtures/view.html?bundle=software&theme=dark#view=pipeline — the UI on one fixture bundle, for the smoke
+     check (dev/ui_smoke.py) and for looking at a change by hand. Serve the repo root: python -m http.server -->
+<div id="app"></div>
+<script src="../../src/hypgraph/ui/vendor/cytoscape.min.js"></script>
+<script src="../../src/hypgraph/ui/vendor/layout-base.js"></script>
+<script src="../../src/hypgraph/ui/vendor/cose-base.js"></script>
+<script src="../../src/hypgraph/ui/vendor/cytoscape-fcose.js"></script>
+<script src="../../src/hypgraph/ui/hypgraph.js"></script>
+<script>
+  (async () => {
+    const q = new URLSearchParams(location.search), el = document.getElementById('app');
+    try {
+      const r = await fetch(`${q.get('bundle') || 'software'}.bundle.json`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      HypGraph.mount(el, { source: HypGraph.BundleSource(await r.json()), hash: true, theme: q.get('theme') || 'light' });
+    } catch (e) { el.dataset.hgError = 'fixture: ' + e.message; }
+  })();
+</script>
+</body>
+</html>

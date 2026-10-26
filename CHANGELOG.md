@@ -18,6 +18,30 @@ The engine side of the HypGraph UI (docs/ui-plan.md, P1):
 - `GET /api/graph/profile?inv=` gives the investigation's profile as a UI speaks it.
 - "Atlas" is now the HypGraph UI in the server, the CLI, the README and the skill. The UI itself is rebuilt in P2.
 
+The HypGraph UI (P2), which replaces the Atlas:
+- **Eight views in each profile's own words:** Overview, Live, Pipeline, Graph, Evidence, Work orders, Audit log and
+  Report. A software investigation shows Requirements and Verifications; a trading one shows Theses and Positions.
+- **Overview** has KPI tiles, the completion criteria, each question's stage, a "needs attention" list and recent
+  activity. Attention covers stale evidence, contested claims, premises that fell, leases held past their time,
+  returned orders, overclaims refused and a broken chain.
+- **Pipeline** is a swimlane of the profile's stages, with each gate met or not, its evidence, and what would meet it.
+- **Live** shows seats, the record growing and the event stream. It follows `/api/graph/stream` and falls back to
+  polling on hosts without it. Any run plays back with play, pause, scrub and speed controls.
+- **Drawers:** a node's drawer gives its standing, fields, links both ways, provenance and what would be at risk if
+  it fell. A question's drawer gives its stage and gates.
+- **Enterprise:**
+  - light by default, with dark one key away;
+  - WCAG AA text contrast in both themes, checked by a test;
+  - every screen is a URL, and Back and Forward work;
+  - ⌘K search over views, investigations and nodes, plus keys 1–8, `/`, `t` and Esc;
+  - CSV export for tables, PNG and JSON for the graph, Markdown and print-to-PDF for the report, and the bundle;
+  - the hash-chain badge, read-only, with no build step.
+- **Compatibility for one release:** `atlas.js` and `atlas.css` load the new app, `HypAtlas` is an alias of
+  `HypGraph`, and the `--hg-*` theme tokens still apply. Routes a host doesn't serve are hidden rather than failing,
+  so PegasusDMZ's older API still works.
+- `dev/ui_smoke.py` renders every view of five profile fixtures in both themes, plus an Atlas-style page, in headless
+  Chrome. CI runs it.
+
 ## 0.5.3 — 2026-10-26: results that name no file can go stale
 
 - **A result that names no file it read can go stale.** Under a workflow (`@2` profiles), a result whose run has no

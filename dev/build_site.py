@@ -3,7 +3,7 @@ Regenerate the website's generated files from the package:
 
     site/data/broad-street.bundle.json   the demo, as a verifiable bundle
     site/schema/hypgraph-1.json          the vocabulary
-    site/atlas/{atlas.js, atlas.css, vendor/}   the explorer, copied from src/hypgraph/ui
+    site/atlas/{hypgraph.js, hypgraph.css, atlas.js, atlas.css, vendor/}   the UI, copied from src/hypgraph/ui
     site/py/                             the engine's source + manifest.json, for the Pyodide playground
     site/spec/index.html                 docs/spec.md as a page
     site/agents.md                       AGENTS.md
@@ -175,7 +175,7 @@ def main() -> None:
     write(SITE / "schema" / "hypgraph-1.json", json.dumps(describe(), indent=1, ensure_ascii=False))
 
     atlas = SITE / "atlas"
-    for f in ("atlas.js", "atlas.css"):
+    for f in ("hypgraph.js", "hypgraph.css", "atlas.js", "atlas.css"):      # the app, and the Atlas shims pages still use
         write(atlas / f, (PKG / "ui" / f).read_text(encoding="utf-8"))
     shutil.copytree(PKG / "ui" / "vendor", atlas / "vendor", dirs_exist_ok=True)
     shutil.copy2(PKG / "ui" / "hypgraph.svg", SITE / "assets" / "hypgraph.svg")

@@ -1,4 +1,5 @@
-"""The Atlas explorer's static files (atlas.js, atlas.css, vendored Cytoscape). A host serves ``static_dir()``."""
+"""The HypGraph UI's static files (hypgraph.js, hypgraph.css, index.html, vendored Cytoscape; atlas.js and atlas.css
+are one-release shims for pages that still include the Atlas). A host serves ``static_dir()``."""
 
 from pathlib import Path
 
