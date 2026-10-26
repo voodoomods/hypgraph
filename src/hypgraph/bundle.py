@@ -91,9 +91,15 @@ def _event_in(kind: str, ref: str, p: dict, ids: set, eids: set) -> bool:
 def derive_views(g: "Graph", invs: list[str]) -> dict:
     """What a viewer needs without running the engine: standing of every node and the per-investigation views."""
     views = {"investigations": [i for i in g.investigations() if i["id"] in invs], "stats": g.stats(), "by_inv": {}}
+    from . import profiles
     for i in invs:
+        pid = str((g.get(i).get("body") or {}).get("profile") or "")
         views["by_inv"][i] = {"subgraph": g.subgraph(i), "work": g.work_map(i), "next": g.next_experiments(i, 20),
-                              "report": g.report(i)}
+                              "report": g.report(i),
+                              # the workflow views (hypgraph 0.6): a viewer shows each question's stage and gates,
+                              # the board, the work orders and the profile's own words without the engine
+                              "profile": profiles.view(pid), "stages": g.stages(i), "completion": g.completion(i),
+                              "board": g.question_board(i), "orders": g.orders(i)}
     views["verify"] = g.verify()
     return views
 

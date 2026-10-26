@@ -63,6 +63,7 @@ class Profile:
     version: int
     about: str
     vocabulary: dict = field(default_factory=dict)        # node type → meaning here
+    labels: dict = field(default_factory=dict)            # node type → the short noun a UI shows ("Requirement")
     done_when: dict = field(default_factory=dict)         # target type → [{"p": …}]
     predicates: tuple = ()                                # names from PRED_DESC this profile uses
     validators: tuple = ()                                # names from _CLAIM_VALIDATORS / _RESULT_VALIDATORS
@@ -138,8 +139,29 @@ RECIPES = {
 
 PROFILES: dict[str, Profile] = {}
 
+# The short noun each discipline uses for a node type — what every screen says instead of the kernel's word. Display
+# only: nothing in the record changes meaning with it. The @1 profiles are frozen and keep the kernel's words.
+LABELS: dict[str, dict[str, str]] = {
+    "scientific@2": {"question": "Question", "hypothesis": "Hypothesis", "experiment": "Experiment", "run": "Run",
+                     "result": "Result", "claim": "Claim", "artifact": "Data", "decision": "Decision"},
+    "software@2": {"question": "Requirement", "hypothesis": "Design", "experiment": "Test plan", "run": "Test run",
+                   "result": "Test result", "claim": "Verification", "artifact": "Change", "review": "Code review",
+                   "decision": "Release"},
+    "trading@2": {"question": "Market question", "hypothesis": "Thesis", "experiment": "Backtest plan",
+                  "run": "Backtest", "result": "Performance", "claim": "Edge claim", "artifact": "Price data",
+                  "review": "Risk review", "decision": "Position"},
+    "knowledge@2": {"question": "Question", "hypothesis": "Lead", "experiment": "Search plan", "run": "Search",
+                    "result": "Finding", "claim": "Sourced claim", "artifact": "Excerpt", "review": "Fact check"},
+    "optimization@2": {"question": "Problem", "hypothesis": "Model", "experiment": "Solve config", "run": "Solve",
+                       "result": "Solution", "claim": "Solution claim", "artifact": "Instance",
+                       "review": "Verification", "decision": "Recommendation"},
+}
+
 
 def _add(p: Profile) -> Profile:
+    if not p.labels and p.id in LABELS:
+        from dataclasses import replace
+        p = replace(p, labels=dict(LABELS[p.id]))
     PROFILES[p.id] = p
     if p.workflow and p.workflow.invalidates:
         D.EXTRA_RISKY[p.id] = tuple(p.workflow.invalidates)
@@ -662,12 +684,29 @@ def _wf(w: Workflow | None) -> dict | None:
             "decisions": {k: list(v) for k, v in w.decisions.items()}}
 
 
+def labels_of(p: Profile | None) -> dict[str, str]:
+    """Every node type's display noun under ``p``: the profile's own, else the kernel's word."""
+    from .schema import TYPES
+    own = p.labels if p else {}
+    return {t: own.get(t) or t.capitalize() for t in TYPES}
+
+
+def view(pid: str = "") -> dict:
+    """What a UI needs to speak a profile: its name and meaning, every node type's label, its workflow (stages with
+    what each holds and the gate out of it, the report's name). ``pid`` "" (no profile) gives the kernel's words."""
+    p = PROFILES.get(str(pid or "").strip().lower()) if pid else None
+    return {"id": p.id if p else "", "name": p.name if p else "", "version": p.version if p else 0,
+            "about": p.about if p else "", "labels": labels_of(p), "vocabulary": dict(p.vocabulary) if p else {},
+            "workflow": _wf(p.workflow) if p else None}
+
+
 def describe() -> dict:
-    return {pid: {"about": p.about, "vocabulary": p.vocabulary, "done_when": p.done_when, "predicates": list(p.predicates),
+    return {pid: {"about": p.about, "vocabulary": p.vocabulary, "labels": labels_of(p), "done_when": p.done_when,
+                  "predicates": list(p.predicates),
                   "validators": list(p.validators), "completion": list(p.completion),
                   "seats": [list(x) for x in p.seats], "workflow": _wf(p.workflow)} for pid, p in PROFILES.items()}
 
 
-__all__ = ["PRED_DESC", "PROFILES", "Profile", "RECIPES", "Stage", "Workflow", "claim_issues", "completion",
-           "default_done", "describe", "evaluate", "get", "latest", "node_issues", "profile_of", "result_issues",
-           "review_refusal", "validate_profile_id", "workflow_of"]
+__all__ = ["LABELS", "PRED_DESC", "PROFILES", "Profile", "RECIPES", "Stage", "Workflow", "claim_issues",
+           "completion", "default_done", "describe", "evaluate", "get", "labels_of", "latest", "node_issues",
+           "profile_of", "result_issues", "review_refusal", "validate_profile_id", "view", "workflow_of"]

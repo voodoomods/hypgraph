@@ -119,4 +119,4 @@ Report standing as the record states it. Don't upgrade "unchecked" to "shown", o
 
 `hypgraph check summary.md` · `hypgraph refusals` · `hypgraph bound K N [--exposure X]` · `hypgraph show NODE [--why|--impact|--history]` · `hypgraph work` · `hypgraph next` · `hypgraph revise NODE k=v --reason "…"`
 · `hypgraph withdraw NODE --why "…"` · `hypgraph export -o bundle.json` · `hypgraph verify [bundle.json]` ·
-`hypgraph serve` (the Atlas explorer) · `hypgraph schema` (every type and relation).
+`hypgraph serve` (the HypGraph UI) · `hypgraph schema` (every type and relation).

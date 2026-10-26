@@ -1,7 +1,7 @@
 """
-``hypgraph serve`` — the JSON API and the Atlas explorer, stdlib only.
+``hypgraph serve`` — the JSON API and the HypGraph UI, stdlib only.
 
-    GET  /                                  the Atlas
+    GET  /                                  the HypGraph UI
     GET  /api/graph/investigations          {investigations, stats}
     GET  /api/graph/subgraph?inv=&types=    nodes (with standing) and live edges
     GET  /api/graph/node/{id}?history=1     one node, its links, its versions
@@ -9,6 +9,9 @@
     GET  /api/graph/neighborhood/{id}?depth=
     GET  /api/graph/search?text=&type=&inv=&limit=
     GET  /api/graph/events?after=&inv=&limit=
+    GET  /api/graph/stream?inv=&after=      the same events pushed as they are written (Server-Sent Events; resumes
+                                            from Last-Event-ID; a comment line every 15 s keeps proxies open)
+    GET  /api/graph/profile?inv=            the investigation's profile as a UI speaks it: labels, workflow, report
     GET  /api/graph/next?inv=   /work?inv=   /cost?inv=&node=   /report?inv=   /verify   /schema
     GET  /api/graph/export?inv=             a verifiable bundle
     GET  /api/graph/refusals?inv=&since=    the overclaims caught, per author and rule
@@ -34,6 +37,7 @@ import hmac
 import json
 import mimetypes
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -180,6 +184,9 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
             return 200, g.stage(arg, inv)
         if head == "profiles":
             return 200, profiles.describe()
+        if head == "profile":
+            pid = str((g.get(inv).get("body") or {}).get("profile") or "") if inv else ""
+            return 200, profiles.view(pid)
         if head == "verify":
             return 200, g.verify_chain()
         if head == "refusals":
@@ -238,6 +245,8 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
             if not self._host_ok():
                 return self._json(421, {"detail": "unexpected Host header"})
             u = urlparse(self.path)
+            if u.path.rstrip("/") == "/api/graph/stream":
+                return self._stream(parse_qs(u.query))
             if u.path.startswith("/api/graph"):
                 status, obj = dispatch(g, "GET", u.path[len("/api/graph"):], parse_qs(u.query), writable=writable)
                 return self._json(status, obj)
@@ -249,6 +258,56 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
             if ctype.startswith("text/") or ctype in ("application/javascript", "image/svg+xml"):
                 ctype += "; charset=utf-8"
             self._send(200, f.read_bytes(), ctype)
+
+        def _stream(self, q: dict) -> None:
+            """Push the record's events as they are written (Server-Sent Events): ``id`` is the event's seq, so a
+            client that reconnects resumes where it was (Last-Event-ID). Writes from other processes on the same
+            file arrive too — a swarm writing to the record is watched live. ``max_seconds`` ends the stream (for
+            clients and tests that want a bounded read); 0 = until the client leaves."""
+            one = {k: v[0] for k, v in q.items()}
+            inv = str(one.get("inv") or "")
+            try:
+                after = int(one.get("after") or self.headers.get("Last-Event-ID") or 0)
+                max_s = min(max(float(one.get("max_seconds") or 0), 0.0), 86400.0)
+                poll = min(max(float(one.get("poll") or 0.5), 0.1), 10.0)
+            except ValueError:
+                return self._json(400, {"detail": "after, max_seconds and poll must be numbers"})
+            if inv:
+                try:
+                    g.get(inv)
+                except KeyError:
+                    return self._json(404, {"detail": f"no investigation {inv}"})
+            self.send_response(200)
+            for k, v in (("Content-Type", "text/event-stream; charset=utf-8"), ("Cache-Control", "no-store"),
+                         ("X-Accel-Buffering", "no"), ("X-Content-Type-Options", "nosniff")):
+                self.send_header(k, v)
+            self.end_headers()
+            start = last = time.monotonic()
+            try:
+                self.wfile.write(b"retry: 2000\n\n")
+                self.wfile.flush()
+                while True:
+                    out = g.events(after=after, inv=inv, limit=500)
+                    for e in out["events"]:
+                        data = json.dumps(e, ensure_ascii=False, default=str)
+                        self.wfile.write(f"id: {e['seq']}\nevent: record\ndata: {data}\n\n".encode())
+                        after = int(e["seq"])
+                    now = time.monotonic()
+                    if out["events"]:
+                        self.wfile.flush()
+                        last = now
+                    elif now - last >= 15:
+                        self.wfile.write(b": keep-alive\n\n")
+                        self.wfile.flush()
+                        last = now
+                    if max_s and now - start >= max_s:
+                        self.wfile.write(f"event: end\ndata: {json.dumps({'head': after})}\n\n".encode())
+                        self.wfile.flush()
+                        return
+                    if len(out["events"]) < 500:
+                        time.sleep(poll)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                return                                      # the client left
 
         def do_POST(self):  # noqa: N802
             if not self._host_ok():
@@ -295,7 +354,7 @@ def serve(db: str, host: str = "127.0.0.1", port: int = 8765, *, writable: bool 
     srv = make_server(db, host, port, writable=writable, tokens=tokens)
     url = f"http://{host}:{srv.server_address[1]}/"
     auth = f", {len(tokens)} write token(s)" if tokens else (", writes unauthenticated" if writable else "")
-    print(f"HypGraph Atlas on {url}  ({db}{', writable' if writable else ', read-only'}{auth})  — Ctrl+C to stop")
+    print(f"HypGraph on {url}  ({db}{', writable' if writable else ', read-only'}{auth})  — Ctrl+C to stop")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

@@ -162,7 +162,11 @@ with g.writing_for(task_id):                                # every event carrie
 - **Multi-agent:** give each agent its own author name. Make your critic agents reviewers. Have your job runner
   write as the instrument, so its runs count as recorded, not reported.
 - **Your web framework:** `hypgraph.server.dispatch(graph, method, path, query, body)` is the JSON API, and
-  `hypgraph.ui.static_dir()` is the Atlas explorer to mount next to it.
+  `hypgraph.ui.static_dir()` is the HypGraph UI to mount next to it.
+- **Watching it live:** `GET /api/graph/stream?inv=` pushes every event as it is written (Server-Sent Events,
+  resumable with `Last-Event-ID`), including writes from another process on the same file, such as a swarm running
+  against the record. `GET /api/graph/profile?inv=` gives the investigation's profile as a UI speaks it: each node
+  type's label ("Requirement", "Thesis"), the workflow's stages and the report's name.
 - **CI:** `hypgraph export -o record.bundle.json && hypgraph verify record.bundle.json`. The bundle is a single file
   your reviewers or auditors can check with SHA-256, in any language or in the browser.
 
@@ -173,7 +177,7 @@ The full guide is at [hypgraph.com/engineers](https://hypgraph.com/engineers/).
 ```bash
 pip install hypgraph
 hypgraph demo        # a complete worked investigation (Broad Street, 1854) built into ./research.hypgraph
-hypgraph serve       # explore it in the Atlas: http://127.0.0.1:8765
+hypgraph serve       # explore it in the HypGraph UI: http://127.0.0.1:8765
 hypgraph report      # the facts, generated from the record
 ```
 
@@ -188,7 +192,7 @@ egress, pulled out so anyone can use it. Each rule exists because the agents mad
 - a summary whose numbers matched no result;
 - "never" written about something that happened once in a thousand.
 
-PegasusDMZ is the reference deployment, and its Atlas is built from this package. Against PegasusDMZ's live record
+PegasusDMZ is the reference deployment, and its graph UI is built from this package. Against PegasusDMZ's live record
 (1,357 events, 790 nodes), the library derives the same standing for every node as the engine it replaced.
 
 ## Performance
