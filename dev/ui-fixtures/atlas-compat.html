@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HypGraph — Atlas compatibility</title>
+<!-- A page written for the Atlas, unchanged in shape (as PegasusDMZ's /atlas is): atlas.css + atlas.js, HypAtlas.mount,
+     a dark host that themes it with --hg-* tokens. It must keep working for one release. -->
+<link rel="stylesheet" href="../../src/hypgraph/ui/atlas.css">
+<style>html, body { margin: 0; height: 100%; } #page-atlas { height: 100vh; --hg-accent: #ffb547; }</style>
+</head>
+<body>
+<div id="page-atlas" data-theme="dark"></div>
+<script src="../../src/hypgraph/ui/vendor/cytoscape.min.js"></script>
+<script src="../../src/hypgraph/ui/vendor/layout-base.js"></script>
+<script src="../../src/hypgraph/ui/vendor/cose-base.js"></script>
+<script src="../../src/hypgraph/ui/vendor/cytoscape-fcose.js"></script>
+<script src="../../src/hypgraph/ui/atlas.js"></script>
+<script>
+  (async () => {
+    const el = document.getElementById('page-atlas');
+    try {
+      const r = await fetch('software.bundle.json');
+      HypAtlas.mount(el, { source: HypAtlas.BundleSource(await r.json()), title: 'ATLAS', hash: true });
+    } catch (e) { el.dataset.hgError = 'compat: ' + e.message; }
+  })();
+</script>
+</body>
+</html>

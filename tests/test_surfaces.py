@@ -141,9 +141,12 @@ def _post(url, body, **headers):
         return e.code, json.loads(e.read())
 
 
-def test_http_api_serves_the_atlas_and_the_record(server):
+def test_http_api_serves_the_ui_and_the_record(server):
     st, body = _get(server + "/")
-    assert st == 200 and b"HypAtlas.mount" in body
+    assert st == 200 and b"HypGraph.mount" in body
+    st, body = _get(server + "/hypgraph.js")
+    assert st == 200 and b"global.HypAtlas" in body                              # the Atlas's name, kept for a release
+    assert _get(server + "/atlas.js")[0] == 200
     st, body = _get(server + "/vendor/cytoscape.min.js")
     assert st == 200 and len(body) > 100_000
     st, body = _get(server + "/../pyproject.toml")

@@ -28,3 +28,14 @@ jobs:
           hypgraph demo >/dev/null
           hypgraph export -o demo.bundle.json
           hypgraph verify demo.bundle.json
+
+  ui:
+    # the HypGraph UI in a real browser: every view, for every profile fixture, in both themes (dev/ui_smoke.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Every view renders with no script error
+        run: python dev/ui_smoke.py --chrome google-chrome
