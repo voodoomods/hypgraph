@@ -128,7 +128,8 @@ def test_significance_is_tested_from_the_counts(env):
     p = refused(env, "Model A is significantly better than model B.", [M(env[3], "p", "p_ab", value=0.21)] + close,
                 scope="1,000 items each, one seed.")
     assert codes(p) == ["SIGNIFICANCE_NOT_SHOWN"]
-    assert "SIGNIFICANCE_WITHOUT_TEST" in codes(refused(env, "The fine-tune is significantly better."))
+    # 0.4.3: the supporting result carries p_ab = 0.21, a named p-value — that test backs the word and fails it
+    assert "SIGNIFICANCE_NOT_SHOWN" in codes(refused(env, "The fine-tune is significantly better."))
 
 
 def test_causes_need_an_intervention(env):

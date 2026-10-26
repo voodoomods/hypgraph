@@ -101,6 +101,24 @@ RELS: dict[str, tuple[set, set]] = {
     "settles": ({"decision"}, {"task"}),
 }
 REPLICATION = ("same_code", "new_seed", "new_impl", "new_data", "new_env")
+# What writers call the enum values. Mapped before validation, by (type, field); the stored value is canonical.
+SYNONYMS: dict[tuple[str, str], dict[str, str]] = {
+    ("result", "outcome"): {"success": "positive", "succeeded": "positive", "successful": "positive", "pass": "positive",
+                          "passed": "positive", "ok": "positive", "yes": "positive", "confirmed": "positive",
+                          "supported": "positive", "no": "negative", "refuted": "negative", "disconfirmed": "negative",
+                          "null": "negative", "unclear": "inconclusive", "mixed": "inconclusive",
+                          "indeterminate": "inconclusive", "error": "failed", "crashed": "failed", "fail": "failed",
+                          "failure": "failed", "skip": "skipped", "not_run": "skipped"},
+    ("result", "kind"): {"calculated": "computed", "derived": "computed", "measured": "observed", "empirical": "observed",
+                       "quoted": "cited", "literature": "cited"},
+    ("claim", "kind"): {"fact": "finding", "result": "finding", "observation": "finding", "measurement": "finding",
+                      "conclusion": "finding", "rule_out": "exclusion", "ruled_out": "exclusion", "negative": "exclusion",
+                      "undetermined": "inconclusive", "unclear": "inconclusive", "definition": "convention",
+                      "notation": "convention", "hunch": "lead", "idea": "lead"},
+    ("run", "state"): {"success": "succeeded", "successful": "succeeded", "done": "succeeded", "completed": "succeeded",
+                      "complete": "succeeded", "ok": "succeeded", "error": "failed", "failure": "failed", "fail": "failed",
+                      "crashed": "failed", "timed_out": "timeout", "killed": "cancelled", "stopped": "interrupted"},
+}
 # what a node rests on: if the far end falls, this node is at risk (a work order is moot)
 RISKY = ("requires", "derived_from", "based_on", "works_on", "rests_on")
 SAME_TYPE = ("supersedes", "corrects")

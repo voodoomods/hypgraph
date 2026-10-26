@@ -274,6 +274,29 @@ def _measured_claim(s: Snap, support: list[str]) -> bool:
     return False
 
 
+_PNAME = re.compile(r"^(p|pval|pvalue|p[_-]?val(?:ue)?|p[_-][a-z0-9_]+)$", re.I)
+
+
+def _p_values(s: Snap, bound: list, support: list[str]) -> list[float]:
+    """The p-values behind a claim: a bound value dict's `p`, a bound field *named* p / p_value / p_<test>
+    (an exact McNemar p registered as `p_exact` is a test), and such fields on the results that support it."""
+    ps = [float(rv["p"]) for _m, rv in bound if isinstance(rv.get("p"), (int, float))]
+    for m, rv in bound:
+        key = str(m.get("key") or m.get("name") or "")
+        v = rv.get("value")
+        if _PNAME.match(key) and isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1:
+            ps.append(float(v))
+    for rid in support:
+        n = s.nodes.get(rid)
+        if not n or n["type"] != "result":
+            continue
+        for key, rv in (n["body"].get("values") or {}).items():
+            v = rv.get("value") if isinstance(rv, dict) else rv
+            if _PNAME.match(str(key)) and isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1:
+                ps.append(float(v))
+    return ps
+
+
 def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Problem]:
     out = []
     comp = L.asserted(L.COMPARATIVE, stmt)
@@ -285,11 +308,13 @@ def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Pr
                            "(a k/n or value for both), or a difference with its interval",
                            fix="bind both sides as measurements", words=comp))
     sig = L.asserted(L.SIGNIFICANCE, stmt)
-    bound_p = [float(rv["p"]) for _m, rv in bound if isinstance(rv.get("p"), (int, float))]
+    bound_p = _p_values(s, bound, [])                      # the claim's own measurements
+    support_p = _p_values(s, [], support)                  # a named p on a supporting result: the last resort
     arms = [_arm(rv) for _m, rv in bound if _arm(rv)]
     no_sig = L.denied(L.SIGNIFICANCE, stmt)
     if no_sig and not sig:                      # "not significant": the record checks that too
-        p = min(bound_p) if bound_p else (stats.two_proportions(*arms[0], *arms[1])["p"] if len(arms) >= 2 else None)
+        p = min(bound_p) if bound_p else (stats.two_proportions(*arms[0], *arms[1])["p"] if len(arms) >= 2
+                                          else (min(support_p) if support_p else None))
         if p is not None and p < 0.05:
             out.append(Problem("SIGNIFICANCE_CONTRADICTED",
                                f"the statement denies significance ('{no_sig[0]}'), but the bound evidence is "
@@ -310,10 +335,16 @@ def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Pr
                                    f"{t['diff'] * 100:.1f} points, 95% interval {t['lo'] * 100:.1f} to "
                                    f"{t['hi'] * 100:.1f}, p = {t['p']:.2g} (two-proportion z-test) — not significant "
                                    "at 0.05. Say the difference and that it isn't significant.", words=sig))
+        elif support_p:
+            if min(support_p) > 0.05:
+                out.append(Problem("SIGNIFICANCE_NOT_SHOWN",
+                                   f"'{sig[0]}': the p-value on the supporting result is {min(support_p):.3g}, not below "
+                                   "0.05 — say the difference and that it isn't significant", words=sig))
         else:
             out.append(Problem("SIGNIFICANCE_WITHOUT_TEST",
-                               f"'{sig[0]}' claims a test was passed: bind a result field holding the p-value or "
-                               "interval, or bind both sides as counts (k/n) so the record can test them",
+                               f"'{sig[0]}' claims a test was passed: bind a result field holding the p-value (a field "
+                               "named p, p_value or p_<test>, e.g. p_mcnemar) or an interval, or bind both sides as "
+                               "counts (k/n) so the record can run its own two-proportion test",
                                fix="bind a p-value, or both sides as k/n", words=sig))
     return out
 
