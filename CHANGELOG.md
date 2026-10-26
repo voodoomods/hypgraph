@@ -17,6 +17,14 @@ file:
   fresh results (their message says which went stale and why); `result_reviewed` doesn't count a check of a stale
   result; a decision is stale when everything it was based on is, and `positioned` / `decided` take only fresh ones
   — a position taken on a backtest the vendor later corrected has to be decided again.
+- **The report check reads the answers block.** A fenced ```answers block (the part of a report a harness scores
+  and a reader copies) was skipped like any code block, so a report could carry an answer only stale evidence gave
+  and pass. Now each answer has to be one a current claim on its question makes — live, not stale — at the precision
+  written and with its sign: `REPORT_ANSWER_STALE` when only old claims or stale results give it (or a current claim
+  binds the same field to another value), `REPORT_ANSWER_UNBACKED` when no claim does or the question has no claim,
+  `REPORT_ANSWERS_UNREADABLE` for invalid JSON. Results count through the claims that bind them; a number a claim
+  names only as a superseded figure doesn't back an answer; URLs, paths and hashes are provenance. Keys are question
+  codes in any case, or a flat object checked against the investigation. Found by HypSwarm's change suite.
 - **The report check skips the record's own facts.** A line inside a "Facts from the research graph" block is not
   linted when it is exactly a line the record generates now (a hypothesis that says "significantly" is a conjecture
   the record lists, not the author's assertion). Anything else written under that heading is checked as usual.

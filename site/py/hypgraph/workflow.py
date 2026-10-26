@@ -201,9 +201,21 @@ def g_run_registered(sc: Scope, now: str) -> dict:
     return _g(bool(rs), rs, f"no run executes an experiment on {sc.code(sc.root)}")
 
 
+def _current_results(sc: Scope) -> list[str]:
+    """Live results on the target that still speak for it — a result whose run used a file that has since changed
+    is evidence about the old file, not about the question now."""
+    return [r for r in sc.fresh(sc.results) if not D.stale(sc.s, r)]
+
+
+def _stale_why(sc: Scope) -> str:
+    old = [r for r in sc.fresh(sc.results) if D.stale(sc.s, r)]
+    return (f" (the results on it are stale: {'; '.join(D.stale(sc.s, old[-1])[:1])} — recompute from the files as they are "
+            "now)") if old else ""
+
+
 def g_result_exists(sc: Scope, now: str) -> dict:
-    rs = sc.fresh(sc.results)
-    return _g(bool(rs), rs, f"no live result on {sc.code(sc.root)}")
+    rs = _current_results(sc)
+    return _g(bool(rs), rs, f"no live result on {sc.code(sc.root)}{_stale_why(sc)}")
 
 
 def g_claim_made(sc: Scope, now: str) -> dict:
@@ -239,7 +251,11 @@ def g_reviewed(sc: Scope, now: str) -> dict:
 def g_decided(sc: Scope, now: str) -> dict:
     # a decision that settles a work order is the harness accepting work, not a decision on the question
     ds = [d for d in sc.fresh(sc.decisions) if not any(e["rel"] == "settles" for e in sc.s.out.get(d, []))]
-    return _g(bool(ds), ds, f"no decision is based on a claim or result on {sc.code(sc.root)}")
+    fresh = [d for d in ds if not D.stale(sc.s, d)]
+    if fresh:
+        return _g(True, fresh, "")
+    return _g(False, [], f"{sc.code(ds[-1])} was decided on evidence that is now stale — decide again on what stands"
+              if ds else f"no decision is based on a claim or result on {sc.code(sc.root)}")
 
 
 def _current_diffs(sc: Scope, kind: str) -> tuple[list[str], list[str]]:
@@ -288,10 +304,15 @@ def g_instance_registered(sc: Scope, now: str) -> dict:
 
 def g_source_quoted(sc: Scope, now: str) -> dict:
     s = sc.s
-    good = [x for x in sc.fresh(sc.sources) if str(s.nodes[x]["body"].get("passage") or "").strip()
-            and str(s.nodes[x]["body"].get("retrieved") or "").strip()]
+    quoted = [x for x in sc.fresh(sc.sources) if str(s.nodes[x]["body"].get("passage") or "").strip()
+              and str(s.nodes[x]["body"].get("retrieved") or "").strip()]
+    good = [x for x in quoted if not D.stale(s, x)]
     if good:
         return _g(True, good, "")
+    if quoted:
+        x = quoted[-1]
+        return _g(False, [], f"{sc.code(x)} is stale: {'; '.join(D.stale(s, x)[:1])} — read the page again and add "
+                             "the source as it is now")
     partial = sc.fresh(sc.sources)
     if partial:
         miss = [k for k in ("passage", "retrieved") if not str(s.nodes[partial[0]]["body"].get(k) or "").strip()]
@@ -305,9 +326,18 @@ def g_search_recorded(sc: Scope, now: str) -> dict:
     return _g(bool(xs), xs, f"no experiment method=search records where {sc.code(sc.root)} was looked for")
 
 
+def _cites_fresh_source(s: D.Snap, c: str) -> bool:
+    return any(e["rel"] == "cites" and s.nodes[e["dst"]]["type"] == "source" and _live(s, e["dst"])
+               and not D.stale(s, e["dst"]) for e in s.out.get(c, []))
+
+
 def g_sourced(sc: Scope, now: str) -> dict:
-    cs = [c for c in sc.fresh(sc.claims) if _cites_source(sc.s, c)]
-    return _g(bool(cs), cs, f"no claim answering {sc.code(sc.root)} cites a live source")
+    cs = [c for c in sc.fresh(sc.claims) if _cites_fresh_source(sc.s, c)]
+    if cs:
+        return _g(True, cs, "")
+    old = [c for c in sc.fresh(sc.claims) if _cites_source(sc.s, c)]
+    return _g(False, [], f"{sc.code(old[-1])} cites a source whose page changed — cite the page as it is now" if old
+              else f"no claim answering {sc.code(sc.root)} cites a live source")
 
 
 def _trials(v: dict) -> bool:
@@ -317,7 +347,7 @@ def _trials(v: dict) -> bool:
 def g_backtested(sc: Scope, now: str) -> dict:
     s = sc.s
     nearest, missing = "", []
-    for r in sc.fresh(sc.results):
+    for r in _current_results(sc):
         v = _vals(s.nodes[r]["body"])
         miss = []
         if not _has(v, r"oos|out_of_sample|holdout|test_"):
@@ -332,7 +362,7 @@ def g_backtested(sc: Scope, now: str) -> dict:
             nearest, missing = r, miss
     if nearest:
         return _g(False, [], f"{sc.code(nearest)} lacks {', '.join(missing)}")
-    return _g(False, [], f"no backtest result on {sc.code(sc.root)}")
+    return _g(False, [], f"no backtest result on {sc.code(sc.root)}{_stale_why(sc)}")
 
 
 def _position_missing(body: dict) -> list[str]:
@@ -356,8 +386,12 @@ def g_positioned(sc: Scope, now: str) -> dict:
     ds = [d for d in _positions(sc) if (not sc.since or s.nodes[d]["created_at"] >= sc.since)
           and not _position_missing(s.nodes[d]["body"])]
     ds += [d for d in _no_positions(sc) if not sc.since or s.nodes[d]["created_at"] >= sc.since]
-    return _g(bool(ds), ds, f"no decision based on a claim on {sc.code(sc.root)}: kind=position (size, stop, "
-                            "review_date, paper=true), or kind=no_position when the thesis is declined")
+    fresh = [d for d in ds if not D.stale(s, d)]
+    if ds and not fresh:
+        return _g(False, [], f"{sc.code(ds[-1])} was decided on evidence that is now stale — decide again on the "
+                             "claim as it stands")
+    return _g(bool(fresh), fresh, f"no decision based on a claim on {sc.code(sc.root)}: kind=position (size, stop, "
+                                  "review_date, paper=true), or kind=no_position when the thesis is declined")
 
 
 def _past_review(sc: Scope, d: str, now: str) -> bool:
@@ -387,19 +421,23 @@ def g_still_valid(sc: Scope, now: str) -> dict:
 
 def g_solved(sc: Scope, now: str) -> dict:
     s = sc.s
-    for r in sc.fresh(sc.results):
+    for r in _current_results(sc):
         v = _vals(s.nodes[r]["body"])
         if "feasible" in v and v["feasible"] in (False, 0, "false", "False", "no"):
             return _g(True, [r], "")
         if "objective" in v and v.get("feasible") in _TRUE and ("bound" in v or "gap" in v):
             return _g(True, [r], "")
     return _g(False, [], f"no result on {sc.code(sc.root)} with objective, feasible=true and a bound or gap (or "
-                         "feasible=false)")
+                         "feasible=false)" + _stale_why(sc))
 
 
 def g_result_reviewed(sc: Scope, now: str) -> dict:
     s = sc.s
-    rs = [r for r in sc.results if _live(s, r) and _checked_since(sc, r)]
+    checked = [r for r in sc.results if _live(s, r) and _checked_since(sc, r)]
+    rs = [r for r in checked if not D.stale(s, r)]
+    if checked and not rs:
+        return _g(False, [], f"{sc.code(checked[-1])} was checked, but on evidence that is now stale: "
+                             f"{'; '.join(D.stale(s, checked[-1])[:1])}")
     return _g(bool(rs), rs, f"no result on {sc.code(sc.root)} is checked by a reviewer")
 
 

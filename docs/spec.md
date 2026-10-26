@@ -209,7 +209,9 @@ A report aggregates per author (refused, fixed, open, codes) and per rule.
 ## 9. Checking a write-up against the record
 
 A checker reads markdown sentence by sentence and checks it against the record. Code blocks, inline code, URLs, link
-targets and HTML comments are skipped. Quoted passages and negated words ("cannot be proven") are not treated as
+targets and HTML comments are skipped, except a fenced block whose info string is `answers`: that is the report's
+machine-read answer (a JSON object, keyed by question code or flat), and every number or true / false in it is checked
+against the claims. Quoted passages and negated words ("cannot be proven") are not treated as
 the writer's assertion. Codes are matched within the investigation being reported on.
 
 | level | code | when |
@@ -220,6 +222,9 @@ the writer's assertion. Codes are matched within the investigation being reporte
 | error | `REPORT_ABSOLUTE_UNBACKED` | never / always / impossible / guaranteed / eliminates / proven / 100% asserted, not in an instruction, with no cited claim carrying a count with k ∈ {0, n} |
 | error | `REPORT_ABSENCE_UNBACKED` | "no effect" / "rules out" / "doesn't matter" without citing a claim filed as `exclusion` or `inconclusive` |
 | error | `REPORT_SIGNIFICANCE_UNBACKED` | "significantly" without a p-value or interval in the sentence and without citing a node that carries a test (a negated "not significant" is a warning) |
+| error | `REPORT_ANSWER_STALE` | a value in the `answers` block that only stale, superseded or withdrawn claims (or stale results) on that question give, or that a current claim binds to a different value under the same field while an old one binds it to this; or a question whose every claim is old |
+| error | `REPORT_ANSWER_UNBACKED` | a value in the `answers` block that no current claim on the question states or binds, at the precision the answer gives it and with its sign; or a question answered with no claim at all. A number a claim names only as a figure that no longer holds ("the earlier count of 789 is superseded") doesn't back it. URLs, paths and hashes in the block are provenance and aren't checked. |
+| error | `REPORT_ANSWERS_UNREADABLE` | the `answers` block isn't valid JSON |
 | warning | `REPORT_UNSOURCED_NUMBER` | a number not contained in or implied by the investigation's results, live claims' measurements, statements and scopes, the investigation's scope and constants, or experiment and run settings. Integers ≤ 12, years, dates, times and 7-digit+ ids are skipped. Statistical quantities need one decimal. |
 | warning | `REPORT_OMITS_DISPUTE` | cites a contested or at-risk node without saying so |
 | warning | `REPORT_CITES_SUPERSEDED` | cites a superseded node without saying so |
