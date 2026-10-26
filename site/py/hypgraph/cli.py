@@ -2,7 +2,7 @@
 hypgraph — the command line.
 
     hypgraph demo                       build the Broad Street (1854) teaching investigation into ./research.hypgraph
-    hypgraph serve                      open the Atlas explorer on http://127.0.0.1:8765
+    hypgraph serve                      open the HypGraph UI on http://127.0.0.1:8765
     hypgraph init "Plant growth" --objective "…" --reviewers ada,lin
     hypgraph add hypothesis statement="Blue light grows cress faster." predictions='["taller after 7 days"]'
     hypgraph add result summary="Blue trays averaged 41 mm, red 33 mm." values='{"blue_mm": {"value": 41}}'
@@ -524,7 +524,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--install", action="store_true", help="write .claude/skills/hypgraph/SKILL.md")
     s.add_argument("--user", action="store_true", help="install under your home directory instead of this project")
     s.add_argument("--dir", default="", help="project directory to install into (default: here)")
-    s = cmd("serve", cmd_serve, "the Atlas explorer and JSON API on localhost")
+    s = cmd("serve", cmd_serve, "the HypGraph UI and JSON API on localhost")
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8765)
     s.add_argument("--writable", action="store_true", help="also accept writes (POST /api/graph/write)")

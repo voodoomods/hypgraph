@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+The engine side of the HypGraph UI (docs/ui-plan.md, P1):
+- **Each profile speaks its own words.** `Profile.labels` gives the short noun a screen shows for each node type: a
+  software question is a **Requirement**, a trading hypothesis a **Thesis**, a decision a **Position**, an
+  optimization result a **Solution**. `profiles.view(pid)` returns what a UI needs: the labels for every node type
+  (the kernel's word where the profile has none), the meaning of each type, and the workflow's stages, gates and
+  report name. The `@1` profiles are frozen and keep the kernel's words. The labels are display only.
+- **A bundle carries the workflow views.** Each investigation's `derived` now has `profile`, `stages`, `completion`,
+  `board` and `orders` beside the report, so a viewer shows stages and gates without the engine. As before, derived
+  views are outside the hash chain and never trusted.
+- **Watch a record live.** `GET /api/graph/stream?inv=&after=` pushes every event as it is written, as Server-Sent
+  Events. It includes writes from another process on the same file, so a swarm running against the record is
+  watched as it works. Ids are event seqs, so a client resumes with `Last-Event-ID`. A comment line every 15 s keeps
+  proxies open, and `max_seconds` bounds a read.
+- `GET /api/graph/profile?inv=` gives the investigation's profile as a UI speaks it.
+- "Atlas" is now the HypGraph UI in the server, the CLI, the README and the skill. The UI itself is rebuilt in P2.
+
 ## 0.5.3 — 2026-10-26: results that name no file can go stale
 
 - **A result that names no file it read can go stale.** Under a workflow (`@2` profiles), a result whose run has no
