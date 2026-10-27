@@ -202,10 +202,9 @@ PegasusDMZ is the reference deployment, and its graph UI is built from this pack
 
 ## Performance
 
-The engine is pure Python and stays fast at the sizes research records reach. At 10,000 nodes, deriving every node's
-standing takes 0.09 s, reading one node 0.3 ms, and a write about 10 ms, mostly SQLite committing to disk. A write
-costs what it touches: cached standing is kept for every node the write can't affect, and a randomized suite checks
-that against a full rebuild.
+The engine is pure Python with no dependencies. A write costs what it touches: cached standing is kept for every node
+the write can't affect, and a randomized suite checks that against a full rebuild. `dev/bench.py` measures reads,
+writes and derivation at a given record size on your machine.
 
 ## Made by
 
