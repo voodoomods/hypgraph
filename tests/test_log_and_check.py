@@ -203,3 +203,14 @@ def test_http_routes(tmp_path):
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_a_negated_exclusion_is_not_an_absence_claim(tmp_path):
+    """'Not ruled out' hedges; it doesn't say an effect is absent — the bound note says it in those words itself."""
+    g = Graph(tmp_path / "r.hypgraph")
+    inv = g.author("lead").investigation("Does the cache leak?", "Look for leaks in the cache under load.")["id"]
+    hedge = g.check_text("Up to 58,155 failures in 1,000,000 uses are not ruled out.\n\nA leak cannot be ruled out.\n", inv)
+    assert "REPORT_ABSENCE_UNBACKED" not in {f["code"] for f in hedge["findings"]}
+    claim = g.check_text("The cache rules out leaks.\n", inv)
+    assert "REPORT_ABSENCE_UNBACKED" in {f["code"] for f in claim["findings"]}
+    g.close()

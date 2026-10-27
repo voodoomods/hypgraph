@@ -274,7 +274,7 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
                     add(ln, "error", "REPORT_ABSOLUTE_UNBACKED", sent,
                         f"'{ab[0]}' — no counted claim is cited here. Cite the claim whose count backs it, or say what "
                         "was seen ('in k of n'). `hypgraph bound K N` says what a count supports.")
-            absent = L.found(L.EXCLUSION, own)
+            absent = _asserted(L.EXCLUSION, own)            # "not ruled out" is a hedge, not an absence claim
             if absent and not any(s.nodes[c]["type"] == "claim" and s.nodes[c]["body"].get("kind") in
                                   ("exclusion", "inconclusive") for c in cited):
                 add(ln, "error", "REPORT_ABSENCE_UNBACKED", sent,

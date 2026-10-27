@@ -2,17 +2,18 @@
 The homepage's own HypGraph record: every figure and claim on hypgraph.com, bound to the measurement it came from,
 re-measured by a second script, and the page copy linted against it. The site meets the rules it sells.
 
-    python dev/site_record.py      # writes dev/site-prototype/{site-record.bundle.json, data.js}
+    python dev/site_record.py      # site/data/{site-record.bundle.json, homepage-checked.md}, site/assets/site-data.js
 
 Three authors, as the record's roles intend:
 - ``lab`` (the instrument) runs the measurements: the test suite, the pyproject, the example bundles' hash chains,
-  and the overclaims the page shows, written into a scratch record;
+  `hypgraph bound` for the arithmetic of never, and the overclaims the page shows, written into a scratch record;
 - ``site`` writes the page's claims, each bound to the lab's result for its numbers;
 - ``site-check`` (the reviewer) re-measures each one another way — the suite run again, the pyproject parsed with
   tomllib instead of a regex, the bundles verified by the UI's JavaScript verifier (dev/js_verify.js) instead of the
-  Python one, the overclaims written into a fresh record — and records what it found.
+  Python one, the bound from its closed form for zero failures, the overclaims written into a fresh record — and
+  records what it found.
 
-Then the page's copy (dev/site-prototype/index.html, with the figures filled in from the claims) goes through
+Then the page's copy (site/index.html, with the figures filled in from the claims) goes through
 `hypgraph check` against this record: a number no claim or result accounts for, an absolute word with nothing behind
 it, or a claim cited that the record doesn't hold, is an error. Words the page quotes as examples of what gets
 refused are marked `data-quote`; a phrase true by the engine's design is marked `data-ok="<why>"` and listed.
@@ -38,7 +39,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from hypgraph import Graph, GraphError, Policy, __version__, report_check  # noqa: E402
 from hypgraph.bundle import verify_bundle  # noqa: E402
 
-PROTO = ROOT / "dev" / "site-prototype"
+SITE = ROOT / "site"
+PAGE = SITE / "index.html"
+NEVER = (0, 50, 1_000_000)          # the arithmetic of never on the homepage: k failures in n tests, at this exposure
 EXAMPLES = sorted((ROOT / "site" / "data" / "examples").glob("*.bundle.json"))
 OVERCLAIMS = [  # (overclaim, the honest rewrite on the same evidence)
     ("The fine-tune always beats the baseline.",
@@ -84,6 +87,16 @@ def deps_by_toml() -> int:
     return len(tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"])
 
 
+def bound_cli(k: int, n: int, exposure: int) -> dict:
+    p = sh(sys.executable, "-m", "hypgraph", "bound", str(k), str(n), "--exposure", str(exposure), "--json")
+    return json.loads(p.stdout)
+
+
+def bound_closed_form(n: int, exposure: int) -> int:
+    """The one-sided 95 % upper bound on a rate with 0 events in n trials, exactly: 1 - 0.05^(1/n)."""
+    return round((1 - 0.05 ** (1 / n)) * exposure)
+
+
 def verify_py() -> dict:
     return {p.name: verify_bundle(json.loads(p.read_text(encoding="utf-8"))) for p in EXAMPLES}
 
@@ -127,9 +140,7 @@ def overclaims() -> list[dict]:
 
 # ── the record ──────────────────────────────────────────────────────────────────────────────────────────────────
 def build() -> tuple[Graph, str, dict]:
-    path = PROTO / "site-record.hypgraph"
-    for p in (path, Path(str(path) + "-wal"), Path(str(path) + "-shm")):
-        p.unlink(missing_ok=True)
+    path = Path(tempfile.mkdtemp()) / "site-record.hypgraph"
     g = Graph(path, policy=Policy(reviewers=frozenset({"site-check"}), max_creates_per_minute=10**6))
     site, lab, check = g.author("site"), g.author("lab"), g.author("site-check")
     inv = site.investigation("What the hypgraph.com homepage claims",
@@ -188,7 +199,23 @@ def build() -> tuple[Graph, str, dict]:
           "site/data/examples at this commit: the hash chain of each, re-computed over the exact strings hashed.",
           [{"name": "bundles verified", "key": "verified", "k": ok, "n": len(vp)}])
 
-    # 5 · the overclaims the page shows
+    # 5 · the arithmetic of never
+    k, n, exposure = NEVER
+    n0 = now()
+    bd = bound_cli(k, n, exposure)
+    upto = round(bd["hi"] * exposure)              # the upper end of the 95 % interval on the rate, at this exposure
+    measure("never", f"With {k} failures in {n} tests, how many failures in {exposure} uses are not ruled out?",
+            "hypgraph bound", f"python -m hypgraph bound {k} {n} --exposure {exposure} --json",
+            f"{k} of {n}: up to {upto} failures in {exposure} uses not ruled out at 95 % confidence.",
+            {"failures": k, "tests": n, "exposure": exposure, "upto": upto, "confidence": 95}, n0, now())
+    claim("never", f"With {k} failures in {n} tests, up to {upto} failures in {exposure} uses are not ruled out at 95 % "
+                   "confidence.",
+          "A one-sided 95 % upper bound on the failure rate (exact binomial), times the exposure.",
+          [{"name": "failures", "key": "failures", "value": k}, {"name": "tests", "key": "tests", "value": n},
+           {"name": "exposure", "key": "exposure", "value": exposure}, {"name": "up to", "key": "upto", "value": upto},
+           {"name": "confidence", "key": "confidence", "value": 95}])
+
+    # 6 · the overclaims the page shows
     o0 = now()
     oc = overclaims()
     refused = sum(1 for o in oc if o.get("refused"))
@@ -223,13 +250,18 @@ def build() -> tuple[Graph, str, dict]:
                                       method="Verified each bundle with the UI's JavaScript verifier (dev/js_verify.js, "
                                              "WebCrypto), an implementation independent of the Python one.",
                                       notes=f"{okj} of {len(vj)} verify; the chain heads match the Python check's.")
+    cf = bound_closed_form(n, exposure)
+    reviews["never"] = check.review(nodes["never"]["claim"], "replicated" if abs(cf - upto) <= 1 else "objection",
+                                    method="Recomputed the bound from its closed form for zero failures, 1 - 0.05^(1/n), "
+                                           "times the exposure, without the engine.",
+                                    notes=f"Closed form: {cf} in {exposure}; the engine said {upto}.")
     oc2 = overclaims()
     same_codes = [o.get("codes") for o in oc2] == [o.get("codes") for o in oc]
     reviews["refusals"] = check.review(nodes["refusals"]["claim"], "replicated" if same_codes else "objection",
                                        method="Wrote the same overclaims and rewrites into a second fresh record.",
                                        notes="The engine refused them with the same codes and accepted the rewrites."
                                        if same_codes else "The refusal codes differed between the two records.")
-    facts = {"tests": t, "deps": deps, "bundles": {"ok": ok, "n": len(vp)},
+    facts = {"tests": t, "deps": deps, "bundles": {"ok": ok, "n": len(vp)}, "never": {"k": k, "n": n, "exposure": exposure, "upto": upto},
              "overclaims": oc, "nodes": nodes, "version": __version__}
     return g, inv, facts
 
@@ -238,7 +270,7 @@ def build() -> tuple[Graph, str, dict]:
 def page_text(facts: dict) -> tuple[str, list[dict]]:
     """The homepage's prose as the reader sees it, figures filled from the claims, as markdown for `hypgraph check`.
     Quoted examples are dropped (they are what gets refused); data-ok phrases are listed with their reason."""
-    src = (PROTO / "index.html").read_text(encoding="utf-8")
+    src = PAGE.read_text(encoding="utf-8")
     body = src.split("<main", 1)[1].split("</main>", 1)[0]
     ok = [{"text": html.unescape(re.sub(r"<[^>]+>", "", m.group(2))), "why": html.unescape(m.group(1))}
           for m in re.finditer(r'<span data-ok="([^"]*)">(.*?)</span>', body, re.S)]
@@ -255,8 +287,10 @@ def page_text(facts: dict) -> tuple[str, list[dict]]:
 
 def fill(facts: dict) -> dict:
     """What each data-fact slot on the page shows, straight from the measured values the claims carry."""
-    t = facts["tests"]
-    return {"tests": f"{t['passed']} of {t['total']}", "matrix": "passing on this build; CI runs Linux, macOS and Windows",
+    t, nv = facts["tests"], facts["never"]
+    return {"tests": f"{t['passed']} of {t['total']}",
+            "never-k": str(nv["k"]), "never-n": str(nv["n"]), "never-upto": f"{nv['upto']:,}",
+            "never-exposure": f"{nv['exposure']:,}", "deps-word": "no" if facts["deps"] == 0 else str(facts["deps"]),
             "verify-v": f"{facts['bundles']['ok']} of {facts['bundles']['n']} bundles",
             "version-pill": f"v{facts['version']}", "licence": "Apache-2.0", "deps": str(facts["deps"])}
 
@@ -266,11 +300,15 @@ def main() -> None:
     t0 = time.time()
     g, inv, facts = build()
     text, ok = page_text(facts)
-    (PROTO / "homepage.md").write_text(text, encoding="utf-8")
+    (SITE / "data").mkdir(exist_ok=True)
+    (SITE / "data" / "homepage-checked.md").write_text(
+        "<!-- the homepage's text as `hypgraph check` read it, figures filled in from the page's record "
+        "(dev/site_record.py) -->\n\n" + text, encoding="utf-8")
     lint = report_check.check(g, text, inv)
     b = g.export(inv)
     assert verify_bundle(b)["ok"]
-    (PROTO / "site-record.bundle.json").write_text(json.dumps(b, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (SITE / "data" / "site-record.bundle.json").write_text(json.dumps(b, ensure_ascii=False, separators=(",", ":")),
+                                                           encoding="utf-8")
     s = g.snapshot()
     from hypgraph import derive as D
     standing = {}
@@ -281,9 +319,9 @@ def main() -> None:
                          "statement": s.nodes[n["claim"]]["body"].get("statement", ""), "summary": st.get("sentence", "")}
     g.close()
     data = {"facts": fill(facts), "standing": standing, "overclaims": facts["overclaims"], "lint": lint,
-            "data_ok": ok, "inv": inv, "built": now()}
-    (PROTO / "data.js").write_text("// generated by dev/site_record.py — do not edit\nwindow.PROTO = "
-                                   + json.dumps(data, indent=1, ensure_ascii=False) + ";\n", encoding="utf-8")
+            "data_ok": ok, "inv": inv, "built": now(), "head": b["head"]}
+    (SITE / "assets" / "site-data.js").write_text("// generated by dev/site_record.py — do not edit\nwindow.SITE_DATA = "
+                                                  + json.dumps(data, indent=1, ensure_ascii=False) + ";\n", encoding="utf-8")
     errs = [f for f in lint["findings"] if f["level"] == "error"]
     print(f"record: {len(b['events'])} events, {len(b['nodes'])} nodes, chain head {b['head'][:16]}…")
     for key, st in standing.items():

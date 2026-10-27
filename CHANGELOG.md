@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **hypgraph.com in the app's design system.** One stylesheet on the HypGraph app's tokens and components, light by
+  default, restyles every page. The new homepage:
+  - opens on the live app, which can switch between the five workflows, Broad Street and the page's own record;
+  - offers the agent and engineer paths, then the facts, what the record refuses, the eight rules and the
+    arithmetic of never;
+  - ends with the workflows, the deployment options, the page's record and what the record shows and doesn't claim.
+- **The homepage proves its figures with its own HypGraph record** (`dev/site_record.py`, now run at every deploy):
+  - The instrument measures each figure: tests passing, runtime dependencies, the example records' chains, the bound
+    behind the arithmetic of never, and the refused overclaims.
+  - A reviewer re-measures each one another way.
+  - The page's text is checked against the record with `hypgraph check`, and a copy error fails the deploy.
+- **The report check no longer flags "not ruled out" as an absence claim.** Exclusion words that the sentence negates
+  are skipped, as absolutes already were. "Up to 58,155 … are not ruled out" and "a leak cannot be ruled out" are
+  hedges; the engine's own bound note says it in those words.
+
 - **Derivation scales with the record.** Working out which earlier results a result repeats (`derive.restates`) took a
   pass over the whole graph for every result, recomputing each one's numbers, so deriving a record grew with the
   square of its results. It now reads a per-snapshot index of each investigation's results by the numbers they carry,

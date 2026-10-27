@@ -25,6 +25,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4          # the homepage record's reviewer verifies bundles with the UI's JS verifier
+        with:
+          node-version: "20"
+      - run: python -m pip install -e ".[test]"
+      # the homepage's own record: measured, re-measured, and the page's text checked against it (fails the deploy
+      # on a copy error)
+      - run: python dev/site_record.py
       - run: python dev/build_site.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
