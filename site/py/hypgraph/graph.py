@@ -352,6 +352,7 @@ class Graph:
         s.versions = defaultdict(list, old.versions)
         s.events = list(old.events)
         s.marks = dict(old.marks)
+        s._sigs = old._sigs                       # keyed by body: still right for every node not revised
         touched = self._load_rows(con, s, set(), shared=True)
         if old._state and touched:
             stale = D.affected_by(s, touched)
@@ -750,15 +751,7 @@ class Graph:
         sig = D.result_signature(body)
         if not sig:
             return []
-        hits = []
-        for i, n in s.nodes.items():
-            if i == exclude or n["type"] != "result" or n["inv"] != inv or i in s.withdrawn:
-                continue
-            other = D.result_signature(n["body"])
-            if other:
-                pool = list(other)
-                if all(D._take(pool, x) for x in sig):
-                    hits.append(i)
+        hits = [i for i in D.repeating(s, sig, inv) if i != exclude]
         return sorted(hits, key=lambda i: s.nodes[i]["created_at"])
 
     def _with_orders(self, out: dict, author: str, inv: str) -> None:
