@@ -41,6 +41,10 @@ class Snap:
         self.withdrawn: dict[str, dict] = {}
         self.leases: dict[str, dict] = {}
         self._state: dict[str, dict] = {}
+        # result signatures by node (keyed on the body they were taken from, so a later snapshot can share them),
+        # and per investigation an index of its live results by the numbers they carry — built on first use
+        self._sigs: dict[str, tuple] = {}
+        self._results: dict[str, tuple] = {}
         self.sig: Any = None
         self.versions: dict[str, list] = defaultdict(list)
         self.events: list[dict] = []
@@ -448,27 +452,68 @@ def result_signature(body: dict) -> tuple | None:
     return tuple(sorted(nums))
 
 
-def restates(s: Snap, nid: str) -> list[str]:
-    """Earlier live results in the same investigation whose numbers this result repeats (the same multiset, or a
-    subset of it): one measurement written twice is one line of evidence, however many times it is written."""
+def signature_of(s: Snap, nid: str) -> tuple | None:
+    """result_signature of a node's current body, computed once per body. Keyed on the body object itself (held, so
+    its identity can't be reused): a revision brings a new body, and so does a write that re-stages one."""
     n = s.nodes[nid]
+    hit = s._sigs.get(nid)
+    if hit is not None and hit[0] is n["body"]:
+        return hit[1]
     sig = result_signature(n["body"])
-    if not sig:
-        return []
-    mine = sorted(sig)
+    s._sigs[nid] = (n["body"], sig)
+    return sig
+
+
+def result_index(s: Snap, inv: str) -> tuple[dict, dict]:
+    """The investigation's results: (number → the live results carrying it, result → (created_at, its position in
+    the graph)). Built once per snapshot, so checking every result costs what the matches cost, not one pass over
+    the graph each. The position is write order, so it breaks ties within a second."""
+    idx = s._results.get(inv)
+    if idx is None:
+        by_num: dict[float, set] = defaultdict(set)
+        order: dict[str, tuple] = {}
+        for pos, (i, m) in enumerate(s.nodes.items()):
+            if m["type"] != "result" or m["inv"] != inv:
+                continue
+            order[i] = (m["created_at"], pos)
+            sig = None if i in s.withdrawn else signature_of(s, i)
+            for x in set(sig or ()):
+                by_num[x].add(i)
+        idx = s._results[inv] = (by_num, order)
+    return idx
+
+
+def repeating(s: Snap, sig: tuple, inv: str) -> list[str]:
+    """Live results in the investigation whose numbers contain all of ``sig`` (as a multiset), in graph order."""
+    by_num, order = result_index(s, inv)
+    cands: set | None = None
+    for x in set(sig):
+        ids = by_num.get(x)
+        if not ids:
+            return []
+        cands = set(ids) if cands is None else cands & ids
+        if not cands:
+            return []
     out = []
-    for i, m in s.nodes.items():
-        if i == nid or m["type"] != "result" or m["inv"] != n["inv"] or i in s.withdrawn:
-            continue
-        if (m["created_at"], i) >= (n["created_at"], nid):
-            continue
-        other = result_signature(m["body"])
-        if not other:
-            continue
-        pool = list(other)
-        if all(_take(pool, x) for x in mine):
+    for i in sorted(cands or (), key=lambda i: order[i][1]):
+        pool = list(signature_of(s, i) or ())
+        if all(_take(pool, x) for x in sig):
             out.append(i)
     return out
+
+
+def restates(s: Snap, nid: str) -> list[str]:
+    """Earlier live results in the same investigation whose numbers this result repeats (the same multiset, or a
+    subset of it): one measurement written twice is one line of evidence, however many times it is written.
+    Earlier is by created_at, then by write order — never by id, which would let a result written later count as
+    earlier and change what an older result restates, after its standing was derived and carried forward."""
+    n = s.nodes[nid]
+    sig = signature_of(s, nid)
+    if not sig:
+        return []
+    _, order = result_index(s, n["inv"])
+    mine = order[nid]
+    return [i for i in repeating(s, sig, n["inv"]) if i != nid and order[i] < mine]
 
 
 def _take(pool: list, x: float) -> bool:
@@ -549,6 +594,14 @@ def affected_by(s: Snap, touched: set) -> set:
                 run = producing_run(s, i)
                 if not (run and any(e["rel"] == "uses" for e in s.out.get(run, []))):
                     stack.append(i)
+    # a result reaches, through no edge, the results that repeat its numbers (see restates): revising or withdrawing
+    # it can change what they restate. Every version's numbers count — the results that repeated the old ones too.
+    for x in [x for x in stack if s.nodes[x]["type"] == "result"]:
+        by_num, _ = result_index(s, s.nodes[x]["inv"])
+        nums = {v for ver in s.versions.get(x, ()) for v in (result_signature(ver["body"]) or ())}
+        nums |= set(signature_of(s, x) or ())
+        for v in nums:
+            stack += [i for i in by_num.get(v, ()) if i != x]
     while stack:
         y = stack.pop()
         if y in out:
