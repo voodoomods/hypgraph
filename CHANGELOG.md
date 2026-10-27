@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Measure questions.** A question may say `asks: "measure"`, and its workflow's `measure_skips` gates then don't
+  apply to it, in `Graph.stage()` and as order predicates. Until now every question met every gate of its profile:
+  a timing question was reworked for a diff, a count for a preregistered hypothesis, a look-ahead check for a
+  backtest. Real-model runs lost most of their calls to those reworks. `profiles.view()` lists the skipped gates.
+- **Claim checks:** dotted versions, inline code and labels (case 8, cases 9–12, #3) aren't figures; a measurement's
+  key written in place of its number is refused (KEY_FOR_NUMBER); a statement that says nothing ("Placeholder.")
+  is refused (STATEMENT_EMPTY).
 - **hypgraph.com in the app's design system.** One stylesheet on the HypGraph app's tokens and components, light by
   default, restyles every page. The new homepage:
   - opens on the live app, which can switch between the five workflows, Broad Street and the page's own record;

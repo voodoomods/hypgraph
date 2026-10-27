@@ -55,6 +55,7 @@ class Workflow:
     artifacts: dict = field(default_factory=dict)         # artifact kind → required meta keys (path always required)
     decisions: dict = field(default_factory=dict)         # decision kind → required fields
     report: str = "Facts from the record"                 # the report's name
+    measure_skips: tuple = ()                             # gates a question with asks=measure doesn't need
 
 
 @dataclass(frozen=True)
@@ -262,6 +263,8 @@ SCIENTIFIC2 = _add(Profile(
                 _S("decided", "a decision based on the claim", "decided", "lead", optional=True)),
         invalidates=("uses",),
         artifacts={"data": (), "protocol": (), "figure": ()},
+        # a rate, a count, a fact about the data: no conjecture to preregister — the run, result, claim and review stay
+        measure_skips=("hypothesis_stated", "preregistered"),
     )))
 
 SOFTWARE2 = _add(Profile(
@@ -287,6 +290,8 @@ SOFTWARE2 = _add(Profile(
         invalidates=("uses",),
         artifacts={"diff": ("base_sha", "head_sha", "files"), "test_run": ("command", "exit_code"), "build": ("head_sha",)},
         report="Change report",
+        # verifying or timing the code as it is: no change to make, no suite that must pass on a new head
+        measure_skips=("diff_registered", "tests_pass_current"),
     )))
 
 TRADING2 = _add(Profile(
@@ -319,6 +324,8 @@ TRADING2 = _add(Profile(
         artifacts={"prices": ("from", "to", "frequency"), "backtest": ("trials",)},
         decisions={"position": ("size", "stop", "review_date", "paper")},
         report="Desk note",
+        # a check of the data or a signal (look-ahead, gaps, a correlation): no thesis to backtest, nothing to position
+        measure_skips=("hypothesis_stated", "preregistered", "backtested", "positioned", "still_valid"),
     )))
 
 KNOWLEDGE2 = _add(Profile(
@@ -681,7 +688,7 @@ def _wf(w: Workflow | None) -> dict | None:
             "stages": [{"name": st.name, "holds": st.holds, "gate": st.gate, "who": st.who, "optional": st.optional}
                        for st in w.stages],
             "artifacts": {k: ["path", *v] for k, v in w.artifacts.items()},
-            "decisions": {k: list(v) for k, v in w.decisions.items()}}
+            "decisions": {k: list(v) for k, v in w.decisions.items()}, "measure_skips": list(w.measure_skips)}
 
 
 def labels_of(p: Profile | None) -> dict[str, str]:

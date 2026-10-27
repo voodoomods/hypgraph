@@ -15,6 +15,10 @@ Conventions used in every spec:
   AT RISK. Today only the scientific set (`requires`, `derived_from`, `based_on`, `works_on`, `rests_on`) does.
 - **Fresh** says when a result still speaks for the thing it measured.
 - **Typed artifacts** are `artifact` / `source` / `decision` nodes with required fields per `kind`, not new types.
+- **A measure question skips what it doesn't need.** A question with `asks: "measure"` (a rate, a count, a timing, a
+  check of the data or the code as it is) skips the gates its workflow lists in `measure_skips`, in the stage and
+  as an order predicate: scientific skips the hypothesis and preregistration; software the diff and the suite on a
+  new head; trading the thesis, preregistration, backtest and position. The run, result, claim and review stay.
 
 | spec | method it is taken from | the one gate a prompt can't keep |
 |---|---|---|
