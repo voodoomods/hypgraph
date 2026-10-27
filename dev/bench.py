@@ -7,7 +7,8 @@ Builds a record of about N nodes (questions, results bound to values, claims der
 questions, reviews on some), then measures on that file:
 - derive_all_s: every node's standing derived from a cold cache (deriving, not reading SQLite);
 - read_one_ms:  one node read (`get`) once the snapshot is warm;
-- write_ms:     one write (a claim), median of 20, including SQLite's commit.
+- write_ms:     one write (a question), median of 20, including SQLite's commit;
+- verify_s:     the whole hash chain recomputed and every stored body and edge checked against its event.
 Numbers are this machine's, and the output says which machine and Python they came from.
 """
 from __future__ import annotations
@@ -72,6 +73,10 @@ def main() -> None:
             t0 = time.perf_counter()
             g.get(nid)
             reads.append(time.perf_counter() - t0)
+        t0 = time.perf_counter()
+        ok = g.verify()["ok"]
+        verify_s = time.perf_counter() - t0
+        assert ok
         writes = []
         a = g.author("analyst")
         for k in range(20):
@@ -80,14 +85,15 @@ def main() -> None:
             writes.append(time.perf_counter() - t0)
         g.close()
     out = {"nodes": len(ids), "derive_all_s": round(derive_all, 3), "read_one_ms": round(statistics.median(reads) * 1000, 2),
-           "write_ms": round(statistics.median(writes) * 1000, 1), "build_s": round(build_s, 1),
+           "write_ms": round(statistics.median(writes) * 1000, 1), "verify_s": round(verify_s, 3),
+           "build_s": round(build_s, 1),
            "hypgraph": __version__, "python": platform.python_version(),
            "machine": f"{platform.system()} {platform.release()}, {platform.processor() or platform.machine()}"}
     if args.json:
         print(json.dumps(out))
     else:
         print(f"{out['nodes']:,} nodes: derive all {out['derive_all_s']} s · read one {out['read_one_ms']} ms · "
-              f"write {out['write_ms']} ms  ({out['machine']}, Python {out['python']}, hypgraph {out['hypgraph']})")
+              f"write {out['write_ms']} ms · verify {out['verify_s']} s  ({out['machine']}, Python {out['python']}, hypgraph {out['hypgraph']})")
 
 
 if __name__ == "__main__":
