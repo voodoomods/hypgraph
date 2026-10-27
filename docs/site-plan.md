@@ -39,7 +39,8 @@ and prove it with a HypGraph record of their own:
 - **The README's performance sentence doesn't hold** on the record shape `dev/bench.py` builds (new: nothing in the
   repo reproduced the figure before). The profile points to `derive.restates`, which compares each result with every
   other result in its investigation and recomputes each one's numbers every time. That is an engine fix of its own
-  (P1). Timing stays off the sites until then, and the README's sentence comes out now.
+  (P1), now in its own PR: 10,001 nodes derive in 0.34 s (was 20.35 s), and the README quotes the measured figures.
+  The fix also found two bugs in carried standing that the randomized suite had never exercised.
 - The record holds its builders to the same rules: the benchmark's own first writes were refused (a number in a
   claim bound to nothing; a result repeating another's numbers), and the copy check failed the prototype's first
   draft three times ("never set by an agent", "what the record guarantees", and a bare 256 in "SHA-256"). Each was
@@ -101,7 +102,7 @@ settling, the bridges' tests).
 | phase | what | verified by |
 |---|---|---|
 | **P0** | this plan, the prototype homepage, the page's record (`dev/site_record.py`), `dev/bench.py` | screenshots in `dev/site-prototype/shots/`; the record builds with 0 copy errors |
-| **P1** | the engine fix for `derive.restates`, measured with `dev/bench.py` | a test at scale; the benchmark |
+| **P1** | the engine fix for `derive.restates`, measured with `dev/bench.py` (its own PR) | a test at scale; the benchmark |
 | **P2** | the shared design system and the new hypgraph.com homepage, with its record built in CI | the smoke check, the contrast test, the copy check failing the build |
 | **P3** | docs, the trust page, the refusal catalogue | the same |
 | **P4** | hypswarm.com on the same system, with its record | the same |
