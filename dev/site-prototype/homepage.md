@@ -25,7 +25,7 @@ Each figure here is a claim in this page's own HypGraph record, bound to the mea
 and re-measured another way by a reviewer before the page was built. Click a claim to open it in the record.
 
 Tests
-184 of 184
+187 of 187
 passing on this build; CI runs Linux, macOS and Windows
 
 Runtime dependencies
