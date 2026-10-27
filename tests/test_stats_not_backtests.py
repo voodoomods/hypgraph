@@ -30,6 +30,9 @@ def _result(g, inv, values, summary="Lag-1 autocorrelation of daily returns, in 
     {"autocorr_lag1": {"value": -0.1008, "unit": "correlation"}, "n_return_obs_in": {"value": 1500, "unit": "returns"}},
     {"acf1": {"value": -0.100, "unit": "acf"}, "N_returns_in_sample": {"value": 1500, "unit": "returns"},
      "return_t_stat": {"value": -3.87}, "return_p_value": {"value": 0.0001}},
+    # the T3 re-run's own body: a standard deviation of returns beside the autocorrelation
+    {"in_sample_autocorr_lag1": {"value": -0.1, "unit": "correlation"}, "in_sample_sd_of_daily_return": {"value": 0.0101,
+     "unit": "return"}, "n_pairs": {"value": 1498, "unit": "pairs"}, "t_stat": {"value": -3.87, "unit": "t"}},
 ])
 def test_a_statistic_and_a_count_of_returns_need_no_costs(values):
     g, inv, _q = _trading()

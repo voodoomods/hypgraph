@@ -583,7 +583,8 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
 
 # a statistic *about* returns (a signal's correlation with tomorrow's return, a hit rate, the volatility) isn't a return
 # a strategy earned and charges no costs: a look-ahead diagnostic was refused three times as a backtest (studies T1)
-_STAT_OF_RETURNS = re.compile(r"corr|agree|match|hit_rate|_ic\b|beta|volatil|std|skew|kurt|acf|autocov|lag\d|"
+_STAT_OF_RETURNS = re.compile(r"corr|agree|match|hit_rate|_ic\b|beta|volatil|std|(?:^|_)sd(?:_|$)|skew|kurt|acf|"
+                              r"autocov|lag\d|"
                               r"t_?stat|p_?val|_se\b|ci_|_ci\b", re.I)
 # a count of returns is not a return earned: n_returns, insample_n_returns, N_returns_in_sample (studies T3)
 _COUNT_KEY = re.compile(r"(?:^|_)(?:n|num|count|nobs|obs)(?:_|$)|_count\b", re.I)
