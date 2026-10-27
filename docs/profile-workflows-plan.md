@@ -25,8 +25,8 @@ exists only as a paragraph in the profile's notes and as a diagram on hypswarm.c
 | suggested seats | the **report**: every profile prints "Facts from the research graph" |
 | | the **order**: HypSwarm issues from the question board, not from the stage a question is in |
 
-The discovery study (HypSwarm `studies/discovery/`) showed what this costs: 110 of 118 refusals were vocabulary
-friction because the models were writing discipline work into scientific slots, and the honesty rules by themselves
+An internal study showed what this costs: most refusals were vocabulary
+friction, because the models were writing discipline work into scientific slots, and the honesty rules by themselves
 did not beat a prompt. What a prompt cannot do is remember that the code changed since the tests ran, that the
 source was retracted, that the regime moved, that the teammate's number is stale — the workflow's *invalidation*
 and *gates*. That is where the record should win, and it is exactly what profiles don't yet encode.
@@ -95,7 +95,7 @@ instrument, mechanical feasibility recomputation (P3). **P2 built in HypSwarm 0.
 orders, review on the node the previous gate produced, the record's word on done; the examples' scripted models walk
 the stages; the discovery stub run through its stages). P2 fed back into hypgraph 0.5.1: honest endings the stages
 lacked (a declined thesis, an inconclusive answer, a verified failure), artifacts that learn their kind on
-re-registration, optimization's `checked` stage. **P3 built (2026-10-26):** the instruments in HypSwarm 0.1.0a5 (world watcher, re-verification, source re-fetch, refresh orders) and hypgraph 0.5.2 (source freshness, fresh-only gates, stale in the report); the change suite in HypSwarm `studies/discovery/PLAN-CHANGE.md`, self-test and stub run at $0, predictions locked; the model run waits for the spend approval.
+re-registration, optimization's `checked` stage. **P3 built (2026-10-26):** the instruments in HypSwarm 0.1.0a5 (world watcher, re-verification, source re-fetch, refresh orders) and hypgraph 0.5.2 (source freshness, fresh-only gates, stale in the report); the change suite (an internal study), self-test and stub run at $0, predictions locked; the model run waits for the spend approval.
 
 ## 4. What stays as it is, on purpose
 
