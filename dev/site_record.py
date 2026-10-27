@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import platform
 import re
 import subprocess
 import sys
@@ -66,10 +67,10 @@ def sh(*cmd: str, timeout: int = 1800) -> subprocess.CompletedProcess:
 def run_tests() -> dict:
     t0 = now()
     p = sh(sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider")
-    passed = int((re.search(r"(\d+) passed", p.stdout) or [0, 0])[1])
-    failed = int((re.search(r"(\d+) failed", p.stdout) or [0, 0])[1])
-    return {"passed": passed, "total": passed + failed, "exit": p.returncode, "started": t0, "finished": now(),
-            "cmd": "python -m pytest -q"}
+    num = lambda w: int((re.search(rf"(\d+) {w}", p.stdout) or [0, 0])[1])  # noqa: E731
+    passed, failed, skipped = num("passed"), num("failed"), num("skipped")
+    return {"passed": passed, "failed": failed, "skipped": skipped, "total": passed + failed, "exit": p.returncode,
+            "started": t0, "finished": now(), "cmd": "python -m pytest -q"}
 
 
 def collect_tests() -> int:
@@ -171,12 +172,14 @@ def build() -> tuple[Graph, str, dict]:
 
     # 1 · the test suite
     t = run_tests()
-    measure("tests", "Does the test suite pass, and how many tests does it have?", "The test suite", t["cmd"],
-            f"pytest passed {t['passed']} of {t['total']} tests.", {"tests": {"k": t["passed"], "n": t["total"]}},
-            t["started"], t["finished"], t["exit"])
-    claim("tests", f"The test suite passes {t['passed']} of {t['total']} tests.",
-          f"hypgraph {__version__} at this commit, on one Windows machine; CI runs the same suite on Linux, macOS and "
-          "Windows.", [{"name": "tests passed", "key": "tests", "k": t["passed"], "n": t["total"]}])
+    measure("tests", "Does the test suite pass, and how many tests does it run?", "The test suite", t["cmd"],
+            f"pytest passed {t['passed']} of {t['total']} tests run; {t['skipped']} skipped.",
+            {"tests": {"k": t["passed"], "n": t["total"]}, "skipped": t["skipped"]}, t["started"], t["finished"], t["exit"])
+    claim("tests", f"The test suite passes {t['passed']} of the {t['total']} tests it runs; {t['skipped']} are skipped here.",
+          f"hypgraph {__version__} at this commit, on the {platform.system()} machine that built this page; the "
+          "skipped tests need optional extras it doesn't install. CI runs the suite on Linux, macOS and Windows.",
+          [{"name": "tests passed", "key": "tests", "k": t["passed"], "n": t["total"]},
+           {"name": "skipped", "key": "skipped", "value": t["skipped"]}])
 
     # 2 · dependencies
     d0 = now()
@@ -234,11 +237,14 @@ def build() -> tuple[Graph, str, dict]:
     reviews = {}
     t2 = run_tests()
     n2 = collect_tests()
-    same = t2["passed"] == t["passed"] and t2["total"] == n2 == t["total"]
+    # the same outcome twice, and every test that ran was collected (a module that skips on import is one skip and no
+    # collected tests, so collected and passed + skipped need not be equal)
+    same = (t2["passed"], t2["failed"], t2["skipped"]) == (t["passed"], t["failed"], t["skipped"]) and n2 >= t["total"]
     reviews["tests"] = check.review(nodes["tests"]["claim"], "replicated" if same else "objection",
                                     method="Ran python -m pytest -q again and counted the collected tests with "
                                            "pytest --collect-only.",
-                                    notes=f"Second run: {t2['passed']} of {t2['total']} passed; {n2} collected.")
+                                    notes=f"Second run: {t2['passed']} passed, {t2['failed']} failed, {t2['skipped']} "
+                                          f"skipped; {n2} collected.")
     dt = deps_by_toml()
     reviews["deps"] = check.review(nodes["deps"]["claim"], "checked" if dt == deps else "objection",
                                    method="Parsed pyproject.toml with tomllib instead of a regex.",
