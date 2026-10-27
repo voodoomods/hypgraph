@@ -60,7 +60,8 @@
     if (c) {
       const st = P.standing[c.dataset.openClaim];
       $('#product-live').scrollIntoView({ block: 'start' });
-      show('page', (v) => { v.setView('evidence'); if (st) v.show(st.id); });
+      show('page', (v) => { v.setView('evidence'); if (st) v.show(st.id);
+        setTimeout(() => $('#product-live').scrollIntoView({ block: 'start', behavior: 'instant' }), 400); });   // after the drawer takes focus
     }
   });
   show('software');
