@@ -90,6 +90,11 @@
      "kind": "text",
      "max": 1500,
      "required": false
+    },
+    "asks": {
+     "kind": "enum:measure",
+     "max": 2000,
+     "required": false
     }
    }
   },
