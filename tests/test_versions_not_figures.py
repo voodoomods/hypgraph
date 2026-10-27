@@ -27,3 +27,30 @@ def test_a_claim_naming_versions_binds_only_its_measurements(tmp_path):
     except GraphError as e:
         assert "UNBOUND_NUMBER" in str(e)
     g.close()
+
+
+def test_labels_are_not_figures():
+    assert [x[3] for x in numbers("fails to reject cases 9 (''), 10 ('30m1h') and 12 ('-5s')")] == []
+    assert [x[3] for x in numbers("cases 9-12 are accepted; see #3 and test 4")] == []
+    assert [x[3] for x in numbers("case 8 returns 2 instead of 3")] == ["2", "3"]
+    assert [x[3] for x in numbers("satisfies 7 of the 12 cases")] == ["7", "12"]
+
+
+def test_a_value_s_key_in_place_of_its_number_is_refused(tmp_path):
+    """Models dodged UNBOUND_NUMBER by writing value names into sentences ("expects case8_expected") (studies E4)."""
+    g = Graph(tmp_path / "r.hypgraph")
+    inv = g.author("lead").investigation("Does parse_duration meet its spec?", "Check each case in SPEC.md.")["id"]
+    a = g.author("tester")
+    rs = a.add("result", inv, summary="Case 8 returns 2; the spec expects 3.",
+               values={"case8_got": {"value": 2}, "case8_expected": {"value": 3}})["id"]
+    m = [{"name": "got", "key": "case8_got", "result": rs}, {"name": "expected", "key": "case8_expected", "result": rs}]
+    try:
+        a.add("claim", inv, statement="Case 8 expects case8_expected but returns case8_got.", scope="SPEC.md case 8.",
+              measurements=m, links=[{"rel": "derived_from", "to": rs}])
+        raise AssertionError("a key in place of a number should be refused")
+    except GraphError as e:
+        assert "KEY_FOR_NUMBER" in str(e) and "case8_expected" in str(e)
+    ok = a.add("claim", inv, statement="Case 8 returns 2 where the spec expects 3.", scope="SPEC.md case 8.",
+               measurements=m, links=[{"rel": "derived_from", "to": rs}])
+    assert ok["id"]
+    g.close()
