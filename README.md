@@ -190,15 +190,15 @@ Or watch a swarm work in each profile, replayed live from its record:
 
 ## Where it came from
 
-HypGraph is the research graph of PegasusDMZ, where a team of AI agents runs long investigations under governed
-egress, pulled out so anyone can use it. Each rule exists because the agents made the mistake behind it:
+HypGraph began as the research graph of a team of AI agents running long investigations under governed egress, and
+was pulled out so anyone can use it. Each rule exists because the agents made the mistake behind it:
 - a validation that was blind to the answer;
 - a null model that broke the system's own rules;
 - a summary whose numbers matched no result;
 - "never" written about something that happened once in a thousand.
 
-PegasusDMZ is the reference deployment, and its graph UI is built from this package. Against PegasusDMZ's live record
-(1,357 events, 790 nodes), the library derives the same standing for every node as the engine it replaced.
+That team still runs on it, and its graph UI is built from this package. Against the team's live record (1,357 events,
+790 nodes), the library derives the same standing for every node as the engine it replaced.
 
 ## Performance
 

@@ -34,7 +34,7 @@ This reads a markdown document sentence by sentence and checks it against the gr
 Code blocks, inline code, URLs and HTML comments are skipped — except a fenced ```answers block, which is the
 report's machine-read answer and is checked against the claims (`_check_answers`); so are instructions ("Never use the eval set …",
 "If …") for absolutes, and "significantly" when the sentence gives its own p-value or interval. Calibrated on 24 real
-PegasusDMZ write-ups against its live record. Lines are reported 1-based.
+write-ups checked against the live record they report on. Lines are reported 1-based.
 """
 
 from __future__ import annotations
