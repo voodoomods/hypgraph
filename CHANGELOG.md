@@ -1,68 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — 2026-10-26: the HypGraph UI, live swarm observability, an example per profile
 
-A live example per profile on hypgraph.com (P4):
-- **Five live examples.** `/examples/` has one page per `@2` profile: scientific, software, trading, knowledge and
-  optimization. Each is a HypSwarm run on a real record that opens on its live replay. You see the seats take work
-  orders, model and tool calls in flight, writes refused and rewritten, and reviews landing, then you can explore the
-  pipeline, graph, evidence and report. The pages load offline from their bundles and re-verify each hash chain in
-  the browser. `dev/site_examples.py` rebuilds them from HypSwarm's scripted examples, pacing each reply 0.35–1.4 s,
-  and every page says so.
-- **A bundle can carry the run's telemetry.** `export(inv, telemetry=path)` and `hypgraph export --telemetry [FILE]`
-  (default `<db>.telemetry.jsonl`) add a swarm's sidecar for replay. It is outside the hash chain:
-  `verify_bundle` and `from_bundle` ignore it, and the UI labels it "not hash-chained". It is off unless asked for,
-  because a sidecar names a run's models, seats and spend.
-- **`play` opens on the replay.** The `play` mount option, or `#view=live&play=1`, opens the Live view and plays the
-  run from its first event. With reduced motion requested, it shows the finished run with Play one click away.
-- **A refused write is not an error.** In the Live view, a tool call the record refused counts as "refused by the
-  record", with its reason: amber on the seat, in the stream and in the trace. Errors count real failures only.
-- **The site's Atlas page is replaced.** The UI is served from `/app/`, `/explore/` opens any bundle full screen, and
-  `/atlas/` forwards there (keeping `?bundle=`, the hand-over from `/verify/` and the fragment). The home page embeds
-  the app directly. `/verify/` says when a bundle carries telemetry and opens bundles in HypGraph.
-- **A narrow layout.** Below 760 px of its own width (a phone, or a narrow frame), the app's sidebar becomes a strip of
-  tabs and the top bar wraps. It uses a container query, so an embed sizes it, not the window.
-- The smoke check also renders the site: each example opens replaying with its chain verified, plus the home page,
-  the explorer, the `/atlas/` forward and the gallery (106 pages).
+The Atlas becomes **HypGraph**: one app for every profile, in each profile's own words, that watches a swarm
+work as it happens and replays any finished run. The design record is `docs/ui-plan.md`. Nothing in the record
+format changes; bundles gain optional fields that sit outside the hash chain.
 
-Live observability for a running swarm (P3, with hypswarm's telemetry):
-- **`hypgraph serve` streams a swarm's telemetry.** hypswarm writes `<record>.telemetry.jsonl` beside the record: every
-  model call, tool call, work order and scheduler decision, as spans. The server serves it at `GET /api/graph/telemetry`
-  (paged by byte offset) and tails it into `/api/graph/stream` as `telemetry` events. Ids become `<seq>:<offset>` so a
-  reconnect resumes both. A sidecar that appears after the server starts is picked up, and `--telemetry FILE` /
-  `--no-telemetry` override the default. Telemetry is shown, never trusted for standing.
-- **The Live view shows the swarm working:**
-  - each seat's call in flight (the model it's calling or the tool it's running, with seconds elapsed), and its calls,
-    tokens, cost and errors;
-  - KPI tiles for model calls, tokens in → out and cached, spend, tool calls, errors, and budget used against the run's cap;
-  - an event stream merging the record and telemetry, with a filter;
-  - a trace for any work order, showing each model and tool call on a timeline;
-  - alerts: a tool failing three times in a row, a seat repeating an identical tool call, failed model calls, the
-    budget passing 80 %;
-  - status from the run's own start and end ("Run ended · settled").
-
-  A record opened before its swarm starts picks the investigation up when it begins. Replay scopes telemetry to the
-  replay position. Overview's spend falls back to telemetry when the ledger isn't metered.
-- `dev/ui-fixtures/swarm.*` holds a real scripted swarm's bundle and telemetry, and the smoke check requires its trace
-  (97 pages).
-
-The engine side of the HypGraph UI (docs/ui-plan.md, P1):
-- **Each profile speaks its own words.** `Profile.labels` gives the short noun a screen shows for each node type: a
-  software question is a **Requirement**, a trading hypothesis a **Thesis**, a decision a **Position**, an
-  optimization result a **Solution**. `profiles.view(pid)` returns what a UI needs: the labels for every node type
-  (the kernel's word where the profile has none), the meaning of each type, and the workflow's stages, gates and
-  report name. The `@1` profiles are frozen and keep the kernel's words. The labels are display only.
-- **A bundle carries the workflow views.** Each investigation's `derived` now has `profile`, `stages`, `completion`,
-  `board` and `orders` beside the report, so a viewer shows stages and gates without the engine. As before, derived
-  views are outside the hash chain and never trusted.
-- **Watch a record live.** `GET /api/graph/stream?inv=&after=` pushes every event as it is written, as Server-Sent
-  Events. It includes writes from another process on the same file, so a swarm running against the record is
-  watched as it works. Ids are event seqs, so a client resumes with `Last-Event-ID`. A comment line every 15 s keeps
-  proxies open, and `max_seconds` bounds a read.
-- `GET /api/graph/profile?inv=` gives the investigation's profile as a UI speaks it.
-- "Atlas" is now the HypGraph UI in the server, the CLI, the README and the skill. The UI itself is rebuilt in P2.
-
-The HypGraph UI (P2), which replaces the Atlas:
+**The HypGraph UI**, which replaces the Atlas:
 - **Eight views in each profile's own words:** Overview, Live, Pipeline, Graph, Evidence, Work orders, Audit log and
   Report. A software investigation shows Requirements and Verifications; a trading one shows Theses and Positions.
 - **Overview** has KPI tiles, the completion criteria, each question's stage, a "needs attention" list and recent
@@ -85,6 +29,65 @@ The HypGraph UI (P2), which replaces the Atlas:
   so PegasusDMZ's older API still works.
 - `dev/ui_smoke.py` renders every view of five profile fixtures in both themes, plus an Atlas-style page, in headless
   Chrome. CI runs it.
+
+**Live observability for a running swarm** (with hypswarm ≥ 0.1.0a7's telemetry):
+- **`hypgraph serve` streams a swarm's telemetry.** hypswarm writes `<record>.telemetry.jsonl` beside the record: every
+  model call, tool call, work order and scheduler decision, as spans. The server serves it at `GET /api/graph/telemetry`
+  (paged by byte offset) and tails it into `/api/graph/stream` as `telemetry` events. Ids become `<seq>:<offset>` so a
+  reconnect resumes both. A sidecar that appears after the server starts is picked up, and `--telemetry FILE` /
+  `--no-telemetry` override the default. Telemetry is shown, never trusted for standing.
+- **The Live view shows the swarm working:**
+  - each seat's call in flight (the model it's calling or the tool it's running, with seconds elapsed), and its calls,
+    tokens, cost and errors;
+  - KPI tiles for model calls, tokens in → out and cached, spend, tool calls, errors, and budget used against the run's cap;
+  - an event stream merging the record and telemetry, with a filter;
+  - a trace for any work order, showing each model and tool call on a timeline;
+  - alerts: a tool failing three times in a row, a seat repeating an identical tool call, failed model calls, the
+    budget passing 80 %;
+  - status from the run's own start and end ("Run ended · settled").
+
+  A record opened before its swarm starts picks the investigation up when it begins. Replay scopes telemetry to the
+  replay position. Overview's spend falls back to telemetry when the ledger isn't metered.
+- `dev/ui-fixtures/swarm.*` holds a real scripted swarm's bundle and telemetry, and the smoke check requires its trace.
+
+**What the UI needs from the engine:**
+- **Each profile speaks its own words.** `Profile.labels` gives the short noun a screen shows for each node type: a
+  software question is a **Requirement**, a trading hypothesis a **Thesis**, a decision a **Position**, an
+  optimization result a **Solution**. `profiles.view(pid)` returns what a UI needs: the labels for every node type
+  (the kernel's word where the profile has none), the meaning of each type, and the workflow's stages, gates and
+  report name. The `@1` profiles are frozen and keep the kernel's words. The labels are display only.
+- **A bundle carries the workflow views.** Each investigation's `derived` now has `profile`, `stages`, `completion`,
+  `board` and `orders` beside the report, so a viewer shows stages and gates without the engine. As before, derived
+  views are outside the hash chain and never trusted.
+- **Watch a record live.** `GET /api/graph/stream?inv=&after=` pushes every event as it is written, as Server-Sent
+  Events. It includes writes from another process on the same file, so a swarm running against the record is
+  watched as it works. Ids are event seqs, so a client resumes with `Last-Event-ID`. A comment line every 15 s keeps
+  proxies open, and `max_seconds` bounds a read.
+- `GET /api/graph/profile?inv=` gives the investigation's profile as a UI speaks it.
+- "Atlas" is now the HypGraph UI in the server, the CLI, the README and the skill.
+
+**A live example per profile on hypgraph.com:**
+- **Five live examples.** `/examples/` has one page per `@2` profile: scientific, software, trading, knowledge and
+  optimization. Each is a HypSwarm run on a real record that opens on its live replay. You see the seats take work
+  orders, model and tool calls in flight, writes refused and rewritten, and reviews landing, then you can explore the
+  pipeline, graph, evidence and report. The pages load offline from their bundles and re-verify each hash chain in
+  the browser. `dev/site_examples.py` rebuilds them from HypSwarm's scripted examples, pacing each reply 0.35–1.4 s,
+  and every page says so.
+- **A bundle can carry the run's telemetry.** `export(inv, telemetry=path)` and `hypgraph export --telemetry [FILE]`
+  (default `<db>.telemetry.jsonl`) add a swarm's sidecar for replay. It is outside the hash chain:
+  `verify_bundle` and `from_bundle` ignore it, and the UI labels it "not hash-chained". It is off unless asked for,
+  because a sidecar names a run's models, seats and spend.
+- **`play` opens on the replay.** The `play` mount option, or `#view=live&play=1`, opens the Live view and plays the
+  run from its first event. With reduced motion requested, it shows the finished run with Play one click away.
+- **A refused write is not an error.** In the Live view, a tool call the record refused counts as "refused by the
+  record", with its reason: amber on the seat, in the stream and in the trace. Errors count real failures only.
+- **The site's Atlas page is replaced.** The UI is served from `/app/`, `/explore/` opens any bundle full screen, and
+  `/atlas/` forwards there (keeping `?bundle=`, the hand-over from `/verify/` and the fragment). The home page embeds
+  the app directly. `/verify/` says when a bundle carries telemetry and opens bundles in HypGraph.
+- **A narrow layout.** Below 760 px of its own width (a phone, or a narrow frame), the app's sidebar becomes a strip of
+  tabs and the top bar wraps. It uses a container query, so an embed sizes it, not the window.
+- The smoke check also renders the site: each example opens replaying with its chain verified, plus the home page,
+  the explorer, the `/atlas/` forward and the gallery (106 pages).
 
 ## 0.5.3 — 2026-10-26: results that name no file can go stale
 
