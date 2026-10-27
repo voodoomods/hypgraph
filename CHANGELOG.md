@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.1 — 2026-10-27: a computed answer needs its code, and opposed answers keep a question open
 
 - **A computation nobody can re-run doesn't settle a computational question.** The optimization workflow's
   `solved`, trading's `backtested` and the scientific workflow's evidenced stage (`result_exists` under a
