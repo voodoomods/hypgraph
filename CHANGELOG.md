@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **A computation nobody can re-run doesn't settle a computational question.** The optimization workflow's
+  `solved`, trading's `backtested` and the scientific workflow's evidenced stage (`result_exists` under a
+  scientific profile) count only results something can re-run: the run that produced them carries its code, or
+  it is the instrument's (`kind=lab`). Through the hypswarm CLI, with no tool that executes code, the seats wrote
+  "exact DP over capacity" and "brute force over 2^21" as prose; the verifier passed a wrong optimum (757 for
+  656) and the question settled. The gate now says which results report a computation with no code behind it.
+  `workflow.rerunnable(snap, result)`.
 - **A question settles only when every live answer to it is checked.** A checked answer beside a live unchecked one
   used to settle the question, and the two may disagree: in a real-model trading run a reviewer re-ran the numbers
   behind "no look-ahead" and checked it while "it is look-ahead" stood unchecked on the same question. The board row

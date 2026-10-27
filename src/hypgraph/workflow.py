@@ -213,8 +213,38 @@ def _stale_why(sc: Scope) -> str:
             "now)") if old else ""
 
 
+def rerunnable(s: D.Snap, r: str) -> bool:
+    """Whether something can re-run the computation behind a result: the run that produced it carries its code, or it
+    is the instrument's own (kind=lab). A run with neither is a report of a computation. In a real run with no tool
+    that executes code, the seats wrote "exact DP over capacity" and "brute force over 2^21" with no code behind them,
+    a wrong optimum (757 for 656) passed its verifier, and the question settled (studies O1 through the CLI)."""
+    for e in s.inn.get(r, []):
+        run = s.nodes.get(e["src"]) or {}
+        b = run.get("body") or {}
+        if e["rel"] == "produced" and run.get("type") == "run" and (b.get("kind") == "lab" or str(b.get("code") or "").strip()):
+            return True
+    return False
+
+
+def _computed(sc: Scope, rs: list[str]) -> tuple[list[str], str]:
+    """The results among ``rs`` something can re-run, and why the others don't count."""
+    ok = [r for r in rs if rerunnable(sc.s, r)]
+    bare = [r for r in rs if r not in ok]
+    why = (f" ({', '.join(sc.code(r) for r in bare[-3:])} {'reports a computation' if len(bare) == 1 else 'report computations'}"
+           " with no code behind it: register the run with the code that computed it, so it can be re-run)") if bare else ""
+    return ok, why
+
+
+def _profile(sc: Scope) -> str:
+    return str((sc.s.nodes.get(sc.inv, {}).get("body") or {}).get("profile") or "")
+
+
 def g_result_exists(sc: Scope, now: str) -> dict:
     rs = _current_results(sc)
+    if _profile(sc).startswith("scientific"):
+        # evidenced is the scientific workflow's computed stage ('worker, instrument'): a result there is a computation
+        rs, why = _computed(sc, rs)
+        return _g(bool(rs), rs, f"no live result on {sc.code(sc.root)} that can be re-run{why}{_stale_why(sc)}")
     return _g(bool(rs), rs, f"no live result on {sc.code(sc.root)}{_stale_why(sc)}")
 
 
@@ -354,7 +384,8 @@ def _trials(v: dict) -> bool:
 def g_backtested(sc: Scope, now: str) -> dict:
     s = sc.s
     nearest, missing = "", []
-    for r in _current_results(sc):
+    results, bare = _computed(sc, _current_results(sc))
+    for r in results:
         v = _vals(s.nodes[r]["body"])
         miss = []
         if not _has(v, r"oos|out_of_sample|holdout|test_"):
@@ -368,8 +399,8 @@ def g_backtested(sc: Scope, now: str) -> dict:
         if not nearest or len(miss) < len(missing):
             nearest, missing = r, miss
     if nearest:
-        return _g(False, [], f"{sc.code(nearest)} lacks {', '.join(missing)}")
-    return _g(False, [], f"no backtest result on {sc.code(sc.root)}{_stale_why(sc)}")
+        return _g(False, [], f"{sc.code(nearest)} lacks {', '.join(missing)}{bare}")
+    return _g(False, [], f"no backtest result on {sc.code(sc.root)}{bare}{_stale_why(sc)}")
 
 
 def _position_missing(body: dict) -> list[str]:
@@ -428,14 +459,15 @@ def g_still_valid(sc: Scope, now: str) -> dict:
 
 def g_solved(sc: Scope, now: str) -> dict:
     s = sc.s
-    for r in _current_results(sc):
+    results, bare = _computed(sc, _current_results(sc))
+    for r in results:
         v = _vals(s.nodes[r]["body"])
         if "feasible" in v and v["feasible"] in (False, 0, "false", "False", "no"):
             return _g(True, [r], "")
         if "objective" in v and v.get("feasible") in _TRUE and ("bound" in v or "gap" in v):
             return _g(True, [r], "")
     return _g(False, [], f"no result on {sc.code(sc.root)} with objective, feasible=true and a bound or gap (or "
-                         "feasible=false)" + _stale_why(sc))
+                         "feasible=false)" + bare + _stale_why(sc))
 
 
 def g_result_reviewed(sc: Scope, now: str) -> dict:

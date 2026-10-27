@@ -21,7 +21,7 @@ def _g(profile: str, asks: str | None = "measure"):
 
 
 def _measured(g, inv, q):
-    run = g.create(author="w", type="run", inv=inv, fields={"kind": "agent", "name": "count", "state": "succeeded"},
+    run = g.create(author="w", type="run", inv=inv, fields={"kind": "agent", "name": "count", "state": "succeeded", "code": "print('count')"},
                    links=[{"rel": "part_of", "to": q}])["id"]
     rs = g.create(author="w", type="result", inv=inv, fields={"summary": "A is right on 781 of 1000 items.",
                   "values": {"a_correct": {"k": 781, "n": 1000}}, "outcome": "positive"},
