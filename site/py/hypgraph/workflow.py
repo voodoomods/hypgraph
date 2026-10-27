@@ -239,6 +239,13 @@ def g_reviewed(sc: Scope, now: str) -> dict:
     s = sc.s
     checked = [c for c in sc.claims if _live(s, c) and _checked_since(sc, c)]
     fresh = [c for c in checked if not D.stale(s, c)]
+    pending = D.unchecked_answers(s, sc.root) if s.nodes[sc.root]["type"] == "question" else []
+    if fresh and pending:
+        others = ", ".join(sc.code(c) for c in pending[:3])
+        return _g(False, [], f"{sc.code(fresh[0])} is checked, but {others} also answer{'s' if len(pending) == 1 else ''} "
+                             f"{sc.code(sc.root)} and nobody has checked {'it' if len(pending) == 1 else 'them'} — review "
+                             f"{others}, or withdraw whichever answer is wrong: a question settles when every live answer "
+                             "to it is checked")
     if fresh:
         return _g(True, fresh, "")
     if checked:
@@ -528,6 +535,8 @@ def stage_of(s: D.Snap, t: str, now: str = "") -> dict:
     if any(st.gate == "tests_pass_current" for st in stages):
         settled += [(c, "verified failure: an instrument-recorded negative result, checked") for c in checked
                     if any(_lab_negative(s, r) for r in _claim_results(s, c))]
+    if settled and s.nodes[q]["type"] == "question" and D.unchecked_answers(s, q):
+        settled = []                             # another live answer is unchecked: the record hasn't reconciled them
     if stage is not None and settled:
         rv = next((i for i, st in enumerate(stages) if st.gate == "reviewed"), len(stages) - 1)
         return {**base, "workflow": True, "stage": stages[rv].name, "index": rv + 1, "of": len(stages),

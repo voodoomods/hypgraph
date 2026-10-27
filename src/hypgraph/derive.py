@@ -237,6 +237,30 @@ def _moved_since(s: Snap, rid: str) -> list[str]:
     return out
 
 
+def _open_answers(s: Snap, q: str) -> list[str]:
+    return [e["src"] for e in s.inn.get(q, []) if e["rel"] == "answers" and s.nodes[e["src"]]["type"] == "claim"
+            and lifecycle(s, e["src"]) == "active" and not fallen(s, e["src"]) and not stale(s, e["src"])
+            and (state(s, e["src"]).get("review") or {}).get("state") != "checked"]
+
+
+def reviewable(s: Snap, nid: str) -> bool:
+    """Someone besides its author (and the curators) may review it."""
+    return bool(board(s, nid) - set(s.policy.curators) - {s.nodes[nid]["created_by"]})
+
+
+def unchecked_answers(s: Snap, q: str) -> list[str]:
+    """Live, fresh claims answering question ``q`` that no reviewer has checked and one could. A question settles only
+    when this is empty: a checked answer beside a live unchecked one is two answers the record hasn't reconciled, and
+    they may disagree (studies T1: "no look-ahead" checked while "is look-ahead" stood unchecked on the same
+    question). An answer nobody may review (its author is the only reviewer) can't block it; ``unreviewable_answers``
+    lists those."""
+    return [c for c in _open_answers(s, q) if reviewable(s, c)]
+
+
+def unreviewable_answers(s: Snap, q: str) -> list[str]:
+    return [c for c in _open_answers(s, q) if not reviewable(s, c)]
+
+
 def stale(s: Snap, nid: str) -> list[str]:
     """Why a result (or a claim through its results) no longer speaks for what it measured; [] when fresh. A result
     is stale when the run that produced it used an artifact that is now superseded or withdrawn, or when its

@@ -729,7 +729,13 @@ def question_board(g: "Graph", inv: str) -> list[dict]:
         checked = [c for c in ans if states[c] == "checked"]
         contested = [c for c in ans if states[c] == "contested"]
         o = open_orders.get(q)
-        if checked:
+        pending = D.unchecked_answers(s, q)
+        if checked and pending:
+            # two live answers, one checked: settled only once every live answer is checked (they may disagree)
+            status, by = "answered", (f"{', '.join(_code(s, c) for c in pending[:3])} unchecked beside "
+                                      f"{_code(s, checked[0])} (checked) — review it, or withdraw the wrong answer"
+                                      + (f"; order {o['code']} on it" if o else ""))
+        elif checked:
             status, by = "settled", f"{_code(s, checked[0])} (checked by " + ", ".join(
                 x.split(":")[0] for x in D.state(s, checked[0])["review"]["positive"][:2]) + ")"
         elif contested:
@@ -741,7 +747,8 @@ def question_board(g: "Graph", inv: str) -> list[dict]:
         else:
             status, by = "open", ""
         rows.append({"id": q, "code": n["code"], "text": _title(s, q), "status": status, "by": by,
-                     "answers": [_code(s, c) for c in ans]})
+                     "answers": [_code(s, c) for c in ans], "unchecked": [_code(s, c) for c in pending],
+                     "unreviewable": [_code(s, c) for c in D.unreviewable_answers(s, q)]})
     return rows
 
 

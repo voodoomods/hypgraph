@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **A question settles only when every live answer to it is checked.** A checked answer beside a live unchecked one
+  used to settle the question, and the two may disagree: in a real-model trading run a reviewer re-ran the numbers
+  behind "no look-ahead" and checked it while "it is look-ahead" stood unchecked on the same question. The board row
+  now says `answered` with the unchecked answers named (`unchecked`), the reviewed gate names them, and completion
+  waits. An answer nobody may review (its author is the only reviewer) doesn't block; the row lists it under
+  `unreviewable`. `derive.unchecked_answers` / `unreviewable_answers`.
+
 ## 0.7.0 — 2026-10-27: measure questions, and claim checks that know a version from a figure
 
 - **Measure questions.** A question may say `asks: "measure"`, and its workflow's `measure_skips` gates then don't
