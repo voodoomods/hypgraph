@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Measuring returns isn't trading them.** Trading's BACKTEST_WITHOUT_COSTS no longer fires on a result that counts
+  its returns (`n_returns`, `insample_n_returns`, a value in units of returns, days, bars or trades) or reports a
+  statistic of them (an autocorrelation, its t, p, standard error or CI). A return, P&L or Sharpe still needs its
+  costs. A real-model run lost eight writes measuring a lag-1 autocorrelation.
+- **A confidence interval that excludes zero isn't an exclusion.** "Excludes zero", "excludes 1" (a ratio's
+  null) and "rules out chance" say an effect is there, so they no longer need a power check
+  (EXCLUSION_WITHOUT_POWER). "Rules out an effect" and "no effect" still do.
+
 ## 0.7.0 — 2026-10-27: measure questions, and claim checks that know a version from a figure
 
 - **Measure questions.** A question may say `asks: "measure"`, and its workflow's `measure_skips` gates then don't

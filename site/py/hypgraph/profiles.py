@@ -583,7 +583,16 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
 
 # a statistic *about* returns (a signal's correlation with tomorrow's return, a hit rate, the volatility) isn't a return
 # a strategy earned and charges no costs: a look-ahead diagnostic was refused three times as a backtest (studies T1)
-_STAT_OF_RETURNS = re.compile(r"corr|agree|match|hit_rate|_ic\b|beta|volatil|std|skew|kurt", re.I)
+_STAT_OF_RETURNS = re.compile(r"corr|agree|match|hit_rate|_ic\b|beta|volatil|std|skew|kurt|acf|autocov|lag\d|"
+                              r"t_?stat|p_?val|_se\b|ci_|_ci\b", re.I)
+# a count of returns is not a return earned: n_returns, insample_n_returns, N_returns_in_sample (studies T3)
+_COUNT_KEY = re.compile(r"(?:^|_)(?:n|num|count|nobs|obs)(?:_|$)|_count\b", re.I)
+_COUNT_UNITS = {"returns", "days", "bars", "obs", "observations", "count", "draws", "trades", "rows", "n"}
+
+
+def _a_count(k: str, v: object) -> bool:
+    unit = str(v.get("unit") or "").strip().lower() if isinstance(v, dict) else ""
+    return bool(_COUNT_KEY.search(k)) or unit in _COUNT_UNITS
 
 
 def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None) -> list[Problem]:
@@ -595,7 +604,9 @@ def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None) 
     if "objective_needs_feasibility" in p.validators and "objective" in v and "feasible" not in v:
         out.append(Problem("OBJECTIVE_WITHOUT_FEASIBILITY", "a result reports an objective value without saying whether "
                            "the solution is feasible", fix="add values.feasible (true/false) and bound or gap"))
-    earned = [k for k in v if re.search(r"return|sharpe|pnl|cagr|profit", k) and not _STAT_OF_RETURNS.search(k)]
+    raw = {str(k).lower(): x for k, x in (body.get("values") or {}).items()}
+    earned = [k for k in v if re.search(r"return|sharpe|pnl|cagr|profit", k) and not _STAT_OF_RETURNS.search(k)
+              and not _a_count(k, raw.get(k))]
     if "backtest_needs_costs" in p.validators and earned and not _has(v, r"fee|cost|slippage|commission"):
         out.append(Problem("BACKTEST_WITHOUT_COSTS", "a backtest result reports returns without the costs it charged",
                            fix="add values for fees and slippage (zero is a value; absence isn't)"))
