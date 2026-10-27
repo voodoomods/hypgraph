@@ -4,6 +4,7 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
 
   code                          refused when
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  STATEMENT_EMPTY               the statement says nothing ("Placeholder.", "TBD", one word)
   SCOPE_MISSING                 a finding or exclusion doesn't say under which conditions it holds
   EVIDENCE_MISSING              nothing supports it
   MEASUREMENT_MALFORMED         a measurement doesn't name its result and field
@@ -11,6 +12,7 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   MEASUREMENT_MISMATCH          the measurement says a different number from its result
   UNBOUND_NUMBER                a number in the statement comes from nowhere: not a bound measurement, nothing
                                 computed from them (difference, ratio, percentage, interval), the scope or a constant
+  KEY_FOR_NUMBER                the statement names a bound measurement's key (case8_expected) in place of its value
   ABSOLUTE_WITHOUT_COUNT        "never" / "always" / "eliminates" / "100%" with no count of 0 or n behind it
                                 (an absolute over a set the sentence enumerates — "all three subsets: …" — is
                                 not a generalisation and is left alone)
@@ -48,6 +50,13 @@ _WORDS = {w: i for i, w in enumerate("two three four five six seven eight nine t
                                      "fifteen sixteen seventeen eighteen nineteen twenty".split(), start=2)}
 _WORDNUM = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.I)   # 'one' is left out: too common as a pronoun
 _LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")
+# identifiers that look like numbers but aren't measurements: a version (1.10.0, v2.0.0-rc.1), inline code, a number a
+# label word names ("case 8", "cases 9–12", "test 4", "line 12", "#3"), or one that labels the literal after it ("9 ('')")
+_NOT_A_FIGURE = re.compile(
+    r"`[^`\n]*`|(?<![\w.])v?\d+(?:\.\d+){2,}(?:[-+][0-9A-Za-z.]+)?(?![\w])"
+    r"|\b(?:cases?|tests?|lines?|steps?|items?|rows?|issues?|sections?|rules?|figures?|tables?|questions?|no\.)\s+"
+    r"\d+(?:\s*(?:[–-]|to|and|,)\s*\d+)*\b"
+    r"|#\d+\b|(?<![\w.])\d+(?=\s*\(\s*['\"‘“`])", re.I)
 UNDERPOWERED = 0.05             # an absolute needs its 95% bound on the opposite rate at or below this
 _CONVENTIONS = re.compile(r"\b(interval|confidence|CI|bounds?|power|alpha|α|significan\w*|level)\b", re.I)
 
@@ -67,13 +76,15 @@ class Problem:
 
 
 def numbers(text: str) -> list[tuple[float, int, bool, str]]:
-    """(value, decimals printed, is_percent, as printed) for each number in a text."""
+    """(value, decimals printed, is_percent, as printed) for each number in a text. Versions and inline code are
+    identifiers, not figures, and are skipped."""
     out = []
-    for m in _NUM.finditer(text or ""):
+    text = _NOT_A_FIGURE.sub(" ", text or "")
+    for m in _NUM.finditer(text):
         whole, frac, pct = m.group(1), m.group(2), m.group(3)
         v = float(whole.replace(",", "") + ("." + frac if frac else ""))
         out.append((v, len(frac or ""), bool(pct), m.group(0).strip()))
-    for m in _WORDNUM.finditer(text or ""):
+    for m in _WORDNUM.finditer(text):
         out.append((float(_WORDS[m.group(1).lower()]), 0, False, m.group(0)))
     return out
 
@@ -390,6 +401,10 @@ def _exclusion(s: Snap, stmt: str, kind: str, support: list[str], bound: list) -
                     "effect", words=words)]
 
 
+_PLACEHOLDER = re.compile(r"^\W*(?:(?:placeholder|tbd|todo|tba|n/?a|none|wip|xxx|test|claim|statement|pending|"
+                          r"to be (?:determined|confirmed|added)|lorem ipsum)\W*)+$", re.I)
+
+
 def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Problem]:
     """What's wrong with a claim, each with a code, a message and a fix (empty = it may enter the record).
     ``support``: ids of the nodes that support it or that it is derived from."""
@@ -400,6 +415,10 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     if invb.get("strict_claims") is False:
         return []
     problems: list[Problem] = []
+    if _PLACEHOLDER.match(stmt) or len(re.findall(r"[^\W\d_]{3,}", stmt)) < 2:
+        # a claim written to clear a gate (studies/challenges E2: "Placeholder.", contested and left in the record)
+        problems.append(Problem("STATEMENT_EMPTY", "the statement says nothing: write the finding itself — what was "
+                                "measured, on what, and what it came to"))
     if kind in ("finding", "exclusion") and len(scope.strip()) < 10:
         problems.append(Problem("SCOPE_MISSING", "scope: say under which conditions this holds (the data, method, "
                                 "sample) — at least a sentence"))
@@ -427,6 +446,13 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "investigation's constants account for: " + ", ".join(p[3] for p in loose[:8])
                                 + " — bind them to result fields (measurements) or move design constants into the "
                                 "scope", fix="bind each number to a result field", words=[p[3] for p in loose[:8]]))
+    keys = {str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
+    named = [k for k in sorted(keys) if ("_" in k or any(ch.isdigit() for ch in k)) and len(k) >= 4
+             and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)]
+    if named:
+        problems.append(Problem("KEY_FOR_NUMBER", "the statement names a measurement's key instead of saying its value: "
+                                + ", ".join(named[:6]) + " — write the number in the sentence; it's bound to that key, "
+                                "so the record checks it", fix="replace each key with its number", words=named[:6]))
     problems += _absolutes(clean, scope, body, bound)
     if kind not in ("lead", "convention"):
         problems += _comparisons(s, clean, bound, support)
