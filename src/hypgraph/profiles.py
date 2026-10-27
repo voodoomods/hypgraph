@@ -642,6 +642,8 @@ def _questions(s: D.Snap, inv: str) -> list[str]:
 
 
 def _settling_claim(s: D.Snap, q: str) -> str:
+    if D.unchecked_answers(s, q):              # a checked answer beside an unchecked one doesn't settle it
+        return ""
     for e in s.inn.get(q, []):
         c = e["src"]
         if e["rel"] == "answers" and s.nodes[c]["type"] == "claim" and _live(s, c) and \

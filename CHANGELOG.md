@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **A question settles only when every live answer to it is checked.** A checked answer beside a live unchecked one
+  used to settle the question, and the two may disagree: in a real-model trading run a reviewer re-ran the numbers
+  behind "no look-ahead" and checked it while "it is look-ahead" stood unchecked on the same question. The board row
+  now says `answered` with the unchecked answers named (`unchecked`), the reviewed gate names them, and completion
+  waits. An answer nobody may review (its author is the only reviewer) doesn't block; the row lists it under
+  `unreviewable`. `derive.unchecked_answers` / `unreviewable_answers`.
 - **Measuring returns isn't trading them.** Trading's BACKTEST_WITHOUT_COSTS no longer fires on a result that counts
   its returns (`n_returns`, `insample_n_returns`, a value in units of returns, days, bars or trades) or reports a
   statistic of them (an autocorrelation, its t, p, standard error or CI). A return, P&L or Sharpe still needs its
