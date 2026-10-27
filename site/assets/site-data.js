@@ -15,17 +15,17 @@ window.SITE_DATA = {
  "standing": {
   "tests": {
    "code": "CL1",
-   "id": "nbb98e4f013f1",
+   "id": "ne1ba4cfb2e7c",
    "review": "checked",
    "verdicts": [
     "site-check:replicated"
    ],
-   "statement": "The test suite passes 188 of 188 tests.",
+   "statement": "The test suite passes 188 of the 188 tests it runs; 0 are skipped here.",
    "summary": "active claim · checked (site-check:replicated, v1) · 1 independent line of support · lab-recorded run · no external replication"
   },
   "deps": {
    "code": "CL2",
-   "id": "n9d6d7114caf6",
+   "id": "n9b0fe5f7072a",
    "review": "checked",
    "verdicts": [
     "site-check:checked"
@@ -35,7 +35,7 @@ window.SITE_DATA = {
   },
   "bundles": {
    "code": "CL3",
-   "id": "n56bd13ac1b95",
+   "id": "n8738ba463b10",
    "review": "checked",
    "verdicts": [
     "site-check:replicated"
@@ -45,7 +45,7 @@ window.SITE_DATA = {
   },
   "never": {
    "code": "CL4",
-   "id": "ne160d760645b",
+   "id": "n972e888af38b",
    "review": "checked",
    "verdicts": [
     "site-check:replicated"
@@ -55,7 +55,7 @@ window.SITE_DATA = {
   },
   "refusals": {
    "code": "CL5",
-   "id": "n4c70f82595bf",
+   "id": "ndb4d3bafe2bc",
    "review": "checked",
    "verdicts": [
     "site-check:replicated"
@@ -104,7 +104,7 @@ window.SITE_DATA = {
   "warnings": 0,
   "notes": 0,
   "investigations": [
-   "inv-b54ca728"
+   "inv-0d9697d5"
   ],
   "checked": {
    "sentences": 168,
@@ -124,7 +124,7 @@ window.SITE_DATA = {
    "why": "design: no write sets a stage; Graph.stage() derives it on read (workflow.py)"
   }
  ],
- "inv": "inv-b54ca728",
- "built": "2026-10-27T03:24:39Z",
- "head": "c5d28f6d67bdc05f29cd449465cd2cf9d4456e6eef91a4e92ba8158b2ac0fd0b"
+ "inv": "inv-0d9697d5",
+ "built": "2026-10-27T04:09:29Z",
+ "head": "18cffb6bd5be4d22fc662510f1beaa56e85c11e193fb4935998a508c44483240"
 };
