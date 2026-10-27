@@ -48,6 +48,8 @@ _WORDS = {w: i for i, w in enumerate("two three four five six seven eight nine t
                                      "fifteen sixteen seventeen eighteen nineteen twenty".split(), start=2)}
 _WORDNUM = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.I)   # 'one' is left out: too common as a pronoun
 _LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")
+# identifiers that look like numbers but aren't measurements: a version (1.10.0, v2.0.0-rc.1) or inline code
+_NOT_A_FIGURE = re.compile(r"`[^`\n]*`|(?<![\w.])v?\d+(?:\.\d+){2,}(?:[-+][0-9A-Za-z.]+)?(?![\w])")
 UNDERPOWERED = 0.05             # an absolute needs its 95% bound on the opposite rate at or below this
 _CONVENTIONS = re.compile(r"\b(interval|confidence|CI|bounds?|power|alpha|α|significan\w*|level)\b", re.I)
 
@@ -67,13 +69,15 @@ class Problem:
 
 
 def numbers(text: str) -> list[tuple[float, int, bool, str]]:
-    """(value, decimals printed, is_percent, as printed) for each number in a text."""
+    """(value, decimals printed, is_percent, as printed) for each number in a text. Versions and inline code are
+    identifiers, not figures, and are skipped."""
     out = []
-    for m in _NUM.finditer(text or ""):
+    text = _NOT_A_FIGURE.sub(" ", text or "")
+    for m in _NUM.finditer(text):
         whole, frac, pct = m.group(1), m.group(2), m.group(3)
         v = float(whole.replace(",", "") + ("." + frac if frac else ""))
         out.append((v, len(frac or ""), bool(pct), m.group(0).strip()))
-    for m in _WORDNUM.finditer(text or ""):
+    for m in _WORDNUM.finditer(text):
         out.append((float(_WORDS[m.group(1).lower()]), 0, False, m.group(0)))
     return out
 
