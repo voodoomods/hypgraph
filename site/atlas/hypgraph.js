@@ -134,31 +134,37 @@
       events: (after, inv, limit) => get(`/events?after=${after || 0}&inv=${q(inv || '')}&limit=${limit || 5000}`),
       exportUrl: (inv) => `${base}/export?inv=${q(inv)}`,
       async load(inv) {
-        const [subgraph, stages, board, completion, orders, report, profile, events, verify, refusals, node] = await Promise.all([
+        const [subgraph, stages, board, completion, orders, report, profile, events, verify, refusals, node, telemetry] = await Promise.all([
           get(`/subgraph?inv=${q(inv)}`), settle(get(`/stages?inv=${q(inv)}`)), settle(get(`/board?inv=${q(inv)}`)),
           settle(get(`/completion?inv=${q(inv)}`)), settle(get(`/orders?inv=${q(inv)}`)), settle(get(`/report?inv=${q(inv)}`)),
           settle(get(`/profile?inv=${q(inv)}`)), settle(src.events(0, inv, 5000)), settle(get('/verify')),
-          settle(get(`/refusals?inv=${q(inv)}`)), settle(src.node(inv))]);
+          settle(get(`/refusals?inv=${q(inv)}`)), settle(src.node(inv)), settle(get(`/telemetry?inv=${q(inv)}&limit=10000`))]);
         return { subgraph, stages: stages && stages.stages, board: board && board.board, completion,
-          orders: orders && orders.orders, report, profile, events, verify, refusals, node };
+          orders: orders && orders.orders, report, profile, events, verify, refusals, node, telemetry };
       },
-      /** Follow the record: Server-Sent Events from /stream, or polling /events where a host has no stream. */
-      follow(inv, after, onEvent, onState) {
-        let es = null, timer = null, closed = false, head = after || 0;
+      /** Follow the record and the swarm's telemetry: Server-Sent Events from /stream, or polling /events and
+       *  /telemetry where a host has no stream. */
+      follow(inv, after, onEvent, onState, onTel, telAfter) {
+        let es = null, timer = null, closed = false, head = after || 0, toff = telAfter || 0;
         const poll = async () => {
           if (closed) return;
           try {
             const out = await src.events(head, inv, 500);
             (out.events || []).forEach((e) => { head = Math.max(head, e.seq); onEvent(e); });
+            if (onTel) {
+              const t = await settle(get(`/telemetry?inv=${q(inv)}&after=${toff}`));
+              if (t) { (t.events || []).forEach(onTel); toff = t.next || toff; }
+            }
             onState('polling');
           } catch { onState('offline'); }
           timer = setTimeout(poll, 5000);
         };
         if (typeof EventSource === 'function') {
           let opened = false;
-          es = new EventSource(`${base}/stream?inv=${q(inv)}&after=${head}`);
+          es = new EventSource(`${base}/stream?inv=${q(inv)}&after=${head}&after_telemetry=${toff}`);
           es.onopen = () => { opened = true; onState('live'); };
           es.addEventListener('record', (m) => { try { const e = JSON.parse(m.data); head = Math.max(head, e.seq); onEvent(e); } catch { /* skip */ } });
+          es.addEventListener('telemetry', (m) => { try { if (onTel) onTel(JSON.parse(m.data)); } catch { /* skip */ } });
           es.onerror = () => {
             if (!opened) { es.close(); es = null; poll(); }       // no stream route here: poll instead
             else onState('reconnecting');                          // EventSource retries by itself (Last-Event-ID)
@@ -232,7 +238,8 @@
         try { invNode = await node(inv); } catch { invNode = (d.investigations || []).find((x) => x.id === inv) || null; }
         return { subgraph: v.subgraph || { nodes: [], edges: [] }, stages: v.stages || null, board: v.board || null,
           completion: v.completion || null, orders: v.orders || null, report: v.report || null, profile: v.profile || null,
-          events: { head, events: evsOf(inv) }, verify: verified, refusals: null, node: invNode };
+          events: { head, events: evsOf(inv) }, verify: verified, refusals: null, node: invNode,
+          telemetry: v.telemetry || (bundle.telemetry ? { events: (bundle.telemetry.events || bundle.telemetry).filter((t) => !t.inv || t.inv === inv) } : null) };
       },
     };
   }
@@ -251,6 +258,8 @@
       objective: body.objective || '', pid: profile.id || body.profile || '',
       stages: raw.stages, board: raw.board, completion: raw.completion, orders: raw.orders, report: raw.report,
       verify: raw.verify, refusals: raw.refusals,
+      tel: ((raw.telemetry && raw.telemetry.events) || []).slice().sort((a, b) => a.ts - b.ts),
+      telNext: (raw.telemetry && raw.telemetry.next) || 0, telSource: raw.telemetry ? (raw.telemetry.exists !== false) : false,
       L: (t) => (profile.labels && profile.labels[t]) || cap(t),
       codeOf: (id) => ((byId.get(id) || {}).code) || id,
     };
@@ -339,13 +348,13 @@
       }));
     }
     async function openInv(inv, keep) {
-      S.inv = inv;
+      S.inv = inv; S.telSeen = null;
       const raw = await src.load(inv);
       S.m = makeModel(inv, raw);
       if (!keep) { S.cursor = null; stopPlay(); }
       if (S.follow) S.follow();
       S.follow = null;
-      if (live && src.follow) S.follow = src.follow(inv, S.m.head, onLiveEvent, (s) => { S.stream = s; status(); });
+      if (live && src.follow) S.follow = src.follow(inv, S.m.head, onLiveEvent, (s) => { S.stream = s; status(); }, onTel, S.m.telNext);
       render();
     }
     let refreshTimer = null;
@@ -357,11 +366,21 @@
       refreshTimer = setTimeout(async () => {
         try {
           const raw = await src.load(S.inv);
-          const evs = S.m.events; S.m = makeModel(S.inv, raw);
+          const evs = S.m.events, tel = S.m.tel; S.m = makeModel(S.inv, raw);
           if (evs.length > S.m.events.length) S.m.events = evs;
+          if (tel.length > S.m.tel.length) S.m.tel = tel;
           render();
         } catch { /* keep what we have */ }
       }, 1200);
+    }
+    const telKey = (t) => `${t.kind}|${t.span || ''}|${t.ts}|${t.event || ''}`;
+    function onTel(t) {
+      if (!S.m) return;
+      if (!S.telSeen) S.telSeen = new Set(S.m.tel.map(telKey));
+      const k = telKey(t);
+      if (S.telSeen.has(k)) return;
+      S.telSeen.add(k); S.m.tel.push(t); S.m.telSource = true; S.lastEventAt = Date.now();
+      if (S.view === 'live' || S.view === 'overview') renderSoon();
     }
     let soon = null;
     const renderSoon = () => { if (!soon) soon = setTimeout(() => { soon = null; render(); }, 250); };
@@ -431,11 +450,102 @@
       if (returned.length) out.push(['info', `${returned.length} work order(s) returned, waiting on the record: ${returned.map((o) => o.code).join(', ')}`]);
       const r = m.refusals && (m.refusals.refused ?? m.refusals.total);
       if (r) out.push(['info', `${r} overclaim(s) refused by the record`]);
+      if (m.tel.length) out.push(...telAlerts(m.tel));
       return out;
     }
     const alertList = (items) => items.length ? `<ul class="alerts">${items.map(([lvl, txt, code]) =>
       `<li><span class="pill ${lvl}">${lvl === 'bad' ? 'action' : lvl === 'warn' ? 'check' : 'note'}</span><span>${esc(txt)}${code ? ` <button class="btn" type="button" data-n="${esc(code)}" style="padding:1px 8px">open</button>` : ''}</span></li>`).join('')}</ul>`
       : '<div class="dim">Nothing needs attention.</div>';
+
+    // ── telemetry (what the swarm did that the record can't see) ──
+    function telUpTo() {                                   // the telemetry the current replay position has reached
+      const m = S.m;
+      if (S.cursor == null) return m.tel;
+      const ev = m.events[Math.max(0, Math.min(S.cursor, m.events.length) - 1)];
+      if (!ev || S.cursor === 0) return [];
+      const cut = Date.parse(ev.at) / 1000 + 0.999;
+      return m.tel.filter((t) => t.ts <= cut);
+    }
+    function telStats(tel) {
+      const ends = tel.filter((t) => t.kind === 'model_end'), tools = tel.filter((t) => t.kind === 'tool_end');
+      const sum = (xs, k) => xs.reduce((a, t) => a + (Number(t[k]) || 0), 0);
+      const run = tel.find((t) => t.kind === 'run_start'), b = (run && run.budget) || {};
+      const usd = sum(ends, 'usd'), calls = ends.reduce((a, t) => a + (Number(t.calls) || 1), 0);
+      const used = b.max_usd ? usd / b.max_usd : b.max_calls ? calls / b.max_calls : null;
+      return { calls, tin: sum(ends, 'in'), tout: sum(ends, 'out'), cached: sum(ends, 'cached'), usd, tools: tools.length,
+        errors: ends.filter((t) => t.ok === false).length + tools.filter((t) => t.ok === false).length, budget: b, used,
+        run, ended: tel.find((t) => t.kind === 'run_end') };
+    }
+    function openSpans(tel) {                               // spans started and not ended: what is in flight
+      const open = new Map();
+      tel.forEach((t) => { if (t.kind.endsWith('_start')) open.set(t.span, t); else if (t.kind.endsWith('_end')) open.delete(t.span); });
+      return [...open.values()];
+    }
+    const fmtUsd = (x) => !x ? '$0' : x >= 0.01 ? '$' + x.toFixed(2) : x >= 0.0001 ? '$' + x.toFixed(4) : '<$0.0001';
+    const fmtN = (x) => x >= 10000 ? (x / 1000).toFixed(1) + 'k' : String(x);
+    function telAlerts(tel) {
+      const out = [], last = new Map(), runs = new Map();
+      tel.forEach((t) => {
+        if (t.kind !== 'tool_end' && t.kind !== 'tool_start') return;
+        const key = `${t.seat}|${t.tool}`;
+        if (t.kind === 'tool_end') {
+          const n = t.ok === false ? (last.get(key) || 0) + 1 : 0;
+          last.set(key, n);
+          if (n === 3) out.push(['warn', `${t.seat}'s ${t.tool} failed 3 times in a row: ${String(t.error || '').slice(0, 90)}`]);
+        } else {
+          const sig = `${t.seat}|${t.tool}|${JSON.stringify(t.args || {})}`, r = runs.get(t.seat) || { sig: '', n: 0 };
+          r.n = r.sig === sig ? r.n + 1 : 1; r.sig = sig; runs.set(t.seat, r);
+          if (r.n === 3) out.push(['warn', `${t.seat} called ${t.tool} with the same arguments 3 times in a row — a loop?`]);
+        }
+      });
+      const errs = tel.filter((t) => t.kind === 'model_end' && t.ok === false);
+      if (errs.length) out.push(['bad', `${errs.length} model call(s) failed: ${String(errs[errs.length - 1].error || '').slice(0, 100)}`]);
+      const st = telStats(tel);
+      if (st.used != null && st.used >= 0.8 && !st.ended) out.push(['warn', `the run has used ${Math.round(st.used * 100)} % of its budget`]);
+      return out;
+    }
+    function telRow(t) {
+      const c = (x) => `<span class="code">${esc(x)}</span>`, d = (x) => `<span class="dim">${esc(x)}</span>`;
+      const tm = String(t.at || '').slice(11, 19);
+      let what;
+      switch (t.kind) {
+        case 'model_end': what = t.ok === false ? `<span class="tel-bad">model call failed</span> ${d(String(t.error || '').slice(0, 120))}`
+          : `model ${d(t.model || '')} · ${fmtN(t.in || 0)}→${fmtN(t.out || 0)} tokens${t.usd ? ' · ' + fmtUsd(t.usd) : ''} · ${t.s}s${(t.tool_calls || []).length ? ' → ' + t.tool_calls.map(esc).join(', ') : ''}`; break;
+        case 'tool_end': what = t.ok === false ? `<span class="tel-bad">tool ${esc(t.tool)} failed</span> ${d(String(t.error || '').slice(0, 120))}` : `tool ${c(t.tool)} · ${t.s}s`; break;
+        case 'order_start': what = `took ${c(t.order)} ${d('· ' + (t.model || ''))}`; break;
+        case 'order_end': what = `finished ${c(t.order)} · ${t.calls || 0} call(s)${t.stopped ? ' ' + d('· ' + t.stopped) : ''}`; break;
+        case 'decision': what = `scheduler: ${esc(t.event)}${t.order ? ' ' + c(t.order) : ''}${t.why || t.missing ? ' ' + d('— ' + String(t.why || t.missing).slice(0, 100)) : ''}`; break;
+        case 'run_start': what = `run started · ${esc(t.title || '')}`; break;
+        case 'run_end': what = `run ended · ${esc(t.stopped || '')} · ${t.calls || 0} calls${t.usd ? ' · ' + fmtUsd(t.usd) : ''}`; break;
+        default: return '';
+      }
+      return `<div class="ev tel"><span class="seq">${esc(tm)}</span><span class="who">${esc(t.seat || (t.kind.startsWith('run') ? 'run' : 'scheduler'))}</span><span>${what}</span></div>`;
+    }
+    function trace(tel) {
+      const orders = tel.filter((t) => t.kind === 'order_start');
+      if (!orders.length) return '<div class="empty">No work orders in the telemetry yet.</div>';
+      const pick = orders.find((o) => o.order === S.traceOrder) || orders[orders.length - 1];
+      const kids = tel.filter((t) => t.parent === pick.span && (t.kind === 'model_end' || t.kind === 'tool_end' || t.kind === 'model_start' || t.kind === 'tool_start'));
+      const ended = new Map(kids.filter((t) => t.kind.endsWith('_end')).map((t) => [t.span, t]));
+      const startOf = new Map(kids.filter((t) => t.kind.endsWith('_start')).map((t) => [t.span, t]));
+      const oend = tel.find((t) => t.kind === 'order_end' && t.span === pick.span);
+      // "now" is the wall clock while following live, and the replay position while replaying
+      const now = S.cursor == null ? Date.now() / 1000 : (tel.length ? tel[tel.length - 1].ts : pick.ts);
+      const t0 = pick.ts, t1 = oend ? oend.ts : Math.max(t0 + 0.001, now);
+      const span = Math.max(t1 - t0, 0.001);
+      const rows = [...startOf.values()].map((s) => {
+        const e = ended.get(s.span), dur = e ? Math.max(e.s || (e.ts - s.ts), 0) : Math.max(now - s.ts, 0);
+        const left = ((s.ts - t0) / span) * 100, width = Math.max((dur / span) * 100, 0.6);
+        const kind = s.kind.split('_')[0], bad = e && e.ok === false;
+        const label = kind === 'model' ? `model ${s.model || ''}${e ? ` · ${fmtN(e.in || 0)}→${fmtN(e.out || 0)}${e.usd ? ' · ' + fmtUsd(e.usd) : ''}` : ' · in flight'}`
+          : `${s.tool}${e ? '' : ' · running'}`;
+        return `<div class="tr"><span class="tl">${esc(label)}</span><span class="tb"><i class="${kind}${bad ? ' bad' : ''}${e ? '' : ' open'}" style="left:${left.toFixed(2)}%;width:${Math.min(width, 100 - left).toFixed(2)}%"></i></span><span class="ts">${dur.toFixed(2)}s</span></div>`;
+      }).join('');
+      return `<div class="toolbar" style="margin:0 0 8px"><label class="dim" for="hg-trace-order">Work order</label>
+        <select class="select" id="hg-trace-order">${orders.map((o) => `<option value="${esc(o.order)}" ${o === pick ? 'selected' : ''}>${esc(o.order)} · ${esc(o.seat)}</option>`).join('')}</select>
+        <span class="dim">${esc(pick.model || '')} · ${(t1 - t0).toFixed(1)}s${oend ? ` · ${oend.calls || 0} call(s)${oend.stopped ? ' · ' + esc(oend.stopped) : ''}` : ' · running'}</span></div>
+        <div class="trace">${rows || '<div class="dim">No calls yet.</div>'}</div>`;
+    }
 
     // ── views ──
     function vOverview() {
@@ -451,7 +561,9 @@
         ['Stale evidence', stale, stale ? 'rests on changed files or pages' : 'nothing rests on changed inputs', stale ? 'warn' : ''],
         ['Contested', contested, contested ? 'open objections' : 'no open objections', contested ? 'bad' : ''],
         ['Work orders', `${done}/${orders.length}`, 'accepted by the record', ''],
-        ['Spend', sp.metered ? '$' + Number(sp.usd || 0).toFixed(3) : '—', sp.metered ? `${sp.calls} model calls` : 'not metered', '']];
+        sp.metered ? ['Spend', '$' + Number(sp.usd || 0).toFixed(3), `${sp.calls} model calls`, '']
+          : m.tel.length ? (() => { const t = telStats(m.tel); return ['Spend', fmtUsd(t.usd), `${t.calls} model calls · from telemetry`, '']; })()
+          : ['Spend', '—', 'not metered', '']];
       const stagesBy = new Map((m.stages || []).map((x) => [x.code, x]));
       const wf = m.profile.workflow;
       return head(esc(m.title), esc(m.objective), comp ? `<span class="pill ${comp.complete ? 'ok' : 'warn'}"><span class="d"></span>${comp.complete ? 'Complete' : 'In progress'}</span>` : '') +
@@ -568,14 +680,23 @@
     function vLive() {
       const m = S.m, n = m.events.length, cur = S.cursor == null ? n : Math.min(S.cursor, n), seen = m.events.slice(0, cur);
       const following = S.cursor == null, last = seen[seen.length - 1];
-      const running = S.playing || (following && live && S.stream === 'live' && Date.now() - S.lastEventAt < 30000);
-      const state = S.playing ? 'Replaying' : running ? 'Running' : !following ? 'Paused' : m.completion && m.completion.complete ? 'Complete' : live ? 'Watching' : 'Recorded';
+      const ranTo = telUpTo(), runEnd = ranTo.filter((t) => t.kind === 'run_end').pop(), runStart = ranTo.filter((t) => t.kind === 'run_start').pop();
+      const runOpen = runStart && (!runEnd || runEnd.ts < runStart.ts);   // telemetry says whether a run is under way
+      const running = S.playing || (following && live && (runOpen || (!runStart && S.stream === 'live' && Date.now() - S.lastEventAt < 30000)));
+      const state = S.playing ? 'Replaying' : running ? 'Running' : !following ? 'Paused'
+        : runEnd && runEnd === ranTo.filter((t) => t.kind.startsWith('run_')).pop() ? `Run ended · ${runEnd.stopped || (runEnd.ok === false ? 'failed' : 'done')}`
+        : m.completion && m.completion.complete ? 'Complete' : live ? 'Watching' : 'Recorded';
       const c = (f) => seen.filter(f).length;
       const kp = [['Work orders issued', c((e) => e.kind === 'create' && (e.payload || {}).type === 'task')], ['Picked up', c((e) => e.kind === 'lease_take')],
         ['Returned', c((e) => e.kind === 'lease_release')], [m.L('result') + 's', c((e) => e.kind === 'create' && (e.payload || {}).type === 'result')],
         [m.L('claim') + 's', c((e) => e.kind === 'create' && (e.payload || {}).type === 'claim')], ['Reviews', c((e) => e.kind === 'review')]];
-      return head('Live', `Everything the swarm does, as it happens: who holds which work order, what each seat writes, every review, the record growing.${live ? '' : ' This is the run\'s recorded event log; play it back.'}`,
-        '<span class="pill neutral" title="Model and tool calls, tokens and cost per seat arrive with HypSwarm telemetry (P3).">telemetry: not connected</span>') +
+      const tel = telUpTo(), ts = telStats(tel);
+      const telPill = m.tel.length ? `<span class="pill ok" title="the swarm's telemetry: model and tool calls, work orders, decisions">telemetry · ${m.tel.length} events</span>`
+        : '<span class="pill neutral" title="Run the swarm with hypswarm ≥ 0.1.0a7 (telemetry on by default for a record file): model and tool calls, tokens and cost per seat appear here.">telemetry: not connected</span>';
+      const tk = m.tel.length ? [['Model calls', ts.calls, ''], ['Tokens', `${fmtN(ts.tin)} → ${fmtN(ts.tout)}`, ts.cached ? `${fmtN(ts.cached)} cached` : ''],
+        ['Spend', fmtUsd(ts.usd), ''], ['Tool calls', ts.tools, ''], ['Errors', ts.errors, '', ts.errors ? 'bad' : ''],
+        ['Budget', ts.used == null ? '—' : `${Math.round(ts.used * 100)} %`, ts.budget.max_usd ? `of ${fmtUsd(ts.budget.max_usd)}` : ts.budget.max_calls ? `of ${ts.budget.max_calls} calls` : 'no cap', ts.used >= 0.8 ? 'warn' : '']] : [];
+      return head('Live', `Everything the swarm does, as it happens: every model and tool call, who holds which work order, what each seat writes, every review, the record growing.${live ? '' : ' This is the run\'s recorded log; play it back.'}`, telPill) +
         `<div class="card" style="margin-bottom:14px"><div class="live-head">
           <span class="pulse ${running ? '' : 'off'}" aria-hidden="true"></span><b>${state}</b>
           <span class="dim">event ${cur} of ${n}${last ? ' · ' + esc(String(last.at || '').slice(11, 19)) + ' UTC' : ''}</span>
@@ -584,14 +705,26 @@
           <select class="select" id="hg-lv-speed" aria-label="Speed">${[1, 4, 12, 40].map((x) => `<option value="${x}" ${S.speed === x ? 'selected' : ''}>${x}×</option>`).join('')}</select>
           <input class="scrub" type="range" id="hg-lv-scrub" min="0" max="${n}" value="${cur}" aria-label="Point in the run">
           <button class="btn" type="button" data-act="lv-live" ${following ? 'disabled' : ''}>${live ? 'Follow live' : 'Jump to end'}</button></div></div>
+        ${tk.length ? `<div class="grid kpis" style="margin-bottom:10px">${tk.map(([k, v, s, c]) => `<div class="card kpi ${c || ''}"><div class="k">${esc(k)}</div><div class="v">${v}</div>${s ? `<div class="s">${esc(s)}</div>` : ''}</div>`).join('')}</div>` : ''}
         <div class="grid kpis" style="margin-bottom:14px">${kp.map(([k, v]) => `<div class="card kpi"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`).join('')}</div>
+        ${m.tel.length ? (() => { const a = telAlerts(tel); return a.length ? `<div class="card" style="margin-bottom:14px"><h3>Alerts</h3><div class="body">${alertList(a)}</div></div>` : ''; })() : ''}
         <div class="grid live">
-          <div class="card"><h3>Seats <span class="sub">who is working on what</span></h3>${seats(seen)}</div>
+          <div class="card"><h3>Seats <span class="sub">who is working on what</span></h3>${seats(seen, tel)}</div>
           <div class="card"><h3>The record, growing</h3><div class="graph" id="hg-live-graph" role="img" aria-label="The record as of event ${cur}"></div></div>
-          <div class="card"><h3>Event stream <span class="sub">newest first</span></h3><div class="feed" aria-live="polite">${seen.slice(-300).reverse().map((e, i) => evRow(e, i === 0 && (S.playing || running))).join('') || '<div class="empty">Nothing yet.</div>'}</div></div>
-        </div>`;
+          <div class="card"><h3>Event stream <span class="sub">newest first</span>
+            ${m.tel.length ? `<span class="r"><select class="select" id="hg-lv-feed" aria-label="Show">${[['all', 'record + telemetry'], ['record', 'record'], ['telemetry', 'telemetry']].map(([v, l]) => `<option value="${v}" ${S.feed === v ? 'selected' : ''}>${l}</option>`).join('')}</select></span>` : ''}</h3>
+            <div class="feed" aria-live="polite">${feed(seen, tel, running)}</div></div>
+        </div>
+        ${m.tel.length ? `<div class="card" style="margin-top:14px"><h3>Trace <span class="sub">where a work order's time went: each model and tool call</span></h3><div class="body">${trace(tel)}</div></div>` : ''}`;
     }
-    function seats(seen) {
+    function feed(seen, tel, running) {
+      const mode = S.feed || 'all';
+      const rec = mode === 'telemetry' ? [] : seen.slice(-300).map((e) => ({ ts: Date.parse(e.at) / 1000, e }));
+      const tl = mode === 'record' ? [] : tel.filter((t) => !t.kind.endsWith('_start') || t.kind === 'order_start' || t.kind === 'run_start').slice(-400).map((t) => ({ ts: t.ts, t }));
+      const all = rec.concat(tl).sort((a, b) => b.ts - a.ts || ((b.e ? b.e.seq : 0) - (a.e ? a.e.seq : 0))).slice(0, 400);
+      return all.map((x, i) => x.e ? evRow(x.e, i === 0 && (S.playing || running)) : telRow(x.t)).join('') || '<div class="empty">Nothing yet.</div>';
+    }
+    function seats(seen, tel) {
       const m = S.m, by = {};
       seen.forEach((e) => {
         const p = e.payload || {}, who = e.kind === 'lease_take' ? p.for : e.actor;
@@ -602,11 +735,21 @@
         if (['create', 'revise', 'link', 'review', 'withdraw'].includes(e.kind)) s.writes++;
         s.last = say(e, true);
       });
+      const ends = (tel || []).filter((t) => t.kind === 'model_end' || t.kind === 'tool_end');
+      ends.forEach((t) => { if (t.seat && !by[t.seat]) by[t.seat] = { writes: 0, holding: null, last: '' }; });
+      const open = openSpans(tel || []), now = Date.now() / 1000, following = S.cursor == null;
       const names = Object.keys(by).sort((a, b) => (a === 'harness') - (b === 'harness') || a.localeCompare(b));
       return names.map((w) => { const s = by[w];
-        return `<div class="seat ${s.holding ? 'busy' : ''}"><div class="av" aria-hidden="true">${esc(w.slice(0, 2).toUpperCase())}</div>
-          <div><div class="nm">${esc(w)}${w === 'harness' ? ' <span class="pill neutral">scheduler</span>' : (w === 'instrument' || w === 'lab') ? ' <span class="pill info">instrument</span>' : ''}</div>
-          <div class="doing">${s.holding ? `working <span class="code">${esc(s.holding)}</span>` : esc(s.last)}</div></div><span class="mono dim" title="writes">${s.writes}</span></div>`; }).join('')
+        const mine = ends.filter((t) => t.seat === w), calls = mine.filter((t) => t.kind === 'model_end');
+        const usd = calls.reduce((a, t) => a + (Number(t.usd) || 0), 0), tok = calls.reduce((a, t) => a + (Number(t.in) || 0) + (Number(t.out) || 0), 0);
+        const errs = mine.filter((t) => t.ok === false).length;
+        const fly = open.filter((t) => t.seat === w && (t.kind === 'model_start' || t.kind === 'tool_start')).pop();
+        const flying = fly ? `<span class="fly"></span>${fly.kind === 'model_start' ? `calling ${esc(fly.model || 'the model')}` : `running ${esc(fly.tool)}`}${following ? ` · ${Math.max(0, now - fly.ts).toFixed(1)}s` : ''}${fly.order ? ` on <span class="code">${esc(fly.order)}</span>` : ''}` : '';
+        return `<div class="seat ${s.holding || fly ? 'busy' : ''}"><div class="av" aria-hidden="true">${esc(w.slice(0, 2).toUpperCase())}</div>
+          <div><div class="nm">${esc(w)}${w === 'harness' ? ' <span class="pill neutral">scheduler</span>' : (w === 'instrument' || w === 'lab') ? ' <span class="pill info">instrument</span>' : ''}${errs ? ` <span class="pill bad">${errs} error${errs > 1 ? 's' : ''}</span>` : ''}</div>
+          <div class="doing">${flying || (s.holding ? `working <span class="code">${esc(s.holding)}</span>` : esc(s.last))}</div>
+          ${calls.length ? `<div class="dim" style="font-size:11.5px">${calls.length} call(s) · ${fmtN(tok)} tokens${usd ? ' · ' + fmtUsd(usd) : ''}</div>` : ''}</div>
+          <span class="mono dim" title="record writes">${s.writes}</span></div>`; }).join('')
         || '<div class="empty">Nobody has started yet.</div>';
     }
     function say(e, plain) {
@@ -824,6 +967,8 @@
       if (id === 'hg-au-actor') { S.audit.actor = ev.target.value; render(); }
       if (id === 'hg-au-kind') { S.audit.kind = ev.target.value; render(); }
       if (id === 'hg-lv-speed') { S.speed = +ev.target.value; if (S.playing) play(); }
+      if (id === 'hg-lv-feed') { S.feed = ev.target.value; render(); }
+      if (id === 'hg-trace-order') { S.traceOrder = ev.target.value; render(); }
     });
     const typing = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
     root.addEventListener('keydown', (ev) => {
@@ -847,12 +992,32 @@
     $('#hg-theme').addEventListener('click', () => { const t = root.dataset.theme === 'dark' ? 'light' : 'dark'; setTheme(t); if (opts.onTheme) opts.onTheme(t); });
     if (!root.hasAttribute('tabindex')) root.tabIndex = -1;
 
+    if (live) setInterval(async () => {                    // investigations a swarm starts later appear in the nav
+      if (!S.m || document.hidden) return;
+      const before = S.invs.length;
+      try { await loadInvestigations(); } catch { return; }
+      if (S.invs.length !== before) nav();
+    }, 10000);
+    setInterval(() => {                                    // in-flight calls show their elapsed time while live
+      if (S.view === 'live' && S.cursor == null && S.m && S.m.tel.length && openSpans(S.m.tel).length && !document.hidden) render();
+    }, 1000);
+
     // ── start ──
     const fromHash = () => (opts.hash ? new URLSearchParams(location.hash.slice(1)) : new URLSearchParams());
     const ready = (async () => {
       try {
         await loadInvestigations();
-        if (!S.invs.length) { $('#hg-main').innerHTML = '<div class="empty">This record has no investigations yet. <code>hypgraph demo</code> builds one to explore.</div>'; root.dataset.hgReady = '1'; return; }
+        if (!S.invs.length) {
+          $('#hg-main').innerHTML = `<div class="empty">This record has no investigations yet.${live ? ' Start a swarm against it and it appears here as soon as it begins.' : ' <code>hypgraph demo</code> builds one to explore.'}</div>`;
+          root.dataset.hgReady = '1';
+          if (!live) return;
+          await new Promise((resolve) => {                 // a swarm started after the page: open it when it begins
+            const t = setInterval(async () => {
+              try { await loadInvestigations(); } catch { return; }
+              if (S.invs.length) { clearInterval(t); resolve(); }
+            }, 3000);
+          });
+        }
         const h = fromHash();
         const want = h.get('inv'), pick = S.invs.find((i) => i.id === want || i.code === want || S.profiles.get(i.id) === want) || S.invs[0];
         if (h.get('view') && V[h.get('view')]) S.view = h.get('view');
