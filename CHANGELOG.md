@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- **Derivation scales with the record.** Working out which earlier results a result repeats (`derive.restates`) took a
+  pass over the whole graph for every result, recomputing each one's numbers, so deriving a record grew with the
+  square of its results. It now reads a per-snapshot index of each investigation's results by the numbers they carry,
+  and a result's numbers are computed once per version, shared across snapshots. On `dev/bench.py`'s record: 10,001
+  nodes derive in 0.34 s (was 20.35 s), 4,001 in 0.11 s (was 3.65 s). The write-time duplicate check uses the same
+  index.
+- **Two fixes to carried standing.** Both were found by the test at scale.
+  - Results written in the same second were ordered by id, so a result written later could count as "earlier" and
+    change what an older result repeats, after the older one's standing had been derived and carried forward. Ties now
+    go by write order.
+  - Revising or withdrawing a result now re-derives the results that repeat its numbers. They reach it through no
+    edge, so they used to keep their old standing.
+
+  The randomized incremental suite now gives results numbers, by several authors, and revises them. It fails on the
+  old code (5 of 6 seeds) and passes now.
+- `dev/bench.py`: reads, writes and derivation at a given record size, on your machine. The README's performance
+  figures come from it.
+
 ## 0.6.0 — 2026-10-26: the HypGraph UI, live swarm observability, an example per profile
 
 The Atlas becomes **HypGraph**: one app for every profile, in each profile's own words, that watches a swarm
