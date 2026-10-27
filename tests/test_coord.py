@@ -102,6 +102,18 @@ def test_rework_supersedes_and_keeps_the_target(env):
     assert "Rework of" in r["text"] and "earlier order" in r["text"]
 
 
+
+def test_a_rework_with_an_unknown_predicate_is_refused(env):
+    """A lead reworked with done_when=[{"p": "claim_answers_q3"}], an order nothing could ever meet (studies S1)."""
+    g, lead, inv, h1, h2, x1 = env
+    o = g.issue_work(author="lead", inv=inv, target="X1", assignee="analyst", objective="Run the paired comparison.")
+    g.return_work(author="analyst", order=o["order"], note="Couldn't get the item file.")
+    with pytest.raises(GraphError, match="unknown predicate.*claim_answers_q3.*result_exists"):
+        g.rework(author="lead", order=o["order"], missing="no claim answers Q3 yet",
+                 done_when=[{"p": "claim_answers_q3"}])
+    assert g.rework(author="lead", order=o["order"], missing="no claim answers Q3 yet",
+                    done_when=[{"p": "result_exists"}])["code"]
+
 def test_a_fallen_premise_makes_orders_moot_and_cancel_moot_stops_exactly_those(env):
     g, lead, inv, h1, h2, x1 = env
     a = g.author("analyst")
