@@ -156,6 +156,18 @@
 .hg .ev { display: grid; grid-template-columns: 52px 90px 1fr; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--line); }
 .hg .ev.fresh { animation: hg-flash 1.2s ease; } @keyframes hg-flash { from { background: var(--accent-soft); } to { background: transparent; } }
 .hg .ev .seq { font: 11px var(--mono); color: var(--ink3); } .hg .ev .who { font-weight: 600; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; }
+.hg .ev.tel { background: var(--surface2); } .hg .ev.tel .seq { font-size: 10.5px; }
+.hg .tel-bad { color: var(--bad); font-weight: 600; }
+.hg .fly { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px;
+  vertical-align: 0; animation: hg-pulse 1.2s infinite; }
+.hg .trace { display: grid; gap: 4px; }
+.hg .trace .tr { display: grid; grid-template-columns: minmax(160px, 300px) 1fr 64px; gap: 10px; align-items: center; font-size: 12px; }
+.hg .trace .tl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }
+.hg .trace .tb { position: relative; height: 12px; background: var(--sunken); border-radius: 3px; }
+.hg .trace .tb i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+.hg .trace .tb i.tool { background: var(--info); } .hg .trace .tb i.bad { background: var(--bad); }
+.hg .trace .tb i.open { background: repeating-linear-gradient(45deg, var(--accent) 0 4px, var(--accent-soft) 4px 8px); }
+.hg .trace .ts { font: 11px var(--mono); color: var(--ink3); text-align: right; }
 .hg .alerts li { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; }
 .hg .alerts { list-style: none; margin: 0; padding: 0; }
 .hg .kanban { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }

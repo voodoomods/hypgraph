@@ -57,7 +57,7 @@ def run(chrome: str, url: str, *, shot: Path | None = None) -> str:
     return out.stdout
 
 
-def check(dom: str, view: str, el: str = "app") -> str:
+def check(dom: str, view: str, el: str = "app", telemetry: bool = False) -> str:
     m = re.search(rf'<div id="{el}"([^>]*)>', dom)
     if not m:
         return f"no #{el} element in the page"
@@ -75,6 +75,8 @@ def check(dom: str, view: str, el: str = "app") -> str:
         return f"heading {h1.group(1) if h1 else 'missing'!r}, wanted {want!r}"
     if view == "graph" and "<canvas" not in dom:
         return "the graph drew nothing"
+    if view == "live" and telemetry and ('class="trace"' not in dom or "telemetry · " not in dom):
+        return "the run's telemetry isn't shown (no trace or telemetry pill)"
     return ""
 
 
@@ -96,7 +98,8 @@ def main() -> int:
                 for v in VIEWS:
                     url = f"http://127.0.0.1:{port}/dev/ui-fixtures/view.html?bundle={fx}&theme={theme}#view={v}"
                     shot = (shots / f"{fx}-{theme}-{v}.png") if shots else None
-                    why = check(run(chrome, url, shot=shot), v)
+                    has_tel = (ROOT / "dev" / "ui-fixtures" / f"{fx}.telemetry.jsonl").exists()
+                    why = check(run(chrome, url, shot=shot), v, telemetry=has_tel)
                     bad += bool(why)
                     print(f"{'FAIL' if why else 'ok  '} {fx:13} {theme:5} {v:9} {why}", flush=True)
         # a page written for the Atlas (atlas.css + atlas.js + HypAtlas.mount, dark host tokens) keeps working

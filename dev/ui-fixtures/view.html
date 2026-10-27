@@ -20,9 +20,13 @@
   (async () => {
     const q = new URLSearchParams(location.search), el = document.getElementById('app');
     try {
-      const r = await fetch(`${q.get('bundle') || 'software'}.bundle.json`);
+      const name = q.get('bundle') || 'software';
+      const r = await fetch(`${name}.bundle.json`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      HypGraph.mount(el, { source: HypGraph.BundleSource(await r.json()), hash: true, theme: q.get('theme') || 'light' });
+      const bundle = await r.json();
+      const t = await fetch(`${name}.telemetry.jsonl`).catch(() => null);      // a run's telemetry sidecar, when there is one
+      if (t && t.ok) bundle.telemetry = { events: (await t.text()).split('\n').filter(Boolean).map((l) => JSON.parse(l)) };
+      HypGraph.mount(el, { source: HypGraph.BundleSource(bundle), hash: true, theme: q.get('theme') || 'light' });
     } catch (e) { el.dataset.hgError = 'fixture: ' + e.message; }
   })();
 </script>

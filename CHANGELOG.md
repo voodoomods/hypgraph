@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+Live observability for a running swarm (P3, with hypswarm's telemetry):
+- **`hypgraph serve` streams a swarm's telemetry.** hypswarm writes `<record>.telemetry.jsonl` beside the record: every
+  model call, tool call, work order and scheduler decision, as spans. The server serves it at `GET /api/graph/telemetry`
+  (paged by byte offset) and tails it into `/api/graph/stream` as `telemetry` events. Ids become `<seq>:<offset>` so a
+  reconnect resumes both. A sidecar that appears after the server starts is picked up, and `--telemetry FILE` /
+  `--no-telemetry` override the default. Telemetry is shown, never trusted for standing.
+- **The Live view shows the swarm working:**
+  - each seat's call in flight (the model it's calling or the tool it's running, with seconds elapsed), and its calls,
+    tokens, cost and errors;
+  - KPI tiles for model calls, tokens in → out and cached, spend, tool calls, errors, and budget used against the run's cap;
+  - an event stream merging the record and telemetry, with a filter;
+  - a trace for any work order, showing each model and tool call on a timeline;
+  - alerts: a tool failing three times in a row, a seat repeating an identical tool call, failed model calls, the
+    budget passing 80 %;
+  - status from the run's own start and end ("Run ended · settled").
+
+  A record opened before its swarm starts picks the investigation up when it begins. Replay scopes telemetry to the
+  replay position. Overview's spend falls back to telemetry when the ledger isn't metered.
+- `dev/ui-fixtures/swarm.*` holds a real scripted swarm's bundle and telemetry, and the smoke check requires its trace
+  (97 pages).
+
 The engine side of the HypGraph UI (docs/ui-plan.md, P1):
 - **Each profile speaks its own words.** `Profile.labels` gives the short noun a screen shows for each node type: a
   software question is a **Requirement**, a trading hypothesis a **Thesis**, a decision a **Position**, an

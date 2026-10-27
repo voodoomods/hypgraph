@@ -166,7 +166,9 @@ with g.writing_for(task_id):                                # every event carrie
 - **Watching it live:** `GET /api/graph/stream?inv=` pushes every event as it is written (Server-Sent Events,
   resumable with `Last-Event-ID`), including writes from another process on the same file, such as a swarm running
   against the record. `GET /api/graph/profile?inv=` gives the investigation's profile as a UI speaks it: each node
-  type's label ("Requirement", "Thesis"), the workflow's stages and the report's name.
+  type's label ("Requirement", "Thesis"), the workflow's stages and the report's name. A swarm's telemetry sidecar
+  (`<db>.telemetry.jsonl`, written by hypswarm) rides the same stream as `telemetry` events, so the Live view shows every
+  model and tool call as it happens.
 - **CI:** `hypgraph export -o record.bundle.json && hypgraph verify record.bundle.json`. The bundle is a single file
   your reviewers or auditors can check with SHA-256, in any language or in the browser.
 

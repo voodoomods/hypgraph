@@ -19,6 +19,7 @@ def test_the_app_and_its_atlas_shims():
     assert [k.split(":")[0].strip() for k in table.split(",")] == ["overview", "live", "pipeline", "graph", "evidence",
                                                                    "orders", "audit", "report"]
     assert "async function verifyBundle" in js and "/stream?inv=" in js          # the chain check and the live stream
+    assert "addEventListener('telemetry'" in js and "/telemetry?inv=" in js        # the swarm's telemetry, pushed or polled
     shim = (UI / "atlas.js").read_text(encoding="utf-8")
     assert "hypgraph.js" in shim and "document.write" in shim
     assert '@import url("hypgraph.css")' in (UI / "atlas.css").read_text(encoding="utf-8")

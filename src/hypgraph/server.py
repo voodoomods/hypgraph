@@ -12,6 +12,9 @@
     GET  /api/graph/stream?inv=&after=      the same events pushed as they are written (Server-Sent Events; resumes
                                             from Last-Event-ID; a comment line every 15 s keeps proxies open)
     GET  /api/graph/profile?inv=            the investigation's profile as a UI speaks it: labels, workflow, report
+    GET  /api/graph/telemetry?inv=&after=   a swarm's telemetry sidecar (hypswarm writes <db>.telemetry.jsonl): model and
+                                            tool calls, work orders, decisions; ``after`` is the byte offset ``next`` gave.
+                                            The stream above carries it too, as ``telemetry`` events.
     GET  /api/graph/next?inv=   /work?inv=   /cost?inv=&node=   /report?inv=   /verify   /schema
     GET  /api/graph/export?inv=             a verifiable bundle
     GET  /api/graph/refusals?inv=&since=    the overclaims caught, per author and rule
@@ -204,8 +207,37 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
         return 400, {"detail": str(e)}
 
 
+def read_telemetry(path: Path | None, after: int = 0, inv: str = "", limit: int = 2000) -> tuple[list[dict], int]:
+    """New complete lines of a telemetry sidecar from byte ``after``: (events, the offset to read from next). A line a
+    writer hasn't finished is left for the next read; a file that got shorter (rotated) is read from the start. Lines
+    that aren't JSON are skipped. ``inv`` keeps that investigation's events (and any without one)."""
+    if not path or not path.is_file():
+        return [], after
+    size = path.stat().st_size
+    if size < after:
+        after = 0
+    out: list[dict] = []
+    with path.open("rb") as f:
+        f.seek(after)
+        chunk = f.read(4_000_000)
+    end = chunk.rfind(b"\n")
+    if end < 0:
+        return [], after
+    for line in chunk[:end + 1].splitlines():
+        try:
+            e = json.loads(line)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        if isinstance(e, dict) and (not inv or e.get("inv") in (None, "", inv)):
+            out.append(e)
+            if len(out) >= limit:
+                consumed = chunk.find(line) + len(line) + 1
+                return out, after + consumed
+    return out, after + end + 1
+
+
 def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
-                 tokens: dict[str, frozenset] | None = None):
+                 tokens: dict[str, frozenset] | None = None, telemetry: Path | None = None):
     class Handler(BaseHTTPRequestHandler):
         server_version = "hypgraph"
 
@@ -247,6 +279,15 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
             u = urlparse(self.path)
             if u.path.rstrip("/") == "/api/graph/stream":
                 return self._stream(parse_qs(u.query))
+            if u.path.rstrip("/") == "/api/graph/telemetry":
+                q = {k: v[0] for k, v in parse_qs(u.query).items()}
+                try:
+                    after, limit = int(q.get("after") or 0), min(max(int(q.get("limit") or 2000), 1), 10000)
+                except ValueError:
+                    return self._json(400, {"detail": "after and limit must be integers"})
+                evs, nxt = read_telemetry(telemetry, after, str(q.get("inv") or ""), limit)
+                return self._json(200, {"events": evs, "next": nxt, "source": telemetry.name if telemetry else "",
+                                        "exists": bool(telemetry and telemetry.is_file())})
             if u.path.startswith("/api/graph"):
                 status, obj = dispatch(g, "GET", u.path[len("/api/graph"):], parse_qs(u.query), writable=writable)
                 return self._json(status, obj)
@@ -262,12 +303,16 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
         def _stream(self, q: dict) -> None:
             """Push the record's events as they are written (Server-Sent Events): ``id`` is the event's seq, so a
             client that reconnects resumes where it was (Last-Event-ID). Writes from other processes on the same
-            file arrive too — a swarm writing to the record is watched live. ``max_seconds`` ends the stream (for
-            clients and tests that want a bounded read); 0 = until the client leaves."""
+            file arrive too — a swarm writing to the record is watched live. The swarm's telemetry sidecar, when there
+            is one, is tailed into the same stream as ``telemetry`` events; ids are then ``<seq>:<byte offset>`` so a
+            reconnect resumes both. ``max_seconds`` ends the stream (for clients and tests that want a bounded read);
+            0 = until the client leaves."""
             one = {k: v[0] for k, v in q.items()}
             inv = str(one.get("inv") or "")
+            last = str(self.headers.get("Last-Event-ID") or "")
             try:
-                after = int(one.get("after") or self.headers.get("Last-Event-ID") or 0)
+                after = int(one.get("after") or (last.split(":")[0] if last else 0) or 0)
+                toff = int(one.get("after_telemetry") or (last.split(":")[1] if ":" in last else 0) or 0)
                 max_s = min(max(float(one.get("max_seconds") or 0), 0.0), 86400.0)
                 poll = min(max(float(one.get("poll") or 0.5), 0.1), 10.0)
             except ValueError:
@@ -290,10 +335,16 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
                     out = g.events(after=after, inv=inv, limit=500)
                     for e in out["events"]:
                         data = json.dumps(e, ensure_ascii=False, default=str)
-                        self.wfile.write(f"id: {e['seq']}\nevent: record\ndata: {data}\n\n".encode())
+                        eid = f"{e['seq']}:{toff}" if telemetry and telemetry.is_file() else f"{e['seq']}"
+                        self.wfile.write(f"id: {eid}\nevent: record\ndata: {data}\n\n".encode())
                         after = int(e["seq"])
+                    tel, toff2 = read_telemetry(telemetry, toff, inv, 500) if telemetry else ([], toff)
+                    for t in tel:
+                        data = json.dumps(t, ensure_ascii=False, default=str)
+                        self.wfile.write(f"id: {after}:{toff2}\nevent: telemetry\ndata: {data}\n\n".encode())
+                    toff = toff2
                     now = time.monotonic()
-                    if out["events"]:
+                    if out["events"] or tel:
                         self.wfile.flush()
                         last = now
                     elif now - last >= 15:
@@ -304,7 +355,7 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
                         self.wfile.write(f"event: end\ndata: {json.dumps({'head': after})}\n\n".encode())
                         self.wfile.flush()
                         return
-                    if len(out["events"]) < 500:
+                    if len(out["events"]) < 500 and len(tel) < 500:
                         time.sleep(poll)
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
                 return                                      # the client left
@@ -338,23 +389,35 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
 
 
 def make_server(graph: Graph | str, host: str = "127.0.0.1", port: int = 8765, *, writable: bool = False,
-                tokens: dict[str, frozenset] | None = None):
+                tokens: dict[str, frozenset] | None = None, telemetry: str | Path | None = "auto"):
+    """``telemetry``: the swarm's sidecar to serve and stream — "auto" is ``<db>.telemetry.jsonl`` beside the record
+    (it may appear later: a run started after the server is picked up), a path, or None for none."""
     g = graph if isinstance(graph, Graph) else Graph(graph)
+    tel: Path | None = None
+    if telemetry == "auto":
+        if g.path and g.path != ":memory:":
+            tel = Path(g.path + ".telemetry.jsonl")
+    elif telemetry:
+        tel = Path(telemetry)
     hosts = {host.lower(), "localhost", "127.0.0.1", "::1"} if host in ("127.0.0.1", "localhost", "::1") else \
         {host.lower()}
     root = static_dir().resolve()
-    return ThreadingHTTPServer((host, port), make_handler(g, writable=writable, hosts=hosts, root=root, tokens=tokens))
+    return ThreadingHTTPServer((host, port), make_handler(g, writable=writable, hosts=hosts, root=root, tokens=tokens,
+                                                          telemetry=tel))
 
 
 def serve(db: str, host: str = "127.0.0.1", port: int = 8765, *, writable: bool = False,
-          open_browser: bool = True, tokens: dict[str, frozenset] | None = None) -> None:
+          open_browser: bool = True, tokens: dict[str, frozenset] | None = None, telemetry: str | None = "auto") -> None:
     if not Path(db).exists():
         print(f"{db} doesn't exist yet — `hypgraph demo` builds one to explore, `hypgraph init` starts your own.")
         return
-    srv = make_server(db, host, port, writable=writable, tokens=tokens)
+    srv = make_server(db, host, port, writable=writable, tokens=tokens, telemetry=telemetry)
     url = f"http://{host}:{srv.server_address[1]}/"
     auth = f", {len(tokens)} write token(s)" if tokens else (", writes unauthenticated" if writable else "")
+    tel = telemetry if telemetry not in ("auto", None) else (db + ".telemetry.jsonl" if telemetry == "auto" else "")
     print(f"HypGraph on {url}  ({db}{', writable' if writable else ', read-only'}{auth})  — Ctrl+C to stop")
+    if tel:
+        print(f"  telemetry: {tel}{'' if Path(tel).exists() else ' (not there yet; picked up when a run writes it)'}")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

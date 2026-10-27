@@ -418,7 +418,7 @@ def cmd_serve(args) -> int:
     if tokens and not args.writable:
         print("note: --token only matters with --writable (reads are open)")
     serve(args.db, host=args.host, port=args.port, writable=args.writable, open_browser=not args.no_browser,
-          tokens=tokens or None)
+          tokens=tokens or None, telemetry=(args.telemetry or "auto") if not args.no_telemetry else None)
     return 0
 
 
@@ -529,6 +529,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--port", type=int, default=8765)
     s.add_argument("--writable", action="store_true", help="also accept writes (POST /api/graph/write)")
     s.add_argument("--no-browser", action="store_true")
+    s.add_argument("--telemetry", default="", metavar="FILE",
+                   help="a swarm's telemetry sidecar to stream (default: <db>.telemetry.jsonl, picked up when it appears)")
+    s.add_argument("--no-telemetry", action="store_true", help="don't serve or stream telemetry")
     s.add_argument("--token", action="append", metavar="SECRET[=AUTHORS]",
                    help="bind writes to a bearer token: SECRET=a,b (those authors) or SECRET=* (any non-reserved); "
                         "repeatable; $HYPGRAPH_TOKEN adds one. With tokens, unauthenticated writes are 401.")
