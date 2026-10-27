@@ -11,17 +11,25 @@ SHA-256 over strings plus a few lookups — any language can do it (the site doe
      "versions": [{"node", "v", "at", "by", "reason", "body"}],   # body = the stored canonical string
      "edges":    [{"id", "src", "src_v", "rel", "dst", "dst_v", "data", "at", "by", "why"}],   # data likewise
      "withdrawals": [...], "retractions": [...], "leases": [...],
-     "derived":  {...}}                                     # standing at export time, for viewers; never trusted
+     "derived":  {...},                                     # standing at export time, for viewers; never trusted
+     "telemetry": {"source", "covered_by_chain": false, "events": [...]}}   # optional: a swarm's telemetry sidecar
 
 A scoped bundle (one investigation out of a shared graph) redacts the events outside it to {seq, hash, prev}: their
 content can't be checked, so a change hidden among them (a withdrawal, say) would not show. ``verify_bundle`` says so
 (``complete: false``). To publish a study, keep it in a graph of its own and export all of it.
+
+``export(..., telemetry=path)`` adds a swarm's telemetry sidecar (HypSwarm writes ``<record>.telemetry.jsonl``): its
+model and tool calls, work orders and scheduler decisions, so a viewer can replay the run. Telemetry is observation:
+it is not part of the hash chain, ``verify_bundle`` doesn't look at it, and nothing derived from the record rests on
+it. It is off unless asked for — a sidecar names the models, seats and spend of a run.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from . import __version__
@@ -37,7 +45,23 @@ def _sha(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()
 
 
-def export(g: "Graph", inv: str = "", *, derived: bool = True) -> dict:
+def read_sidecar(path: str | os.PathLike, invs: set[str] | None = None) -> list[dict]:
+    """Every complete JSON line of a telemetry sidecar; with ``invs``, those investigations' events (and any without
+    one). Lines that aren't JSON objects — a torn last line, say — are skipped."""
+    out: list[dict] = []
+    with open(path, "rb") as f:
+        for line in f.read().splitlines():
+            try:
+                e = json.loads(line)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+            if isinstance(e, dict) and (invs is None or e.get("inv") in (None, "") or e.get("inv") in invs):
+                out.append(e)
+    return out
+
+
+def export(g: "Graph", inv: str = "", *, derived: bool = True,
+           telemetry: str | os.PathLike | list | None = None) -> dict:
     with g._snap_lock:
         con = g._connect()
         rows = lambda q, *a: [dict(zip([c[0] for c in cur.description], r))  # noqa: E731
@@ -77,8 +101,15 @@ def export(g: "Graph", inv: str = "", *, derived: bool = True) -> dict:
         "events": events, "nodes": nodes, "versions": versions, "edges": edges,
         "withdrawals": withdrawals, "retractions": retractions, "leases": leases,
     }
+    invs = [inv] if inv else [n["id"] for n in nodes if n["type"] == "investigation"]
     if derived:
-        out["derived"] = derive_views(g, [inv] if inv else [n["id"] for n in nodes if n["type"] == "investigation"])
+        out["derived"] = derive_views(g, invs)
+    if telemetry is not None:
+        if isinstance(telemetry, (str, os.PathLike)):
+            src, tel = Path(telemetry).name, read_sidecar(telemetry, set(invs))
+        else:
+            src, tel = "", [e for e in telemetry if isinstance(e, dict) and e.get("inv") in (None, "", *invs)]
+        out["telemetry"] = {"source": src, "covered_by_chain": False, "events": tel}
     return out
 
 

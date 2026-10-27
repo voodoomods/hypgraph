@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+A live example per profile on hypgraph.com (P4):
+- **Five live examples.** `/examples/` has one page per `@2` profile: scientific, software, trading, knowledge and
+  optimization. Each is a HypSwarm run on a real record that opens on its live replay. You see the seats take work
+  orders, model and tool calls in flight, writes refused and rewritten, and reviews landing, then you can explore the
+  pipeline, graph, evidence and report. The pages load offline from their bundles and re-verify each hash chain in
+  the browser. `dev/site_examples.py` rebuilds them from HypSwarm's scripted examples, pacing each reply 0.35–1.4 s,
+  and every page says so.
+- **A bundle can carry the run's telemetry.** `export(inv, telemetry=path)` and `hypgraph export --telemetry [FILE]`
+  (default `<db>.telemetry.jsonl`) add a swarm's sidecar for replay. It is outside the hash chain:
+  `verify_bundle` and `from_bundle` ignore it, and the UI labels it "not hash-chained". It is off unless asked for,
+  because a sidecar names a run's models, seats and spend.
+- **`play` opens on the replay.** The `play` mount option, or `#view=live&play=1`, opens the Live view and plays the
+  run from its first event. With reduced motion requested, it shows the finished run with Play one click away.
+- **A refused write is not an error.** In the Live view, a tool call the record refused counts as "refused by the
+  record", with its reason: amber on the seat, in the stream and in the trace. Errors count real failures only.
+- **The site's Atlas page is replaced.** The UI is served from `/app/`, `/explore/` opens any bundle full screen, and
+  `/atlas/` forwards there (keeping `?bundle=`, the hand-over from `/verify/` and the fragment). The home page embeds
+  the app directly. `/verify/` says when a bundle carries telemetry and opens bundles in HypGraph.
+- **A narrow layout.** Below 760 px of its own width (a phone, or a narrow frame), the app's sidebar becomes a strip of
+  tabs and the top bar wraps. It uses a container query, so an embed sizes it, not the window.
+- The smoke check also renders the site: each example opens replaying with its chain verified, plus the home page,
+  the explorer, the `/atlas/` forward and the gallery (106 pages).
+
 Live observability for a running swarm (P3, with hypswarm's telemetry):
 - **`hypgraph serve` streams a swarm's telemetry.** hypswarm writes `<record>.telemetry.jsonl` beside the record: every
   model call, tool call, work order and scheduler decision, as spans. The server serves it at `GET /api/graph/telemetry`

@@ -20,6 +20,9 @@ def test_the_app_and_its_atlas_shims():
                                                                    "orders", "audit", "report"]
     assert "async function verifyBundle" in js and "/stream?inv=" in js          # the chain check and the live stream
     assert "addEventListener('telemetry'" in js and "/telemetry?inv=" in js        # the swarm's telemetry, pushed or polled
+    assert "function replayFromStart" in js and "prefers-reduced-motion" in js   # `play` opens on the replay, motion allowing
+    assert "const refusedCall" in js and "refused by the record" in js           # a refused write isn't counted as an error
+    assert "not hash-chained" in js                                              # telemetry carried in a bundle says so
     shim = (UI / "atlas.js").read_text(encoding="utf-8")
     assert "hypgraph.js" in shim and "document.write" in shim
     assert '@import url("hypgraph.css")' in (UI / "atlas.css").read_text(encoding="utf-8")

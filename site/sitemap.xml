@@ -6,7 +6,13 @@
   <url><loc>https://hypgraph.com/agents/</loc></url>
   <url><loc>https://hypgraph.com/play/</loc></url>
   <url><loc>https://hypgraph.com/verify/</loc></url>
-  <url><loc>https://hypgraph.com/atlas/</loc></url>
+  <url><loc>https://hypgraph.com/explore/</loc></url>
+  <url><loc>https://hypgraph.com/examples/</loc></url>
+  <url><loc>https://hypgraph.com/examples/scientific/</loc></url>
+  <url><loc>https://hypgraph.com/examples/software/</loc></url>
+  <url><loc>https://hypgraph.com/examples/trading/</loc></url>
+  <url><loc>https://hypgraph.com/examples/knowledge/</loc></url>
+  <url><loc>https://hypgraph.com/examples/optimization/</loc></url>
   <url><loc>https://hypgraph.com/spec/</loc></url>
   <url><loc>https://hypgraph.com/llms.txt</loc></url>
   <url><loc>https://hypgraph.com/SKILL.md</loc></url>

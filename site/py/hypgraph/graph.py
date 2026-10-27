@@ -1326,10 +1326,11 @@ class Graph:
         return plan.report(self, inv)
 
     # ── portable bundles (bundle.py) ────────────────────────────────
-    def export(self, inv: str = "", *, derived: bool = True) -> dict:
-        """A portable, verifiable bundle of the whole graph (or one investigation) — see bundle.py."""
+    def export(self, inv: str = "", *, derived: bool = True, telemetry: str | os.PathLike | list | None = None) -> dict:
+        """A portable, verifiable bundle of the whole graph (or one investigation) — see bundle.py. ``telemetry``: a
+        swarm's sidecar (a path, or its events) to carry for replay; outside the hash chain, never trusted."""
         from . import bundle
-        return bundle.export(self, inv, derived=derived)
+        return bundle.export(self, inv, derived=derived, telemetry=telemetry)
 
     @classmethod
     def from_bundle(cls, b: dict, path: str | os.PathLike | None = None, *, policy: Policy | None = None) -> "Graph":

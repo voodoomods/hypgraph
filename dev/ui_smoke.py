@@ -6,6 +6,9 @@
 
 Each page (dev/ui-fixtures/view.html?bundle=<profile>&theme=<t>#view=<v>) must finish rendering (the app sets
 data-hg-ready="1" and data-hg-view="<v>") with no script error (data-hg-error unset), and show the view's heading.
+Then the website's pages that run the app (site/, built by dev/build_site.py): each profile's live example must open
+replaying, with its hash chain verified in the browser and its telemetry shown as not hash-chained; the home page's
+embed, the explorer, the /atlas/ forward and the examples gallery must render.
 Serves the repo root on a free local port; reads nothing from the network."""
 from __future__ import annotations
 
@@ -37,6 +40,13 @@ def chrome_path(given: str = "") -> str:
     raise SystemExit("no Chrome / Chromium found (pass --chrome or set CHROME)")
 
 
+EXAMPLES = ["scientific", "software", "trading", "knowledge", "optimization"]
+# site page, the view it must open on ("" = no app on the page), text the page must contain
+SITE_PAGES = ([(f"examples/{k}/", "live", ["Replaying", "not hash-chained", 'aria-current="page"']) for k in EXAMPLES]
+              + [("", "overview", ["Broad Street"]), ("explore/", "overview", []), ("atlas/", "overview", []),
+                 ("examples/", "", ['class="excard"'] * 1 + [f'href="{k}/"' for k in EXAMPLES])])
+
+
 def serve() -> tuple[http.server.ThreadingHTTPServer, int]:
     class Quiet(http.server.SimpleHTTPRequestHandler):
         def log_message(self, *a: object) -> None:
@@ -58,9 +68,10 @@ def run(chrome: str, url: str, *, shot: Path | None = None) -> str:
 
 
 def check(dom: str, view: str, el: str = "app", telemetry: bool = False) -> str:
-    m = re.search(rf'<div id="{el}"([^>]*)>', dom)
+    m = (re.search(r'<div data-hypgraph(?:="")?([^>]*)>', dom) if el == "[data-hypgraph]"
+         else re.search(rf'<div id="{el}"([^>]*)>', dom))
     if not m:
-        return f"no #{el} element in the page"
+        return f"no {el} element in the page"
     attrs = m.group(1)
     err = re.search(r'data-hg-error="([^"]*)"', attrs)
     if err:
@@ -107,9 +118,22 @@ def main() -> int:
         why = check(run(chrome, url, shot=(shots / "atlas-compat.png") if shots else None), "pipeline", "page-atlas")
         bad += bool(why)
         print(f"{'FAIL' if why else 'ok  '} atlas-compat  dark  pipeline  {why}", flush=True)
+        site = 0
+        if (ROOT / "site" / "examples" / "index.html").exists():
+            for page, view, extra in SITE_PAGES:
+                url = f"http://127.0.0.1:{port}/site/{page}"
+                shot = (shots / ("site-" + (page.strip("/").replace("/", "-") or "home") + ".png")) if shots else None
+                dom = run(chrome, url, shot=shot)
+                why = check(dom, view, "[data-hypgraph]", telemetry=page.startswith("examples/")) if view else ""
+                why = why or next((f"missing {x!r}" for x in extra if x not in dom), "")
+                if view and not why and "chain verified" not in dom:
+                    why = "the hash chain wasn't verified in the browser"
+                bad += bool(why)
+                site += 1
+                print(f"{'FAIL' if why else 'ok  '} site/{page:24} {view or 'page':9} {why}", flush=True)
     finally:
         srv.shutdown()
-    n = len(FIXTURES) * len(args.themes.split(",")) * len(VIEWS) + 1
+    n = len(FIXTURES) * len(args.themes.split(",")) * len(VIEWS) + 1 + site
     print(f"\n{n - bad} of {n} pages render")
     return 1 if bad else 0
 

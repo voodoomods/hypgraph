@@ -17,7 +17,8 @@
  * hides what a host's API doesn't serve.
  *
  * Options: source (required) · theme ('light' | 'dark') · hash (keep the view in location.hash) · title · live ·
- * onTheme(t) · operatorUrl · fileUrl(path). Keys: 1–8 views · ⌘K / Ctrl+K or / search · Esc close · t theme.
+ * play (open on the Live view and replay the run from its first event; also `#view=live&play=1`, and skipped when
+ * the visitor asks for reduced motion) · onTheme(t) · operatorUrl · fileUrl(path). Keys: 1–8 views · ⌘K / Ctrl+K or / search · Esc close · t theme.
  * `HypAtlas` is kept as an alias of `HypGraph` for one release.
  */
 'use strict';
@@ -466,6 +467,9 @@
       const cut = Date.parse(ev.at) / 1000 + 0.999;
       return m.tel.filter((t) => t.ts <= cut);
     }
+    // a tool call the record refused (an overclaim, a missing gate) is the record doing its job, not a failure
+    const refusedCall = (t) => t.kind === 'tool_end' && t.ok === false && /^refused|\brefused:/.test(String(t.error || ''));
+    const failed = (t) => t.ok === false && !refusedCall(t);
     function telStats(tel) {
       const ends = tel.filter((t) => t.kind === 'model_end'), tools = tel.filter((t) => t.kind === 'tool_end');
       const sum = (xs, k) => xs.reduce((a, t) => a + (Number(t[k]) || 0), 0);
@@ -473,7 +477,7 @@
       const usd = sum(ends, 'usd'), calls = ends.reduce((a, t) => a + (Number(t.calls) || 1), 0);
       const used = b.max_usd ? usd / b.max_usd : b.max_calls ? calls / b.max_calls : null;
       return { calls, tin: sum(ends, 'in'), tout: sum(ends, 'out'), cached: sum(ends, 'cached'), usd, tools: tools.length,
-        errors: ends.filter((t) => t.ok === false).length + tools.filter((t) => t.ok === false).length, budget: b, used,
+        errors: ends.filter(failed).length + tools.filter(failed).length, refused: tools.filter(refusedCall).length, budget: b, used,
         run, ended: tel.find((t) => t.kind === 'run_end') };
     }
     function openSpans(tel) {                               // spans started and not ended: what is in flight
@@ -491,7 +495,7 @@
         if (t.kind === 'tool_end') {
           const n = t.ok === false ? (last.get(key) || 0) + 1 : 0;
           last.set(key, n);
-          if (n === 3) out.push(['warn', `${t.seat}'s ${t.tool} failed 3 times in a row: ${String(t.error || '').slice(0, 90)}`]);
+          if (n === 3) out.push(['warn', `${t.seat}'s ${t.tool} was ${refusedCall(t) ? 'refused' : 'failed'} 3 times in a row: ${String(t.error || '').slice(0, 90)}`]);
         } else {
           const sig = `${t.seat}|${t.tool}|${JSON.stringify(t.args || {})}`, r = runs.get(t.seat) || { sig: '', n: 0 };
           r.n = r.sig === sig ? r.n + 1 : 1; r.sig = sig; runs.set(t.seat, r);
@@ -511,7 +515,8 @@
       switch (t.kind) {
         case 'model_end': what = t.ok === false ? `<span class="tel-bad">model call failed</span> ${d(String(t.error || '').slice(0, 120))}`
           : `model ${d(t.model || '')} · ${fmtN(t.in || 0)}→${fmtN(t.out || 0)} tokens${t.usd ? ' · ' + fmtUsd(t.usd) : ''} · ${t.s}s${(t.tool_calls || []).length ? ' → ' + t.tool_calls.map(esc).join(', ') : ''}`; break;
-        case 'tool_end': what = t.ok === false ? `<span class="tel-bad">tool ${esc(t.tool)} failed</span> ${d(String(t.error || '').slice(0, 120))}` : `tool ${c(t.tool)} · ${t.s}s`; break;
+        case 'tool_end': what = refusedCall(t) ? `<span class="tel-warn">${esc(t.tool)} refused by the record</span> ${d(String(t.error || '').replace(/^refused:?\s*/, '').slice(0, 140))}`
+          : t.ok === false ? `<span class="tel-bad">tool ${esc(t.tool)} failed</span> ${d(String(t.error || '').slice(0, 120))}` : `tool ${c(t.tool)} · ${t.s}s`; break;
         case 'order_start': what = `took ${c(t.order)} ${d('· ' + (t.model || ''))}`; break;
         case 'order_end': what = `finished ${c(t.order)} · ${t.calls || 0} call(s)${t.stopped ? ' ' + d('· ' + t.stopped) : ''}`; break;
         case 'decision': what = `scheduler: ${esc(t.event)}${t.order ? ' ' + c(t.order) : ''}${t.why || t.missing ? ' ' + d('— ' + String(t.why || t.missing).slice(0, 100)) : ''}`; break;
@@ -536,10 +541,10 @@
       const rows = [...startOf.values()].map((s) => {
         const e = ended.get(s.span), dur = e ? Math.max(e.s || (e.ts - s.ts), 0) : Math.max(now - s.ts, 0);
         const left = ((s.ts - t0) / span) * 100, width = Math.max((dur / span) * 100, 0.6);
-        const kind = s.kind.split('_')[0], bad = e && e.ok === false;
+        const kind = s.kind.split('_')[0], bad = e && e.ok === false ? (refusedCall(e) ? ' refused' : ' bad') : '';
         const label = kind === 'model' ? `model ${s.model || ''}${e ? ` · ${fmtN(e.in || 0)}→${fmtN(e.out || 0)}${e.usd ? ' · ' + fmtUsd(e.usd) : ''}` : ' · in flight'}`
           : `${s.tool}${e ? '' : ' · running'}`;
-        return `<div class="tr"><span class="tl">${esc(label)}</span><span class="tb"><i class="${kind}${bad ? ' bad' : ''}${e ? '' : ' open'}" style="left:${left.toFixed(2)}%;width:${Math.min(width, 100 - left).toFixed(2)}%"></i></span><span class="ts">${dur.toFixed(2)}s</span></div>`;
+        return `<div class="tr"><span class="tl">${esc(label)}</span><span class="tb"><i class="${kind}${bad}${e ? '' : ' open'}" style="left:${left.toFixed(2)}%;width:${Math.min(width, 100 - left).toFixed(2)}%"></i></span><span class="ts">${dur.toFixed(2)}s</span></div>`;
       }).join('');
       return `<div class="toolbar" style="margin:0 0 8px"><label class="dim" for="hg-trace-order">Work order</label>
         <select class="select" id="hg-trace-order">${orders.map((o) => `<option value="${esc(o.order)}" ${o === pick ? 'selected' : ''}>${esc(o.order)} · ${esc(o.seat)}</option>`).join('')}</select>
@@ -691,10 +696,12 @@
         ['Returned', c((e) => e.kind === 'lease_release')], [m.L('result') + 's', c((e) => e.kind === 'create' && (e.payload || {}).type === 'result')],
         [m.L('claim') + 's', c((e) => e.kind === 'create' && (e.payload || {}).type === 'claim')], ['Reviews', c((e) => e.kind === 'review')]];
       const tel = telUpTo(), ts = telStats(tel);
-      const telPill = m.tel.length ? `<span class="pill ok" title="the swarm's telemetry: model and tool calls, work orders, decisions">telemetry · ${m.tel.length} events</span>`
+      const carried = src.kind === 'bundle';                // telemetry handed over in a bundle sits outside its hash chain
+      const telPill = m.tel.length ? `<span class="pill ok" title="the swarm's telemetry: model and tool calls, work orders, decisions${carried ? ' — carried in the bundle as observation; the hash chain does not cover it and nothing derived rests on it' : ''}">telemetry · ${m.tel.length} events${carried ? ' · not hash-chained' : ''}</span>`
         : '<span class="pill neutral" title="Run the swarm with hypswarm ≥ 0.1.0a7 (telemetry on by default for a record file): model and tool calls, tokens and cost per seat appear here.">telemetry: not connected</span>';
       const tk = m.tel.length ? [['Model calls', ts.calls, ''], ['Tokens', `${fmtN(ts.tin)} → ${fmtN(ts.tout)}`, ts.cached ? `${fmtN(ts.cached)} cached` : ''],
-        ['Spend', fmtUsd(ts.usd), ''], ['Tool calls', ts.tools, ''], ['Errors', ts.errors, '', ts.errors ? 'bad' : ''],
+        ['Spend', fmtUsd(ts.usd), ''], ['Tool calls', ts.tools, ts.refused ? `${ts.refused} refused by the record` : ''],
+        ['Errors', ts.errors, '', ts.errors ? 'bad' : ''],
         ['Budget', ts.used == null ? '—' : `${Math.round(ts.used * 100)} %`, ts.budget.max_usd ? `of ${fmtUsd(ts.budget.max_usd)}` : ts.budget.max_calls ? `of ${ts.budget.max_calls} calls` : 'no cap', ts.used >= 0.8 ? 'warn' : '']] : [];
       return head('Live', `Everything the swarm does, as it happens: every model and tool call, who holds which work order, what each seat writes, every review, the record growing.${live ? '' : ' This is the run\'s recorded log; play it back.'}`, telPill) +
         `<div class="card" style="margin-bottom:14px"><div class="live-head">
@@ -742,11 +749,11 @@
       return names.map((w) => { const s = by[w];
         const mine = ends.filter((t) => t.seat === w), calls = mine.filter((t) => t.kind === 'model_end');
         const usd = calls.reduce((a, t) => a + (Number(t.usd) || 0), 0), tok = calls.reduce((a, t) => a + (Number(t.in) || 0) + (Number(t.out) || 0), 0);
-        const errs = mine.filter((t) => t.ok === false).length;
+        const errs = mine.filter(failed).length, refs = mine.filter(refusedCall).length;
         const fly = open.filter((t) => t.seat === w && (t.kind === 'model_start' || t.kind === 'tool_start')).pop();
         const flying = fly ? `<span class="fly"></span>${fly.kind === 'model_start' ? `calling ${esc(fly.model || 'the model')}` : `running ${esc(fly.tool)}`}${following ? ` · ${Math.max(0, now - fly.ts).toFixed(1)}s` : ''}${fly.order ? ` on <span class="code">${esc(fly.order)}</span>` : ''}` : '';
         return `<div class="seat ${s.holding || fly ? 'busy' : ''}"><div class="av" aria-hidden="true">${esc(w.slice(0, 2).toUpperCase())}</div>
-          <div><div class="nm">${esc(w)}${w === 'harness' ? ' <span class="pill neutral">scheduler</span>' : (w === 'instrument' || w === 'lab') ? ' <span class="pill info">instrument</span>' : ''}${errs ? ` <span class="pill bad">${errs} error${errs > 1 ? 's' : ''}</span>` : ''}</div>
+          <div><div class="nm">${esc(w)}${w === 'harness' ? ' <span class="pill neutral">scheduler</span>' : (w === 'instrument' || w === 'lab') ? ' <span class="pill info">instrument</span>' : ''}${refs ? ` <span class="pill warn" title="writes the record refused; each refusal says what to fix">${refs} refused</span>` : ''}${errs ? ` <span class="pill bad">${errs} error${errs > 1 ? 's' : ''}</span>` : ''}</div>
           <div class="doing">${flying || (s.holding ? `working <span class="code">${esc(s.holding)}</span>` : esc(s.last))}</div>
           ${calls.length ? `<div class="dim" style="font-size:11.5px">${calls.length} call(s) · ${fmtN(tok)} tokens${usd ? ' · ' + fmtUsd(usd) : ''}</div>` : ''}</div>
           <span class="mono dim" title="record writes">${s.writes}</span></div>`; }).join('')
@@ -772,6 +779,12 @@
       return `<div class="ev ${fresh ? 'fresh' : ''}"><span class="seq">#${e.seq}</span><span class="who">${esc(e.kind === 'lease_take' ? (p.for || e.actor) : e.actor)}</span><span>${say(e)}</span></div>`;
     }
     function stopPlay() { S.playing = false; clearInterval(S.timer); S.timer = null; }
+    function replayFromStart() {                          // open on the Live view, playing the run from its first event
+      if (S.view !== 'live') setView('live');
+      const still = global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!S.m.events.length || still) return;            // reduced motion: the finished run, with Play one click away
+      S.cursor = 0; play();
+    }
     function play() {
       const n = S.m.events.length;
       if (S.cursor == null || S.cursor >= n) S.cursor = 0;
@@ -1023,6 +1036,7 @@
         if (h.get('view') && V[h.get('view')]) S.view = h.get('view');
         await openInv(pick.id);
         if (h.get('at') && S.view === 'live') { S.cursor = Math.min(+h.get('at'), S.m.events.length); render(); }
+        else if (opts.play || h.get('play')) replayFromStart();
         if (h.get('q')) openQuestion(h.get('q'));
         else if (h.get('node')) openNode(h.get('node'));
       } catch (e) {
@@ -1038,6 +1052,7 @@
         if (pick && pick.id !== S.inv) await openInv(pick.id);
         if (h.get('view') && V[h.get('view')] && h.get('view') !== S.view) setView(h.get('view'));
         if (h.get('at') && S.view === 'live') { stopPlay(); S.cursor = Math.min(+h.get('at'), S.m.events.length); render(); }
+        else if (h.get('play')) replayFromStart();
         if (h.get('q')) openQuestion(h.get('q'));
         else if (h.get('node')) openNode(h.get('node'));
       });

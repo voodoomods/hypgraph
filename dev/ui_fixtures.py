@@ -1,4 +1,4 @@
-"""Export one verifiable bundle per @2 profile for the UI's checks and the site's examples.
+"""Export one verifiable bundle per @2 profile for the UI's checks (the site's examples: dev/site_examples.py).
 
     python dev/ui_fixtures.py <record> …      e.g. HypSwarm's examples/0{1..5}-*/record.hypgraph
 
