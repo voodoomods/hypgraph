@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>For engineers — HypGraph</title>
-<meta name="description" content="Wire HypGraph into an agent system: policy and roles, MCP and tool wrappers, recorded runs, ML eval reports, spend, the JSON API, the Atlas and verifiable bundles in CI.">
+<meta name="description" content="Wire HypGraph into an agent system: policy and roles, MCP and tool wrappers, recorded runs, ML eval reports, spend, the JSON API, the HypGraph UI and verifiable bundles in CI.">
 <link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
@@ -13,7 +13,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
   <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/" aria-current="page">Engineers</a><a href="../never/">Never</a><a href="../#workflows" class="hide-sm">Workflows</a>
+  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/" aria-current="page">Engineers</a><a href="../examples/">Examples</a><a href="../never/" class="hide-sm">Never</a><a href="../#workflows" class="hide-sm">Workflows</a>
     <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
     <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
@@ -29,14 +29,14 @@
 <nav class="toc" aria-label="On this page">
   <a href="#install">Install</a><a href="#model">The model</a><a href="#policy">Policy &amp; roles</a>
   <a href="#connect">Connecting agents</a><a href="#runs">Recording runs</a><a href="#workflows">Profiles &amp; workflows</a><a href="#evals">Recipe: eval reports</a>
-  <a href="#spend">Cost</a><a href="#http">HTTP &amp; the Atlas</a><a href="#ci">Bundles in CI</a>
+  <a href="#spend">Cost</a><a href="#http">HTTP &amp; the UI</a><a href="#ci">Bundles in CI</a>
   <a href="#lint">Lint the write-up</a><a href="#refusals">The refusal log</a>
   <a href="#perf">Performance</a><a href="#reference">Reference deployment</a>
 </nav>
 <article class="prose">
 
 <h2 id="install">Install</h2>
-<div class="code"><pre>pip install hypgraph            # engine, CLI, JSON API, Atlas — standard library only
+<div class="code"><pre>pip install hypgraph            # engine, CLI, JSON API, UI — standard library only
 pip install "hypgraph[mcp]"     # + the MCP server (FastMCP)</pre></div>
 <p>Python 3.10+. One SQLite file per record (<code>Graph("research.hypgraph")</code>), or <code>Graph()</code> in
   memory for tests and notebooks.</p>
@@ -182,8 +182,8 @@ with g.writing_for(task_id):                    # events carry the task
     g.create(...)
 g.cost(inv)        # $ for the investigation, per node, per verdict, and since the record last moved</pre></div>
 
-<h2 id="http">HTTP &amp; the Atlas</h2>
-<div class="code"><pre>hypgraph serve --db research.hypgraph            # Atlas + JSON API on 127.0.0.1:8765, read-only
+<h2 id="http">HTTP &amp; the UI</h2>
+<div class="code"><pre>hypgraph serve --db research.hypgraph            # HypGraph UI + JSON API on 127.0.0.1:8765, read-only
 hypgraph serve --db research.hypgraph --writable # + POST /api/graph/write</pre></div>
 <p>In your own app (FastAPI shown; any framework works):</p>
 <div class="code"><pre>from fastapi import FastAPI, Request
@@ -192,14 +192,18 @@ from hypgraph.server import dispatch
 from hypgraph.ui import static_dir
 
 app = FastAPI()
-app.mount("/atlas", StaticFiles(directory=static_dir(), html=True))
+app.mount("/hypgraph", StaticFiles(directory=static_dir(), html=True))
 
 @app.get("/api/graph/{path:path}")
 def graph_api(path: str, request: Request):
     status, body = dispatch(g, "GET", "/" + path, dict(request.query_params))
     return body          # (set the status code too)</pre></div>
-<p>The Atlas itself is framework-free: <code>HypAtlas.mount(el, {source: HypAtlas.HttpSource('/api/graph')})</code>,
-  or <code>HypAtlas.BundleSource(bundle)</code> with no server at all. Theme it with <code>--hg-*</code> CSS variables.</p>
+<p>The UI is framework-free, with no build step: <code>HypGraph.mount(el, {source: HypGraph.HttpSource('/api/graph')})</code>,
+  or <code>HypGraph.BundleSource(bundle)</code> with no server at all. It follows <code>GET /api/graph/stream</code>
+  live, and a HypSwarm run's telemetry (<code>&lt;record&gt;.telemetry.jsonl</code>) adds every model and tool call.
+  <code>hypgraph export --telemetry</code> carries it in a bundle for replay, outside the hash chain;
+  <code>{play: true}</code> opens on the replay. Theme it with <code>--hg-*</code> CSS variables. See it on the
+  <a href="../examples/">live examples</a>.</p>
 
 <h2 id="ci">Bundles in CI</h2>
 <div class="code"><pre>hypgraph export -o record.bundle.json     # every event as the exact string that was hashed
@@ -236,7 +240,7 @@ hypgraph check --strict summary.md     # warnings (unsourced numbers …) fail t
 hypgraph refusals --author analyst     # one agent's refusals in full</pre></div>
 <p>Append-only with its own hash chain (<code>g.verify_refusals()</code>), separate from the record's. In Python:
   <code>g.refusal_report(inv)</code>; HTTP <code>GET /api/graph/refusals</code>; MCP <code>refusal_log</code>; and an
-  "Overclaims caught" card in the Atlas's Work view.</p>
+  overclaims-refused count in HypGraph's Overview.</p>
 
 <h2 id="perf">Performance</h2>
 <table>
@@ -256,7 +260,7 @@ hypgraph refusals --author analyst     # one agent's refusals in full</pre></div
   behind an egress firewall. There, the graph lives in the proxy; agents reach it only through a broker that fixes
   their author; the lab's job runner is the instrument; critic agents form a review board; a heartbeat routes
   unchecked claims to reviewers and fallen premises back to their authors; and spend comes from the proxy's metered
-  ledger. Its Atlas is this package's.</p>
+  ledger. Its <code>/atlas</code> page is this package's UI.</p>
 </article>
 </div>
 </main>

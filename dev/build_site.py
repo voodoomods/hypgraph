@@ -3,7 +3,9 @@ Regenerate the website's generated files from the package:
 
     site/data/broad-street.bundle.json   the demo, as a verifiable bundle
     site/schema/hypgraph-1.json          the vocabulary
-    site/atlas/{hypgraph.js, hypgraph.css, atlas.js, atlas.css, vendor/}   the UI, copied from src/hypgraph/ui
+    site/app/{hypgraph.js, hypgraph.css, vendor/}   the UI, copied from src/hypgraph/ui
+    site/explore/, site/atlas/ (→ explore)  the UI full screen on any bundle
+    site/examples/                       one live example per profile, from site/data/examples/ (dev/site_examples.py)
     site/py/                             the engine's source + manifest.json, for the Pyodide playground
     site/spec/index.html                 docs/spec.md as a page
     site/agents.md                       AGENTS.md
@@ -126,13 +128,25 @@ def markdown(md: str) -> tuple[str, list[tuple[str, str]]]:
     return "\n".join(out), toc
 
 
+CURRENT = ' aria-current="page"'
+
+
+def nav_links(current: str, up: str = "../") -> str:
+    return "".join(f'<a href="{h}"{CURRENT if h == current else ""}{c}>{t}</a>'
+                   for h, t, c in ((f"{up}agents/", "Agents", ""), (f"{up}engineers/", "Engineers", ""),
+                                   (f"{up}examples/", "Examples", ""), (f"{up}never/", "Never", ' class="hide-sm"'),
+                                   (f"{up}#workflows", "Workflows", ' class="hide-sm"'),
+                                   (f"{up}play/", "Playground", ' class="hide-sm"'), (f"{up}verify/", "Verify", ' class="hide-sm"'),
+                                   (f"{up}spec/", "Spec", ' class="hide-sm"'),
+                                   ("https://github.com/voodoomods/hypgraph", "GitHub", ' class="hide-sm"')))
+
+
+FOOTER = """<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
+<span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>"""
+
+
 def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str) -> str:
-    nav = "".join(f'<a href="{h}"{" aria-current=\"page\"" if h == current else ""}{c}>{t}</a>'
-                  for h, t, c in (("../agents/", "Agents", ""), ("../engineers/", "Engineers", ""), ("../never/", "Never", ""),
-                                  ("../#workflows", "Workflows", ' class="hide-sm"'),
-                                  ("../play/", "Playground", ' class="hide-sm"'), ("../verify/", "Verify", ' class="hide-sm"'),
-                                  ("../spec/", "Spec", ' class="hide-sm"'),
-                                  ("https://github.com/voodoomods/hypgraph", "GitHub", ' class="hide-sm"')))
+    nav = nav_links(current)
     toc_html = "".join(f'<a href="#{s}">{html.escape(t)}</a>' for s, t in toc)
     return f"""<!doctype html>
 <html lang="en">
@@ -158,12 +172,180 @@ def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: 
 {body}
 </article></div>
 </main>
-<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
-<span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+{FOOTER}
 <script src="../assets/site.js" defer></script>
 </body>
 </html>
 """
+
+
+# HypSwarm's five scripted examples, one per @2 profile (the bundles come from dev/site_examples.py)
+EXAMPLES = [
+    ("scientific", "Scientific", "01-eval-report",
+     "Two analysts and a critic test an evaluation claim. The instrument re-runs every value before any review, and "
+     "the report is checked against the record."),
+    ("software", "Software", "02-software-tests",
+     "The tests count only when the instrument runs them. A tester's \u201cpasses\u201d written before that run is "
+     "refused, reworked and accepted once the lab run lands."),
+    ("trading", "Trading", "03-paper-trading",
+     "A backtest on a held-out window, with fees and slippage. A result without costs is refused before it can "
+     "become a thesis."),
+    ("knowledge", "Knowledge", "04-sourced-brief",
+     "Three facts, each a source node and a claim that cites it. A claim with nothing behind it is refused."),
+    ("optimization", "Optimization", "05-optimal-with-bound",
+     "Objective, feasibility and a gap. An objective with no feasibility check is refused, and \u201coptimal\u201d "
+     "needs a bound that meets it."),
+]
+VENDOR = ("cytoscape.min.js", "layout-base.js", "cose-base.js", "cytoscape-fcose.js")
+
+
+def app_page(up: str, title: str, desc: str, bar: str, note: str, mount: str) -> str:
+    """A full-screen HypGraph page: the site's bar, an optional note, and the app on a bundle (assets/embed.js)."""
+    scripts = "".join(f'<script src="{up}app/vendor/{v}"></script>\n' for v in VENDOR)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{html.escape(title)} — HypGraph</title>
+<meta name="description" content="{html.escape(desc)}">
+<link rel="icon" href="{up}assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{up}assets/site.css">
+<link rel="stylesheet" href="{up}app/hypgraph.css">
+<script>try{{document.documentElement.dataset.theme=localStorage.getItem('hg-theme')||'light'}}catch(e){{document.documentElement.dataset.theme='light'}}</script>
+</head>
+<body class="apppage">
+<header class="appbar"><a class="brand" href="{up}"><img src="{up}assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+{bar}</header>
+{note}<div class="appfull">{mount}</div>
+{scripts}<script src="{up}app/hypgraph.js"></script>
+<script src="{up}assets/site.js"></script>
+<script src="{up}assets/embed.js"></script>
+</body>
+</html>
+"""
+
+
+def _report_name(r: object) -> str:
+    return r if isinstance(r, str) else str((r or {}).get("name") or "") if isinstance(r, dict) else ""
+
+
+def example_stats(path: Path) -> dict:
+    b = json.loads(path.read_text(encoding="utf-8"))
+    tel = (b.get("telemetry") or {}).get("events") or []
+    inv = b["scope"]["inv"]
+    d = b["derived"]["by_inv"][inv]
+    refused = [t for t in tel if t["kind"] == "tool_end" and not t.get("ok", True) and "refused" in (t.get("error") or "")]
+    codes = sorted({c for t in refused for c in re.findall(r"\[([A-Z][A-Z_]+)\]", t.get("error") or "")})
+    start = next((t for t in tel if t["kind"] == "run_start"), {})
+    end = next((t for t in tel if t["kind"] == "run_end"), {})
+    return {"title": b["scope"]["title"], "report": _report_name(((d.get("profile") or {}).get("workflow") or {}).get("report")),
+            "events": len(b["events"]), "nodes": len(b["nodes"]), "telemetry": len(tel),
+            "calls": sum(1 for t in tel if t["kind"] == "model_end"), "tools": sum(1 for t in tel if t["kind"] == "tool_end"),
+            "seats": [s["name"] for s in start.get("seats", [])], "refused": len(refused), "codes": codes,
+            "seconds": round(end.get("ts", 0) - start.get("ts", 0)) if end and start else 0,
+            "stopped": end.get("stopped", ""), "head": b["head"], "size": path.stat().st_size}
+
+
+def write_examples() -> None:
+    data = SITE / "data" / "examples"
+    stats = {k: example_stats(data / f"{k}.bundle.json") for k, *_ in EXAMPLES if (data / f"{k}.bundle.json").is_file()}
+    if len(stats) != len(EXAMPLES):
+        raise SystemExit("site/data/examples/ is missing bundles: run dev/site_examples.py first")
+    for k, label, folder, blurb in EXAMPLES:
+        s = stats[k]
+        tabs = "".join(f'<a href="../{k2}/"{CURRENT if k2 == k else ""}>{l2}</a>' for k2, l2, *_ in EXAMPLES)
+        bar = (f'<a class="crumb" href="../">Examples</a><nav class="tabs" aria-label="Profiles">{tabs}</nav>'
+               f'<span class="sp"></span><a class="act" href="../../data/examples/{k}.bundle.json" download>Download bundle</a>'
+               f'<a class="act hide-sm" href="../../verify/">Verify it</a>')
+        note = (f'<p class="appnote"><b>{html.escape(label)}</b> · HypSwarm example '
+                f'<a href="https://github.com/voodoomods/hypswarm/tree/main/examples/{folder}">{folder}</a>, run on its '
+                f'scripted models: the answers are computed by the example, each model reply is paced 0.35–1.4 s, and '
+                f'token counts are the scripted model\u2019s. The record is exactly what the run wrote; its hash chain '
+                f'is re-verified in your browser. The telemetry rides along outside the chain.</p>')
+        mount = (f'<div data-hypgraph data-bundle="../../data/examples/{k}.bundle.json" data-hash="on" data-play="on" '
+                 f'aria-label="{html.escape(label)} example"></div>')
+        write(SITE / "examples" / k / "index.html",
+              app_page("../../", f"{label} example", f"{s['title']}: a HypSwarm run under the {label.lower()} profile, "
+                       "replayed live — every model and tool call, work order, review and refusal.", bar, note, mount))
+
+    cards = []
+    for k, label, folder, blurb in EXAMPLES:
+        s = stats[k]
+        codes = f'<div class="codes">{" ".join(f"<code>{c}</code>" for c in s["codes"])}</div>' if s["codes"] else ""
+        refused = (f'{s["refused"]} write{"s" if s["refused"] != 1 else ""} refused, then rewritten' if s["refused"]
+                   else "no refusals")
+        cards.append(f"""<a class="excard" href="{k}/">
+  <div class="who">{html.escape(label)}{f' · {html.escape(s["report"])}' if s["report"] else ''}</div>
+  <h2>{html.escape(s["title"])}</h2>
+  <p>{html.escape(blurb)}</p>
+  <dl><dt>seats</dt><dd>{html.escape(", ".join(s["seats"]))}</dd>
+    <dt>run</dt><dd>{s["calls"]} model calls · {s["tools"]} tool calls · {s["seconds"]} s · {html.escape(s["stopped"])}</dd>
+    <dt>record</dt><dd>{s["events"]} events · {s["nodes"]} nodes · {refused}</dd></dl>{codes}
+  <span class="go">Watch it run</span>
+</a>""")
+    body = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Examples — HypGraph</title>
+<meta name="description" content="Five swarms, one per profile — scientific, software, trading, knowledge, optimization — replayed live in HypGraph: every model call, tool call, work order, review and refusal.">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script>try{{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}}catch(e){{}}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site">{nav_links("../examples/")}<button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+</div></header>
+<main id="main">
+<div class="phead"><div class="wrap"><div class="kicker">Live examples</div><h1>Watch a swarm work, in each profile</h1>
+<p>Each example is a real HypSwarm run on a real record: seats pick up work orders from the record, write results
+  and claims through it, get refused when they overclaim, and are reviewed before anything counts. Open one and it
+  replays from the first event — model and tool calls in flight, the graph growing, the board settling. Then explore
+  its pipeline, graph, evidence and report.</p></div></div>
+<div class="wrap"><div class="exgrid">
+{chr(10).join(cards)}
+</div>
+<p class="note">The runs use HypSwarm's scripted models, so they cost nothing and replay the same way every time; run
+  any of them with a real model with <code>python run.py --model &lt;id&gt;</code>. Rebuild these pages with
+  <code>dev/site_examples.py</code>. Each bundle verifies on its own: <a href="../verify/">verify one</a>.</p>
+</div>
+</main>
+{FOOTER}
+<script src="../assets/site.js" defer></script>
+</body>
+</html>
+"""
+    write(SITE / "examples" / "index.html", body)
+
+
+def write_explore() -> None:
+    bar = ('<a class="crumb" href="../examples/">Examples</a><span class="sp"></span>'
+           '<a class="act" href="../verify/">Verify another bundle</a>')
+    mount = '<div data-hypgraph data-main="on" data-hash="on" aria-label="HypGraph"></div>'
+    write(SITE / "explore" / "index.html",
+          app_page("../", "Explore a record", "Open a HypGraph bundle in your browser: the pipeline, graph, evidence, "
+                   "audit log and report, with the hash chain re-verified as it loads.", bar, "", mount))
+    # the Atlas became HypGraph: its page forwards to the explorer, keeping ?bundle=, ?from=verify and the fragment
+    atlas = SITE / "atlas"
+    shutil.rmtree(atlas, ignore_errors=True)
+    write(atlas / "index.html", """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HypGraph</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="../explore/">
+<script>location.replace('../explore/' + location.search + location.hash);</script>
+<noscript><meta http-equiv="refresh" content="0; url=../explore/"></noscript>
+</head>
+<body><p>The Atlas is now HypGraph: <a href="../explore/">open the explorer</a>.</p></body>
+</html>
+""")
 
 
 def main() -> None:
@@ -174,12 +356,14 @@ def main() -> None:
     write(SITE / "data" / "broad-street.bundle.json", json.dumps(b, ensure_ascii=False, separators=(",", ":")))
     write(SITE / "schema" / "hypgraph-1.json", json.dumps(describe(), indent=1, ensure_ascii=False))
 
-    atlas = SITE / "atlas"
-    for f in ("hypgraph.js", "hypgraph.css", "atlas.js", "atlas.css"):      # the app, and the Atlas shims pages still use
-        write(atlas / f, (PKG / "ui" / f).read_text(encoding="utf-8"))
-    shutil.copytree(PKG / "ui" / "vendor", atlas / "vendor", dirs_exist_ok=True)
+    app = SITE / "app"
+    for f in ("hypgraph.js", "hypgraph.css"):
+        write(app / f, (PKG / "ui" / f).read_text(encoding="utf-8"))
+    shutil.copytree(PKG / "ui" / "vendor", app / "vendor", dirs_exist_ok=True)
     shutil.copy2(PKG / "ui" / "hypgraph.svg", SITE / "assets" / "hypgraph.svg")
-    print("  site/atlas/vendor/, site/assets/hypgraph.svg")
+    print("  site/app/vendor/, site/assets/hypgraph.svg")
+    write_explore()
+    write_examples()
 
     py = SITE / "py"
     shutil.rmtree(py, ignore_errors=True)
@@ -218,7 +402,7 @@ def check_paths() -> None:
             continue
         bad += [f"{f.relative_to(SITE)}: {m}" for m in re.findall(r'(?:href|src)="/(?!/)[^"]*"', f.read_text(encoding="utf-8"))]
     for f in (SITE / "assets").glob("*.js"):
-        bad += [f"{f.relative_to(SITE)}: {m}" for m in re.findall(r"""['"]/(?:data|py|assets|atlas)/""", f.read_text(encoding="utf-8"))]
+        bad += [f"{f.relative_to(SITE)}: {m}" for m in re.findall(r"""['"]/(?:data|py|assets|app|atlas)/""", f.read_text(encoding="utf-8"))]
     if bad:
         raise SystemExit("root-absolute paths break the site under a prefix:\n  " + "\n  ".join(bad[:20]))
     print("  paths: all relative")

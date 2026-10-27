@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explore a record — HypGraph</title>
+<meta name="description" content="Open a HypGraph bundle in your browser: the pipeline, graph, evidence, audit log and report, with the hash chain re-verified as it loads.">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../app/hypgraph.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('hg-theme')||'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+</head>
+<body class="apppage">
+<header class="appbar"><a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+<a class="crumb" href="../examples/">Examples</a><span class="sp"></span><a class="act" href="../verify/">Verify another bundle</a></header>
+<div class="appfull"><div data-hypgraph data-main="on" data-hash="on" aria-label="HypGraph"></div></div>
+<script src="../app/vendor/cytoscape.min.js"></script>
+<script src="../app/vendor/layout-base.js"></script>
+<script src="../app/vendor/cose-base.js"></script>
+<script src="../app/vendor/cytoscape-fcose.js"></script>
+<script src="../app/hypgraph.js"></script>
+<script src="../assets/site.js"></script>
+<script src="../assets/embed.js"></script>
+</body>
+</html>

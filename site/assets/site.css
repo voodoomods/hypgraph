@@ -132,14 +132,45 @@ h2.h { font-size: clamp(28px, 4vw, 42px); letter-spacing: -.025em; line-height: 
   padding: 0 6px; letter-spacing: .08em; text-transform: uppercase; }
 .stack > * + * { margin-top: 14px; }
 
-/* atlas frame */
-.atlas-frame { height: 640px; border: 1px solid var(--line2); border-radius: var(--r); overflow: hidden; box-shadow: var(--glow); }
-@media (max-width: 900px) { .atlas-frame { height: 82vh; } }
-.atlas-frame .atlas { --hg-bg: var(--bg2); --hg-bg1: var(--panel); --hg-bg2: var(--panel2); --hg-panel: var(--panel);
-  --hg-ink: var(--ink); --hg-ink2: var(--ink2); --hg-ink3: var(--ink3); --hg-line: var(--line); --hg-line2: var(--line2);
-  --hg-accent: var(--accent); --hg-light-bg: var(--bg2); --hg-light-bg1: var(--panel); --hg-light-bg2: var(--panel2);
-  --hg-light-panel: var(--panel); --hg-light-ink: var(--ink); --hg-light-ink2: var(--ink2); --hg-light-ink3: var(--ink3);
-  --hg-light-line: var(--line); --hg-light-line2: var(--line2); --hg-light-accent: var(--accent); }
+/* the HypGraph app, embedded (its own tokens keep text at WCAG AA in both themes) */
+.hg-frame { height: 680px; border: 1px solid var(--line2); border-radius: var(--r); overflow: hidden; box-shadow: var(--glow); }
+@media (max-width: 900px) { .hg-frame { height: 82vh; } }
+.hg-frame > div { height: 100%; }
+
+/* full-screen app pages: /explore/, /examples/<profile>/ */
+body.apppage { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+.appbar { display: flex; align-items: center; gap: 6px 14px; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.appbar .brand { margin-right: 4px; }
+.appbar .crumb, .appbar .act { color: var(--ink2); font-size: 14px; text-decoration: none; }
+.appbar .crumb:hover, .appbar .act:hover { color: var(--accent); }
+.appbar .tabs { display: flex; gap: 2px; flex-wrap: wrap; }
+.appbar .tabs a { font-size: 14px; padding: 4px 10px; border-radius: 6px; color: var(--ink2); text-decoration: none; }
+.appbar .tabs a:hover { color: var(--ink); background: var(--panel2); }
+.appbar .tabs a[aria-current] { background: var(--panel2); color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.appbar .sp { flex: 1; }
+.appnote { margin: 0; padding: 6px 16px; font-size: 13px; line-height: 1.5; color: var(--ink2); background: var(--bg2);
+  border-bottom: 1px solid var(--line); }
+.appfull { flex: 1; min-height: 0; }
+.appfull > div { height: 100%; }
+.appfull .hg .hg-brand { display: none; }
+@media (max-width: 700px) { body.apppage { height: auto; overflow: auto; } .appfull { height: 88vh; flex: none; } }
+
+/* the examples gallery */
+.exgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin: 8px 0 24px; }
+.excard { display: flex; flex-direction: column; gap: 8px; padding: 20px; border: 1px solid var(--line2); border-radius: var(--r);
+  background: var(--panel); color: var(--ink); text-decoration: none; transition: transform .15s, border-color .15s; }
+.excard:hover { transform: translateY(-2px); border-color: var(--accent); }
+.excard .who { font: 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.excard h2 { margin: 0; font-size: 20px; line-height: 1.3; }
+.excard p { margin: 0; color: var(--ink2); font-size: 15px; }
+.excard dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 4px 0 0; font-size: 13px; }
+.excard dt { color: var(--ink2); font-family: var(--mono); }
+.excard dd { margin: 0; }
+.excard .codes code { font-size: 11px; margin-right: 4px; }
+.excard .go { margin-top: auto; padding-top: 6px; color: var(--accent); font-weight: 600; font-size: 14px; }
+.excard .go::after { content: " →"; }
+@media (prefers-reduced-motion: reduce) { .excard { transition: none; } .excard:hover { transform: none; } }
+.exrow { flex-wrap: wrap; gap: 8px; }
 .note { font-size: 14px; color: var(--ink3); margin-top: 10px; }
 
 /* buttons */

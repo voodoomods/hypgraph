@@ -170,7 +170,8 @@ with g.writing_for(task_id):                                # every event carrie
   (`<db>.telemetry.jsonl`, written by hypswarm) rides the same stream as `telemetry` events, so the Live view shows every
   model and tool call as it happens.
 - **CI:** `hypgraph export -o record.bundle.json && hypgraph verify record.bundle.json`. The bundle is a single file
-  your reviewers or auditors can check with SHA-256, in any language or in the browser.
+  your reviewers or auditors can check with SHA-256, in any language or in the browser. `--telemetry` carries the
+  swarm's sidecar too, outside the chain, so the bundle replays the run with no server.
 
 The full guide is at [hypgraph.com/engineers](https://hypgraph.com/engineers/).
 
@@ -183,7 +184,9 @@ hypgraph serve       # explore it in the HypGraph UI: http://127.0.0.1:8765
 hypgraph report      # the facts, generated from the record
 ```
 
-Or try to get a claim past the real engine in your browser: [hypgraph.com/play](https://hypgraph.com/play/).
+Or watch a swarm work in each profile, replayed live from its record:
+[hypgraph.com/examples](https://hypgraph.com/examples/). Or try to get a claim past the real engine in your browser:
+[hypgraph.com/play](https://hypgraph.com/play/).
 
 ## Where it came from
 

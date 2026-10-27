@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Examples — HypGraph</title>
+<meta name="description" content="Five swarms, one per profile — scientific, software, trading, knowledge, optimization — replayed live in HypGraph: every model call, tool call, work order, review and refusal.">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Engineers</a><a href="../examples/" aria-current="page">Examples</a><a href="../never/" class="hide-sm">Never</a><a href="../#workflows" class="hide-sm">Workflows</a><a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a><a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a><button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+</div></header>
+<main id="main">
+<div class="phead"><div class="wrap"><div class="kicker">Live examples</div><h1>Watch a swarm work, in each profile</h1>
+<p>Each example is a real HypSwarm run on a real record: seats pick up work orders from the record, write results
+  and claims through it, get refused when they overclaim, and are reviewed before anything counts. Open one and it
+  replays from the first event — model and tool calls in flight, the graph growing, the board settling. Then explore
+  its pipeline, graph, evidence and report.</p></div></div>
+<div class="wrap"><div class="exgrid">
+<a class="excard" href="scientific/">
+  <div class="who">Scientific · Facts from the record</div>
+  <h2>Does A beat B</h2>
+  <p>Two analysts and a critic test an evaluation claim. The instrument re-runs every value before any review, and the report is checked against the record.</p>
+  <dl><dt>seats</dt><dd>analyst, stats, critic, lead</dd>
+    <dt>run</dt><dd>14 model calls · 14 tool calls · 12 s · settled</dd>
+    <dt>record</dt><dd>80 events · 29 nodes · no refusals</dd></dl>
+  <span class="go">Watch it run</span>
+</a>
+<a class="excard" href="software/">
+  <div class="who">Software · Change report</div>
+  <h2>Importer keeps quoted commas</h2>
+  <p>The tests count only when the instrument runs them. A tester&#x27;s “passes” written before that run is refused, reworked and accepted once the lab run lands.</p>
+  <dl><dt>seats</dt><dd>implementer, tester, reviewer, lead</dd>
+    <dt>run</dt><dd>16 model calls · 14 tool calls · 16 s · settled</dd>
+    <dt>record</dt><dd>81 events · 28 nodes · 1 write refused, then rewritten</dd></dl>
+  <span class="go">Watch it run</span>
+</a>
+<a class="excard" href="trading/">
+  <div class="who">Trading · Desk note</div>
+  <h2>Mean reversion after a 3 % five-day drop</h2>
+  <p>A backtest on a held-out window, with fees and slippage. A result without costs is refused before it can become a thesis.</p>
+  <dl><dt>seats</dt><dd>quant, risk, lead</dd>
+    <dt>run</dt><dd>14 model calls · 13 tool calls · 16 s · settled</dd>
+    <dt>record</dt><dd>56 events · 21 nodes · 1 write refused, then rewritten</dd></dl><div class="codes"><code>BACKTEST_WITHOUT_COSTS</code></div>
+  <span class="go">Watch it run</span>
+</a>
+<a class="excard" href="knowledge/">
+  <div class="who">Knowledge · Sourced brief</div>
+  <h2>Three facts, sourced</h2>
+  <p>Three facts, each a source node and a claim that cites it. A claim with nothing behind it is refused.</p>
+  <dl><dt>seats</dt><dd>researcher, fact_checker, lead</dd>
+    <dt>run</dt><dd>26 model calls · 23 tool calls · 27 s · settled</dd>
+    <dt>record</dt><dd>84 events · 29 nodes · 3 writes refused, then rewritten</dd></dl><div class="codes"><code>EVIDENCE_MISSING</code></div>
+  <span class="go">Watch it run</span>
+</a>
+<a class="excard" href="optimization/">
+  <div class="who">Optimization · Solution report</div>
+  <h2>Assign six customers to three depots at minimum cost</h2>
+  <p>Objective, feasibility and a gap. An objective with no feasibility check is refused, and “optimal” needs a bound that meets it.</p>
+  <dl><dt>seats</dt><dd>modeller, solver, verifier, lead</dd>
+    <dt>run</dt><dd>14 model calls · 13 tool calls · 19 s · settled</dd>
+    <dt>record</dt><dd>59 events · 21 nodes · 1 write refused, then rewritten</dd></dl><div class="codes"><code>OBJECTIVE_WITHOUT_FEASIBILITY</code></div>
+  <span class="go">Watch it run</span>
+</a>
+</div>
+<p class="note">The runs use HypSwarm's scripted models, so they cost nothing and replay the same way every time; run
+  any of them with a real model with <code>python run.py --model &lt;id&gt;</code>. Rebuild these pages with
+  <code>dev/site_examples.py</code>. Each bundle verifies on its own: <a href="../verify/">verify one</a>.</p>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
+<span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../assets/site.js" defer></script>
+</body>
+</html>

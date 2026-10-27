@@ -291,13 +291,20 @@ def cmd_verify(args) -> int:
 def cmd_export(args) -> int:
     g = _graph(args)
     inv = g.resolve(args.inv) if args.inv else ""
-    b = g.export(inv)
+    tel = None
+    if args.telemetry:
+        tel = Path(g.path + ".telemetry.jsonl") if args.telemetry == "auto" else Path(args.telemetry)
+        if not tel.is_file():
+            print(f"no telemetry at {tel}", file=sys.stderr)
+            return 2
+    b = g.export(inv, telemetry=tel)
     data = json.dumps(b, ensure_ascii=False, separators=(",", ":") if args.compact else None,
                       indent=None if args.compact else 1)
     if args.output:
         Path(args.output).write_text(data, encoding="utf-8")
         print(f"Wrote {args.output}: {len(b['events'])} events, {len(b['nodes'])} nodes"
-              + ("" if b["complete"] else f" ({b['redacted_events']} events outside the investigation redacted)"))
+              + ("" if b["complete"] else f" ({b['redacted_events']} events outside the investigation redacted)")
+              + (f", {len(b['telemetry']['events'])} telemetry events" if tel else ""))
     else:
         print(data)
     return 0
@@ -501,6 +508,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--inv", default="", help="one investigation (events outside it are redacted)")
     s.add_argument("-o", "--output", default="")
     s.add_argument("--compact", action="store_true")
+    s.add_argument("--telemetry", nargs="?", const="auto", default="", metavar="FILE",
+                   help="carry a swarm's telemetry sidecar for replay (default FILE: <db>.telemetry.jsonl); "
+                        "outside the hash chain")
     s = cmd("import", cmd_import, "rebuild a graph file from a complete bundle")
     s.add_argument("bundle")
     cmd("demo", cmd_demo, "build the Broad Street (1854) teaching investigation")

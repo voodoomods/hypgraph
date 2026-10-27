@@ -27,6 +27,7 @@ Connect: `pip install "hypgraph[mcp]"` then `claude mcp add hypgraph -- hypgraph
 ## Examples
 
 - [Broad Street, 1854](https://hypgraph.com/data/broad-street.bundle.json): a complete verifiable bundle (teaching reconstruction of Snow's cholera investigation)
+- [Live examples](https://hypgraph.com/examples/): one HypSwarm run per profile, replayed live in the HypGraph UI. Bundles with the run's telemetry: [scientific](https://hypgraph.com/data/examples/scientific.bundle.json), [software](https://hypgraph.com/data/examples/software.bundle.json), [trading](https://hypgraph.com/data/examples/trading.bundle.json), [knowledge](https://hypgraph.com/data/examples/knowledge.bundle.json), [optimization](https://hypgraph.com/data/examples/optimization.bundle.json)
 
 ## Optional
 

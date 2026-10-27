@@ -12,7 +12,7 @@
 <link rel="icon" href="assets/hypgraph.svg" type="image/svg+xml">
 <link rel="alternate" type="text/plain" href="llms.txt" title="For language models">
 <link rel="stylesheet" href="assets/site.css">
-<link rel="stylesheet" href="atlas/atlas.css">
+<link rel="stylesheet" href="app/hypgraph.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -21,7 +21,7 @@
   <div class="wrap">
     <a class="brand" href="./"><img src="assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
     <nav aria-label="Site">
-      <a href="agents/">Agents</a><a href="engineers/">Engineers</a><a href="never/">Never</a><a href="#workflows" class="hide-sm">Workflows</a><a href="play/" class="hide-sm">Playground</a>
+      <a href="agents/">Agents</a><a href="engineers/">Engineers</a><a href="examples/">Examples</a><a href="never/" class="hide-sm">Never</a><a href="#workflows" class="hide-sm">Workflows</a><a href="play/" class="hide-sm">Playground</a>
       <a href="verify/" class="hide-sm">Verify</a><a href="spec/" class="hide-sm">Spec</a>
       <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
       <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button>
@@ -53,7 +53,7 @@ hypgraph skill --install</pre>
         <div class="who">For engineers &amp; scientists</div>
         <h2>Wire it into your stack</h2>
         <p>One dependency-free Python package. You set who reviews, which runner's records count, and what work costs —
-          for one agent or a whole team of them. Plus the JSON API, the Atlas and verifiable bundles for CI.</p>
+          for one agent or a whole team of them. Plus the JSON API, the HypGraph UI and verifiable bundles for CI.</p>
         <pre>pip install hypgraph
 Graph("research.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
         <span class="go">The engineering guide</span>
@@ -173,10 +173,28 @@ To support a rate below 1 in 1,000 you need about 2,995 trials without one. Acro
       streets, different water companies, 315 against 37 deaths per 10,000 houses. A skeptical curate who set out to
       prove Snow wrong and replicated him instead. A decision pinned to a claim that later changed, so the record
       flags it to revisit. Click anything. The hash chain is re-verified in your browser as it loads.</p>
-    <div class="atlas-frame"><div id="atlas"></div></div>
+    <div class="hg-frame"><div data-hypgraph data-main="on" aria-label="The Broad Street investigation"></div></div>
     <p class="note">A teaching reconstruction; figures from J. Snow, <i>On the Mode of Communication of Cholera</i>,
       2nd ed., 1855. <a href="data/broad-street.bundle.json">Download the bundle</a> ·
-      <a href="atlas/">open full screen</a> · build it yourself: <code>hypgraph demo</code></p>
+      <a href="explore/">open full screen</a> · build it yourself: <code>hypgraph demo</code></p>
+  </div>
+</section>
+
+<section class="block" id="examples">
+  <div class="wrap">
+    <div class="kicker">Live examples</div>
+    <h2 class="h">Watch a swarm work, in each profile.</h2>
+    <p class="sub">Five HypSwarm runs on five records. Each opens on its live replay: seats taking work orders, model
+      and tool calls in flight, overclaims refused and rewritten, reviews landing, the board settling. Then explore the
+      pipeline, the graph, the evidence and the report, in that profile's own words.</p>
+    <div class="row exrow">
+      <a class="btn" href="examples/scientific/">Scientific · eval report</a>
+      <a class="btn" href="examples/software/">Software · tests by the instrument</a>
+      <a class="btn" href="examples/trading/">Trading · costs and a held-out window</a>
+      <a class="btn" href="examples/knowledge/">Knowledge · every fact sourced</a>
+      <a class="btn" href="examples/optimization/">Optimization · optimal with a bound</a>
+      <a class="btn primary" href="examples/">All examples</a>
+    </div>
   </div>
 </section>
 
@@ -346,7 +364,7 @@ To support a rate below 1 in 1,000 you need about 2,995 trials without one. Acro
       <div class="kicker">Trust, but verify</div>
       <h2 class="h">Check any record in your browser.</h2>
       <p class="sub">A bundle carries every event as the exact string that was hashed. Verifying it is SHA-256 over
-        strings — no trust in us, our code or the sender. Drop one in and it opens in the Atlas.</p>
+        strings — no trust in us, our code or the sender. Drop one in and it opens in HypGraph.</p>
       <div class="row"><a class="btn primary" href="verify/">Verify a bundle</a><a class="btn" href="play/">Try the engine live</a></div>
     </div>
     <div class="stack">
@@ -367,11 +385,11 @@ hypgraph verify study.bundle.json</pre></div>
   </div>
 </footer>
 
-<script src="atlas/vendor/cytoscape.min.js" defer></script>
-<script src="atlas/vendor/layout-base.js" defer></script>
-<script src="atlas/vendor/cose-base.js" defer></script>
-<script src="atlas/vendor/cytoscape-fcose.js" defer></script>
-<script src="atlas/atlas.js" defer></script>
+<script src="app/vendor/cytoscape.min.js" defer></script>
+<script src="app/vendor/layout-base.js" defer></script>
+<script src="app/vendor/cose-base.js" defer></script>
+<script src="app/vendor/cytoscape-fcose.js" defer></script>
+<script src="app/hypgraph.js" defer></script>
 <script src="assets/site.js" defer></script>
 <script src="assets/embed.js" defer></script>
 </body>

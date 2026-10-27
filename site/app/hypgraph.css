@@ -157,7 +157,7 @@
 .hg .ev.fresh { animation: hg-flash 1.2s ease; } @keyframes hg-flash { from { background: var(--accent-soft); } to { background: transparent; } }
 .hg .ev .seq { font: 11px var(--mono); color: var(--ink3); } .hg .ev .who { font-weight: 600; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; }
 .hg .ev.tel { background: var(--surface2); } .hg .ev.tel .seq { font-size: 10.5px; }
-.hg .tel-bad { color: var(--bad); font-weight: 600; }
+.hg .tel-bad { color: var(--bad); font-weight: 600; } .hg .tel-warn { color: var(--warn); font-weight: 600; }
 .hg .fly { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px;
   vertical-align: 0; animation: hg-pulse 1.2s infinite; }
 .hg .trace { display: grid; gap: 4px; }
@@ -165,7 +165,7 @@
 .hg .trace .tl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }
 .hg .trace .tb { position: relative; height: 12px; background: var(--sunken); border-radius: 3px; }
 .hg .trace .tb i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
-.hg .trace .tb i.tool { background: var(--info); } .hg .trace .tb i.bad { background: var(--bad); }
+.hg .trace .tb i.tool { background: var(--info); } .hg .trace .tb i.bad { background: var(--bad); } .hg .trace .tb i.refused { background: var(--warn); }
 .hg .trace .tb i.open { background: repeating-linear-gradient(45deg, var(--accent) 0 4px, var(--accent-soft) 4px 8px); }
 .hg .trace .ts { font: 11px var(--mono); color: var(--ink3); text-align: right; }
 .hg .alerts li { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; }
@@ -197,6 +197,22 @@
 .hg .hg-toast { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface);
   padding: 8px 14px; border-radius: 8px; z-index: 11; font-size: 12.5px; }
 
+/* narrow: the app's own width, not the window's — it may sit in a frame. The nav becomes a strip of tabs. */
+.hg { container: hg / inline-size; }
+@container hg (max-width: 760px) {
+  .hg .hg-app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  .hg .hg-top { grid-column: 1; flex-wrap: wrap; gap: 6px 10px; padding: 8px 12px; }
+  .hg .hg-top .sp { display: none; }
+  .hg .hg-crumb { flex: 1 1 0; } .hg .hg-crumb .t { max-width: none; }
+  .hg .hg-search { width: auto; } .hg .hg-search span, .hg .hg-search kbd { display: none; }
+  .hg .hg-nav { flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--line);
+    padding: 6px 8px; gap: 4px; }
+  .hg .hg-nav h2 { display: none; }
+  .hg .hg-nav button { width: auto; flex: none; white-space: nowrap; padding: 6px 10px; }
+  .hg .hg-nav .n { margin-left: 4px; } .hg .hg-nav .inv .s { display: none; }
+  .hg .hg-main { padding: 16px 16px 32px; }
+  .hg .trace .tr { grid-template-columns: minmax(90px, 40%) minmax(0, 1fr) 48px; }
+}
 @media (prefers-reduced-motion: reduce) { .hg *, .hg *::before { animation: none !important; transition: none !important; } }
 @media print {
   .hg .hg-nav, .hg .hg-top, .hg .head .acts, .hg .hg-drawer, .hg .hg-pal { display: none !important; }
