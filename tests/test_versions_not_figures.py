@@ -54,3 +54,25 @@ def test_a_value_s_key_in_place_of_its_number_is_refused(tmp_path):
                measurements=m, links=[{"rel": "derived_from", "to": rs}])
     assert ok["id"]
     g.close()
+
+
+
+def _claim_error(db, stmt: str) -> str:
+    g = Graph(db)
+    inv = g.author("lead").investigation("Does parse_duration meet its spec?", "Check each case in SPEC.md.")["id"]
+    a = g.author("tester")
+    rs = a.add("result", inv, summary="Case 8 returns 2; the spec expects 3.", values={"got": {"value": 2}})["id"]
+    try:
+        a.add("claim", inv, statement=stmt, scope="SPEC.md case 8, one run.", links=[{"rel": "derived_from", "to": rs}])
+        return ""
+    except GraphError as e:
+        return str(e)
+    finally:
+        g.close()
+
+
+def test_a_statement_that_says_nothing_is_refused(tmp_path):
+    """A claim written only to clear a gate ("Placeholder.") stayed in the record, contested (studies E2)."""
+    for i, stmt in enumerate(("Placeholder.", "Placeholder claim.", "TBD — pending.", "To be determined.", "1234567890 ...")):
+        assert "STATEMENT_EMPTY" in _claim_error(tmp_path / f"{i}.hypgraph", stmt), stmt
+    assert _claim_error(tmp_path / "real.hypgraph", "parse_duration truncates rather than rounds.") == ""

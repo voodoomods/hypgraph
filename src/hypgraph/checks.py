@@ -4,6 +4,7 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
 
   code                          refused when
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  STATEMENT_EMPTY               the statement says nothing ("Placeholder.", "TBD", one word)
   SCOPE_MISSING                 a finding or exclusion doesn't say under which conditions it holds
   EVIDENCE_MISSING              nothing supports it
   MEASUREMENT_MALFORMED         a measurement doesn't name its result and field
@@ -400,6 +401,10 @@ def _exclusion(s: Snap, stmt: str, kind: str, support: list[str], bound: list) -
                     "effect", words=words)]
 
 
+_PLACEHOLDER = re.compile(r"^\W*(?:(?:placeholder|tbd|todo|tba|n/?a|none|wip|xxx|test|claim|statement|pending|"
+                          r"to be (?:determined|confirmed|added)|lorem ipsum)\W*)+$", re.I)
+
+
 def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Problem]:
     """What's wrong with a claim, each with a code, a message and a fix (empty = it may enter the record).
     ``support``: ids of the nodes that support it or that it is derived from."""
@@ -410,6 +415,10 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     if invb.get("strict_claims") is False:
         return []
     problems: list[Problem] = []
+    if _PLACEHOLDER.match(stmt) or len(re.findall(r"[^\W\d_]{3,}", stmt)) < 2:
+        # a claim written to clear a gate (studies/challenges E2: "Placeholder.", contested and left in the record)
+        problems.append(Problem("STATEMENT_EMPTY", "the statement says nothing: write the finding itself — what was "
+                                "measured, on what, and what it came to"))
     if kind in ("finding", "exclusion") and len(scope.strip()) < 10:
         problems.append(Problem("SCOPE_MISSING", "scope: say under which conditions this holds (the data, method, "
                                 "sample) — at least a sentence"))
