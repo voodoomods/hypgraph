@@ -89,7 +89,7 @@ def test_scientific_stage_is_read_off_the_record():
                  "success_criteria": "every fixture parses"},
                  links=[{"rel": "tests", "to": h, "data": {"expected": "all 9 fixtures parse"}}])["id"]
     assert _stage(g, q) == ("run", 4, False)
-    run = g.create(author="w", type="run", inv=inv, fields={"kind": "agent", "name": "parse", "state": "succeeded"},
+    run = g.create(author="w", type="run", inv=inv, fields={"kind": "agent", "name": "parse", "state": "succeeded", "config": {"source": "print('parse')"}},
                    links=[{"rel": "executes", "to": x}])["id"]
     assert _stage(g, q) == ("evidenced", 5, False)
     rs = g.create(author="w", type="result", inv=inv, fields={"summary": "Parsed 9 of 9 trailing-comma fixtures.",
@@ -192,7 +192,7 @@ def test_uses_is_at_risk_only_under_a_workflow():
     for pid, expect in (("scientific@1", False), ("scientific@2", True)):
         g, inv, q = _g(pid)
         data = g.create(author="w", type="artifact", inv=inv, fields={"sha256": SHA_C, "path": "data.csv", "kind": "data"})["id"]
-        run = g.create(author="w", type="run", inv=inv, fields={"kind": "agent", "name": "fit", "state": "succeeded"},
+        run = g.create(author="w", type="run", inv=inv, fields={"kind": "agent", "name": "fit", "state": "succeeded", "config": {"source": "print('fit')"}},
                        links=[{"rel": "uses", "to": data}])["id"]
         rs = g.create(author="w", type="result", inv=inv, fields={"summary": "Fitted the model on the data file.",
                       "values": {"rmse": {"value": 0.41}}, "outcome": "positive"}, links=[{"rel": "produced", "from": run}])["id"]
@@ -205,7 +205,7 @@ def test_uses_is_at_risk_only_under_a_workflow():
 # ── trading ────────────────────────────────────────────────────────
 
 def _bt(g, inv, author, values, summary="Backtested the thesis out of sample.", q="", x=""):
-    r = g.create(author=author, type="run", inv=inv, fields={"kind": "agent", "name": "backtest", "state": "succeeded"},
+    r = g.create(author=author, type="run", inv=inv, fields={"kind": "agent", "name": "backtest", "state": "succeeded", "config": {"source": "print('backtest')"}},
                  links=[{"rel": "executes", "to": x}] if x else None)["id"]
     links = [{"rel": "produced", "from": r}] + ([{"rel": "part_of", "to": q}] if q else [])
     return g.create(author=author, type="result", inv=inv, fields={"summary": summary, "values": values, "outcome": "positive"},
@@ -260,7 +260,7 @@ def test_trading_trials_positions_and_no_live_orders():
 
 def test_valid_until_makes_a_result_stale():
     g, inv, _q = _g("trading@2")
-    r = g.create(author="quant", type="run", inv=inv, fields={"kind": "agent", "name": "backtest", "state": "succeeded"})["id"]
+    r = g.create(author="quant", type="run", inv=inv, fields={"kind": "agent", "name": "backtest", "state": "succeeded", "config": {"source": "print('backtest')"}})["id"]
     rs = g.create(author="quant", type="result", inv=inv, fields={"summary": "Backtested the thesis out of sample.",
                   "values": {"oos_return": {"value": 0.08}, "fees": {"value": 0.002}}, "outcome": "positive",
                   "valid_until": "2020-06-30"}, links=[{"rel": "produced", "from": r}])["id"]
@@ -311,7 +311,7 @@ def test_optimization_instance_verifier_and_changed_instance():
     inst = g.create(author="lead", type="artifact", inv=inv, fields={"sha256": SHA_A, "path": "instances/40-site.json", "kind": "instance"},
                     links=[{"rel": "part_of", "to": q}])["id"]
     assert _stage(g, q) == ("modelled", 2, False)
-    run = g.create(author="solver", type="run", inv=inv, fields={"kind": "agent", "name": "cbc", "state": "succeeded"},
+    run = g.create(author="solver", type="run", inv=inv, fields={"kind": "agent", "name": "cbc", "state": "succeeded", "config": {"source": "print('cbc')"}},
                    links=[{"rel": "uses", "to": inst}])["id"]
     rs = g.create(author="solver", type="result", inv=inv, fields={"summary": "Solved the model to a 0.0 gap.",
                   "values": {"objective": {"value": 412.0}, "feasible": {"value": True}, "gap": {"value": 0.0}}, "outcome": "positive"},
@@ -508,7 +508,7 @@ def test_an_edit_elsewhere_on_the_page_keeps_the_source_fresh():
 def test_a_decision_on_stale_evidence_and_a_check_of_a_stale_solve_do_not_count():
     g, inv, q = _g("trading@2", reviewers=("risk",))
     data = g.create(author="quant", type="artifact", inv=inv, fields={"sha256": SHA_A, "path": "prices.csv"})["id"]
-    run_ = g.create(author="quant", type="run", inv=inv, fields={"kind": "agent", "name": "backtest", "state": "succeeded"},
+    run_ = g.create(author="quant", type="run", inv=inv, fields={"kind": "agent", "name": "backtest", "state": "succeeded", "config": {"source": "print('backtest')"}},
                     links=[{"rel": "uses", "to": data}])["id"]
     rs = g.create(author="quant", type="result", inv=inv, fields={"summary": "Backtested the thesis out of sample.",
                   "values": {"oos_return": {"value": 0.08}, "fees": {"value": 0.002}, "trials": {"value": 1}}, "outcome": "positive"},
@@ -526,7 +526,7 @@ def test_a_decision_on_stale_evidence_and_a_check_of_a_stale_solve_do_not_count(
     g2, inv2, q2 = _g("optimization@2", reviewers=("verifier",))
     inst = g2.create(author="lead", type="artifact", inv=inv2, fields={"sha256": SHA_A, "path": "instance.csv", "kind": "instance"},
                      links=[{"rel": "part_of", "to": q2}])["id"]
-    r2 = g2.create(author="solver", type="run", inv=inv2, fields={"kind": "agent", "name": "solve", "state": "succeeded"},
+    r2 = g2.create(author="solver", type="run", inv=inv2, fields={"kind": "agent", "name": "solve", "state": "succeeded", "config": {"source": "print('solve')"}},
                    links=[{"rel": "uses", "to": inst}])["id"]
     s2 = g2.create(author="solver", type="result", inv=inv2, fields={"summary": "Enumerated the instance.",
                    "values": {"objective": {"value": 40}, "feasible": {"value": True}, "gap": {"value": 0.0}}, "outcome": "positive"},
