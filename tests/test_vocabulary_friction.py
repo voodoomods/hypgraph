@@ -1,5 +1,5 @@
-"""0.4.3: the five vocabulary-friction fixes from the discovery study (HypSwarm studies/discovery/LIB-NOTES.md
-items 1, 2, 4, 5, 10). Each test is the sentence a real model wrote and was refused for."""
+"""0.4.3: the five vocabulary-friction fixes from an internal study's library notes (items 1, 2, 4, 5, 10).
+Each test is the sentence a real model wrote and was refused for."""
 import pytest
 
 from hypgraph import Graph, GraphError, Policy

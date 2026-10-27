@@ -15,5 +15,5 @@ research.hypgraph*
 Thumbs.db
 .claude/
 
-# study runs: outputs, sealed keys and records stay local until published on purpose
-studies/*/runs/
+# internal studies: kept on the machine that runs them, not published
+studies/
