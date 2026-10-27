@@ -220,10 +220,18 @@ def rerunnable(s: D.Snap, r: str) -> bool:
     a wrong optimum (757 for 656) passed its verifier, and the question settled (studies O1 through the CLI)."""
     for e in s.inn.get(r, []):
         run = s.nodes.get(e["src"]) or {}
-        b = run.get("body") or {}
-        if e["rel"] == "produced" and run.get("type") == "run" and (b.get("kind") == "lab" or str(b.get("code") or "").strip()):
+        if e["rel"] == "produced" and run.get("type") == "run" and _has_code(s, e["src"]):
             return True
     return False
+
+
+def _has_code(s: D.Snap, run: str) -> bool:
+    """The instrument's run, or one that carries what it executed: its source (``config.source``, as hypswarm's
+    register_run writes it), its ``code`` list, or an artifact it ``uses`` in the role ``code``."""
+    b = s.nodes[run].get("body") or {}
+    if b.get("kind") == "lab" or str((b.get("config") or {}).get("source") or "").strip() or b.get("code"):
+        return True
+    return any(e["rel"] == "uses" and (e.get("data") or {}).get("role") == "code" for e in s.out.get(run, []))
 
 
 def _computed(sc: Scope, rs: list[str]) -> tuple[list[str], str]:

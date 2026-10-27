@@ -45,7 +45,8 @@ def test_a_solve_with_no_code_behind_it_is_not_solved():
     assert not gate["met"] and "no code behind it" in gate["why"] and g.get(rs)["code"] in gate["why"]
 
 
-@pytest.mark.parametrize("fields", [{"kind": "agent", "code": "import csv\nprint('objective', 656)"}, {"kind": "lab"}])
+@pytest.mark.parametrize("fields", [{"kind": "agent", "config": {"source": "import csv\nprint('objective', 656)"}},
+                                    {"kind": "agent", "code": ["solve.py"]}, {"kind": "lab"}])
 def test_a_solve_with_its_code_or_by_the_instrument_is_solved(fields):
     g, inv, q = _g("optimization@2")
     _solve(g, inv, q, fields, author="lab" if fields["kind"] == "lab" else "solver")
