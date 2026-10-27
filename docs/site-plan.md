@@ -1,7 +1,9 @@
 # hypgraph.com and hypswarm.com — plan
 
-*Status (2026-10-26): proposal, with a working prototype of the hypgraph.com homepage in `dev/site-prototype/` and
-the homepage's own HypGraph record built by `dev/site_record.py`. The live sites are unchanged.*
+*Status (2026-10-27): P0 (this plan, the prototype) and P1 (the derivation fix) done; P2 built — hypgraph.com's
+homepage and stylesheet are the design below, and the homepage's record (`dev/site_record.py`) is built at every
+deploy. The prototype folder was retired once the real page replaced it (its screenshots are in the PR that added
+it). P3 (docs, trust page, refusal catalogue) and P4 (hypswarm.com) are next.*
 
 ## 1. Where it stands
 
@@ -101,7 +103,7 @@ settling, the bridges' tests).
 
 | phase | what | verified by |
 |---|---|---|
-| **P0** | this plan, the prototype homepage, the page's record (`dev/site_record.py`), `dev/bench.py` | screenshots in `dev/site-prototype/shots/`; the record builds with 0 copy errors |
+| **P0** | this plan, the prototype homepage, the page's record (`dev/site_record.py`), `dev/bench.py` | screenshots in #17; the record builds with 0 copy errors |
 | **P1** | the engine fix for `derive.restates`, measured with `dev/bench.py` (its own PR) | a test at scale; the benchmark |
 | **P2** | the shared design system and the new hypgraph.com homepage, with its record built in CI | the smoke check, the contrast test, the copy check failing the build |
 | **P3** | docs, the trust page, the refusal catalogue | the same |

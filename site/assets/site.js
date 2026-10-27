@@ -1,4 +1,4 @@
-/* hypgraph.com — theme, copy buttons, the living graph behind the hero, and the refusing terminal. */
+/* hypgraph.com — theme and copy buttons (and, on pages that still have them, the hero graph and the terminal). */
 'use strict';
 (() => {
   const root = document.documentElement;
@@ -6,8 +6,9 @@
 
   // ── theme ─────────────────────────────────────────────────────────
   const stored = (() => { try { return localStorage.getItem('hg-theme'); } catch { return null; } })();
-  if (stored) root.dataset.theme = stored;
-  const current = () => root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  const asked = new URLSearchParams(location.search).get('theme');      // ?theme=dark: a link that opens dark
+  if (asked === 'light' || asked === 'dark') root.dataset.theme = asked; else if (stored) root.dataset.theme = stored;
+  const current = () => root.dataset.theme || 'light';                 // light by default, as the app is
   window.HG = { theme: current, onTheme: [] };
   document.querySelectorAll('[data-toggle-theme]').forEach((b) => b.addEventListener('click', () => {
     root.dataset.theme = current() === 'light' ? 'dark' : 'light';

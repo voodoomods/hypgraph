@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HypGraph — the evidence layer for AI research agents</title>
-<meta name="description" content="The evidence layer for AI research agents: a hash-chained research record that checks every claim as it is written and derives how well each one is known. MCP server, Agent Skill, zero-dependency Python.">
+<title>HypGraph — a record that checks what your agents claim</title>
+<meta name="description" content="HypGraph is a hash-chained record your AI agents write their results and claims into. It refuses overclaims as they are written and derives what has been shown. MCP server, Agent Skill, zero-dependency Python.">
 <meta property="og:title" content="HypGraph — Don't believe the hype. Test the hyp.">
-<meta property="og:description" content="The evidence layer for AI research agents. Every claim checked as it's written; standing derived, never asserted.">
+<meta property="og:description" content="A record that checks what your agents claim: overclaims refused as they're written, standing derived from the record.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://hypgraph.com/">
 <link rel="icon" href="assets/hypgraph.svg" type="image/svg+xml">
@@ -16,6 +16,10 @@
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
+<!-- The figures on this page are claims in its own HypGraph record (data/site-record.bundle.json), built and
+     re-measured by dev/site_record.py, which also checks this page's text against the record with `hypgraph check`.
+     A figure goes in a data-fact slot; a word quoted as an example of what gets refused is marked data-quote; a phrase
+     true by the engine's design is marked data-ok="<why>" and listed on the page. -->
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav">
   <div class="wrap">
@@ -30,358 +34,197 @@
 </header>
 
 <main id="main">
-<section class="hero">
-  <canvas id="hero-graph" aria-hidden="true"></canvas>
-  <div class="wrap">
-    <span class="eyebrow"><i></i> MCP server · Agent Skill · zero-dependency Python</span>
-    <h1 class="title">Don't believe the hype.<span class="l2">Test the hyp.</span></h1>
-    <p class="lede">The evidence layer for AI research agents. Your agents write their hypotheses, runs, results and
-      claims into a record that checks every claim as it's written — numbers bound to results, no "always" without the
-      counts, no "ruled out" without a powered search — and works out on every read what's really been shown.</p>
+<section class="hero"><div class="wrap">
+  <div class="hero-tags"><span class="pill accent" data-fact="version-pill"></span><span class="pill">Open source · <span data-fact="licence"></span></span>
+    <span class="pill">Python · <span data-fact="deps-word"></span> dependencies</span><span class="pill">MCP server · Agent Skill · HTTP API</span></div>
+  <h1>A record that checks what your agents claim.</h1>
+  <p class="lede">Agents write their hypotheses, runs, results and claims into HypGraph. It refuses a number no result
+    accounts for, <span data-quote>“always”</span> without the counts and <span data-quote>“ruled out”</span> without a
+    powered search, and works out from the record <span data-ok="design: standing is derived on read, never stored (derive.py)">on every read</span>
+    what has been shown and what is at risk.</p>
+  <div class="row"><a class="btn primary" href="#product">Watch a run</a><a class="btn" href="engineers/">Get started</a>
+    <a class="btn" href="#refuses">See what it refuses</a></div>
+  <div class="tagline">Don't believe the hype. Test the hyp.</div>
 
-    <div class="door" role="group" aria-label="Choose your way in">
-      <a class="portal agent" href="agents/">
-        <div class="who">For agents</div>
-        <h2>Connect your agent</h2>
-        <p>One line of MCP, or the Agent Skill. Claims get checked, an agent can't review its own work, and every refusal
-          says exactly what to fix. Machine-readable: <code>/llms.txt</code> · <code>/SKILL.md</code>.</p>
-        <pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp
+  <div class="stage" id="product">
+    <div class="stage-bar"><div class="stage-tabs" role="group" aria-label="Choose a record" id="stage-tabs"></div>
+      <span class="pill" id="stage-chain">verifying…</span></div>
+    <div class="stage-app"><div id="app"></div></div>
+    <div class="stage-foot" id="stage-foot"></div>
+  </div>
+</div></section>
+
+<section class="block" id="start"><div class="wrap">
+  <div class="kicker">Two ways in</div>
+  <h2 class="h">For the agent, and for the people who deploy it.</h2>
+  <div class="door">
+    <a class="portal" href="agents/">
+      <div class="who">For agents</div>
+      <h2>Connect your agent</h2>
+      <p>One line of MCP, or the Agent Skill. Claims are checked as they're written, an agent's review of its own work
+        doesn't count, and each refusal says what to fix. Machine-readable: <code>/llms.txt</code>, <code>/SKILL.md</code>.</p>
+      <pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph mcp
 hypgraph skill --install</pre>
-        <span class="go">The agent guide</span>
-      </a>
-      <a class="portal human" href="engineers/">
-        <div class="who">For engineers &amp; scientists</div>
-        <h2>Wire it into your stack</h2>
-        <p>One dependency-free Python package. You set who reviews, which runner's records count, and what work costs —
-          for one agent or a whole team of them. Plus the JSON API, the HypGraph UI and verifiable bundles for CI.</p>
-        <pre>pip install hypgraph
-Graph("research.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
-        <span class="go">The engineering guide</span>
-      </a>
-    </div>
+      <span class="go">The agent guide</span>
+    </a>
+    <a class="portal" href="engineers/">
+      <div class="who">For engineers &amp; scientists</div>
+      <h2>Wire it into your stack</h2>
+      <p>One package with <span data-fact="deps-word"></span> runtime dependencies. You set who reviews, which runner's
+        records count as the instrument, and what work costs. Plus the JSON API, the UI and verifiable bundles for CI.</p>
+      <pre>pip install hypgraph
+Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
+      <span class="go">The engineering guide</span>
+    </a>
   </div>
-</section>
+</div></section>
 
-<section class="block">
-  <div class="wrap grid2" style="align-items:center">
-    <div>
-      <div class="kicker">Refusal is a feature</div>
-      <h2 class="h">Watch an eval report get refused.</h2>
-      <p class="sub">An agent evaluates a fine-tune against its baseline on 2,000 held-out items: 1,624 against 1,568
-        correct. It writes "always beats", then "5 points better" (it's 2.8), then "prompt format makes no difference"
-        from a test too small to see a 3.6-point effect. Each refusal does the arithmetic and names the fix. Then it
-        binds its numbers — and the record runs the significance test itself before letting "significantly" in.</p>
-      <ul class="sub" style="padding-left:20px;margin-top:-10px">
-        <li>every number in a claim must match a result field</li>
-        <li>"always", "never", "proves" need k of n with k = 0 or n</li>
-        <li>"no difference" / "rules out" needs a search shown to find a planted effect</li>
-      </ul>
-    </div>
-    <div class="term" aria-label="A terminal session in which HypGraph refuses three claims about an eval and accepts a fourth">
-      <div class="bar"><i></i><i></i><i></i><span>eval — hypgraph</span></div>
-      <pre id="term"></pre>
-    </div>
+<section class="block" id="facts"><div class="wrap">
+  <div class="kicker">What you can check</div>
+  <h2 class="h">Facts, each with its source.</h2>
+  <p class="sub">Each figure here is a claim in this page's own HypGraph record, bound to the measurement it came from
+    and re-measured another way by a reviewer before the page was built. Click a claim to open it in the record.</p>
+  <div class="grid3">
+    <div class="card fact"><div class="k">Tests</div><div class="v" data-fact="tests"></div><div class="s">passing on this build; CI runs Linux, macOS and Windows</div>
+      <div class="src" data-claim="tests"></div></div>
+    <div class="card fact"><div class="k">Runtime dependencies</div><div class="v" data-fact="deps"></div><div class="s">The engine, CLI, HTTP server and UI use the standard library</div>
+      <div class="src" data-claim="deps"></div></div>
+    <div class="card fact"><div class="k">Example records verify</div><div class="v" data-fact="verify-v"></div>
+      <div class="s"><code>SHA-256</code> over the exact strings that were hashed — run it here, in your browser</div>
+      <div class="row" style="margin-top:10px"><span data-claim="bundles"></span><button class="btn" id="verify" type="button">Run the check</button></div>
+      <div class="verify-out" id="verify-out" aria-live="polite"></div></div>
   </div>
-  <script type="application/json" id="term-script">[
- {
-  "type": "hypgraph add claim statement=\"The fine-tune always beats the baseline.\" scope=… --link supports:from:RS1:\"the eval run\""
- },
- {
-  "out": "refused: claim refused:",
-  "cls": "x"
- },
- {
-  "out": "- 'always' is absolute: back it with a k/n measurement of what it's about, where k is 0 or n, and keep the scope to the trials actually run — or say 'rarely' / 'in k of n' [ABSOLUTE_WITHOUT_COUNT]",
-  "cls": "x"
- },
- {
-  "out": "- 'beats' compares, but there is nothing to compare: bind a measurement for each side (a k/n or value for both), or a difference with its interval [COMPARATIVE_WITHOUT_COMPARISON]",
-  "cls": "x",
-  "wait": 1100
- },
- {
-  "type": "hypgraph add claim statement=\"The fine-tune is 5 points better than the baseline.\" scope=… measurements='[… 1624/2000, 1568/2000 …]' --link …"
- },
- {
-  "out": "refused: claim refused:",
-  "cls": "x"
- },
- {
-  "out": "- numbers in the statement that no bound measurement, the scope or the investigation's constants account for: 5 — bind them to result fields (measurements) or move design constants into the scope [UNBOUND_NUMBER]",
-  "cls": "x",
-  "wait": 1100
- },
- {
-  "type": "hypgraph add claim statement=\"Prompt format makes no difference to accuracy.\" scope=… measurements=… --link …"
- },
- {
-  "out": "refused: claim refused:",
-  "cls": "x"
- },
- {
-  "out": "- 'makes no difference' says an effect is absent, so it is an exclusion: an exclusion needs a search that recovered a planted answer … At these sample sizes (2,000 and 2,000) a difference smaller than about 3.6 points would usually go unseen (80% power, α 0.05). [EXCLUSION_WITHOUT_POWER]",
-  "cls": "x",
-  "wait": 1100
- },
- {
-  "type": "hypgraph add claim statement=\"The fine-tune is significantly better: 81.2% against 78.4% on held-out items.\" scope=… measurements=… --link …"
- },
- {
-  "out": "Added CL1 — active claim · unchecked · 1 independent line of support · unverified report · no external replication · tested from its counts: difference 2.8 points, 95% interval 0.3 to 5.3, p = 0.027",
-  "cls": "ok",
-  "wait": 900
- },
- {
-  "type": "hypgraph --as eval-reviewer review CL1 pass --method \"Re-ran the scorer on the stored predictions.\" --notes \"1624 and 1568 reproduce.\""
- },
- {
-  "out": "CL1 — active claim · checked (eval-reviewer:pass, v1) · 1 independent line of support · … · p = 0.027",
-  "cls": "ok"
- }
-]</script>
-</section>
+</div></section>
 
-<section class="block" style="background:linear-gradient(180deg, color-mix(in srgb, var(--red) 6%, transparent), transparent)">
-  <div class="wrap grid2" style="align-items:center">
-    <div>
-      <div class="kicker" style="color:var(--red)">The arithmetic of never</div>
-      <h2 class="h">0 leaks in 50 tests still allows 58,155 across a million users.</h2>
-      <p class="sub">Zero failures in <i>n</i> trials doesn't mean zero — it means "probably below 3/<i>n</i>". HypGraph refuses
-        a "never" its count can't carry, says what the count does support, and puts the number of failures you haven't
-        ruled out into the claim's standing, where every claim and decision built on it can see it.</p>
-      <div class="row"><a class="btn primary" href="never/">See the arithmetic, and the cascade</a></div>
-    </div>
-    <div class="term"><div class="bar"><i></i><i></i><i></i><span>red-team — hypgraph</span></div>
-<pre><span class="p">$</span> hypgraph add claim statement="The model never leaks training data." exposure=1000000 …
-<span class="x">refused: 'never' rests on 0 of 50: that only rules out it happening more than 5.8% of the
-time (95% upper bound). Honest version: 'no occurrences in 50 trials (95% upper bound 5.8%)'.
-To support a rate below 1 in 1,000 you need about 2,995 trials without one. Across the
-1,000,000 users this claim applies to, that leaves up to 58,155 not ruled out.
-[ABSOLUTE_UNDERPOWERED]</span>
-<span class="p">$</span> hypgraph bound 0 50 --exposure 1000000 --unit users
-'never' here means: at most 5.8% — 1 in 20 — at 95% confidence
-  to bound it below 1 in 1,000: about 2,995 trials with none
-<span class="x">across 1,000,000 users: up to 58,155 not ruled out (95%)</span></pre></div>
+<section class="block" id="refuses"><div class="wrap">
+  <div class="kicker">What it refuses</div>
+  <h2 class="h">Overclaims don't get into the record.</h2>
+  <p class="sub">These were written into a scratch record when this page was built. The engine refused each one with a
+    code and what to fix; the rewrite underneath, on the same evidence, was accepted.</p>
+  <div class="grid3" id="refusals"></div>
+  <div style="margin-top:14px" data-claim="refusals"></div>
+</div></section>
+
+<section class="block" id="rules"><div class="wrap">
+  <div class="kicker">Eight rules</div>
+  <h2 class="h">Each rule is a mistake that was really made.</h2>
+  <p class="sub">HypGraph came out of a team of AI agents doing long investigations, and the errors they made despite
+    instructions not to. Each became a rule the record enforces when work is written, not advice it hopes is followed.</p>
+  <div class="grid4">
+    <div class="card rule"><h3>Standing is derived</h3><p>No field says <span data-quote>“confirmed”</span>. Review, risk,
+      support and evidence strength are computed from the record when it is read.</p></div>
+    <div class="card rule"><h3>Append-only</h3><p>Hash-chained with <code>SHA-256</code>. Corrections are new versions;
+      withdrawals stay on record. <code>verify()</code> catches an edit.</p></div>
+    <div class="card rule"><h3>Reviews pin versions</h3><p>Revise a checked claim and its check goes stale. A decision
+      based on the old version is flagged to revisit.</p></div>
+    <div class="card rule"><h3>Claims carry numbers</h3><p>A claim's numbers are bound to result fields. A number with
+      no source is refused — the commonest way summaries go wrong.</p></div>
+    <div class="card rule"><h3>Independence is counted</h3><p>Three results from one run are one line of evidence, not
+      three. Lines that share data or a source merge.</p></div>
+    <div class="card rule"><h3>Exclusions need power</h3><p><span data-quote>“Rules out”</span> only after a search was
+      shown to find a planted answer. Otherwise it's inconclusive.</p></div>
+    <div class="card rule"><h3>Authors don't review themselves</h3><p>Only named reviewers' verdicts count, and not on
+      their own work. Others' are kept as comments.</p></div>
+    <div class="card rule"><h3>Instruments speak for themselves</h3><p>Only the lab runner files a lab-recorded run. A
+      run you describe is labelled as your report.</p></div>
   </div>
-</section>
+</div></section>
 
-<section class="block" id="explore">
-  <div class="wrap">
-    <div class="kicker">A real investigation, in your browser</div>
-    <h2 class="h">How does cholera spread? Broad Street, 1854.</h2>
-    <p class="sub">Two hypotheses — bad air or dirty water. Snow's map. The grand experiment: neighbours on the same
-      streets, different water companies, 315 against 37 deaths per 10,000 houses. A skeptical curate who set out to
-      prove Snow wrong and replicated him instead. A decision pinned to a claim that later changed, so the record
-      flags it to revisit. Click anything. The hash chain is re-verified in your browser as it loads.</p>
-    <div class="hg-frame"><div data-hypgraph data-main="on" aria-label="The Broad Street investigation"></div></div>
-    <p class="note">A teaching reconstruction; figures from J. Snow, <i>On the Mode of Communication of Cholera</i>,
-      2nd ed., 1855. <a href="data/broad-street.bundle.json">Download the bundle</a> ·
-      <a href="explore/">open full screen</a> · build it yourself: <code>hypgraph demo</code></p>
+<section class="block never-band" id="never"><div class="wrap grid2" style="align-items:center">
+  <div>
+    <div class="kicker" style="color:var(--bad)">The arithmetic of <span data-quote>never</span></div>
+    <h2 class="h"><span data-fact="never-k"></span> failures in <span data-fact="never-n"></span> tests still leaves
+      <span data-fact="never-upto"></span> across a million uses.</h2>
+    <p class="sub">An agent that sees none in its tests writes <span data-quote>“it never happens”</span>. The record
+      refuses that sentence and asks for the counts, then states what they leave open at the scale you deploy.</p>
+    <a class="btn" href="never/">The arithmetic, worked through</a>
   </div>
-</section>
+  <div class="card"><div class="never-num" data-fact="never-upto"></div>
+    <p>failures not ruled out across <span data-fact="never-exposure"></span> uses, at 95 % confidence, from
+      <span data-fact="never-k"></span> in <span data-fact="never-n"></span> tests.</p>
+    <div style="margin-top:10px" data-claim="never"></div></div>
+</div></section>
 
-<section class="block" id="examples">
-  <div class="wrap">
-    <div class="kicker">Live examples</div>
-    <h2 class="h">Watch a swarm work, in each profile.</h2>
-    <p class="sub">Five HypSwarm runs on five records. Each opens on its live replay: seats taking work orders, model
-      and tool calls in flight, overclaims refused and rewritten, reviews landing, the board settling. Then explore the
-      pipeline, the graph, the evidence and the report, in that profile's own words.</p>
-    <div class="row exrow">
-      <a class="btn" href="examples/scientific/">Scientific · eval report</a>
-      <a class="btn" href="examples/software/">Software · tests by the instrument</a>
-      <a class="btn" href="examples/trading/">Trading · costs and a held-out window</a>
-      <a class="btn" href="examples/knowledge/">Knowledge · every fact sourced</a>
-      <a class="btn" href="examples/optimization/">Optimization · optimal with a bound</a>
-      <a class="btn primary" href="examples/">All examples</a>
-    </div>
+<section class="block" id="workflows"><div class="wrap">
+  <div class="kicker">One record, five workflows</div>
+  <h2 class="h">Each discipline's method, enforced by the record.</h2>
+  <p class="sub">A profile carries its discipline's stages, the gate out of each and what counts as done. The stage is
+    derived from the record, <span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">never set by an agent</span>.
+    Each row has a live example.</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>profile</th><th>a question passes through</th><th>the record refuses</th><th>done when</th><th></th></tr></thead>
+    <tbody>
+      <tr><td><code>scientific@2</code></td><td>asked → conjectured → preregistered before a run → run → evidenced → claimed → reviewed</td>
+        <td>numbers no result accounts for; <span data-quote>“never”</span> without the count; <span data-quote>“significant”</span> without the test; a check on stale evidence</td><td>each question settled</td><td><a href="examples/scientific/">Watch</a></td></tr>
+      <tr><td><code>software@2</code></td><td>specified → implemented (a diff by hash) → verified by the instrument on that head → claimed → reviewed</td>
+        <td><span data-quote>“it passes”</span> without an instrument run, or on a superseded head; the diff's author as its reviewer</td><td>each requirement's claim rests on a passing run on the current head</td><td><a href="examples/software/">Watch</a></td></tr>
+      <tr><td><code>trading@2</code></td><td>asked → thesised → preregistered → backtested out of sample, after costs → claimed → risk-reviewed → positioned → monitored</td>
+        <td>a backtest without its costs; <span data-quote>“edge”</span> without both, or without the configurations tried; a position without size, stop and review date; a live order</td><td>questions settled; a position taken or declined</td><td><a href="examples/trading/">Watch</a></td></tr>
+      <tr><td><code>knowledge@2</code></td><td>asked → sourced (the passage, retrieved, its kind) → claimed → checked</td>
+        <td>a claim with no source; a source without its passage</td><td>each claim cites a source and is checked</td><td><a href="examples/knowledge/">Watch</a></td></tr>
+      <tr><td><code>optimization@2</code></td><td>posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked</td>
+        <td>an objective without feasibility; <span data-quote>“optimal”</span> without a bound, or on a changed instance</td><td>a feasible, bounded incumbent, verified on the current instance</td><td><a href="examples/optimization/">Watch</a></td></tr>
+    </tbody></table></div>
+</div></section>
+
+<section class="block" id="deploy"><div class="wrap">
+  <div class="kicker">For the people who deploy agents</div>
+  <h2 class="h">Wire it in where your agents already run.</h2>
+  <div class="grid3 uses">
+    <div class="card"><h3>Agents, over MCP</h3><p>Your agent gets the record's tools, and the method as an Agent Skill.</p>
+      <div class="code"><pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph mcp
+hypgraph skill --install</pre></div></div>
+    <div class="card"><h3>Python</h3><p>Roles as policy: reviewers, the instrument, reserved authors.</p>
+      <div class="code"><pre>from hypgraph import Graph, Policy
+g = Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre></div></div>
+    <div class="card"><h3>The UI and the JSON API</h3><p>Read-only by default; follows a running swarm live.</p>
+      <div class="code"><pre>hypgraph serve --db study.hypgraph</pre></div></div>
+    <div class="card"><h3>Gate CI on the write-up</h3><p>Lints a report against the record; exits non-zero on errors.</p>
+      <div class="code"><pre>hypgraph check summary.md</pre></div></div>
+    <div class="card"><h3>Hand over a verifiable bundle</h3><p>Anyone can check it, in any language or in the browser.</p>
+      <div class="code"><pre>hypgraph export --telemetry -o study.bundle.json
+hypgraph verify study.bundle.json</pre></div></div>
+    <div class="card"><h3>Run a swarm on it</h3><p>HypSwarm schedules agents from the record's own work board.</p>
+      <div class="code"><pre>pip install --pre hypswarm</pre></div></div>
   </div>
-</section>
+</div></section>
 
-<section class="block">
-  <div class="wrap">
-    <div class="kicker">Eight rules</div>
-    <h2 class="h">Every rule is a mistake that was really made.</h2>
-    <p class="sub">HypGraph came out of a team of AI agents doing long investigations, and the errors they made despite
-      instructions not to. Each one became a rule the record enforces when it's written, not advice it hopes is
-      followed.</p>
-    <div class="grid4">
-      <div class="card rule"><h3>Standing is derived</h3><p>No field says "confirmed". Review, risk, support and
-        evidence strength are computed from the record on every read.</p></div>
-      <div class="card rule"><h3>Nothing is rewritten</h3><p>Append-only, SHA-256 hash-chained. Corrections are new
-        versions; withdrawals stay on record. <code>verify()</code> catches any edit.</p></div>
-      <div class="card rule"><h3>Reviews pin versions</h3><p>Revise a checked claim and its check goes stale. A
-        decision based on the old version is flagged to revisit.</p></div>
-      <div class="card rule"><h3>Claims carry numbers</h3><p>Every number bound to a result field. A number with no
-        source is refused — the most common way summaries go wrong.</p></div>
-      <div class="card rule"><h3>Independence is counted</h3><p>Three results from one run are one line of evidence,
-        not three. Lines that share data or a source merge.</p></div>
-      <div class="card rule"><h3>Exclusions need power</h3><p>"Rules out" only after a search was shown to find a
-        planted answer. Otherwise it's inconclusive.</p></div>
-      <div class="card rule"><h3>Nobody reviews their own</h3><p>Only named reviewers' verdicts count, never on their
-        own work. Everyone else's are kept as comments.</p></div>
-      <div class="card rule"><h3>Instruments speak for themselves</h3><p>Only the lab runner files a lab-recorded run.
-        A run you describe is labelled as your report.</p></div>
-    </div>
+<section class="block" id="record"><div class="wrap">
+  <div class="kicker">This page has a record</div>
+  <h2 class="h">We hold this page to the rules it describes.</h2>
+  <p class="sub">The figures above are claims in a HypGraph record built with the page. The build's instrument measures
+    them, a reviewer re-measures each another way, and the page's text is checked against the record with
+    <code>hypgraph check</code>, so a figure the record doesn't hold doesn't reach the page. Open it in the app above
+    with <a href="#product" data-show="page">This page's record</a>, or download <a href="data/site-record.bundle.json">the bundle</a>
+    and <a href="verify/">verify it</a> yourself.</p>
+  <div id="record-claims"></div>
+</div></section>
+
+<section class="block" id="trust"><div class="wrap">
+  <div class="kicker">Trust</div>
+  <h2 class="h">What the record shows, and what it doesn't claim.</h2>
+  <div class="grid2 claims">
+    <div class="card yes"><h3>✓ It shows</h3><ul>
+      <li>that no event was changed after it was written: each write is hashed into a chain, and anyone can re-check it;</li>
+      <li>which numbers in a claim are bound to which result, and which run produced it;</li>
+      <li>who checked what, against which version, and whether that version is still current;</li>
+      <li>what falls if a premise is withdrawn.</li></ul></div>
+    <div class="card"><h3>— It doesn't claim</h3><ul>
+      <li>that a claim is true. It checks what was written against what was recorded;</li>
+      <li>to make a model reason better. It keeps a model's overclaims out of the record;</li>
+      <li>anything about telemetry carried in a bundle: that sits outside the hash chain;</li>
+      <li>to check events a scoped bundle redacts. Verification says when a bundle is scoped.</li></ul></div>
   </div>
-</section>
-
-<section class="block" id="profiles">
-  <div class="wrap">
-    <div class="kicker">One record, five disciplines</div>
-    <h2 class="h">What counts as done is the record's rule, not the prompt's.</h2>
-    <p class="sub">A profile says what a domain means by evidence, acceptance and done — and, since 0.5, carries the
-      discipline's own <b>workflow</b>: the stages a question passes through and the gate out of each. Pinned on the
-      investigation, versioned, frozen: <code>trading@2</code> means the same thing in a year. The scientific case is the
-      default; the others change what an order must meet, what the record refuses at write time, what invalidates
-      evidence, and what "complete" means. No prompt has to be obeyed for any of it to hold.</p>
-    <div class="grid4">
-      <div class="card rule"><h3>scientific</h3><p>A hypothesis with predictions, an experiment preregistered
-        <b>before</b> any run, numbers bound to results, a reviewer's check on fresh evidence. A corrected data file puts
-        what rested on it at risk.</p></div>
-      <div class="card rule"><h3>software</h3><p>The change as a diff by hash; "it passes" is the <b>instrument's</b>
-        run of the tests <b>on that head</b>. A newer commit supersedes the old diff and the tests go stale.</p></div>
-      <div class="card rule"><h3>trading</h3><p>A thesis is a hypothesis; the backtest is preregistered; an edge exists
-        <b>out of sample, after costs, with the configurations tried declared</b>. A position is a decision with size,
-        stop and review date — paper, or declined.</p></div>
-      <div class="card rule"><h3>knowledge</h3><p>A source carries <b>the passage that says it</b>, when it was read and
-        what kind it is; the claim cites it; a withdrawn source puts every claim citing it at risk. No source? A checked
-        inconclusive answer settles the question honestly.</p></div>
-      <div class="card rule"><h3>optimization</h3><p>The instance by hash, the model as a hypothesis, a result with
-        objective, <b>feasible</b>, and a <b>bound or gap</b>; a verifier recomputes feasibility. "Optimal" on a changed
-        instance is refused.</p></div>
-      <div class="card rule"><h3>yours</h3><p>A profile is vocabulary, predicates, refusals, completion criteria and a
-        <code>Workflow</code> — one object. <code>stage()</code>, <code>completion()</code> and
-        <code>/api/graph/profiles</code> show it; <a href="https://hypswarm.com">HypSwarm</a> issues each stage's order.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="block" id="workflows">
-  <div class="wrap">
-    <div class="kicker">Workflows</div>
-    <h2 class="h">The stage is derived, never set.</h2>
-    <p class="sub">Each workflow is the discipline's own method, taken from how it is practised — the scientific method
-      with preregistration, continuous integration and code review, preregistered backtesting and risk management,
-      source criticism, operations research — and written as gates the record checks. A question is in the first stage
-      whose gate the record does not meet: agents write nodes, the record reads the stage off them. Every workflow has a
-      gate that a prompt cannot keep, because the thing that moves is outside the agent's context.</p>
-
-    <div class="wf"><div class="wfh"><i class="sci"></i>scientific <span>the hypothetico-deductive method, preregistered</span></div>
-      <ol class="flow">
-        <li><b>asked</b><span>a question</span></li>
-        <li><b>conjectured</b><span>a hypothesis with predictions answers it</span></li>
-        <li><b>preregistered</b><span>an experiment tests it, expected outcome stated, <em>before</em> any run</span></li>
-        <li><b>run</b><span>a run executes the experiment</span></li>
-        <li><b>evidenced</b><span>a result the run produced</span></li>
-        <li><b>claimed</b><span>a claim with its numbers bound</span></li>
-        <li><b>reviewed</b><span>a reviewer's check — on fresh evidence</span></li>
-      </ol>
-      <div class="ref"><b>the gate a prompt can't keep</b> a corrected data file after the analysis: every result whose run used it goes stale, and a check on stale evidence doesn't count</div>
-    </div>
-
-    <div class="wf"><div class="wfh"><i class="sw"></i>software <span>continuous integration and code review</span></div>
-      <ol class="flow">
-        <li><b>specified</b><span>the requirement</span></li>
-        <li><b>implemented</b><span>a diff artifact: base → head sha, files</span></li>
-        <li><b>verified</b><span>the instrument ran the tests <em>on that head</em></span></li>
-        <li><b>claimed</b><span>"requirement met", bound to the lab result</span></li>
-        <li><b>reviewed</b><span>by someone who wrote neither the claim nor the diff</span></li>
-      </ol>
-      <div class="ref"><b>the gate a prompt can't keep</b> a commit after the tests ran: the newer head supersedes the diff, the tests go stale, the gate reopens — a model that ran the tests at 14:02 doesn't know about the commit at 14:10</div>
-    </div>
-
-    <div class="wf"><div class="wfh"><i class="tr"></i>trading <span>preregistered backtesting, risk management</span></div>
-      <ol class="flow">
-        <li><b>asked</b><span>the market question</span></li>
-        <li><b>thesised</b><span>a hypothesis: the move, the horizon</span></li>
-        <li><b>preregistered</b><span>windows, costs, configurations — before the run</span></li>
-        <li><b>backtested</b><span>out of sample, after costs, trials declared</span></li>
-        <li><b>claimed</b><span>the edge, or its absence</span></li>
-        <li><b>risk-reviewed</b><span>the risk seat checks it</span></li>
-        <li><b>positioned</b><span>size, stop, review date, paper — or declined</span></li>
-        <li><b>monitored</b><span>past its review date with nothing newer: flagged</span></li>
-      </ol>
-      <div class="ref"><b>the gate a prompt can't keep</b> time: a backtest past its review date, a regime notice that withdraws the data</div>
-    </div>
-
-    <div class="wf"><div class="wfh"><i class="kn"></i>knowledge <span>source criticism, fact-checking practice</span></div>
-      <ol class="flow">
-        <li><b>asked</b><span>a question</span></li>
-        <li><b>searched</b><span>where it looked, what it excluded (optional)</span></li>
-        <li><b>sourced</b><span>the passage that says it, retrieved, kind</span></li>
-        <li><b>claimed</b><span>a claim that cites it</span></li>
-        <li><b>checked</b><span>the fact-checker opened the source</span></li>
-      </ol>
-      <div class="ref"><b>the gate a prompt can't keep</b> a retracted or superseded source: every claim citing it goes at risk</div>
-    </div>
-
-    <div class="wf"><div class="wfh"><i class="op"></i>optimization <span>operations-research practice: model, solve, bound, verify</span></div>
-      <ol class="flow">
-        <li><b>posed</b><span>the question and the instance by hash</span></li>
-        <li><b>modelled</b><span>the modelling choice, as a hypothesis</span></li>
-        <li><b>configured</b><span>solver, limits, tolerances — before the solve</span></li>
-        <li><b>solved</b><span>objective, feasible, bound or gap — or infeasible</span></li>
-        <li><b>verified</b><span>a verifier recomputed feasibility</span></li>
-        <li><b>claimed</b><span>best found with its gap, or optimal with its bound</span></li>
-        <li><b>checked</b><span>the verifier checks the claim</span></li>
-      </ol>
-      <div class="ref"><b>the gate a prompt can't keep</b> a changed instance after the solve: it supersedes the old one, the solve goes stale, "optimal" on it is refused</div>
-    </div>
-
-    <p class="sub"><code>g.stage(question)</code> · <code>GET /api/graph/stages</code> · MCP <code>stage</code>. An honest "it can't
-      be answered" — a checked claim of kind <code>inconclusive</code>, derived from what the search did find — settles a
-      question at any stage. The method each workflow is taken from, and the decisions behind each gate, are in
-      <a href="https://github.com/voodoomods/hypgraph/tree/main/docs/workflows">docs/workflows</a>; the <code>@1</code>
-      profiles stay frozen as they were.</p>
-  </div>
-</section>
-
-<section class="block">
-  <div class="wrap">
-    <div class="kicker">Where it fits</div>
-    <h2 class="h">Anywhere an agent's conclusions have to hold up.</h2>
-    <div class="grid4">
-      <div class="card"><div class="n">autonomous research</div><h3>Agents that can't fool themselves</h3><p>Long
-        investigations where agents plan experiments, run them and draw conclusions — with the premise chains, the
-        reviews and the "what's actually established" kept honest by the record, not by the prompt.</p></div>
-      <div class="card"><div class="n">ML evaluation</div><h3>Eval reports with their numbers attached</h3><p>Every
-        accuracy, delta and win rate bound to the run that produced it; "beats the baseline" only with the counts;
-        "no effect" only after a planted effect was found.</p></div>
-      <div class="card"><div class="n">multi-agent teams</div><h3>Roles the record enforces</h3><p>Critic agents as
-        reviewers, the job runner as the only instrument, every agent its own author. Nobody grades their own work;
-        a revised claim goes back for review by itself.</p></div>
-      <div class="card"><div class="n">audit &amp; hand-off</div><h3>A record others can verify</h3><p>One bundle a
-        reviewer, a regulator or the next team can check with SHA-256 — every claim's standing, every run's hashes,
-        every verdict pinned to the version it judged.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="block">
-  <div class="wrap grid2" style="align-items:center">
-    <div>
-      <div class="kicker">Trust, but verify</div>
-      <h2 class="h">Check any record in your browser.</h2>
-      <p class="sub">A bundle carries every event as the exact string that was hashed. Verifying it is SHA-256 over
-        strings — no trust in us, our code or the sender. Drop one in and it opens in HypGraph.</p>
-      <div class="row"><a class="btn primary" href="verify/">Verify a bundle</a><a class="btn" href="play/">Try the engine live</a></div>
-    </div>
-    <div class="stack">
-      <div class="code"><span class="lbl">install</span><pre>pip install hypgraph            # no dependencies
-pip install "hypgraph[mcp]"     # + the MCP server</pre></div>
-      <div class="code"><span class="lbl">share</span><pre>hypgraph export -o study.bundle.json
-hypgraph verify study.bundle.json</pre></div>
-    </div>
-  </div>
-</section>
+  <p class="note" style="margin-top:20px">It runs where you run it: a local file, no account, and no network calls of its
+    own. Releases are published to PyPI from GitHub Actions by trusted publishing.</p>
+</div></section>
 </main>
 
 <footer>
   <div class="wrap">
     <span class="slogan">Don't believe the hype. Test the hyp.</span>
     <span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a> ·
-      <a href="llms.txt">llms.txt</a> · <a href="spec/">spec</a></span>
+      <a href="llms.txt">llms.txt</a> · <a href="spec/">spec</a> · <a href="https://hypswarm.com">HypSwarm</a></span>
   </div>
 </footer>
 
@@ -391,6 +234,7 @@ hypgraph verify study.bundle.json</pre></div>
 <script src="app/vendor/cytoscape-fcose.js" defer></script>
 <script src="app/hypgraph.js" defer></script>
 <script src="assets/site.js" defer></script>
-<script src="assets/embed.js" defer></script>
+<script src="assets/site-data.js" defer></script>
+<script src="assets/home.js" defer></script>
 </body>
 </html>

@@ -43,7 +43,8 @@ def chrome_path(given: str = "") -> str:
 EXAMPLES = ["scientific", "software", "trading", "knowledge", "optimization"]
 # site page, the view it must open on ("" = no app on the page), text the page must contain
 SITE_PAGES = ([(f"examples/{k}/", "live", ["Replaying", "not hash-chained", 'aria-current="page"']) for k in EXAMPLES]
-              + [("", "overview", ["Broad Street"]), ("explore/", "overview", []), ("atlas/", "overview", []),
+              + [("", "live", ["chain verified", "Replaying", "data-open-claim", 'class="card ref"', "0 errors"]),
+                 ("explore/", "overview", []), ("atlas/", "overview", []),
                  ("examples/", "", ['class="excard"'] * 1 + [f'href="{k}/"' for k in EXAMPLES])])
 
 
@@ -81,7 +82,7 @@ def check(dom: str, view: str, el: str = "app", telemetry: bool = False) -> str:
     if f'data-hg-view="{view}"' not in attrs:
         return f"rendered {re.search(r'data-hg-view=\"([^\"]*)\"', attrs).group(1) if 'data-hg-view' in attrs else 'nothing'}, not {view}"
     want = HEADINGS[view]
-    h1 = re.search(r"<h1>(.*?)</h1>", dom, re.S)
+    h1 = re.compile(r"<h1>(.*?)</h1>", re.S).search(dom, m.end())        # the app's own heading, not the page's
     if not h1 or (want and want not in h1.group(1)):
         return f"heading {h1.group(1) if h1 else 'missing'!r}, wanted {want!r}"
     if view == "graph" and "<canvas" not in dom:
@@ -124,7 +125,8 @@ def main() -> int:
                 url = f"http://127.0.0.1:{port}/site/{page}"
                 shot = (shots / ("site-" + (page.strip("/").replace("/", "-") or "home") + ".png")) if shots else None
                 dom = run(chrome, url, shot=shot)
-                why = check(dom, view, "[data-hypgraph]", telemetry=page.startswith("examples/")) if view else ""
+                why = (check(dom, view, "app" if page == "" else "[data-hypgraph]", telemetry=page.startswith("examples/"))
+                       if view else "")
                 why = why or next((f"missing {x!r}" for x in extra if x not in dom), "")
                 if view and not why and "chain verified" not in dom:
                     why = "the hash chain wasn't verified in the browser"
