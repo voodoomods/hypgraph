@@ -30,7 +30,9 @@ EXCLUSION = re.compile(
     r"\b(no (?:effect|difference|impact|influence|benefit|improvement|association|relationship)|"
     r"makes? no difference|has no bearing|(?:does|do|did)(?: not|n't) (?:affect|matter|help|work|change|improve)|"
     r"doesn't (?:affect|matter|help|work|change|improve)|not (?:associated|related|correlated)|ineffective|"
-    r"useless|rules? out|ruled out|excludes?|unrelated to)\b", re.I)
+    r"useless|(?:rules? out|ruled out|excludes?)(?!\s+(?:zero|0(?:\.0+)?|the null|null|chance|a zero|one|"
+    r"1(?:\.0+)?)\b)|unrelated to)\b", re.I)
+# "the 95 % CI excludes zero", "rules out chance": leaving out the null value asserts an effect, not its absence
 HEDGE = re.compile(r"\b(could|might|may|likely|probably|perhaps|possibly|suggests?|consistent with|"
                    r"aligns? with|plausibl\w*)\b", re.I)
 
