@@ -340,6 +340,15 @@ def _done_text(pred: dict, target_type: str = "") -> str:
 
 
 # ── issuing and settling ──────────────────────────────────────────
+def _known_predicates(preds: list[dict]) -> None:
+    """Refuse a predicate the record can't evaluate: an order carrying one can never be met."""
+    from .graph import GraphError
+    bad = [p["p"] for p in preds if p["p"] not in PREDICATES and p["p"] not in profiles.PRED_DESC]
+    if bad:
+        raise GraphError(f"unknown predicate(s) {bad}: write each as {{\"p\": \"claim_made\"}}; predicates: "
+                         + ", ".join(sorted(set(PREDICATES) | set(profiles.PRED_DESC))))
+
+
 def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str, objective: str, role: str = "",
                done_when: list | None = None, prediction: str = "", method: str = "", budget: dict | None = None,
                premises: list | None = None, lease_minutes: int = 240, note: str = "") -> dict:
@@ -367,10 +376,7 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
         raise GraphError(f"{lease['agent']} holds {_code(s, t)} until {lease['expires']}")
     preds = [norm_pred(p) for p in (done_when or profiles.default_done(s, inv, s.nodes[t]["type"])
                                      or DEFAULT_DONE.get(s.nodes[t]["type"], [{"p": "result_exists"}]))]
-    bad = [p["p"] for p in preds if p["p"] not in PREDICATES and p["p"] not in profiles.PRED_DESC]
-    if bad:
-        raise GraphError(f"unknown predicate(s) {bad}: write each as {{\"p\": \"claim_made\"}}; predicates: "
-                         + ", ".join(PREDICATES))
+    _known_predicates(preds)
     if premises is None:
         prem = [a for a, _r, _d in D.ancestors(s, t, limit=40) if s.nodes[a]["type"] not in ("artifact", "task")]
         if s.nodes[t]["type"] == "experiment":
@@ -476,6 +482,8 @@ def rework(g: "Graph", *, author: str, order: str, missing: str, done_when: list
                          "unmeetable as tooled. Change it (rework with done_when=…), accept what was delivered with a "
                          "reason (accept_work needs every predicate met — so change it first), or cancel_work.")
     done_when = [norm_pred(x) for x in done_when] if done_when else None
+    if done_when:                       # a lead reworked with 'claim_answers_q3', an order nothing could meet (S1)
+        _known_predicates(done_when)
     prem = [e["dst"] for e in premises_of(s, order)]
     fields = {"objective": objective or b["objective"], "assignee": b["assignee"], "role": b.get("role", ""),
               "done_when": done_when or b.get("done_when") or [], "prediction": b.get("prediction", ""),

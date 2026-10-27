@@ -452,12 +452,26 @@ GATES: dict[str, Callable[[Scope, str], dict]] = {
 }
 
 
+def skipped(s: D.Snap, q: str, gate: str) -> bool:
+    """A gate the question doesn't need: it asks for a measurement (``asks: "measure"``) and its profile's workflow
+    lists the gate in ``measure_skips``. Every profile's gates used to apply to every question, so a timing question
+    was reworked for a diff and a look-ahead check for a backtest (studies: E2, E4, S1, T1)."""
+    n = s.nodes.get(q) or {}
+    if n.get("type") != "question" or (n.get("body") or {}).get("asks") != "measure":
+        return False
+    p = profile_of(s, n["inv"])
+    return bool(p and p.workflow and gate in p.workflow.measure_skips)
+
+
 def evaluate_predicate(p: str, s: D.Snap, t: str, at: str, inv: str, who: str = "") -> dict:
     """A workflow gate as an order predicate: scoped to the target's question plus what the assignee wrote under
-    the order; only evidence since the order counts."""
+    the order; only evidence since the order counts. A gate the question doesn't need is met."""
     if not t or t not in s.nodes:
         return {"met": False, "evidence": [], "why": "the order has no target"}
-    return GATES[p](Scope(s, t, since=at, who=who), s.now)
+    sc = Scope(s, t, since=at, who=who)
+    if skipped(s, sc.root, p):
+        return {"met": True, "evidence": [], "why": "", "skipped": True}
+    return GATES[p](sc, s.now)
 
 
 def _claim_results(s: D.Snap, c: str) -> list[str]:
@@ -494,10 +508,12 @@ def stage_of(s: D.Snap, t: str, now: str = "") -> dict:
     now = now or s.now
     gates, stage, nxt = [], None, ""
     for i, st in enumerate(p.workflow.stages):
+        skip = skipped(s, q, st.gate)
         r = GATES[st.gate](sc, now)
-        gates.append({"stage": st.name, "gate": st.gate, "met": r["met"], "optional": st.optional, "why": r["why"],
-                      "evidence": [sc.code(x) for x in r["evidence"][:6]], "who": st.who})
-        if stage is None and not r["met"] and not st.optional:
+        gates.append({"stage": st.name, "gate": st.gate, "met": r["met"], "optional": st.optional or skip,
+                      "why": "not needed: the question asks for a measurement" if skip and not r["met"] else r["why"],
+                      "evidence": [sc.code(x) for x in r["evidence"][:6]], "who": st.who, "skipped": skip})
+        if stage is None and not r["met"] and not st.optional and not skip:
             stage, nxt = (i, st.name), r["why"]
     stages = p.workflow.stages
     # An honest "it can't be answered" ends a question whatever its stage: a checked claim of kind inconclusive
@@ -667,6 +683,8 @@ def criterion(name: str, s: D.Snap, inv: str) -> dict:
     if name == "requirements_verified_current":
         bad = []
         for q in qs:
+            if skipped(s, q, "tests_pass_current"):     # a measurement of the code as it is isn't a requirement
+                continue
             ok = False
             for c in _checked_claims(s, q):              # any checked answer resting on a fresh instrument run
                 rs = [e["src"] for e in s.inn.get(c, []) if e["rel"] == "supports"] + \

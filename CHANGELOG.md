@@ -1,7 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 — 2026-10-27: measure questions, and claim checks that know a version from a figure
 
+- **Measure questions.** A question may say `asks: "measure"`, and its workflow's `measure_skips` gates then don't
+  apply to it, in `Graph.stage()` and as order predicates. Until now every question met every gate of its profile:
+  a timing question was reworked for a diff, a count for a preregistered hypothesis, a look-ahead check for a
+  backtest. Real-model runs lost most of their calls to those reworks. `profiles.view()` lists the skipped gates.
+- **Claim checks:** dotted versions, inline code and labels (case 8, cases 9–12, #3) aren't figures; a measurement's
+  key written in place of its number is refused (KEY_FOR_NUMBER); a statement that says nothing ("Placeholder.")
+  is refused (STATEMENT_EMPTY).
+- **A rework's predicates are checked like an order's:** an unknown predicate is refused, naming every predicate the
+  target can take. A lead had reworked an order with an invented one (`claim_answers_q3`) that could never be met.
+- **Trading: a statistic about returns isn't a return earned.** Correlations, hit rates and other diagnostics of
+  returns no longer need fees and slippage (BACKTEST_WITHOUT_COSTS); a return, P&L or Sharpe still does.
 - **hypgraph.com in the app's design system.** One stylesheet on the HypGraph app's tokens and components, light by
   default, restyles every page. The new homepage:
   - opens on the live app, which can switch between the five workflows, Broad Street and the page's own record;

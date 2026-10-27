@@ -55,6 +55,7 @@ class Workflow:
     artifacts: dict = field(default_factory=dict)         # artifact kind → required meta keys (path always required)
     decisions: dict = field(default_factory=dict)         # decision kind → required fields
     report: str = "Facts from the record"                 # the report's name
+    measure_skips: tuple = ()                             # gates a question with asks=measure doesn't need
 
 
 @dataclass(frozen=True)
@@ -262,6 +263,8 @@ SCIENTIFIC2 = _add(Profile(
                 _S("decided", "a decision based on the claim", "decided", "lead", optional=True)),
         invalidates=("uses",),
         artifacts={"data": (), "protocol": (), "figure": ()},
+        # a rate, a count, a fact about the data: no conjecture to preregister — the run, result, claim and review stay
+        measure_skips=("hypothesis_stated", "preregistered"),
     )))
 
 SOFTWARE2 = _add(Profile(
@@ -287,6 +290,8 @@ SOFTWARE2 = _add(Profile(
         invalidates=("uses",),
         artifacts={"diff": ("base_sha", "head_sha", "files"), "test_run": ("command", "exit_code"), "build": ("head_sha",)},
         report="Change report",
+        # verifying or timing the code as it is: no change to make, no suite that must pass on a new head
+        measure_skips=("diff_registered", "tests_pass_current"),
     )))
 
 TRADING2 = _add(Profile(
@@ -319,6 +324,8 @@ TRADING2 = _add(Profile(
         artifacts={"prices": ("from", "to", "frequency"), "backtest": ("trials",)},
         decisions={"position": ("size", "stop", "review_date", "paper")},
         report="Desk note",
+        # a check of the data or a signal (look-ahead, gaps, a correlation): no thesis to backtest, nothing to position
+        measure_skips=("hypothesis_stated", "preregistered", "backtested", "positioned", "still_valid"),
     )))
 
 KNOWLEDGE2 = _add(Profile(
@@ -574,6 +581,11 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
     return out
 
 
+# a statistic *about* returns (a signal's correlation with tomorrow's return, a hit rate, the volatility) isn't a return
+# a strategy earned and charges no costs: a look-ahead diagnostic was refused three times as a backtest (studies T1)
+_STAT_OF_RETURNS = re.compile(r"corr|agree|match|hit_rate|_ic\b|beta|volatil|std|skew|kurt", re.I)
+
+
 def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None) -> list[Problem]:
     p = profile_of(s, inv)
     if not p:
@@ -583,8 +595,8 @@ def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None) 
     if "objective_needs_feasibility" in p.validators and "objective" in v and "feasible" not in v:
         out.append(Problem("OBJECTIVE_WITHOUT_FEASIBILITY", "a result reports an objective value without saying whether "
                            "the solution is feasible", fix="add values.feasible (true/false) and bound or gap"))
-    if "backtest_needs_costs" in p.validators and _has(v, r"return|sharpe|pnl|cagr|profit") and \
-            not _has(v, r"fee|cost|slippage|commission"):
+    earned = [k for k in v if re.search(r"return|sharpe|pnl|cagr|profit", k) and not _STAT_OF_RETURNS.search(k)]
+    if "backtest_needs_costs" in p.validators and earned and not _has(v, r"fee|cost|slippage|commission"):
         out.append(Problem("BACKTEST_WITHOUT_COSTS", "a backtest result reports returns without the costs it charged",
                            fix="add values for fees and slippage (zero is a value; absence isn't)"))
     if p.workflow:
@@ -681,7 +693,7 @@ def _wf(w: Workflow | None) -> dict | None:
             "stages": [{"name": st.name, "holds": st.holds, "gate": st.gate, "who": st.who, "optional": st.optional}
                        for st in w.stages],
             "artifacts": {k: ["path", *v] for k, v in w.artifacts.items()},
-            "decisions": {k: list(v) for k, v in w.decisions.items()}}
+            "decisions": {k: list(v) for k, v in w.decisions.items()}, "measure_skips": list(w.measure_skips)}
 
 
 def labels_of(p: Profile | None) -> dict[str, str]:
