@@ -231,4 +231,4 @@ the writer's assertion. Codes are matched within the investigation being reporte
 | warning | `REPORT_CAUSAL_UNCITED` | causal language with no node cited |
 | note | `REPORT_BOUND` | an absolute backed by a cited count: what the count supports |
 
-Calibrated on 24 real write-ups from PegasusDMZ against its live record.
+Calibrated on 24 real write-ups checked against the live record they report on.

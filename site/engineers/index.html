@@ -31,7 +31,7 @@
   <a href="#connect">Connecting agents</a><a href="#runs">Recording runs</a><a href="#workflows">Profiles &amp; workflows</a><a href="#evals">Recipe: eval reports</a>
   <a href="#spend">Cost</a><a href="#http">HTTP &amp; the UI</a><a href="#ci">Bundles in CI</a>
   <a href="#lint">Lint the write-up</a><a href="#refusals">The refusal log</a>
-  <a href="#perf">Performance</a><a href="#reference">Reference deployment</a>
+  <a href="#perf">Performance</a>
 </nav>
 <article class="prose">
 
@@ -228,7 +228,7 @@ hypgraph check --strict summary.md     # warnings (unsourced numbers …) fail t
 </table>
 <p>Warnings: numbers no result contains or implies, disputes left out, superseded citations, uncited causal language.
   Code blocks, inline code, URLs, quoted passages, negations ("cannot be proven") and instructions ("never use the eval
-  set") are not treated as claims — calibrated on two dozen real write-ups from PegasusDMZ against its live record.
+  set") are not treated as claims — calibrated on two dozen real write-ups checked against the live record they report on.
   In Python: <code>g.check_text(text, inv)</code>; over HTTP: <code>POST /api/graph/check</code>; for agents: the MCP tool
   <code>check_report</code>.</p>
 
@@ -246,21 +246,17 @@ hypgraph refusals --author analyst     # one agent's refusals in full</pre></div
 <table>
   <thead><tr><th>nodes</th><th>derive all standing</th><th>read one node</th><th>write</th><th>verify chain</th></tr></thead>
   <tbody>
-    <tr><td>1,000</td><td>0.02 s</td><td>0.1 ms</td><td>~6 ms</td><td>0.02 s</td></tr>
-    <tr><td>3,300</td><td>0.07 s</td><td>0.2 ms</td><td>~7 ms</td><td>0.07 s</td></tr>
-    <tr><td>10,000</td><td>0.09 s</td><td>0.3 ms</td><td>~10 ms</td><td>0.18 s</td></tr>
+    <tr><td>1,001</td><td>0.047 s</td><td>0.1 ms</td><td>5.7 ms</td><td>0.028 s</td></tr>
+    <tr><td>3,301</td><td>0.095 s</td><td>0.07 ms</td><td>6.0 ms</td><td>0.07 s</td></tr>
+    <tr><td>10,001</td><td>0.37 s</td><td>0.07 ms</td><td>11.4 ms</td><td>0.21 s</td></tr>
   </tbody>
 </table>
-<p>Pure Python, measured on a laptop. A write costs what it touches: snapshots share untouched data, and cached
-  standing survives for every node the write can't reach (checked against a full rebuild by a randomized test
-  suite). Most of a write is SQLite committing to disk.</p>
+<p>Pure Python, measured with <code>python dev/bench.py --nodes N</code> on one Windows laptop (Python 3.13, hypgraph
+  0.6). Its record is one investigation of questions, results bound to values, claims derived from them and reviews
+  on some; derivation grows in step with the record. A write costs what it touches: snapshots share untouched data,
+  and cached standing survives for every node the write can't reach (checked against a full rebuild by a randomized
+  test suite). Most of a write is SQLite committing to disk. Run the benchmark for your machine and your sizes.</p>
 
-<h2 id="reference">Reference deployment</h2>
-<p>HypGraph is the research graph of PegasusDMZ — a governed team of a few dozen AI agents doing long investigations
-  behind an egress firewall. There, the graph lives in the proxy; agents reach it only through a broker that fixes
-  their author; the lab's job runner is the instrument; critic agents form a review board; a heartbeat routes
-  unchecked claims to reviewers and fallen premises back to their authors; and spend comes from the proxy's metered
-  ledger. Its <code>/atlas</code> page is this package's UI.</p>
 </article>
 </div>
 </main>

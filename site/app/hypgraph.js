@@ -116,7 +116,7 @@
   // ── data sources ──────────────────────────────────────────────────
   const settle = async (p) => { try { return await p; } catch { return null; } };   // a route a host doesn't serve → null
 
-  /** Live: the JSON API of `hypgraph serve`, or any host that serves the same routes (PegasusDMZ's /api/graph). */
+  /** Live: the JSON API of `hypgraph serve`, or any host that serves the same routes under its own prefix. */
   function HttpSource(base = '/api/graph', fetchOpts = {}) {
     const get = async (path) => {
       const r = await fetch(base + path, fetchOpts);

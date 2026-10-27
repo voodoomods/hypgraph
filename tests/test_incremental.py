@@ -27,7 +27,7 @@ def test_carried_standing_equals_a_rebuild_after_random_writes(tmp_path, seed):
 
     for step in range(140):
         op = rnd.choice(["run", "result", "claim", "claim", "hypothesis", "source", "artifact", "review", "review",
-                         "withdraw", "revise", "link", "lease", "decision", "supersede", "fail_run"])
+                         "withdraw", "revise", "link", "lease", "decision", "supersede", "fail_run", "revise_result"])
         try:
             if op == "run":
                 links = [{"rel": "uses", "to": pick("artifact"), "data": {"role": "data"}}] if ids["artifact"] else []
@@ -42,8 +42,16 @@ def test_carried_standing_equals_a_rebuild_after_random_writes(tmp_path, seed):
                 links = [{"rel": "produced", "from": pick("run")}] if ids["run"] and rnd.random() < .8 else []
                 if ids["source"] and rnd.random() < .2:
                     links.append({"rel": "cites", "to": pick("source")})
-                ids["result"].append(g.create(author=imp, type="result", inv=inv, links=links, fields={
-                    "summary": f"Result {step} of the random run.", "kind": rnd.choice(["computed", "cited"])})["id"])
+                # numbers from a small pool, by several authors: results repeat each other (derive.restates), and
+                # whether one does can change with a write that reaches it through no edge
+                values = {"m": {"k": rnd.choice([40, 41]), "n": rnd.choice([90, 91])}}
+                ids["result"].append(g.create(author=rnd.choice([imp, "ana", "ben"]), type="result", inv=inv,
+                                              links=links, fields={"summary": f"Result {step} of the random run.",
+                                                                   "kind": rnd.choice(["computed", "cited"]),
+                                                                   "values": values})["id"])
+            elif op == "revise_result" and ids["result"]:
+                g.revise(author="operator", node=pick("result"), reason="the count was redone from the items",
+                         fields={"values": {"m": {"k": rnd.choice([40, 41]), "n": rnd.choice([90, 91])}}})
             elif op == "source":
                 ids["source"].append(g.create(author=imp, type="source", inv=inv,
                                               fields={"citation": f"Author {step}, a paper, 2026."})["id"])

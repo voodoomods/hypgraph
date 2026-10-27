@@ -147,7 +147,7 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
 <p>Running many agents? Embed the library and set the trust yourself: <code>Graph(path, policy=Policy(reviewers=…,
   instrument="lab", operator="operator"))</code>. Fix each caller's <code>author</code> on your side and refuse the
   reserved names. Give your job runner the instrument identity so its runs count as lab-recorded. Pass
-  <code>spend=</code> to price the work behind each investigation. PegasusDMZ runs a team of agents on exactly this. The <a href="../engineers/">engineering guide</a> has the patterns.
+  <code>spend=</code> to price the work behind each investigation. The <a href="../engineers/">engineering guide</a> has the patterns.
   The HTTP API (<code>hypgraph.server.dispatch</code>) and the HypGraph UI (<code>hypgraph.ui.static_dir()</code>) drop into
   any web framework.</p>
 
