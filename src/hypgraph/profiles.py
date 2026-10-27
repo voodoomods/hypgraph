@@ -581,6 +581,11 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
     return out
 
 
+# a statistic *about* returns (a signal's correlation with tomorrow's return, a hit rate, the volatility) isn't a return
+# a strategy earned and charges no costs: a look-ahead diagnostic was refused three times as a backtest (studies T1)
+_STAT_OF_RETURNS = re.compile(r"corr|agree|match|hit_rate|_ic\b|beta|volatil|std|skew|kurt", re.I)
+
+
 def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None) -> list[Problem]:
     p = profile_of(s, inv)
     if not p:
@@ -590,8 +595,8 @@ def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None) 
     if "objective_needs_feasibility" in p.validators and "objective" in v and "feasible" not in v:
         out.append(Problem("OBJECTIVE_WITHOUT_FEASIBILITY", "a result reports an objective value without saying whether "
                            "the solution is feasible", fix="add values.feasible (true/false) and bound or gap"))
-    if "backtest_needs_costs" in p.validators and _has(v, r"return|sharpe|pnl|cagr|profit") and \
-            not _has(v, r"fee|cost|slippage|commission"):
+    earned = [k for k in v if re.search(r"return|sharpe|pnl|cagr|profit", k) and not _STAT_OF_RETURNS.search(k)]
+    if "backtest_needs_costs" in p.validators and earned and not _has(v, r"fee|cost|slippage|commission"):
         out.append(Problem("BACKTEST_WITHOUT_COSTS", "a backtest result reports returns without the costs it charged",
                            fix="add values for fees and slippage (zero is a value; absence isn't)"))
     if p.workflow:

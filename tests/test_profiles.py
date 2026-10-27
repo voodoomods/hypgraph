@@ -76,6 +76,10 @@ def test_trading_edge_needs_out_of_sample_and_costs():
     g, inv, q = _g("trading@1")
     with pytest.raises(GraphError, match="BACKTEST_WITHOUT_COSTS"):
         _run_result(g, inv, "quant", {"return": {"value": 0.31}, "sharpe": {"value": 1.4}}, summary="Backtested the thesis.")
+    # a statistic about returns isn't a return earned: a look-ahead diagnostic needs no costs (studies T1)
+    _run_result(g, inv, "quant", {"corr_signal_next_day_return": {"value": 0.338},
+                                  "signal_matches_next_return_sign": {"k": 1056, "n": 1499}},
+                summary="The signal's correlation with the next day's return.")
     _r, rs_in = _run_result(g, inv, "quant", {"return": {"value": 0.31}, "fees": {"value": 0.002}}, summary="In-sample backtest.")
     with pytest.raises(GraphError, match="EDGE_WITHOUT_OOS_COSTS"):
         g.create(author="quant", type="claim", inv=inv, fields={"statement": "The strategy has an edge of 0.31 a year.",
