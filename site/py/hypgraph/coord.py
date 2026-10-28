@@ -451,7 +451,10 @@ def accept_work(g: "Graph", *, author: str, order: str, reason: str = "", text: 
           if s.nodes[i]["type"] in ("claim", "result", "hypothesis")]
     ev = list(dict.fromkeys(ev))
     met = "; ".join(f"{c['p']}: {', '.join(c['evidence_codes']) or 'met'}" for c in chk["predicates"])
-    fields = {"choice": f"Accept {chk['code']}: {s.nodes[order]['body']['objective'][:200]}",
+    # kind=accepted: the record's bookkeeping, not a position — under trading a kind-less decision whose text quoted
+    # an objective about a "paper position" and that rested on the claims was refused for want of a stop, and the run
+    # crashed as it settled (studies T2)
+    fields = {"choice": f"Accept {chk['code']}: {s.nodes[order]['body']['objective'][:200]}", "kind": "accepted",
               "reasons": (reason.strip() + " — " if reason.strip() else "") + f"every predicate met ({met})"}
     links = [{"rel": "settles", "to": order}] + [{"rel": "based_on", "to": i} for i in ev]
     d = g.create(author=author, type="decision", inv=s.nodes[order]["inv"], fields=fields, links=links)
