@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.2 — 2026-10-28: the honest sentences the rules were refusing, and a nominal effect can't hide its correction
 
 - **Honest sentences the rules were refusing.** Read off every refusal logged in 96 records of the challenge studies
   (846 refusals; each fix replayed on all of them):
