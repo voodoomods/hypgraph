@@ -47,49 +47,116 @@ class GraphError(ValueError):
 SpendFn = Callable[..., dict]
 
 
+def _shape(code: str, message: str, fix: str = "", words: list | None = None) -> GraphError:
+    """A shape refusal: the message, and the fix as its own field so a host can show it and the log can count it."""
+    return GraphError(message + (f" — {fix}" if fix else ""),
+                      [{"code": code, "message": message, "fix": fix, "words": list(words or [])}])
+
+
+# where a field an agent reaches for actually goes (read off 217 shape refusals in a sixteen-challenge sweep)
+_UNKNOWN_FIX = {
+    ("result", "code"): "the code belongs to the run: register the run with code=[…] (and uses → the script's "
+                        "artifact), then link it produced → this result",
+    ("result", "name"): "a result has a summary, not a name; the run has the name",
+    ("result", "uses"): "uses is the run's link to the artifacts it read, not a result field",
+    ("experiment", "data"): "expected goes on the link that tests the hypothesis: links=[{rel: 'tests', to: 'H1', "
+                            "data: {expected: 'what this experiment shows if H1 is true'}}]",
+    ("experiment", "data.expected"): "expected goes on the link that tests the hypothesis: links=[{rel: 'tests', "
+                                     "to: 'H1', data: {expected: '…'}}]",
+    ("claim", "fields"): "pass the claim's fields themselves (statement, scope, kind, measurements), not a fields "
+                         "object",
+}
+_OPTION_FIX = {
+    ("result", "outcome"): "positive: what the summary describes was seen; negative: it was not; inconclusive: "
+                           "neither; failed: the code didn't run; skipped: it wasn't run — one word; the sentence "
+                           "goes in the summary or evidence_note",
+    ("result", "kind"): "computed: from code you ran; observed: measured or read off data; cited: taken from a "
+                        "source",
+    ("claim", "kind"): "finding: what the evidence shows; exclusion: what it rules out; inconclusive; convention: "
+                       "a definition; lead: a hunch to test",
+}
+
+
+_AMBIGUOUS_LEAD = {"fail", "failed", "failure", "error", "errored"}      # the thing under test, or the code?
+_LEAD = re.compile(r"^\s*([A-Za-z][A-Za-z0-9_' -]{0,40}?)\s*(?:—|–|:|-{1,2})\s+(\S.*)$", re.S)
+
+
+def _leading_option(raw: str, syn: dict, opts: list) -> tuple[str, str]:
+    """An option written as a leading word and a sentence — "negative — nothing survives correction",
+    "H1 confirmed: the setting loses" — read as (option, the sentence); ('', '') when there is no such word, and
+    ('?', '') when the word is one whose meaning differs between the thing tested and the code ("fail")."""
+    m = _LEAD.match(raw or "")
+    if not m:
+        return "", ""
+    lead, rest = m.group(1).strip().lower(), m.group(2).strip()
+    tokens = [lead.replace(" ", "_").replace("-", "_")] + lead.replace("-", " ").split()
+    for t in tokens:
+        if t in _AMBIGUOUS_LEAD:
+            return "?", ""
+        v = syn.get(t, t)
+        if v in opts:
+            return v, rest
+    return "", ""
+
+
 def clean_body(ntype: str, body: dict, *, partial_ok: bool = False) -> dict:
-    """Validate and normalise a node's fields against its type (schema.TYPES)."""
+    """Validate and normalise a node's fields against its type (schema.TYPES). Every refusal carries a SHAPE_* code
+    and, where the sweep showed agents reaching for a field that lives elsewhere, says where it goes."""
     spec = TYPES[ntype]["fields"]
     if not isinstance(body, dict):
-        raise GraphError("fields must be an object")
+        raise _shape("SHAPE_NOT_AN_OBJECT", "fields must be an object")
     unknown = sorted(set(body) - set(spec))
     if unknown:
-        raise GraphError(f"{ntype} has no field(s) {unknown}; fields: {', '.join(spec)}")
+        fixes = [f for k in unknown if (f := _UNKNOWN_FIX.get((ntype, k)))]
+        raise _shape("SHAPE_UNKNOWN_FIELD", f"{ntype} has no field(s) {unknown}; fields: {', '.join(spec)}",
+                     "; ".join(fixes) if fixes else f"drop {', '.join(unknown)}", unknown)
     out = {}
     for k, (kind, n, req) in spec.items():
         v = body.get(k)
         if v in (None, "", [], {}):
             if req and not partial_ok:
-                raise GraphError(f"{ntype} needs {k}")
+                raise _shape("SHAPE_MISSING_FIELD", f"{ntype} needs {k}", words=[k])
             continue
         if kind in ("str", "text"):
             v = str(v).strip()
             if len(v) > n:
-                raise GraphError(f"{k} is longer than {n} characters")
+                raise _shape("SHAPE_TOO_LONG", f"{k} is longer than {n} characters", f"shorten {k} to {n} characters",
+                             [k])
             if req and len(v) < (3 if kind == "str" else 10):
-                raise GraphError(f"{k}: say it in a full sentence")
+                raise _shape("SHAPE_TOO_SHORT", f"{k}: say it in a full sentence", words=[k])
         elif kind.startswith("enum:"):
-            v = SYNONYMS.get((ntype, k), {}).get(str(v).strip().lower().replace(" ", "_").replace("-", "_"), str(v).strip())
-            if str(v) not in kind[5:].split("|"):
-                raise GraphError(f"{k} must be one of {kind[5:].replace('|', ', ')}")
+            opts, syn, raw = kind[5:].split("|"), SYNONYMS.get((ntype, k), {}), str(v).strip()
+            v = syn.get(raw.lower().replace(" ", "_").replace("-", "_"), raw)
+            if str(v) not in opts:
+                lead, rest = _leading_option(raw, syn, opts)
+                if lead and lead != "?":
+                    v = lead                      # the word is the option; the sentence stays as the note
+                    if rest and k == "outcome" and "evidence_note" in spec and not str(body.get("evidence_note") or "").strip():
+                        out["evidence_note"] = rest[:spec["evidence_note"][1]]
+                else:
+                    fix = _OPTION_FIX.get((ntype, k), "")
+                    if lead == "?":
+                        fix = ("a leading 'fail' is ambiguous: negative if the code ran and showed the opposite of what "
+                               "the summary tests, failed if the code didn't run" + (f"; {fix}" if fix else ""))
+                    raise _shape("SHAPE_NOT_AN_OPTION", f"{k} must be one of {kind[5:].replace('|', ', ')}", fix, [k])
             v = str(v)
         elif kind == "list":
             if isinstance(v, str):
                 v = [v]
             if not isinstance(v, list) or len(v) > n:
-                raise GraphError(f"{k} must be a list of at most {n} items")
+                raise _shape("SHAPE_WRONG_TYPE", f"{k} must be a list of at most {n} items", words=[k])
         elif kind == "dict":
             if not isinstance(v, dict) or len(canon(v)) > n:
-                raise GraphError(f"{k} must be an object (at most {n} characters)")
+                raise _shape("SHAPE_WRONG_TYPE", f"{k} must be an object (at most {n} characters)", words=[k])
         elif kind == "bool":
             v = bool(v)
         elif kind == "num":
             v = float(v)
             if not math.isfinite(v):
-                raise GraphError(f"{k} must be a finite number")
+                raise _shape("SHAPE_WRONG_TYPE", f"{k} must be a finite number", words=[k])
         elif kind == "any":
             if len(canon(v)) > n:
-                raise GraphError(f"{k} is too long")
+                raise _shape("SHAPE_TOO_LONG", f"{k} is too long", words=[k])
         out[k] = v
     return out
 
@@ -406,10 +473,10 @@ class Graph:
     @staticmethod
     def _check_link(s: D.Snap, src: str, rel: str, dst: str) -> None:
         if rel not in RELS:
-            raise GraphError(f"unknown relation {rel!r}; relations: {', '.join(RELS)}")
+            raise _shape("LINK_UNKNOWN_RELATION", f"unknown relation {rel!r}; relations: {', '.join(RELS)}", words=[rel])
         for x in (src, dst):
             if x not in s.nodes:
-                raise GraphError(f"no node {x}")
+                raise _shape("LINK_NO_NODE", f"no node {x}", "name a node the record holds (its code or id)", [x])
         st, dt = s.nodes[src]["type"], s.nodes[dst]["type"]
         srcs, dsts = RELS[rel]
         if st not in srcs or dt not in dsts:
@@ -417,8 +484,8 @@ class Graph:
             back = [r for r, (a, b) in RELS.items() if dt in a and st in b and r not in SAME_TYPE and r not in joins]
             hint = (f" — a {st} joins a {dt} with {', '.join(joins)}" if joins else "") + \
                    (f"; the other way round, a {dt} joins a {st} with {', '.join(back)}" if back else "")
-            raise GraphError(f"{rel} can't join {st} → {dt} (allowed: {', '.join(sorted(srcs))} → "
-                             f"{', '.join(sorted(dsts))}){hint}")
+            raise _shape("LINK_NOT_ALLOWED", f"{rel} can't join {st} → {dt} (allowed: {', '.join(sorted(srcs))} → "
+                         f"{', '.join(sorted(dsts))}){hint}", words=[rel, st, dt])
         if rel in SAME_TYPE and st != dt:
             raise GraphError(f"{rel} joins two nodes of the same type")
         if src == dst:
@@ -539,7 +606,13 @@ class Graph:
             raise GraphError(f"unknown type {type!r}; types: {', '.join(TYPES)}")
         if type == "review":
             raise GraphError("use review() to record a review")
-        body = clean_body(type, fields)
+        try:
+            body = clean_body(type, fields)
+        except GraphError as e:
+            refusals.record_refusal(self, author=author, op="create", inv=inv or "", node="",
+                                    body=fields if isinstance(fields, dict) else {},
+                                    problems=e.problems or [{"code": "SHAPE", "message": str(e)}], type="shape")
+            raise
         links = [l for l in (links or []) if isinstance(l, dict)]
         with self._lock:
             try:
@@ -666,6 +739,12 @@ class Graph:
                     for (a, rel, b), l in zip(pending, links):
                         self._insert_edge(con, s, a, rel, b, l.get("data") or {}, l.get("why") or "", author, at)
                 self._transaction(write)
+            except GraphError as e:
+                if e.problems and str(e.problems[0].get("code", "")).startswith("LINK_"):
+                    refusals.record_refusal(self, author=author, op="create", inv=inv or "", node="",
+                                            body=fields if isinstance(fields, dict) else {}, problems=e.problems,
+                                            type="link")
+                raise
             finally:
                 # the staged node lives in the cached snapshot: a failed write drops it; after a commit the next
                 # read loads the committed rows over it
@@ -835,7 +914,13 @@ class Graph:
                 if not self._may_revise(s, author, n):
                     raise GraphError(f"only {n['created_by']} (its author), a reviewer or the {P.operator} revises "
                                      f"{n['code']}; challenge it, or propose a node that supersedes it")
-                body = clean_body(n["type"], {**n["body"], **(fields or {})})
+                try:
+                    body = clean_body(n["type"], {**n["body"], **(fields or {})})
+                except GraphError as e:
+                    refusals.record_refusal(self, author=author, op="revise", inv=n["inv"], node=node,
+                                            body=fields if isinstance(fields, dict) else {},
+                                            problems=e.problems or [{"code": "SHAPE", "message": str(e)}], type="shape")
+                    raise
                 extra: list[str] = []
                 auto_notes: list[str] = []
                 if n["type"] == "claim":
@@ -895,6 +980,12 @@ class Graph:
                     self._fixed_guard(s, author, src)
                 eid = self._transaction(lambda con: self._insert_edge(con, s, src, rel, dst, data or {}, why, author,
                                                                       self.clock()))
+            except GraphError as e:
+                if e.problems and str(e.problems[0].get("code", "")).startswith("LINK_"):
+                    refusals.record_refusal(self, author=author, op="link", inv=(s.nodes.get(src) or {}).get("inv", ""),
+                                            node="", body={"statement": f"{src} {rel} {dst}"}, problems=e.problems,
+                                            type="link")
+                raise
             finally:
                 self._after_write()
         return {"edge": eid, "src": src, "rel": rel, "dst": dst, "flipped": flipped}

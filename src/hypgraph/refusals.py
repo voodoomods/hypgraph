@@ -6,7 +6,10 @@ A refused claim never enters the record, so its trace lives here: one append-onl
 chain, separate from the record's events (verify() on the record is unchanged; verify_refusals() checks this log).
 
     kind=refused   author, investigation, the statement (a result's summary), the codes and messages it was
-                   refused with, and the whole body, so the refusal can be replayed against a changed checker
+                   refused with, and the whole body, so the refusal can be replayed against a changed checker;
+                   ``detail.type`` says what was refused — a claim or result (an overclaim the checks caught), or
+                   ``shape`` / ``link`` (a field, an option or a link the schema doesn't have: friction, not an
+                   overclaim, kept apart in the report and skipped by the replay)
     kind=fixed     a later claim or result (or revision) by the same author in the same investigation that was
                    accepted and says the same thing — matched within FIX_WINDOW by the words it shares with the
                    refused statement, for a result also by the value keys it carries again, or the same node for a
@@ -148,15 +151,23 @@ def rows(g: "Graph", inv: str = "", author: str = "", since: str = "", limit: in
     out = []
     for r in con.execute(q, args).fetchall():
         d = dict(zip(cols, r))
+        try:
+            det = json.loads(d["detail"] or "{}")
+        except Exception:  # noqa: BLE001
+            det = {}
         out.append({"id": d["id"], "at": d["at"], "author": d["author"], "inv": d["inv"], "node": d["node"],
                     "op": d["op"], "statement": d["statement"], "codes": json.loads(d["codes"]),
-                    "problems": json.loads(d["detail"]).get("problems", []), "fixed_by": fixes.get(d["id"])})
+                    "type": det.get("type") or "claim", "problems": det.get("problems", []),
+                    "fixed_by": fixes.get(d["id"])})
     return out
 
 
 def report(g: "Graph", inv: str = "", since: str = "") -> dict:
-    """The overclaims caught: per author, per rule, fixed vs abandoned, and the latest ones in full."""
-    rs = rows(g, inv=inv, since=since, limit=5000)
+    """The overclaims caught: per author, per rule, fixed vs abandoned, and the latest ones in full. Shape and
+    link refusals (friction, not overclaims) are counted apart under ``shape``."""
+    all_rows = rows(g, inv=inv, since=since, limit=5000)
+    rs = [r for r in all_rows if r["type"] in REPLAYABLE]
+    shape = [r for r in all_rows if r["type"] not in REPLAYABLE]
     by_author: dict[str, dict] = defaultdict(lambda: {"refused": 0, "fixed": 0, "codes": Counter()})
     by_code: Counter = Counter()
     for r in rs:
@@ -169,14 +180,30 @@ def report(g: "Graph", inv: str = "", since: str = "") -> dict:
                    "codes": dict(v["codes"].most_common())}
                for k, v in sorted(by_author.items(), key=lambda kv: -kv[1]["refused"])}
     out = {"inv": inv, "since": since, "refused": len(rs), "fixed": sum(1 for r in rs if r["fixed_by"]),
-           "by_author": authors, "by_code": dict(by_code.most_common()), "recent": rs[:20]}
+           "by_author": authors, "by_code": dict(by_code.most_common()), "recent": rs[:20],
+           "shape": {"refused": len(shape), "fixed": sum(1 for r in shape if r["fixed_by"]),
+                     "by_code": dict(Counter(c for r in shape for c in r["codes"]).most_common()),
+                     "by_author": dict(Counter(r["author"] for r in shape).most_common()), "recent": shape[:10]}}
     out["markdown"] = markdown(out)
     return out
 
 
+def _shape_markdown(sh: dict) -> list[str]:
+    if not sh or not sh.get("refused"):
+        return []
+    L_ = ["", f"### Shape refusals — {sh['refused']} refused, {sh['fixed']} came back accepted",
+          "", "A field, an option or a link the schema doesn't have: friction, not overclaims. Each refusal says "
+          "where the thing goes.", "", "| code | times |", "|---|---|"]
+    L_ += [f"| `{c}` | {n} |" for c, n in sh["by_code"].items()]
+    L_ += [""] + [f"- {x['at'][:16]} **{x['author']}**: {(x['problems'] or [{}])[0].get('message', '')[:140]}"
+                  for x in sh["recent"][:5]]
+    return L_
+
+
 def markdown(r: dict) -> str:
     if not r["refused"]:
-        return "No overclaims caught" + (f" since {r['since']}" if r["since"] else "") + "."
+        return ("No overclaims caught" + (f" since {r['since']}" if r["since"] else "") + "."
+                + "\n".join(_shape_markdown(r.get("shape") or {})))
     L_ = [f"## Overclaims caught — {r['refused']} refused, {r['fixed']} came back honest"
           + (f" (since {r['since']})" if r["since"] else ""), "",
           "| author | refused | fixed | open | most common |", "|---|---|---|---|---|"]
@@ -188,6 +215,7 @@ def markdown(r: dict) -> str:
     for x in r["recent"][:10]:
         fix = f" → fixed as {x['fixed_by']['code'] or x['fixed_by']['node']}" if x["fixed_by"] else " → not fixed"
         L_.append(f"- {x['at'][:16]} **{x['author']}**: “{x['statement'][:140]}” — {', '.join(x['codes'])}{fix}")
+    L_ += _shape_markdown(r.get("shape") or {})
     return "\n".join(L_)
 
 
