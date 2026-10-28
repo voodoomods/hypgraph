@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **`UNCORRECTED_EFFECT` reads its qualifier beside the effect word.** "Uncorrected" counts within 20 words of
+  "changes" / "differs", in the same sentence — not anywhere in it. A 70-word finding "The supplement changes
+  steps_k … while dropping its uncorrected p < 0.05 claim" had passed on the word's presence alone.
 - **A nominal effect can't hide its correction in the scope.** New code `UNCORRECTED_EFFECT`: a finding that says an
   outcome changed, differs or is significant, while a live result in the same investigation holds that outcome's
   corrected p-value (Holm, Bonferroni, FDR, …) at or above 0.05 or a count of 0 outcomes surviving correction, is
