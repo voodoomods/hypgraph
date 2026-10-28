@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **A bound result is a line of support.** A claim's standing counted only `supports` edges into it, so a claim
+  that derives from a result and binds its numbers to it by `measurements` read "no live support", evidence
+  "unverified" — 73 of 113 active claims in the challenge records, each with its result right there. The results a
+  claim derives from and the results its measurements bind now count as lines of support (each once; shared runs
+  or data still merge into one line), so the evidence profile is the result's — lab-recorded when the instrument
+  filed it — and `unsupported` means what it says.
+
 ## 0.7.3 — 2026-10-28: the refusal log sees everything — results, shape, links — and reads a link as the relation that joins
 
 - **A link is read as the relation that joins.** A relation that can't join its two types, where one relation says
