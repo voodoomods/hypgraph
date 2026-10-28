@@ -76,8 +76,13 @@ def test_a_sentence_that_says_uncorrected_tells_the_reader_what_it_rests_on():
     e = env()
     told = "Exactly one of the 20 outcomes differs between the arms at uncorrected p < 0.05: steps_k, p = 0.012."
     assert add(e, told, nominal(e[3]), scope=SCOPE + " 20 outcomes, no multiplicity correction.")["type"] == "claim"
-    # ... but not when the qualifier sits in another sentence, and never from the scope alone
+    # ... but not when the qualifier sits in another sentence, far away in the same one, or only in the scope
     p = refused(e, OVERCLAIM + " The test was uncorrected.", nominal(e[3]))
+    assert [x["code"] for x in p] == ["UNCORRECTED_EFFECT"]
+    far = ("The supplement changes steps_k in this trial: mean steps_k is 7.07 on supplement against 7.87 on placebo, "
+           "p = 0.012, so participants on the supplement took fewer steps; the statement of the direction above matches "
+           "the press release's reported means while dropping its uncorrected p < 0.05 claim.")
+    p = refused(e, far, nominal(e[3]))
     assert [x["code"] for x in p] == ["UNCORRECTED_EFFECT"]
 
 

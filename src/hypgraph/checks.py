@@ -30,9 +30,9 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   UNCORRECTED_EFFECT            a finding says an outcome changed / differs / is significant on an uncorrected
                                 test, while a live result in the investigation holds that outcome's corrected
                                 (Holm / Bonferroni / FDR …) p-value at or above 0.05, or a count of 0 outcomes
-                                surviving correction — and the sentence neither says the test is uncorrected
-                                ("differs at uncorrected p < 0.05") nor names the correction with a corrected
-                                value bound. Two of twelve runs of a 20-outcome trial settled "the supplement
+                                surviving correction — and neither is the effect word qualified, within 20
+                                words, as uncorrected ("differs at uncorrected p < 0.05"), nor is the correction
+                                named with a corrected value bound. Two of twelve runs of a 20-outcome trial settled "the supplement
                                 changes steps_k" as a finding, hedged only in the scope field, while the same
                                 record's Holm-corrected p was 0.25.
 
@@ -480,21 +480,29 @@ def _corrected_evidence(s: Snap, inv: str) -> list[tuple[str, str, str, list[str
 _SENT = re.compile(r"[.!?](?=\s|$)")              # a full stop before space or the end: not the one in "p < 0.05"
 
 
-def _sentence_of(text: str, word: str) -> str:
-    """The sentence the word's first occurrence sits in."""
+_WINDOW = 20                                     # words either side of the effect word that can qualify it
+
+
+def _near(text: str, word: str) -> str:
+    """The words around the word's first occurrence — up to _WINDOW either side, within its sentence. A qualifier
+    counts only here: "differs at uncorrected p < 0.05" is qualified; "changes steps_k … (sixty words) … while
+    dropping its uncorrected p < 0.05 claim" is not, though both sit in one sentence."""
     m = re.search(r"\b" + re.escape(word) + r"\b", text, re.I)
     if not m:
-        return text
+        return ""
     starts = [x.end() for x in _SENT.finditer(text, 0, m.start())]
     ends = [x.start() for x in _SENT.finditer(text, m.end())]
-    return text[(starts[-1] if starts else 0):(ends[0] if ends else len(text))]
+    s0, s1 = (starts[-1] if starts else 0), (ends[0] if ends else len(text))
+    before = re.findall(r"\S+", text[s0:m.start()])[-_WINDOW:]
+    after = re.findall(r"\S+", text[m.start():s1])[:_WINDOW + 1]
+    return " ".join(before + after)
 
 
 def _uncorrected(s: Snap, stmt: str, bound: list, inv: str) -> list[Problem]:
     """A finding that asserts an effect the record's own corrected result says does not survive."""
     words = L.asserted(L.EFFECT, stmt)
     words += [w for w in L.asserted(L.SIGNIFICANCE, stmt) if w not in words]
-    words = [w for w in words if not _UNCORRECTED_SAID.search(_sentence_of(stmt, w))]
+    words = [w for w in words if not _UNCORRECTED_SAID.search(_near(stmt, w))]
     if not words or not inv:
         return []
     nominal = any(p < 0.05 for p in _p_values(s, [(m, rv) for m, rv in bound
@@ -526,7 +534,7 @@ def _uncorrected(s: Snap, stmt: str, bound: list, inv: str) -> list[Problem]:
                     f"{seen} — the effect does not survive correction over the family. {lack.capitalize()}: bind "
                     "the corrected value as a measurement and say in the statement that it does not survive "
                     "correction ('uncorrected p = …; Holm p = …, not significant after correction over the N "
-                    "outcomes'); or say in the same sentence that the test is uncorrected; or file this as kind=lead.",
+                    "outcomes'); or say beside the effect word that the test is uncorrected; or file this as kind=lead.",
                     fix="bind the corrected p and say it does not survive correction, say 'uncorrected' in the "
                         "sentence, or file it as kind=lead",
                     words=words)]
