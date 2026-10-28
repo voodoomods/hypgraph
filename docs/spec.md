@@ -41,7 +41,7 @@ correction is a new row, never an edited one.
 | `tests` | experiment | claim, hypothesis | an experiment tests a hypothesis or claim (data.expected: what it should show if true) |
 | `executes` | run | experiment | a run carries out an experiment |
 | `produced` | run | artifact, result | a run produced a result or artifact |
-| `uses` | run | artifact | a run used an artifact (data.role: data / code / model / config) |
+| `uses` | run, experiment | artifact | a run used an artifact (data.role: data / code / model / config); an experiment is designed on one |
 | `derived_from` | artifact, claim, result | artifact, result, run, source | computed or taken from |
 | `supports` | claim, result, source | claim, hypothesis | evidence for (why required) |
 | `challenges` | claim, result, source | claim, hypothesis | evidence against (why required) |

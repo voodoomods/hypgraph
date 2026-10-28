@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **A link is read as the relation that joins.** A relation that can't join its two types, where one relation says
+  the same thing between them, is applied as that relation with a note, like a link turned round: an experiment
+  that "supports" a hypothesis *tests* it; a run that "uses" an experiment *executes* it; a result, experiment or
+  decision that "answers" a question is *part of* it; a claim or result that "uses" or "rests on" an artifact is
+  *derived from* it; a decision that "supports" a claim is *based on* it (`schema.TRANSLATE`). An experiment may
+  `uses` the artifact it is designed on. A link refused on its pair is matched as fixed by the link that then
+  lands between the same nodes. Read off 23 `LINK_NOT_ALLOWED` refusals in nine runs: every hint named the
+  relation, 3 were taken; 19 of the 23 pairs now go through.
 - **Shape refusals are logged, coded, and say where the thing goes.** A sixteen-challenge sweep's run logs held
   217 refusals for a field, an option or a link the schema doesn't have, against the 79 overclaims its refusal
   logs held — the larger friction stream, and invisible to the log, the report and the replay. Now `clean_body`
