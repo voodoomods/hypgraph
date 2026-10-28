@@ -11,7 +11,13 @@
   refusal with the body (`detail.type` `shape` / `link`) before raising it; `refusal_report` counts them apart under
   `shape`; `replay_refusals` skips them. The three messages the sweep hit most now say where the thing goes: `code`
   on a result belongs to the run (`code=[…]`, `produced` → the result); an experiment's `expected` goes on its
-  `tests` link (`data: {expected: …}`); and `outcome must be one of …` explains each option.
+  `tests` link (`data: {expected: …}`); and `outcome must be one of …` explains each option. An option written as
+  a leading word and a sentence ("negative — no outcome remains significant after correction", "H1 confirmed: the
+  setting loses its edge") is read as the word, the sentence kept as the evidence note; a leading "fail" stays
+  refused as ambiguous (negative if the code ran and showed the opposite, failed if it didn't run). Plural and
+  result-kind words on a claim's `kind` (`findings`, `computed`) map to `finding`. Read off the 17 outcome bodies
+  the new log captured in the first runs on the branch: 9 were whole sentences with no option word (refused, now
+  with the fix), 8 began with one.
 - **The refusal log treats results like claims.** A refused result is logged in full (its summary as the statement,
   `RESULT_RESTATES` included), the author's next accepted result that says the same thing — by its words, or by
   carrying at least half of the refused result's value keys again — fixes it (`fixes_refusals`, and the report's

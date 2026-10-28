@@ -68,12 +68,35 @@ _UNKNOWN_FIX = {
 }
 _OPTION_FIX = {
     ("result", "outcome"): "positive: what the summary describes was seen; negative: it was not; inconclusive: "
-                           "neither; failed: the code didn't run; skipped: it wasn't run",
+                           "neither; failed: the code didn't run; skipped: it wasn't run — one word; the sentence "
+                           "goes in the summary or evidence_note",
     ("result", "kind"): "computed: from code you ran; observed: measured or read off data; cited: taken from a "
                         "source",
     ("claim", "kind"): "finding: what the evidence shows; exclusion: what it rules out; inconclusive; convention: "
                        "a definition; lead: a hunch to test",
 }
+
+
+_AMBIGUOUS_LEAD = {"fail", "failed", "failure", "error", "errored"}      # the thing under test, or the code?
+_LEAD = re.compile(r"^\s*([A-Za-z][A-Za-z0-9_' -]{0,40}?)\s*(?:—|–|:|-{1,2})\s+(\S.*)$", re.S)
+
+
+def _leading_option(raw: str, syn: dict, opts: list) -> tuple[str, str]:
+    """An option written as a leading word and a sentence — "negative — nothing survives correction",
+    "H1 confirmed: the setting loses" — read as (option, the sentence); ('', '') when there is no such word, and
+    ('?', '') when the word is one whose meaning differs between the thing tested and the code ("fail")."""
+    m = _LEAD.match(raw or "")
+    if not m:
+        return "", ""
+    lead, rest = m.group(1).strip().lower(), m.group(2).strip()
+    tokens = [lead.replace(" ", "_").replace("-", "_")] + lead.replace("-", " ").split()
+    for t in tokens:
+        if t in _AMBIGUOUS_LEAD:
+            return "?", ""
+        v = syn.get(t, t)
+        if v in opts:
+            return v, rest
+    return "", ""
 
 
 def clean_body(ntype: str, body: dict, *, partial_ok: bool = False) -> dict:
@@ -102,10 +125,20 @@ def clean_body(ntype: str, body: dict, *, partial_ok: bool = False) -> dict:
             if req and len(v) < (3 if kind == "str" else 10):
                 raise _shape("SHAPE_TOO_SHORT", f"{k}: say it in a full sentence", words=[k])
         elif kind.startswith("enum:"):
-            v = SYNONYMS.get((ntype, k), {}).get(str(v).strip().lower().replace(" ", "_").replace("-", "_"), str(v).strip())
-            if str(v) not in kind[5:].split("|"):
-                raise _shape("SHAPE_NOT_AN_OPTION", f"{k} must be one of {kind[5:].replace('|', ', ')}",
-                             _OPTION_FIX.get((ntype, k), ""), [k])
+            opts, syn, raw = kind[5:].split("|"), SYNONYMS.get((ntype, k), {}), str(v).strip()
+            v = syn.get(raw.lower().replace(" ", "_").replace("-", "_"), raw)
+            if str(v) not in opts:
+                lead, rest = _leading_option(raw, syn, opts)
+                if lead and lead != "?":
+                    v = lead                      # the word is the option; the sentence stays as the note
+                    if rest and k == "outcome" and "evidence_note" in spec and not str(body.get("evidence_note") or "").strip():
+                        out["evidence_note"] = rest[:spec["evidence_note"][1]]
+                else:
+                    fix = _OPTION_FIX.get((ntype, k), "")
+                    if lead == "?":
+                        fix = ("a leading 'fail' is ambiguous: negative if the code ran and showed the opposite of what "
+                               "the summary tests, failed if the code didn't run" + (f"; {fix}" if fix else ""))
+                    raise _shape("SHAPE_NOT_AN_OPTION", f"{k} must be one of {kind[5:].replace('|', ', ')}", fix, [k])
             v = str(v)
         elif kind == "list":
             if isinstance(v, str):
