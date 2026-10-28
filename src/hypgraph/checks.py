@@ -56,8 +56,9 @@ from .derive import Snap, lifecycle, producing_run, result_value
 _NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(\s*%)?(?![\w])")
 _WORDS = {w: i for i, w in enumerate("two three four five six seven eight nine ten eleven twelve thirteen fourteen "
                                      "fifteen sixteen seventeen eighteen nineteen twenty".split(), start=2)}
-_WORDNUM = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.I)   # 'one' is left out: too common as a pronoun
-_LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")
+_WORDNUM = re.compile(r"(?<!-)\b(" + "|".join(_WORDS) + r")\b(?!-)", re.I)   # 'one' is left out: too common as a
+_LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")                 # pronoun; "two-sided" is a name
+_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+)?\b")                      # a date is not a measurement
 # identifiers that look like numbers but aren't measurements: a version (1.10.0, v2.0.0-rc.1), inline code, a number a
 # label word names ("case 8", "cases 9–12", "test 4", "line 12", "#3"), or one that labels the literal after it ("9 ('')")
 _NOT_A_FIGURE = re.compile(
@@ -212,7 +213,10 @@ def _exposure_note(bound_rate: float, body: dict) -> str:
 
 _ENUM = re.compile(r"\b(all|every|each|none|neither|both)\b", re.I)
 _SMALL = r"(?:\d{1,3}(?:,\d{3})*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
-_ENUM_COUNT = re.compile(r"^\s*(?:of\s+(?:the\s+)?|one\s+of\s+(?:the\s+)?)?" + _SMALL + r"\b", re.I)
+_ENUM_COUNT = re.compile(r"^\s*(?:(?:of|other|remaining|but one of|one of)\s+)?(?:the\s+|these\s+|those\s+|its\s+)?"
+                         r"(?:other\s+|remaining\s+)?" + _SMALL + r"\b", re.I)
+# the set was counted just before the word, in the same clause: "cases 1-7 all pass", "the 20 outcomes all have"
+_ENUM_BEFORE = re.compile(r"(?:\d+\s*[-–]\s*\d+|\b" + _SMALL + r"\b)(?:\s+[\w-]+){0,2}\s*$", re.I)
 
 
 def _enumerated(stmt: str, word: str) -> bool:
@@ -228,12 +232,21 @@ def _enumerated(stmt: str, word: str) -> bool:
     rest = re.split(r"[.!?](?:\s|$)", stmt[m.end():], maxsplit=1)[0]
     if _ENUM_COUNT.match(rest):
         return True
+    head = stmt[:m.start()]
+    c0 = max((x.end() for x in L._CLAUSE.finditer(head)), default=0)
+    if _ENUM_BEFORE.search(head[c0:]):
+        return True
     brk = re.search(r"[:(\[—]", rest)
     return bool(brk) and len(numbers(rest[brk.end():])) >= 2
 
 
+_PROVEN = re.compile(r"^prov(?:es?|en|ed)$|^proof$", re.I)
+
+
 def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     words = [w for w in L.asserted(L.ABSOLUTE, stmt) if not _enumerated(stmt, w)]
+    if any(str(m.get("key") or "").lower() in ("gap", "bound") for m, _rv in bound):
+        words = [w for w in words if not _PROVEN.match(w)]      # an optimum with its bound (gap 0) is proven
     if not words:
         return []
     w = words[0]
@@ -293,7 +306,13 @@ def _measured_claim(s: Snap, support: list[str]) -> bool:
     return False
 
 
-_PNAME = re.compile(r"^(p|pval|pvalue|p[_-]?val(?:ue)?|p[_-][a-z0-9_]+)$", re.I)
+def _is_p_key(key: str) -> bool:
+    """A result field holding a p-value, by its name: a token ``p`` anywhere (p, p_value, p_welch, welch_two_sided_p,
+    raw_p_steps_k, steps_k_p), or pval / pvalue / padj — the record's agents name p-values both ways round."""
+    toks = [t for t in re.split(r"[^a-z0-9]+", key.lower()) if t]
+    if "top" in toks or _NOT_EVIDENCE.search(key):             # top_p is a sampling parameter; a threshold is a convention
+        return False
+    return "p" in toks or any(t in ("pval", "pvalue", "pvalues", "padj") for t in toks)
 
 
 def _p_values(s: Snap, bound: list, support: list[str]) -> list[float]:
@@ -303,7 +322,7 @@ def _p_values(s: Snap, bound: list, support: list[str]) -> list[float]:
     for m, rv in bound:
         key = str(m.get("key") or m.get("name") or "")
         v = rv.get("value")
-        if _PNAME.match(key) and isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1:
+        if _is_p_key(key) and isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1:
             ps.append(float(v))
     for rid in support:
         n = s.nodes.get(rid)
@@ -311,7 +330,7 @@ def _p_values(s: Snap, bound: list, support: list[str]) -> list[float]:
             continue
         for key, rv in (n["body"].get("values") or {}).items():
             v = rv.get("value") if isinstance(rv, dict) else rv
-            if _PNAME.match(str(key)) and isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1:
+            if _is_p_key(str(key)) and isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 1:
                 ps.append(float(v))
     return ps
 
@@ -332,10 +351,16 @@ def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Pr
     arms = [_arm(rv) for _m, rv in bound if _arm(rv)]
     no_sig = L.denied(L.SIGNIFICANCE, stmt)
     corrected_p = _p_values(s, [(m, rv) for m, rv in bound if _corrected_key(str(m.get("key") or ""))], [])
-    if no_sig and not sig:                      # "not significant": the record checks that too
-        pool = corrected_p if corrected_p and _CORRECTION_NAMED.search(stmt) else bound_p
-        p = min(pool) if pool else (stats.two_proportions(*arms[0], *arms[1])["p"] if len(arms) >= 2
-                                    else (min(support_p) if support_p else None))
+    # "not significant": the record checks that too — against the corrected p-values when the sentence names a
+    # correction (a raw p below 0.05 is what "not significant after correction" is about), and not at all when the
+    # sentence also asserts an effect ("exactly one differs …; the other 19 are not significant" denies the others)
+    if no_sig and not sig and not L.asserted(L.EFFECT, stmt):
+        if _CORRECTION_NAMED.search(stmt):
+            p = min(corrected_p) if corrected_p else None
+        else:
+            pool = bound_p
+            p = min(pool) if pool else (stats.two_proportions(*arms[0], *arms[1])["p"] if len(arms) >= 2
+                                        else (min(support_p) if support_p else None))
         if p is not None and p < 0.05:
             out.append(Problem("SIGNIFICANCE_CONTRADICTED",
                                f"the statement denies significance ('{no_sig[0]}'), but the bound evidence is "
@@ -385,8 +410,13 @@ def _causal(s: Snap, stmt: str, support: list[str]) -> list[Problem]:
                     "experiment.", fix="say 'is associated with'", words=words)]
 
 
+# "no difference remains significant after correction": a sentence about a test's verdict, not an absence claim
+_SURVIVAL = re.compile(r"\b(surviv\w*|correct(?:ed|ion|ing)|remains? significant|reach(?:es)? significance)\b", re.I)
+
+
 def _exclusion(s: Snap, stmt: str, kind: str, support: list[str], bound: list) -> list[Problem]:
-    words = L.asserted(L.EXCLUSION, stmt)
+    words = [w for w in L.asserted(L.EXCLUSION, stmt)
+             if not (L.denied(L.SIGNIFICANCE, _near(stmt, w)) or _SURVIVAL.search(_near(stmt, w)))]
     if kind != "exclusion" and not (words and kind not in ("inconclusive", "lead", "convention")):
         return []
     for sid in support:
@@ -423,7 +453,7 @@ _CORRECTED = re.compile(r"(?<![a-z])(holm|bonferroni|sidak|fdr|bh|benjamini|hoch
                         r"(?![a-z])", re.I)
 _P_KEY = re.compile(r"(?<![a-z])(p|pval|pvalue|p_?value|padj|q|qval|qvalue)(?![a-z])", re.I)
 _COUNT_KEY = re.compile(r"(?<![a-z])(sig|signif|significant|surviv\w*|rejected|rejections|discoveries)(?![a-z])", re.I)
-_NOT_EVIDENCE = re.compile(r"(?<![a-z])(alpha|threshold|cutoff|level|critical)(?![a-z])", re.I)
+_NOT_EVIDENCE = re.compile(r"(?<![a-z])(alpha|thresh(?:old)?|thr|cutoff|level|critical|crit)(?![a-z])", re.I)
 _FAMILY = {"min", "max", "smallest", "largest", "family", "overall", "global", "any", "all", "n", "num", "count",
            "outcomes", "tests", "value", "after", "two", "sided"}
 # the sentence says the test it rests on is uncorrected: "differs at uncorrected p < 0.05", "changes steps_k only
@@ -566,7 +596,7 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "supports it (links: {\"rel\": \"supports\", \"from\": <result id>, \"why\": …})"))
     bound, bad = _bound(s, body.get("measurements") or [])
     problems += bad
-    clean = _LABEL.sub(" ", stmt)
+    clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
     plain, stat = derived_numbers(bound)
     allowed = plain + [v for v, *_ in numbers(scope)] + \
         [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
@@ -583,7 +613,8 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "scope", fix="bind each number to a result field", words=[p[3] for p in loose[:8]]))
     keys = {str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
     named = [k for k in sorted(keys) if ("_" in k or any(ch.isdigit() for ch in k)) and len(k) >= 4
-             and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)]
+             and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)
+             and not re.search(rf"(?<![\w`]){re.escape(k)}\s*(?:=|:|≈|is|was|of|at)\s*[-+−]?\d", stmt)]   # key = value
     if named:
         problems.append(Problem("KEY_FOR_NUMBER", "the statement names a measurement's key instead of saying its value: "
                                 + ", ".join(named[:6]) + " — write the number in the sentence; it's bound to that key, "

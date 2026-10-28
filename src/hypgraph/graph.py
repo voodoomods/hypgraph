@@ -624,7 +624,7 @@ class Graph:
                                                 problems=found, support=self._support_ids(s, nid, pending))
                         raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems), found)
                 if type == "result" and author not in P.curators:
-                    rp = profiles.result_issues(s, inv, body, pending)
+                    rp = profiles.result_issues(s, inv, body, pending, author=author)
                     if rp:
                         found = [p.to_dict() for p in rp]
                         refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,

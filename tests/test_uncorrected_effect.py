@@ -84,6 +84,9 @@ def test_a_sentence_that_says_uncorrected_tells_the_reader_what_it_rests_on():
            "the press release's reported means while dropping its uncorrected p < 0.05 claim.")
     p = refused(e, far, nominal(e[3]))
     assert [x["code"] for x in p] == ["UNCORRECTED_EFFECT"]
+    # the bare verb asserts it too ("does change" slipped past the replay once)
+    p = refused(e, "The supplement does change steps_k in this trial: 7.07 vs 7.87, p = 0.012.", nominal(e[3]))
+    assert [x["code"] for x in p] == ["UNCORRECTED_EFFECT"] and p[0]["words"] == ["change"]
 
 
 def test_a_lead_may_say_it_and_so_may_a_finding_on_a_record_without_the_correction():
