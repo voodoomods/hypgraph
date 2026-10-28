@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **The record's own bookkeeping decision isn't a position.** `accept_work` settles an order with a decision
+  whose text quotes the order's objective and that rests on the claims that met its predicates. Under trading, a
+  kind-less decision with position words in its text and `based_on` links counted as a position, so settling an
+  order on "should the desk take a paper position?" was refused for want of a stop (POSITION_WITHOUT_STOP) and the
+  run crashed as it settled. The decision now carries `kind: accepted`; a real position still needs its stop.
+
 ## 0.7.1 — 2026-10-27: a computed answer needs its code, and opposed answers keep a question open
 
 - **A computation nobody can re-run doesn't settle a computational question.** The optimization workflow's
