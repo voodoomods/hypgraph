@@ -90,7 +90,7 @@ RELS: dict[str, tuple[set, set]] = {
     "tests": ({"experiment"}, {"hypothesis", "claim"}),
     "executes": ({"run"}, {"experiment"}),
     "produced": ({"run"}, {"result", "artifact"}),
-    "uses": ({"run"}, {"artifact"}),
+    "uses": ({"run", "experiment"}, {"artifact"}),
     "derived_from": ({"result", "claim", "artifact"}, {"result", "artifact", "run", "source"}),
     "supports": (EVIDENCE_SRC, {"claim", "hypothesis"}),
     "challenges": (EVIDENCE_SRC, {"claim", "hypothesis"}),
@@ -109,6 +109,24 @@ RELS: dict[str, tuple[set, set]] = {
 }
 REPLICATION = ("same_code", "new_seed", "new_impl", "new_data", "new_env")
 # What writers call the enum values. Mapped before validation, by (type, field); the stored value is canonical.
+# A relation that can't join two types, read as the one relation that says the same thing between them — the
+# pairs agents wrote in the challenge studies (23 refusals in nine runs; the hint named the relation, 3 took it).
+# (rel, from type, to type) → the relation the record applies, with a note. Nothing here changes a link's
+# direction (``_orient`` does that) or applies where the given relation is allowed.
+TRANSLATE: dict[tuple[str, str, str], str] = {
+    ("supports", "experiment", "hypothesis"): "tests", ("supports", "experiment", "claim"): "tests",
+    ("uses", "run", "experiment"): "executes",
+    ("supports", "claim", "question"): "answers",
+    ("answers", "result", "question"): "part_of", ("answers", "experiment", "question"): "part_of",
+    ("answers", "decision", "question"): "part_of", ("uses", "result", "question"): "part_of",
+    ("uses", "result", "artifact"): "derived_from", ("uses", "claim", "artifact"): "derived_from",
+    ("rests_on", "claim", "artifact"): "derived_from", ("rests_on", "result", "artifact"): "derived_from",
+    ("challenges", "claim", "artifact"): "derived_from", ("part_of", "result", "artifact"): "derived_from",
+    ("part_of", "claim", "artifact"): "derived_from",
+    ("supports", "decision", "hypothesis"): "based_on", ("supports", "decision", "claim"): "based_on",
+    ("supports", "decision", "result"): "based_on",
+}
+
 SYNONYMS: dict[tuple[str, str], dict[str, str]] = {
     ("result", "outcome"): {"success": "positive", "succeeded": "positive", "successful": "positive", "pass": "positive",
                           "passed": "positive", "ok": "positive", "yes": "positive", "confirmed": "positive",
@@ -118,7 +136,8 @@ SYNONYMS: dict[tuple[str, str], dict[str, str]] = {
                           "failure": "failed", "skip": "skipped", "not_run": "skipped"},
     ("result", "kind"): {"calculated": "computed", "derived": "computed", "measured": "observed", "empirical": "observed",
                        "quoted": "cited", "literature": "cited"},
-    ("claim", "kind"): {"fact": "finding", "result": "finding", "observation": "finding", "measurement": "finding",
+    ("claim", "kind"): {"findings": "finding", "computed": "finding", "observed": "finding", "cited": "finding",
+                        "exclusions": "exclusion", "conventions": "convention", "leads": "lead", "fact": "finding", "result": "finding", "observation": "finding", "measurement": "finding",
                       "conclusion": "finding", "rule_out": "exclusion", "ruled_out": "exclusion", "negative": "exclusion",
                       "undetermined": "inconclusive", "unclear": "inconclusive", "definition": "convention",
                       "notation": "convention", "hunch": "lead", "idea": "lead"},
@@ -152,7 +171,7 @@ REL_ABOUT = {
     "alternative_to": "competes with another hypothesis", "tests": "an experiment tests a hypothesis or claim "
     "(data.expected: what it should show if true)", "executes": "a run carries out an experiment",
     "produced": "a run produced a result or artifact", "uses": "a run used an artifact (data.role: data / code / "
-    "model / config)", "derived_from": "computed or taken from", "supports": "evidence for (why required)",
+    "model / config); an experiment is designed on one", "derived_from": "computed or taken from", "supports": "evidence for (why required)",
     "challenges": "evidence against (why required)", "requires": "rests on another claim as a premise",
     "replicates": "a run repeats another (data.differs: same_code / new_seed / new_impl / new_data / new_env)",
     "reviews": "a review of a node (written by review())", "supersedes": "replaces an older node of the same type",
