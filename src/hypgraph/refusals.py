@@ -229,7 +229,7 @@ def replay(g: "Graph", inv: str = "") -> dict:
         body = d.get("body")
         rtype = _replay_type(d, body)
         if any(c == "RESULT_RESTATES" for c in r["codes"]) or rtype not in REPLAYABLE:
-            skipped["RESULT_RESTATES" if rtype == "result" else rtype] += 1
+            skipped["RESULT_RESTATES" if any(c == "RESULT_RESTATES" for c in r["codes"]) else rtype] += 1
             continue
         if rtype == "result":
             if not isinstance(body, dict) or r["inv"] not in s.nodes:
