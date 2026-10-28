@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- **Honest sentences the rules were refusing.** Read off every refusal logged in 96 records of the challenge studies
+  (846 refusals; each fix replayed on all of them):
+  - absolutes over a set the sentence counts ("cases 1-7 all pass", "none of these 49 rows", "all other 19
+    outcomes"), "almost all", an interval "entirely below zero", "distinguishable from zero", "cannot be used /
+    asserted / ruled out", and "proven" beside a bound gap or bound, are not generalisations and pass;
+  - "no difference remains significant after correction" denies a test, it is not an exclusion that needs power;
+    "the interval excludes zero" is interval language;
+  - a p-value is found by its key's tokens (`welch_two_sided_p`, `raw_p_steps_k`, `steps_k_p`), not only by a `p_`
+    prefix, so "significant" beside such a field is tested rather than refused;
+  - a key written beside its value ("n_sig_holm = 0 of 20") is not `KEY_FOR_NUMBER`; "two-sided" and a date are not
+    unbound numbers;
+  - a result value's `k` and `n` must be numbers (`VALUE_NOT_A_NUMBER`): `{"k": "40/50", "n": "rank 1 of 20"}` is a
+    label in a count's clothes, and it crashed a run downstream;
+  - the instrument's re-execution of a run (what the code printed) is not asked for `feasible` beside an objective
+    or fees beside a return — the original result was; a benchmark's return (buy-and-hold, flat) is not a return
+    the strategy earned, and `BACKTEST_WITHOUT_COSTS` now names the fields it took as returns.
 - **`UNCORRECTED_EFFECT` reads its qualifier beside the effect word.** "Uncorrected" counts within 20 words of
   "changes" / "differs", in the same sentence — not anywhere in it. A 70-word finding "The supplement changes
   steps_k … while dropping its uncorrected p < 0.05 claim" had passed on the word's presence alone.
