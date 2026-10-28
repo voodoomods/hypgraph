@@ -130,6 +130,7 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
     <tr><td><code>EXCLUSION_WITHOUT_POWER</code></td><td>"No effect" needs a search shown to find a planted effect (<code>power: demonstrated</code>). Otherwise file <code>kind: inconclusive</code> and say "no detectable effect" — the refusal says how large an effect could have hidden.</td></tr>
     <tr><td><code>COMPARATIVE_WITHOUT_COMPARISON</code></td><td>Bind both sides.</td></tr>
     <tr><td><code>SIGNIFICANCE_WITHOUT_TEST</code> · <code>SIGNIFICANCE_NOT_SHOWN</code></td><td>Bind both sides as k/n (the record tests them) or a p-value; if it isn't significant, say so.</td></tr>
+    <tr><td><code>UNCORRECTED_EFFECT</code></td><td>The record holds a corrected p for this outcome and it isn't significant. Say "uncorrected" in the sentence, or bind it and say "not significant after correction", or file <code>kind: lead</code>.</td></tr>
     <tr><td><code>CAUSAL_WITHOUT_INTERVENTION</code></td><td>Say "is associated with", or support it from an experiment that intervened.</td></tr>
   </tbody>
 </table>

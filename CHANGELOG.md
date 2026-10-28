@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A nominal effect can't hide its correction in the scope.** New code `UNCORRECTED_EFFECT`: a finding that says an
+  outcome changed, differs or is significant, while a live result in the same investigation holds that outcome's
+  corrected p-value (Holm, Bonferroni, FDR, …) at or above 0.05 or a count of 0 outcomes surviving correction, is
+  refused unless the sentence says the test is uncorrected ("differs at uncorrected p < 0.05"), or it binds a
+  corrected value and names the correction — or it is filed as a lead. The
+  refusal quotes the result and field. "Not significant after Holm correction (Holm p = 0.25)" beside a bound
+  nominal p of 0.012 is read against the corrected p, not refused as `SIGNIFICANCE_CONTRADICTED`. Found in a
+  20-outcome trial study, where two of twelve runs settled "the supplement changes steps_k" as a checked finding,
+  hedged only in the scope field, while the same record said nothing survived correction.
 - **The record's own bookkeeping decision isn't a position.** `accept_work` settles an order with a decision
   whose text quotes the order's objective and that rests on the claims that met its predicates. Under trading, a
   kind-less decision with position words in its text and `based_on` links counted as a position, so settling an

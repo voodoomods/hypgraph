@@ -7,6 +7,7 @@ a word earns its place by a mistake it would have caught.
 - SIGNIFICANCE  "significantly", "statistically" … — says a test was passed.
 - CAUSAL        "causes", "leads to", "because of" … — says an intervention would change the outcome.
 - EXCLUSION     "no effect", "makes no difference", "rules out" … — says an effect is absent.
+- EFFECT        "changes", "lowers", "differs", "affects" … — says an intervention or condition moved an outcome.
 """
 
 from __future__ import annotations
@@ -33,6 +34,10 @@ EXCLUSION = re.compile(
     r"useless|(?:rules? out|ruled out|excludes?)(?!\s+(?:zero|0(?:\.0+)?|the null|null|chance|a zero|one|"
     r"1(?:\.0+)?)\b)|unrelated to)\b", re.I)
 # "the 95 % CI excludes zero", "rules out chance": leaving out the null value asserts an effect, not its absence
+EFFECT = re.compile(
+    r"\b(chang(?:es|ed|ing)|alters?|altered|lowers?|lowered|rais(?:es|ed)|increas(?:es|ed|ing)|decreas(?:es|ed|ing)|"
+    r"reduc(?:es|ed|ing)|improv(?:es|ed|ing)|worsens?|worsened|affects?|affected|differs?|differed|different|shifts?|"
+    r"shifted|boosts?|boosted|an effect on|effect of|associated with)\b", re.I)
 HEDGE = re.compile(r"\b(could|might|may|likely|probably|perhaps|possibly|suggests?|consistent with|"
                    r"aligns? with|plausibl\w*)\b", re.I)
 
