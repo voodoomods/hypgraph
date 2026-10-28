@@ -586,6 +586,8 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
 _STAT_OF_RETURNS = re.compile(r"corr|agree|match|hit_rate|_ic\b|beta|volatil|std|(?:^|_)sd(?:_|$)|skew|kurt|acf|"
                               r"autocov|lag\d|"
                               r"t_?stat|p_?val|_se\b|ci_|_ci\b", re.I)
+# a benchmark's return is not a return the strategy earned: buy-and-hold, flat, an index (studies T1-T3)
+_BENCHMARK = re.compile(r"buy_?(?:and_?)?hold|(?:^|_)bh(?:_|$)|benchmark|(?:^|_)flat(?:_|$)|index", re.I)
 # a count of returns is not a return earned: n_returns, insample_n_returns, N_returns_in_sample (studies T3)
 _COUNT_KEY = re.compile(r"(?:^|_)(?:n|num|count|nobs|obs)(?:_|$)|_count\b", re.I)
 _COUNT_UNITS = {"returns", "days", "bars", "obs", "observations", "count", "draws", "trades", "rows", "n"}
@@ -596,25 +598,34 @@ def _a_count(k: str, v: object) -> bool:
     return bool(_COUNT_KEY.search(k)) or unit in _COUNT_UNITS
 
 
-def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None) -> list[Problem]:
+def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None, author: str = "") -> list[Problem]:
     p = profile_of(s, inv)
     if not p:
         return []
     v = _vals(body)
     out: list[Problem] = []
+    # the instrument's re-execution records what the code printed and asserts nothing: the value validators
+    # (feasibility beside an objective, costs beside returns) were asked of the original result
+    if author and author == s.policy.instrument:
+        return out + (W_result_issues(p, s, inv, body, pending or []) if p.workflow else [])
     if "objective_needs_feasibility" in p.validators and "objective" in v and "feasible" not in v:
         out.append(Problem("OBJECTIVE_WITHOUT_FEASIBILITY", "a result reports an objective value without saying whether "
                            "the solution is feasible", fix="add values.feasible (true/false) and bound or gap"))
     raw = {str(k).lower(): x for k, x in (body.get("values") or {}).items()}
     earned = [k for k in v if re.search(r"return|sharpe|pnl|cagr|profit", k) and not _STAT_OF_RETURNS.search(k)
-              and not _a_count(k, raw.get(k))]
+              and not _a_count(k, raw.get(k)) and not _BENCHMARK.search(k)]
     if "backtest_needs_costs" in p.validators and earned and not _has(v, r"fee|cost|slippage|commission"):
-        out.append(Problem("BACKTEST_WITHOUT_COSTS", "a backtest result reports returns without the costs it charged",
-                           fix="add values for fees and slippage (zero is a value; absence isn't)"))
+        out.append(Problem("BACKTEST_WITHOUT_COSTS", "a backtest result reports returns (" + ", ".join(earned[:4])
+                           + ") without the costs it charged — add values.fees (and slippage) to this result; zero "
+                           "is a value, absence isn't", fix="add values.fees and values.slippage to the result"))
     if p.workflow:
-        from . import workflow as W
-        out += W.result_issues(p, s, inv, body, pending or [])
+        out += W_result_issues(p, s, inv, body, pending or [])
     return out
+
+
+def W_result_issues(p: "Profile", s: D.Snap, inv: str, body: dict, pending: list) -> list[Problem]:
+    from . import workflow as W
+    return W.result_issues(p, s, inv, body, pending)
 
 
 def node_issues(s: D.Snap, inv: str, ntype: str, body: dict, pending: list) -> list[Problem]:

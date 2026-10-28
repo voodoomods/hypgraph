@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.2 — 2026-10-28: the honest sentences the rules were refusing, and a nominal effect can't hide its correction
 
 - **The refusal log treats results like claims.** A refused result is logged in full (its summary as the statement,
   `RESULT_RESTATES` included), the author's next accepted result that says the same thing — by its words, or by

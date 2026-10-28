@@ -7,6 +7,7 @@ a word earns its place by a mistake it would have caught.
 - SIGNIFICANCE  "significantly", "statistically" … — says a test was passed.
 - CAUSAL        "causes", "leads to", "because of" … — says an intervention would change the outcome.
 - EXCLUSION     "no effect", "makes no difference", "rules out" … — says an effect is absent.
+- EFFECT        "changes", "lowers", "differs", "affects" … — says an intervention or condition moved an outcome.
 """
 
 from __future__ import annotations
@@ -22,7 +23,8 @@ COMPARATIVE = re.compile(
     r"\b(better|worse|beats?|beat|outperform(?:s|ed|ing)?|underperform(?:s|ed|ing)?|improv(?:es|ed|ement|ing)|"
     r"superior|inferior|exceeds?|exceeded|higher than|lower than|more than|fewer than|less than|faster|slower|"
     r"gains? over|uplift|lift over|advantage over|wins? over|surpass(?:es|ed)?)\b", re.I)
-SIGNIFICANCE = re.compile(r"\b(significant(?:ly)?|statistically|reliably (?:better|worse|higher|lower))\b", re.I)
+SIGNIFICANCE = re.compile(r"\b(significant(?:ly)?|statistically(?!\s+(?:in|non-?|not\b|un))|"
+                          r"reliably (?:better|worse|higher|lower))\b", re.I)
 CAUSAL = re.compile(
     r"\b(caus(?:es|ed|ing|al)|cause|leads? to|led to|resulted in|drives?|driven by|due to|because of|"
     r"responsible for|is the reason)\b", re.I)
@@ -33,6 +35,10 @@ EXCLUSION = re.compile(
     r"useless|(?:rules? out|ruled out|excludes?)(?!\s+(?:zero|0(?:\.0+)?|the null|null|chance|a zero|one|"
     r"1(?:\.0+)?)\b)|unrelated to)\b", re.I)
 # "the 95 % CI excludes zero", "rules out chance": leaving out the null value asserts an effect, not its absence
+EFFECT = re.compile(
+    r"\b(chang(?:e|es|ed|ing)|alters?|altered|lowers?|lowered|rais(?:e|es|ed)|increas(?:e|es|ed|ing)|"
+    r"decreas(?:e|es|ed|ing)|reduc(?:e|es|ed|ing)|improv(?:e|es|ed|ing)|worsens?|worsened|affects?|affected|differs?|"
+    r"differed|different|shifts?|shifted|boosts?|boosted|an effect on|effect of|associated with)\b", re.I)
 HEDGE = re.compile(r"\b(could|might|may|likely|probably|perhaps|possibly|suggests?|consistent with|"
                    r"aligns? with|plausibl\w*)\b", re.I)
 
@@ -49,7 +55,9 @@ _SENTENCE_END = re.compile(r"[.!?]")
 _EPISTEMIC = re.compile(
     r"\b(cannot|can't|could not|couldn't|unable to|impossible to|not possible to)\s+(?:yet\s+|fully\s+|reliably\s+|"
     r"safely\s+)?(conclude|say|tell|rule|determine|confirm|establish|show|claim|distinguish|exclude|prove|know|"
-    r"assess|infer|verify|support|demonstrate|decide|be sure|be certain)\b", re.I)
+    r"assess|infer|verify|support|demonstrate|decide|be sure|be certain|"
+    r"be (?:asserted|concluded|confirmed|established|excluded|ruled out|reproduced|used|taken|relied on|the basis))\b",
+    re.I)
 
 
 def negated(text: str, start: int) -> bool:
@@ -61,9 +69,15 @@ def negated(text: str, start: int) -> bool:
 
 
 # "below zero", "crosses zero", "from zero to one": zero as a number on a scale, not "zero failures"
-_ZERO_ON_A_SCALE = re.compile(r"\b(below|above|near|to|from|of|than|at|cross(?:es|ed)?|includ(?:es|ed)?|"
-                              r"exclud(?:es|ed)?|around|about|approximately|spans?|toward|towards|between)\s+zero\b",
-                              re.I)
+_ZERO_ON_A_SCALE = re.compile(r"\b(below|above|near|to|from|of|than|at|cross(?:es|ed)?|includ(?:es|ed|ing)?|"
+                              r"exclud(?:es|ed|ing)?|around|about|approximately|spans?|toward|towards|between|"
+                              r"distinguishable from|different from|differs? from|differ from|equal to|equals?|net|"
+                              r"versus|vs\.?|against|the|a|null of)\s+zero\b", re.I)
+# "almost all", "nearly every", "virtually none": the qualifier says it is not absolute
+_ALMOST = re.compile(r"\b(almost|nearly|virtually|practically|roughly|about|mostly)\s+$", re.I)
+# "the interval lies entirely below zero": where an interval lies, not a rate of 0 or 1
+_INTERVAL_SIDE = re.compile(r"\b(entirely|wholly|completely)\s+(below|above|on|within|inside|outside|negative|"
+                            r"positive|to the|in the|on the|the)\b", re.I)
 
 
 # a sentence that asks: it ends with a question mark (markdown emphasis or a closing quote may follow it)
@@ -88,6 +102,10 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
         if _EPISTEMIC.match(text, m.start()):
             continue
         if m.group(0).lower() == "zero" and any(z.end() == m.end() for z in _ZERO_ON_A_SCALE.finditer(text)):
+            continue
+        if _ALMOST.search(text[:m.start()]):
+            continue
+        if m.group(0).lower() in ("entirely", "wholly", "completely") and _INTERVAL_SIDE.match(text, m.start()):
             continue
         out.append(m.group(0).lower())
     return list(dict.fromkeys(out))
