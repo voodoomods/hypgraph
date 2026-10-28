@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **The refusal log treats results like claims.** A refused result is logged in full (its summary as the statement,
+  `RESULT_RESTATES` included), the author's next accepted result that says the same thing — by its words, or by
+  carrying at least half of the refused result's value keys again — fixes it (`fixes_refusals`, and the report's
+  *fixed* column, which showed 0 for every result code), and `replay_refusals` runs results through the value and
+  profile result checks as their author, claims through the profile checks too (an `EDGE_WITHOUT_TRIALS` refusal
+  used to replay as `passes`), and counts `RESULT_RESTATES` and typed-node refusals as skipped instead of replaying
+  a decision's choice as a claim. Found replaying 846 refusals from the challenge studies.
 ## 0.7.2 — 2026-10-28: the honest sentences the rules were refusing, and a nominal effect can't hide its correction
 
 - **Honest sentences the rules were refusing.** Read off every refusal logged in 96 records of the challenge studies

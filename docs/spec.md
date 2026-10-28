@@ -199,13 +199,20 @@ A refused claim never enters the record, so its trace lives in a separate append
 its own SHA-256 chain over `canon({at, kind, author, inv, node, op, statement, codes, detail, ref, prev})`. The
 record's own chain and `verify()` are unaffected.
 
-- `kind: refused`: the author, the investigation, the statement (≤ 1,500 characters), the sorted codes, and the
-  problems (code, message, fix) it was refused with. `op` is `create` or `revise`; `node` is set for a revision.
-- `kind: fixed`: a later claim or revision by the same author in the same investigation, accepted within 24 hours,
-  that says the same thing. "The same" means the same node for a revision; otherwise a Jaccard overlap ≥ 0.3 of the
-  statements' content words. `ref` is the refusal it fixes.
+- `kind: refused`: the author, the investigation, the statement (≤ 1,500 characters; a result's summary), the
+  sorted codes, and the problems (code, message, fix) it was refused with; `detail` holds the whole body, the
+  support it had and the node type (`claim`, `result`, or a typed node). `op` is `create` or `revise`; `node` is
+  set for a revision.
+- `kind: fixed`: a later claim, result or revision by the same author in the same investigation, accepted within
+  24 hours, that says the same thing. "The same" means the same node for a revision; otherwise a Jaccard overlap
+  ≥ 0.3 of the statements' content words, or, for a result, at least half of the refused result's value keys carried
+  again. `ref` is the refusal it fixes.
 
-A report aggregates per author (refused, fixed, open, codes) and per rule.
+A report aggregates per author (refused, fixed, open, codes) and per rule. A replay runs every logged refusal through
+the checker as it is now — claims through the claim and profile checks, results through the value and profile result
+checks as their author — and says for each whether it would be refused the same way, differently, or accepted;
+`RESULT_RESTATES` and typed-node refusals depend on the record's state at the time and are counted as skipped. A
+change to a rule is judged on that replay over the real corpus before it ships.
 
 ## 9. Checking a write-up against the record
 
