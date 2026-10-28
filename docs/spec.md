@@ -203,6 +203,12 @@ record's own chain and `verify()` are unaffected.
   sorted codes, and the problems (code, message, fix) it was refused with; `detail` holds the whole body, the
   support it had and the node type (`claim`, `result`, or a typed node). `op` is `create` or `revise`; `node` is
   set for a revision.
+- A refusal on *shape* — a field the type doesn't have (`SHAPE_UNKNOWN_FIELD`), a value outside an enum
+  (`SHAPE_NOT_AN_OPTION`), a missing, too long or too short field, a wrong type, or a link the relation grammar
+  refuses (`LINK_NOT_ALLOWED`, `LINK_UNKNOWN_RELATION`, `LINK_NO_NODE`) — is logged the same way with
+  `detail.type` `shape` or `link`. Its message carries the fix: where the field goes (`code` on a result belongs to
+  the run; an experiment's `expected` goes on its `tests` link) or what each option means. The report counts these
+  apart from overclaims and the replay skips them.
 - `kind: fixed`: a later claim, result or revision by the same author in the same investigation, accepted within
   24 hours, that says the same thing. "The same" means the same node for a revision; otherwise a Jaccard overlap
   ≥ 0.3 of the statements' content words, or, for a result, at least half of the refused result's value keys carried

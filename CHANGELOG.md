@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Shape refusals are logged, coded, and say where the thing goes.** A sixteen-challenge sweep's run logs held
+  217 refusals for a field, an option or a link the schema doesn't have, against the 79 overclaims its refusal
+  logs held — the larger friction stream, and invisible to the log, the report and the replay. Now `clean_body`
+  and the link check raise a `GraphError` whose `problems` carry a code (`SHAPE_UNKNOWN_FIELD`,
+  `SHAPE_NOT_AN_OPTION`, `SHAPE_MISSING_FIELD`, `SHAPE_TOO_LONG`, `SHAPE_TOO_SHORT`, `SHAPE_WRONG_TYPE`,
+  `LINK_NOT_ALLOWED`, `LINK_UNKNOWN_RELATION`, `LINK_NO_NODE`) and a fix; `create`, `revise` and `link` log the
+  refusal with the body (`detail.type` `shape` / `link`) before raising it; `refusal_report` counts them apart under
+  `shape`; `replay_refusals` skips them. The three messages the sweep hit most now say where the thing goes: `code`
+  on a result belongs to the run (`code=[…]`, `produced` → the result); an experiment's `expected` goes on its
+  `tests` link (`data: {expected: …}`); and `outcome must be one of …` explains each option.
 - **The refusal log treats results like claims.** A refused result is logged in full (its summary as the statement,
   `RESULT_RESTATES` included), the author's next accepted result that says the same thing — by its words, or by
   carrying at least half of the refused result's value keys again — fixes it (`fixes_refusals`, and the report's
