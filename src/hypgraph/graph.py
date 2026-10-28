@@ -628,7 +628,7 @@ class Graph:
                     if rp:
                         found = [p.to_dict() for p in rp]
                         refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
-                                                problems=found, support=[])
+                                                problems=found, support=[], type="result")
                         raise GraphError("result refused:\n- " + "\n- ".join(p.text() for p in rp), found)
                 if type in ("artifact", "source", "decision") and author not in P.curators:
                     np_ = profiles.node_issues(s, inv, type, body, pending)       # the workflow's typed shapes
@@ -637,7 +637,7 @@ class Graph:
                         refusals.record_refusal(self, author=author, op="create", inv=inv, node="",
                                                 body={"statement": str(body.get("choice") or body.get("citation")
                                                                        or body.get("path") or ""), "kind": type},
-                                                problems=found)
+                                                problems=found, type=type)
                         raise GraphError(f"{type} refused:\n- " + "\n- ".join(p.text() for p in np_), found)
                 if type == "result" and author not in P.reserved:
                     same = self._restated_by(s, body, inv, nid)
@@ -648,9 +648,8 @@ class Graph:
                         c = s.nodes[mine[0]]["code"] or mine[0]
                         found = [{"code": "RESULT_RESTATES", "message": f"this result repeats the numbers of your own "
                                   f"{c}", "fix": f"bind claims to {c} instead", "words": []}]
-                        refusals.record_refusal(self, author=author, op="create", inv=inv, node="",
-                                                body={"statement": body.get("summary", ""), "kind": "result"},
-                                                problems=found)
+                        refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
+                                                problems=found, type="result")
                         raise GraphError(f"result refused: it repeats the numbers of your own {c} — bind claims to "
                                          f"{c} instead of writing it again; a genuine rerun is a run that replicates "
                                          f"{c}'s run [RESULT_RESTATES]", found)
@@ -681,9 +680,10 @@ class Graph:
         if out["state"].get("restates"):
             out["restates"] = [self.get(r)["code"] for r in out["state"]["restates"]]
         self._with_orders(out, author, inv)
-        if type == "claim" and author not in P.curators:
-            fixed = refusals.match_fix(self, author=author, inv=inv, node=nid, statement=body.get("statement", ""),
-                                       op="create")
+        if type in refusals.REPLAYABLE and author not in P.curators:
+            fixed = refusals.match_fix(self, author=author, inv=inv, node=nid, op="create",
+                                       statement=str(body.get("statement") or body.get("summary") or ""),
+                                       values=body.get("values") if type == "result" else None)
             if fixed:
                 out["fixes_refusals"] = fixed
         return out
@@ -876,9 +876,10 @@ class Graph:
             out["notes"] = ["bound by the record: " + ", ".join(auto_notes)]
             out["auto_bound"] = auto_notes
         self._with_orders(out, author, out["inv"])
-        if out["type"] == "claim" and author not in P.curators:
-            fixed = refusals.match_fix(self, author=author, inv=out["inv"], node=node,
-                                       statement=out["body"].get("statement", ""), op="revise")
+        if out["type"] in refusals.REPLAYABLE and author not in P.curators:
+            fixed = refusals.match_fix(self, author=author, inv=out["inv"], node=node, op="revise",
+                                       statement=str(out["body"].get("statement") or out["body"].get("summary") or ""),
+                                       values=out["body"].get("values") if out["type"] == "result" else None)
             if fixed:
                 out["fixes_refusals"] = fixed
         return out
