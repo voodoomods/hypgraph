@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.2 — 2026-10-28: the honest sentences the rules were refusing, and a nominal effect can't hide its correction
+## Unreleased
 
 - **The refusal log treats results like claims.** A refused result is logged in full (its summary as the statement,
   `RESULT_RESTATES` included), the author's next accepted result that says the same thing — by its words, or by
@@ -9,6 +9,8 @@
   profile result checks as their author, claims through the profile checks too (an `EDGE_WITHOUT_TRIALS` refusal
   used to replay as `passes`), and counts `RESULT_RESTATES` and typed-node refusals as skipped instead of replaying
   a decision's choice as a claim. Found replaying 846 refusals from the challenge studies.
+## 0.7.2 — 2026-10-28: the honest sentences the rules were refusing, and a nominal effect can't hide its correction
+
 - **Honest sentences the rules were refusing.** Read off every refusal logged in 96 records of the challenge studies
   (846 refusals; each fix replayed on all of them):
   - absolutes over a set the sentence counts ("cases 1-7 all pass", "none of these 49 rows", "all other 19
