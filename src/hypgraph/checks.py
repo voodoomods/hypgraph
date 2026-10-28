@@ -27,6 +27,14 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   CAUSAL_WITHOUT_INTERVENTION   "causes" / "leads to" when no experiment intervened
   EXCLUSION_WITHOUT_POWER       "no effect" / "rules out" without a search shown to find a planted effect
   CONVENTION_HEDGED             a convention that hedges
+  UNCORRECTED_EFFECT            a finding says an outcome changed / differs / is significant on an uncorrected
+                                test, while a live result in the investigation holds that outcome's corrected
+                                (Holm / Bonferroni / FDR …) p-value at or above 0.05, or a count of 0 outcomes
+                                surviving correction — and the sentence neither says the test is uncorrected
+                                ("differs at uncorrected p < 0.05") nor names the correction with a corrected
+                                value bound. Two of twelve runs of a 20-outcome trial settled "the supplement
+                                changes steps_k" as a finding, hedged only in the scope field, while the same
+                                record's Holm-corrected p was 0.25.
 
 A word counts only when its sentence asserts it (language.asserted): "not significantly better", "no evidence
 that it ever fails" and "we cannot conclude that…" are honest and pass; the overclaim is the unnegated form.
@@ -43,7 +51,7 @@ from dataclasses import dataclass, field
 
 from . import language as L
 from . import stats
-from .derive import Snap, producing_run, result_value
+from .derive import Snap, lifecycle, producing_run, result_value
 
 _NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(\s*%)?(?![\w])")
 _WORDS = {w: i for i, w in enumerate("two three four five six seven eight nine ten eleven twelve thirteen fourteen "
@@ -323,9 +331,11 @@ def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Pr
     support_p = _p_values(s, [], support)                  # a named p on a supporting result: the last resort
     arms = [_arm(rv) for _m, rv in bound if _arm(rv)]
     no_sig = L.denied(L.SIGNIFICANCE, stmt)
+    corrected_p = _p_values(s, [(m, rv) for m, rv in bound if _corrected_key(str(m.get("key") or ""))], [])
     if no_sig and not sig:                      # "not significant": the record checks that too
-        p = min(bound_p) if bound_p else (stats.two_proportions(*arms[0], *arms[1])["p"] if len(arms) >= 2
-                                          else (min(support_p) if support_p else None))
+        pool = corrected_p if corrected_p and _CORRECTION_NAMED.search(stmt) else bound_p
+        p = min(pool) if pool else (stats.two_proportions(*arms[0], *arms[1])["p"] if len(arms) >= 2
+                                    else (min(support_p) if support_p else None))
         if p is not None and p < 0.05:
             out.append(Problem("SIGNIFICANCE_CONTRADICTED",
                                f"the statement denies significance ('{no_sig[0]}'), but the bound evidence is "
@@ -405,6 +415,123 @@ _PLACEHOLDER = re.compile(r"^\W*(?:(?:placeholder|tbd|todo|tba|n/?a|none|wip|xxx
                           r"to be (?:determined|confirmed|added)|lorem ipsum)\W*)+$", re.I)
 
 
+# ── multiplicity ─────────────────────────────────────────────────────────────
+# A result field holding a corrected p-value or a count of outcomes surviving correction, by its key:
+# p_holm_steps_k, steps_k_bonferroni_adj_p, min_adjusted_p, n_holm_sig, n_bonferroni_significant. A threshold
+# (bonferroni_alpha_threshold = 0.0025) is a convention, not evidence.
+_CORRECTED = re.compile(r"(?<![a-z])(holm|bonferroni|sidak|fdr|bh|benjamini|hochberg|fwer|adj|adjusted|corrected|corr)"
+                        r"(?![a-z])", re.I)
+_P_KEY = re.compile(r"(?<![a-z])(p|pval|pvalue|p_?value|padj|q|qval|qvalue)(?![a-z])", re.I)
+_COUNT_KEY = re.compile(r"(?<![a-z])(sig|signif|significant|surviv\w*|rejected|rejections|discoveries)(?![a-z])", re.I)
+_NOT_EVIDENCE = re.compile(r"(?<![a-z])(alpha|threshold|cutoff|level|critical)(?![a-z])", re.I)
+_FAMILY = {"min", "max", "smallest", "largest", "family", "overall", "global", "any", "all", "n", "num", "count",
+           "outcomes", "tests", "value", "after", "two", "sided"}
+# the sentence says the test it rests on is uncorrected: "differs at uncorrected p < 0.05", "changes steps_k only
+# nominally" — the reader is told, in the sentence, and the rule leaves it to the reviewer
+_UNCORRECTED_SAID = re.compile(r"\b(uncorrected|unadjusted|nominal(?:ly)?|raw p|without (?:multiplicity |any )?correction|"
+                               r"before (?:multiplicity |any )?correction|not corrected|no (?:multiplicity )?correction|"
+                               r"per-outcome|single-outcome)\b", re.I)
+# the statement names the correction: "Holm p = 0.25", "after Bonferroni correction", "corrected for multiplicity"
+_CORRECTION_NAMED = re.compile(r"\b(correct(?:ed|ion|ing)|adjust(?:ed|ment)|holm|bonferroni|[sš]id[aá]k|fdr|benjamini|"
+                               r"family-?wise|multiplicity|multiple (?:testing|comparisons|outcomes))\b", re.I)
+
+
+def _corrected_key(key: str) -> bool:
+    return bool(_CORRECTED.search(key)) and not _NOT_EVIDENCE.search(key)
+
+
+def _fails_correction(key: str, rv: dict) -> str:
+    """How a corrected value says the effect doesn't survive — 'p_holm_x = 0.25', 'n_holm_sig = 0 of 20' — or ''."""
+    if _COUNT_KEY.search(key):
+        a = _arm(rv)
+        count = a[0] if a else rv.get("value")
+        if isinstance(count, (int, float)) and not isinstance(count, bool) and count == 0:
+            return f"{key} = 0" + (f" of {a[1]}" if a else "")
+        return ""
+    if _P_KEY.search(key):
+        v = rv.get("value")
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and 0.05 <= v <= 1:
+            return f"{key} = {v:.3g}"
+    return ""
+
+
+def _corrected_evidence(s: Snap, inv: str) -> list[tuple[str, str, str, list[str]]]:
+    """Every corrected value on the investigation's live results in which an effect does not survive:
+    (result id, key, how it says so, the outcome tokens the key names — empty for a family-wide value)."""
+    out = []
+    for rid, n in s.nodes.items():
+        if n["type"] != "result" or n.get("inv") != inv or lifecycle(s, rid) != "active":
+            continue
+        for key in (n["body"].get("values") or {}):
+            k = str(key)
+            if not _corrected_key(k):
+                continue
+            rv = result_value(s, rid, k)
+            how = _fails_correction(k, rv) if rv else ""
+            if not how:
+                continue
+            toks = [t for t in re.split(r"[^a-z0-9]+", k.lower()) if t]
+            outcome = [t for t in toks if not (_CORRECTED.fullmatch(t) or _P_KEY.fullmatch(t) or _COUNT_KEY.fullmatch(t)
+                                                or t in _FAMILY)]
+            out.append((rid, k, how, outcome))
+    return out
+
+
+_SENT = re.compile(r"[.!?](?=\s|$)")              # a full stop before space or the end: not the one in "p < 0.05"
+
+
+def _sentence_of(text: str, word: str) -> str:
+    """The sentence the word's first occurrence sits in."""
+    m = re.search(r"\b" + re.escape(word) + r"\b", text, re.I)
+    if not m:
+        return text
+    starts = [x.end() for x in _SENT.finditer(text, 0, m.start())]
+    ends = [x.start() for x in _SENT.finditer(text, m.end())]
+    return text[(starts[-1] if starts else 0):(ends[0] if ends else len(text))]
+
+
+def _uncorrected(s: Snap, stmt: str, bound: list, inv: str) -> list[Problem]:
+    """A finding that asserts an effect the record's own corrected result says does not survive."""
+    words = L.asserted(L.EFFECT, stmt)
+    words += [w for w in L.asserted(L.SIGNIFICANCE, stmt) if w not in words]
+    words = [w for w in words if not _UNCORRECTED_SAID.search(_sentence_of(stmt, w))]
+    if not words or not inv:
+        return []
+    nominal = any(p < 0.05 for p in _p_values(s, [(m, rv) for m, rv in bound
+                                                  if not _CORRECTED.search(str(m.get("key") or ""))], []))
+    hits = []
+    for rid, key, how, outcome in _corrected_evidence(s, inv):
+        if outcome:
+            pat = r"(?<![a-z0-9])" + r"[ _\-]?".join(re.escape(t) for t in outcome) + r"(?![a-z0-9])"
+            if re.search(pat, stmt, re.I):          # the statement names the outcome (a scope may name others)
+                hits.append((0, rid, key, how, "_".join(outcome)))
+        elif nominal:                   # a family-wide value applies when the claim rests on a nominal p < 0.05
+            hits.append((1, rid, key, how, ""))
+    if not hits:
+        return []
+    named = bool(_CORRECTION_NAMED.search(stmt))
+    binds = any(_corrected_key(str(m.get("key") or "")) for m, _rv in bound)
+    if named and binds:
+        return []
+    hits.sort(key=lambda h: h[0])
+    _, rid, _key, how, outcome = hits[0]
+    seen = f"{s.nodes[rid]['code'] or rid}.{how}"
+    w = words[0]
+    about = f"an effect on {outcome}" if outcome else "an effect"
+    lack = ("the corrected value is bound, but the statement doesn't say so" if binds else
+            "the statement names the correction but binds none of its values" if named else
+            "the claim binds none of that and its statement doesn't say so")
+    return [Problem("UNCORRECTED_EFFECT",
+                    f"'{w}' asserts {about} from an uncorrected test, but the record holds the corrected result: "
+                    f"{seen} — the effect does not survive correction over the family. {lack.capitalize()}: bind "
+                    "the corrected value as a measurement and say in the statement that it does not survive "
+                    "correction ('uncorrected p = …; Holm p = …, not significant after correction over the N "
+                    "outcomes'); or say in the same sentence that the test is uncorrected; or file this as kind=lead.",
+                    fix="bind the corrected p and say it does not survive correction, say 'uncorrected' in the "
+                        "sentence, or file it as kind=lead",
+                    words=words)]
+
+
 def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Problem]:
     """What's wrong with a claim, each with a code, a message and a fix (empty = it may enter the record).
     ``support``: ids of the nodes that support it or that it is derived from."""
@@ -458,6 +585,8 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
         problems += _comparisons(s, clean, bound, support)
         problems += _causal(s, clean, support)
     problems += _exclusion(s, clean, kind, support, bound)
+    if kind == "finding":
+        problems += _uncorrected(s, clean, bound, inv)
     return problems
 
 

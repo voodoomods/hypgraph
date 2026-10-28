@@ -86,6 +86,7 @@ the arithmetic. Use it.
 | `SIGNIFICANCE_WITHOUT_TEST` / `SIGNIFICANCE_NOT_SHOWN` | "significantly" with no test, or a test that fails at 0.05. The record tests two bound counts itself. | Bind both sides as k/n, or a p-value. If it isn't significant, say the difference and that it isn't. |
 | `CAUSAL_WITHOUT_INTERVENTION` | causes / leads to with no experiment that intervened. | Say "is associated with", or run the experiment and support the claim with its result. |
 | `EXCLUSION_WITHOUT_POWER` | "no effect" / "rules out" without a search shown to find a planted effect. The refusal says the smallest effect your sample could have seen. | Show power (`power=demonstrated`), or file it as `kind=inconclusive` and say "no detectable effect". |
+| `UNCORRECTED_EFFECT` | "changes" / "differs" / "significant" on an outcome from an uncorrected test, while the record's own corrected p for it (Holm, Bonferroni, FDR) is ≥ 0.05, or 0 outcomes survive. | Say "uncorrected" in the sentence, or bind the corrected p and say "not significant after correction", or file it as `kind=lead`. |
 | `SCOPE_MISSING` / `EVIDENCE_MISSING` | No conditions, or nothing supports it. | Name the data, method and sample. Link the result with `supports`. |
 
 **Before writing never or always, run `hypgraph bound K N --exposure USERS`** (MCP tool `bound`). It tells you what

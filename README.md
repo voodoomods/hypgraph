@@ -44,6 +44,7 @@ holds every claim to that:
 | "significantly better", counts 812/1,000 vs 800/1,000 | `SIGNIFICANCE_NOT_SHOWN` | the record runs the test: p = 0.5 |
 | "prompt format has no effect" | `EXCLUSION_WITHOUT_POWER` | at 2,000 items a 3.6-point effect would usually go unseen |
 | "longer prompts cause the gain" | `CAUSAL_WITHOUT_INTERVENTION` | no experiment intervened |
+| "the supplement changes steps_k", p = 0.012, while the record's Holm p is 0.25 | `UNCORRECTED_EFFECT` | one of 20 outcomes; the claim's own record says it doesn't survive correction |
 | "outperforms the baseline", no numbers | `COMPARATIVE_WITHOUT_COMPARISON` | only one side was measured |
 
 Every refusal has a stable code, the arithmetic, and the sentence that *would* be honest, so an agent can repair a

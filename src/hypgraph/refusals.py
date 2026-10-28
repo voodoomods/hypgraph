@@ -200,7 +200,7 @@ def replay(g: "Graph", inv: str = "") -> dict:
         binding = {"UNBOUND_NUMBER", "MEASUREMENT_MALFORMED", "MEASUREMENT_UNKNOWN_FIELD", "MEASUREMENT_MISMATCH",
                    "EVIDENCE_MISSING", "SCOPE_MISSING", "ABSOLUTE_UNDERPOWERED", "ABSOLUTE_HIDES_DENOMINATOR",
                    "ABSOLUTE_UNRELATED_COUNT", "SIGNIFICANCE_NOT_SHOWN", "SIGNIFICANCE_CONTRADICTED",
-                   "EXCLUSION_WITHOUT_POWER", "CAUSAL_WITHOUT_INTERVENTION"}
+                   "EXCLUSION_WITHOUT_POWER", "CAUSAL_WITHOUT_INTERVENTION", "UNCORRECTED_EFFECT"}
         if not full:
             now = [c for c in now if c not in binding]
             was = [c for c in r["codes"] if c not in binding]
