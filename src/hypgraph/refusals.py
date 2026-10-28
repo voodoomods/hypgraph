@@ -103,8 +103,16 @@ def _keys_again(detail: str, values: dict | None) -> bool:
     return bool(was) and len(was & set(values)) / len(was) >= FIX_KEYS
 
 
+def _same_pair(statement: str, pair: tuple | None) -> bool:
+    """A logged link refusal's statement is 'src rel dst'; the link that then lands names the same two nodes."""
+    if not pair:
+        return False
+    w = (statement or "").split()
+    return len(w) == 3 and {w[0], w[2]} == {pair[0], pair[1]}
+
+
 def match_fix(g: "Graph", *, author: str, inv: str, node: str, statement: str, op: str,
-              values: dict | None = None) -> list[int]:
+              values: dict | None = None, pair: tuple | None = None) -> list[int]:
     """After a claim or result is accepted: mark the author's recent unresolved refusals in this investigation that
     it fixes (same node for a revision; otherwise statements sharing enough words — for a result, its summary — or
     a result that carries the refused result's value keys again). Returns the refusal ids it fixed."""
@@ -115,7 +123,7 @@ def match_fix(g: "Graph", *, author: str, inv: str, node: str, statement: str, o
                            "AND inv=? AND at>=? AND id NOT IN (SELECT ref FROM refusal_log WHERE kind='fixed' AND "
                            "ref IS NOT NULL) ORDER BY id", (author, inv or "", since)).fetchall()
         hits = [r[0] for r in rows if (op == "revise" and r[1] == node) or _overlap(r[2], statement) >= FIX_OVERLAP
-                or _keys_again(r[3], values)]
+                or _keys_again(r[3], values) or _same_pair(r[2], pair)]
         if not hits:
             return []
         at = g.clock()

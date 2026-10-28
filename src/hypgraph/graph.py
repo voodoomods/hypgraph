@@ -31,7 +31,7 @@ from . import derive as D
 from . import refusals, store
 from .checks import claim_issues, value_issues
 from .policy import Policy
-from .schema import REPLICATION, RELS, SAME_TYPE, SYNONYMS, TYPES, VERDICTS
+from .schema import REPLICATION, RELS, SAME_TYPE, SYNONYMS, TRANSLATE, TYPES, VERDICTS
 from .store import canon, now
 
 
@@ -460,6 +460,21 @@ class Graph:
         return f"{prefix}{k}"
 
     @staticmethod
+    def _translate(s: D.Snap, src: str, rel: str, dst: str) -> tuple[str, str]:
+        """A relation that can't join these two types, read as the one that says the same thing between them
+        (schema.TRANSLATE): the relation to apply and a note, or the given relation and ''."""
+        if rel in RELS and src in s.nodes and dst in s.nodes:
+            st, dt = s.nodes[src]["type"], s.nodes[dst]["type"]
+            srcs, dsts = RELS[rel]
+            if not (st in srcs and dt in dsts) and not (dt in srcs and st in dsts):
+                new = TRANSLATE.get((rel, st, dt))
+                if new:
+                    return new, (f"{s.nodes[src].get('code') or src} -{rel}-> {s.nodes[dst].get('code') or dst} "
+                                 f"read as {new} (a {st} {new.replace('_', ' ')} a {dt}; {rel} joins "
+                                 f"{', '.join(sorted(srcs))} to {', '.join(sorted(dsts))})")
+        return rel, ""
+
+    @staticmethod
     def _orient(s: D.Snap, src: str, rel: str, dst: str) -> tuple[str, str, str, bool]:
         """A link given backwards — a claim that 'supports' its result — is turned round when only the reverse is
         allowed (the relation's meaning fixes its direction, so there is one reading)."""
@@ -651,7 +666,15 @@ class Graph:
                 staged = {"id": nid, "type": type, "code": "", "inv": inv, "created_at": at, "created_by": who,
                           "v": 1, "body": body}
                 s.nodes[nid] = staged                     # staged for link checks; dropped if the write fails
-                oriented = [self._orient(s, *self._link_spec(nid, l)) for l in links]
+                specs, translated = [], []
+                for l in links:
+                    a, rel, b = self._link_spec(nid, l)
+                    given, (rel, note) = rel, self._translate(s, a, rel, b)
+                    if note:
+                        translated.append(note)
+                        l["data"] = {**(l.get("data") or {}), "read_as": given}    # what the author wrote
+                    specs.append((a, rel, b))
+                oriented = [self._orient(s, *x) for x in specs]
                 pending = [(a, rel, b) for a, rel, b, _f in oriented]
                 flipped = [f"{s.nodes[a].get('code') or a} -{rel}-> {s.nodes[b].get('code') or b}"
                            for a, rel, b, f in oriented if f]
@@ -751,6 +774,7 @@ class Graph:
                 self._after_write()
         out = self.get(nid)
         notes = [f"link turned round to the direction the relation allows: {x}" for x in flipped]
+        notes += [f"link read as the relation that joins: {x}" for x in translated]
         if auto_notes:
             notes.append("bound by the record: " + ", ".join(auto_notes))
             out["auto_bound"] = auto_notes
@@ -975,6 +999,9 @@ class Graph:
         with self._lock:
             try:
                 s = self.snapshot()
+                given, (rel, translated) = rel, self._translate(s, src, rel, dst)
+                if translated:
+                    data = {**(data or {}), "read_as": given}                       # what the author wrote
                 src, rel, dst, flipped = self._orient(s, src, rel, dst)
                 if src in s.nodes:
                     self._fixed_guard(s, author, src)
@@ -988,7 +1015,15 @@ class Graph:
                 raise
             finally:
                 self._after_write()
-        return {"edge": eid, "src": src, "rel": rel, "dst": dst, "flipped": flipped}
+        out = {"edge": eid, "src": src, "rel": rel, "dst": dst, "flipped": flipped}
+        if translated:
+            out["notes"] = [f"link read as the relation that joins: {translated}"]
+        if author not in self.policy.curators:
+            fixed = refusals.match_fix(self, author=author, inv=(s.nodes.get(src) or {}).get("inv", ""), node="",
+                                       statement="", op="link", pair=(src, dst))
+            if fixed:
+                out["fixes_refusals"] = fixed
+        return out
 
     def retract(self, *, author: str, edge: int, why: str) -> dict:
         if len(str(why or "").strip()) < 10:
