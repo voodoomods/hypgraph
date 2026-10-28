@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.3 — 2026-10-28: the refusal log sees everything — results, shape, links — and reads a link as the relation that joins
 
 - **A link is read as the relation that joins.** A relation that can't join its two types, where one relation says
   the same thing between them, is applied as that relation with a note, like a link turned round: an experiment

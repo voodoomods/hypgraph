@@ -670,12 +670,13 @@
   },
   "uses": {
    "from": [
+    "experiment",
     "run"
    ],
    "to": [
     "artifact"
    ],
-   "about": "a run used an artifact (data.role: data / code / model / config)"
+   "about": "a run used an artifact (data.role: data / code / model / config); an experiment is designed on one"
   },
   "derived_from": {
    "from": [
