@@ -13,6 +13,8 @@
     prefix, so "significant" beside such a field is tested rather than refused;
   - a key written beside its value ("n_sig_holm = 0 of 20") is not `KEY_FOR_NUMBER`; "two-sided" and a date are not
     unbound numbers;
+  - a result value's `k` and `n` must be numbers (`VALUE_NOT_A_NUMBER`): `{"k": "40/50", "n": "rank 1 of 20"}` is a
+    label in a count's clothes, and it crashed a run downstream;
   - the instrument's re-execution of a run (what the code printed) is not asked for `feasible` beside an objective
     or fees beside a return — the original result was; a benchmark's return (buy-and-hold, flat) is not a return
     the strategy earned, and `BACKTEST_WITHOUT_COSTS` now names the fields it took as returns.

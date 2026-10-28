@@ -27,6 +27,7 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   CAUSAL_WITHOUT_INTERVENTION   "causes" / "leads to" when no experiment intervened
   EXCLUSION_WITHOUT_POWER       "no effect" / "rules out" without a search shown to find a planted effect
   CONVENTION_HEDGED             a convention that hedges
+  VALUE_NOT_A_NUMBER            (results) a value's k or n is not a number: {"k": "40/50", "n": "rank 1 of 20"}
   UNCORRECTED_EFFECT            a finding says an outcome changed / differs / is significant on an uncorrected
                                 test, while a live result in the investigation holds that outcome's corrected
                                 (Holm / Bonferroni / FDR …) p-value at or above 0.05, or a count of 0 outcomes
@@ -568,6 +569,21 @@ def _uncorrected(s: Snap, stmt: str, bound: list, inv: str) -> list[Problem]:
                     fix="bind the corrected p and say it does not survive correction, say 'uncorrected' in the "
                         "sentence, or file it as kind=lead",
                     words=words)]
+
+
+def value_issues(body: dict) -> list[Problem]:
+    """A result's values: a count's k and n must be numbers. A quant registered {"k": "40/50", "n": "rank 1 of 20"}
+    (a grid setting and its rank) as a count; every reader guards against it except the one that crashed a run."""
+    out: list[Problem] = []
+    for key, v in (body.get("values") or {}).items():
+        if not isinstance(v, dict) or not ("k" in v or "n" in v):
+            continue
+        bad = [f"{f}={v[f]!r}" for f in ("k", "n") if f in v and (not isinstance(v[f], (int, float)) or isinstance(v[f], bool))]
+        if bad:
+            out.append(Problem("VALUE_NOT_A_NUMBER", f"values.{key}: k and n must be numbers ({', '.join(bad)}) — a "
+                               "label such as a setting or a rank goes in the summary, or under its own key as "
+                               "{\"value\": \"40/50\"}", fix=f"give values.{key} numeric k and n, or move the label"))
+    return out
 
 
 def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Problem]:

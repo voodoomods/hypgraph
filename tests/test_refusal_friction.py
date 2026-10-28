@@ -131,6 +131,18 @@ def test_the_instrument_s_re_execution_is_not_asked_for_feasibility_but_the_solv
     assert "OBJECTIVE_WITHOUT_FEASIBILITY" in refused_as("solver")
 
 
+def test_a_count_s_k_and_n_must_be_numbers():
+    g = Graph(policy=Policy(reviewers={"risk"}))
+    inv = g.create(author="lead", type="investigation", fields={"title": "Test the crossover.",
+                   "objective": "Find out whether the crossover beats buy and hold after costs."})["id"]
+    with pytest.raises(GraphError) as e:
+        g.create(author="quant", type="result", inv=inv, fields={"summary": "The best in-sample setting of the grid and how many beat buy and hold.", "values": {
+            "best_of_grid": {"k": "40/50", "n": "rank 1 of 20"}, "beaters": {"k": 2, "n": 20}}})
+    assert "VALUE_NOT_A_NUMBER" in str(e.value) and "values.best_of_grid" in str(e.value) and "40/50" in str(e.value)
+    ok = {"summary": "The best in-sample setting of the grid and how many beat buy and hold.", "values": {"best_of_grid": {"value": "40/50"}, "beaters": {"k": 2, "n": 20}}}
+    assert g.create(author="quant", type="result", inv=inv, fields=ok)["type"] == "result"
+
+
 def test_a_benchmark_s_return_is_not_a_return_earned_and_the_refusal_names_the_fields():
     g = Graph(policy=Policy(reviewers={"risk"}))
     inv = g.create(author="lead", type="investigation", fields={"title": "Test the crossover.", "profile": "trading@2",
