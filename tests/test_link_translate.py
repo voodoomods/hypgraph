@@ -28,6 +28,7 @@ def test_an_experiment_that_supports_a_hypothesis_tests_it(env):
                                      {"rel": "uses", "to": a, "data": {"role": "data"}}])
     rels = {(x["rel"], x["dst"]) for x in g.snapshot().out[e["id"]]}
     assert ("tests", h) in rels and ("uses", a) in rels
+    assert [x["data"].get("read_as") for x in g.snapshot().out[e["id"]] if x["rel"] == "tests"] == ["supports"]
     assert any("read as tests" in n for n in e["notes"])
 
 
@@ -44,6 +45,7 @@ def test_a_run_that_uses_an_experiment_executes_it_and_a_result_that_answers_is_
     assert ("part_of", q) in {(x["rel"], x["dst"]) for x in g.snapshot().out[r["id"]]}
     out = stats.link(r["id"], "uses", a, why="the result was computed from the trial data")
     assert out["rel"] == "derived_from" and out["notes"]
+    assert g.snapshot().edges[out["edge"]]["data"]["read_as"] == "uses"
 
 
 def test_a_pair_no_relation_joins_is_still_refused_and_the_landed_link_fixes_it(env):

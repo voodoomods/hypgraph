@@ -669,9 +669,10 @@ class Graph:
                 specs, translated = [], []
                 for l in links:
                     a, rel, b = self._link_spec(nid, l)
-                    rel, note = self._translate(s, a, rel, b)
+                    given, (rel, note) = rel, self._translate(s, a, rel, b)
                     if note:
                         translated.append(note)
+                        l["data"] = {**(l.get("data") or {}), "read_as": given}    # what the author wrote
                     specs.append((a, rel, b))
                 oriented = [self._orient(s, *x) for x in specs]
                 pending = [(a, rel, b) for a, rel, b, _f in oriented]
@@ -998,7 +999,9 @@ class Graph:
         with self._lock:
             try:
                 s = self.snapshot()
-                rel, translated = self._translate(s, src, rel, dst)
+                given, (rel, translated) = rel, self._translate(s, src, rel, dst)
+                if translated:
+                    data = {**(data or {}), "read_as": given}                       # what the author wrote
                 src, rel, dst, flipped = self._orient(s, src, rel, dst)
                 if src in s.nodes:
                     self._fixed_guard(s, author, src)
