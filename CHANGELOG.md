@@ -1,5 +1,15 @@
 # Changelog
  
+## Unreleased
+
+- **A cited source is a line of support, and a succeeded run's "failed" outcome is a finding, not a fall.**
+  A knowledge claim that cites its sources (`cites` → source, or `derived_from` → source) read "no live
+  support · unverified" even after 0.7.4 counted bound results; the source is what such a claim rests on,
+  and its line is `external`. And a result with `outcome: failed` counted as a broken premise whatever its
+  run did: testers write "failed" for the code under test failing its spec (30 results in the challenge
+  records, 13 carrying checked claims that then read UNSUPPORTED — every support has fallen). A result a
+  succeeded run produced did happen; it falls only when there is no run or the run did not succeed.
+
 ## 0.7.4 — 2026-10-28: a bound result is a line of support, and a relation word is read as the relation it names
 
 - **A bound result is a line of support.** A claim's standing counted only `supports` edges into it, so a claim
