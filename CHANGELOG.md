@@ -1,6 +1,6 @@
 # Changelog
  
-## Unreleased
+## 0.7.5 — 2026-10-28: a cited source is a line of support, and a finding of failure is not a fall
 
 - **A cited source is a line of support, and a succeeded run's "failed" outcome is a finding, not a fall.**
   A knowledge claim that cites its sources (`cites` → source, or `derived_from` → source) read "no live
