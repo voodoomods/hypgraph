@@ -10,7 +10,7 @@
  *     // or, with no server at all:  { source: HypGraph.BundleSource(bundleJson) }
  *   </script>
  *
- * Views (docs/ui-plan.md): Overview · Live · Pipeline · Graph · Evidence · Work orders · Audit log · Report, each in
+ * Views (docs/ui-plan.md): Overview · Live (with the swarm as swimlanes) · Pipeline · Graph · Evidence · Work orders · Audit log · Report, each in
  * the investigation's profile's own words (Requirement, Thesis, Solution…). Nothing here writes. Standing, stages and
  * gates come from the engine; a BundleSource shows what the bundle was exported with and re-verifies its hash chain
  * in the browser. An HttpSource follows the record live (GET /stream), falling back to polling on older hosts, and
@@ -561,6 +561,57 @@
         <div class="trace">${rows || '<div class="dim">No calls yet.</div>'}</div>`;
     }
 
+    function lanes(tel, running) {                     // the swarm as swimlanes: seats as rows, orders as bars, calls as ticks
+      const m = S.m, all = m.tel, following = S.cursor == null;
+      if (!all.length) return '';
+      const run = all.find((t) => t.kind === 'run_start'), end = all.find((t) => t.kind === 'run_end');
+      const seen = tel.length ? tel[tel.length - 1].ts : (run ? run.ts : all[0].ts);
+      const now = following && running ? Date.now() / 1000 : seen;       // the replay position, or the wall clock
+      const t0 = run ? run.ts : all[0].ts;
+      const t1 = Math.max(end ? end.ts : Math.max(all[all.length - 1].ts, now), t0 + 1);   // a fixed axis while replaying
+      const span = t1 - t0, x = (ts) => Math.min(100, Math.max(0, ((ts - t0) / span) * 100));
+      const fmtT = (s) => s >= 3600 ? `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}` : `${Math.floor(s / 60)}:${String(Math.floor(Math.max(s, 0) % 60)).padStart(2, '0')}`;
+      const starts = tel.filter((t) => t.kind === 'order_start');
+      if (!starts.length) return '<div class="empty">Nobody has started yet.</div>';
+      const status = new Map((m.orders || []).map((o) => [o.code, o.status]));
+      const ends = new Map(tel.filter((t) => t.kind === 'order_end').map((t) => [t.span, t]));
+      const startOf = new Map(tel.filter((t) => t.kind === 'model_start' || t.kind === 'tool_start').map((t) => [t.span, t]));
+      const calls = tel.filter((t) => t.kind === 'model_end' || t.kind === 'tool_end');
+      const open = openSpans(tel).filter((t) => t.kind === 'model_start' || t.kind === 'tool_start');
+      const seats = [...new Set(starts.map((o) => o.seat).concat(calls.map((t) => t.seat)).filter(Boolean))];   // in the order they first took work; a seat that only made calls (the lead's report) still gets its row
+      const head = (following && running) || S.playing || !following ? `<u class="playhead" style="left:${x(now).toFixed(2)}%" title="${esc(fmtT(now - t0))}"></u>` : '';
+      const rows = seats.map((seat) => {
+        const bars = starts.filter((o) => o.seat === seat).map((o) => {
+          const e = ends.get(o.span), st = e ? (status.get(o.order) || 'ended') : 'open';   // until it ends, the viewer doesn't know how it ends
+          const a = x(o.ts), b = x(e ? e.ts : now);
+          const cls = st === 'accepted' ? 'ok' : st === 'reworked' ? 'warn' : st === 'cancelled' ? 'off' : st === 'returned' ? 'info' : e ? 'done' : 'open';
+          const title = `${o.order} · ${seat}${o.model ? ' · ' + o.model : ''}\n${e ? `${Number(e.s || e.ts - o.ts).toFixed(1)}s · ${e.calls || 0} call(s)${e.stopped ? ' · ' + e.stopped : ''}` : 'in flight'}\n${st}`;
+          return `<button type="button" class="ord ${cls}" data-act="lv-trace" data-order="${esc(o.order)}" style="left:${a.toFixed(2)}%;width:${Math.max(b - a, 0.4).toFixed(2)}%" title="${esc(title)}">${esc(o.order)}</button>`;
+        }).join('');
+        const ticks = calls.filter((t) => t.seat === seat).map((t) => {
+          const s = startOf.get(t.span), ts = s ? s.ts : t.ts - (Number(t.s) || 0);
+          const a = x(ts), w = Math.max(((Number(t.s) || 0) / span) * 100, 0.15);
+          const kind = t.kind === 'model_end' ? (t.ok === false ? 'bad' : 'model') : refusedCall(t) ? 'refused' : failed(t) ? 'bad' : 'tool';
+          const title = t.kind === 'model_end' ? `model ${t.model || ''} · ${fmtN(t.in || 0)}→${fmtN(t.out || 0)} tokens${t.usd ? ' · ' + fmtUsd(t.usd) : ''} · ${t.s}s${t.ok === false ? '\n' + String(t.error || '').slice(0, 120) : ''}`
+            : `${t.tool} · ${t.s}s${t.ok === false ? '\n' + String(t.error || '').replace(/^refused:?\s*/, '').slice(0, 120) : ''}`;
+          return `<u class="tick ${kind}" style="left:${a.toFixed(2)}%;width:${Math.min(w, 100 - a).toFixed(2)}%" title="${esc(title)}"></u>`;
+        }).join('');
+        const flying = open.filter((t) => t.seat === seat).map((t) => `<u class="tick open ${t.kind === 'model_start' ? 'model' : 'tool'}" style="left:${x(t.ts).toFixed(2)}%;width:${Math.max(x(now) - x(t.ts), 0.15).toFixed(2)}%" title="${esc(t.kind === 'model_start' ? `calling ${t.model || 'the model'}` : `running ${t.tool}`)}"></u>`).join('');
+        const mine = calls.filter((t) => t.seat === seat), n = mine.filter((t) => t.kind === 'model_end').length;
+        const usd = mine.reduce((a, t) => a + (Number(t.usd) || 0), 0), refs = mine.filter(refusedCall).length;
+        return `<div class="lane-row"><div class="lane-lbl"><b>${esc(seat)}</b><span class="dim">${n} call${n === 1 ? '' : 's'}${usd ? ' · ' + fmtUsd(usd) : ''}${refs ? ` · <span class="tel-warn">${refs} refused</span>` : ''}</span></div><div class="lane">${bars}${ticks}${flying}${head}</div></div>`;
+      }).join('');
+      const marks = tel.filter((t) => t.kind === 'decision' && /rework|escalat|cancel|moot/.test(String(t.event || ''))).map((t) =>
+        `<u class="mark" style="left:${x(t.ts).toFixed(2)}%" title="${esc(`scheduler: ${t.event}${t.order ? ' ' + t.order : ''}${t.why || t.missing ? ' — ' + String(t.why || t.missing).slice(0, 100) : ''}`)}"></u>`).join('');
+      const sched = marks ? `<div class="lane-row"><div class="lane-lbl"><b>scheduler</b><span class="dim">reworks · escalations</span></div><div class="lane">${marks}${head}</div></div>` : '';
+      const step = [5, 10, 15, 30, 60, 120, 300, 600, 1200, 1800, 3600].find((s) => span / s <= 8) || 3600;
+      let ax = '';
+      for (let s = 0; s <= span; s += step) ax += `<span style="left:${((s / span) * 100).toFixed(2)}%">${fmtT(s)}</span>`;
+      return `<div class="lanes">${rows}${sched}<div class="lane-row axis"><div class="lane-lbl"></div><div class="lane">${ax}</div></div></div>
+        <div class="legend dim"><i class="ord ok"></i> accepted <i class="ord warn"></i> reworked <i class="ord info"></i> returned <i class="ord off"></i> cancelled <i class="ord open"></i> in flight
+          <span class="gap"></span><u class="tick model"></u> model call <u class="tick tool"></u> tool call <u class="tick refused"></u> refused by the record <u class="tick bad"></u> failed <u class="mark"></u> rework · escalation</div>`;
+    }
+
     // ── views ──
     function vOverview() {
       const m = S.m, qs = m.board || [], claims = m.nodes.filter((n) => n.type === 'claim');
@@ -723,6 +774,7 @@
           <button class="btn" type="button" data-act="lv-live" ${following ? 'disabled' : ''}>${live ? 'Follow live' : 'Jump to end'}</button></div></div>
         ${tk.length ? `<div class="grid kpis" style="margin-bottom:10px">${tk.map(([k, v, s, c]) => `<div class="card kpi ${c || ''}"><div class="k">${esc(k)}</div><div class="v">${v}</div>${s ? `<div class="s">${esc(s)}</div>` : ''}</div>`).join('')}</div>` : ''}
         <div class="grid kpis" style="margin-bottom:14px">${kp.map(([k, v]) => `<div class="card kpi"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`).join('')}</div>
+        ${m.tel.length ? `<div class="card" style="margin-bottom:14px"><h3>Timeline <span class="sub">who held what, when — every call a tick; click an order for its trace</span></h3><div class="body">${lanes(tel, running)}</div></div>` : ''}
         ${m.tel.length ? (() => { const a = telAlerts(tel); return a.length ? `<div class="card" style="margin-bottom:14px"><h3>Alerts</h3><div class="body">${alertList(a)}</div></div>` : ''; })() : ''}
         <div class="grid live">
           <div class="card"><h3>Seats <span class="sub">who is working on what</span></h3>${seats(seen, tel)}</div>
@@ -968,6 +1020,7 @@
       if (a === 'lv-play') return S.playing ? (stopPlay(), render()) : play();
       if (a === 'lv-start') { stopPlay(); S.cursor = 0; return render(); }
       if (a === 'lv-live') { stopPlay(); S.cursor = null; return render(); }
+      if (a === 'lv-trace') { S.traceOrder = t.dataset.order || ''; render(); const el = $('#hg-trace-order'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
       if (a === 'print') return global.print();
       if (a === 'md') return download(`${slug}-report.md`, (m.report && m.report.markdown) || '', 'text/markdown');
       if (a === 'bundle') return download(`${slug}.bundle.json`, JSON.stringify(src.bundle), 'application/json');
