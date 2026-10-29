@@ -16,7 +16,9 @@
  * in the browser. An HttpSource follows the record live (GET /stream), falling back to polling on older hosts, and
  * hides what a host's API doesn't serve.
  *
- * Options: source (required) · theme ('light' | 'dark') · hash (keep the view in location.hash) · title · live ·
+ * Options: source (required) · theme ('light' | 'dark'; the OS's choice by default) · embed (on a page of its own:
+ * it grows to its content and scrolls nothing inside, the feed shows the latest 15 events) · hash (keep the view in
+ * location.hash) · title · live ·
  * play (open on the Live view and replay the run from its first event; also `#view=live&play=1`, and skipped when
  * the visitor asks for reduced motion) · onTheme(t) · operatorUrl · fileUrl(path). Keys: 1–8 views · ⌘K / Ctrl+K or / search · Esc close · t theme.
  * `HypAtlas` is kept as an alias of `HypGraph` for one release.
@@ -321,7 +323,9 @@
     opts = opts || {};
     const src = opts.source || HttpSource();
     root.classList.add('hg');
-    if (!root.dataset.theme) root.dataset.theme = opts.theme || 'light';
+    const prefersDark = () => !!(global.matchMedia && global.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (!root.dataset.theme) root.dataset.theme = opts.theme || (prefersDark() ? 'dark' : 'light');
+    if (opts.embed) root.classList.add('hg-embed');   // on a page of its own, not the workbench: short feeds, no scroll trap
     const brand = opts.title && !/^atlas$/i.test(opts.title) ? esc(opts.title) : 'Hyp<b>Graph</b>';
     root.innerHTML = `<div class="hg-app">
       <header class="hg-top"><div class="hg-brand">${LOGO}<span>${brand}</span></div>
@@ -454,9 +458,14 @@
       if (m.tel.length) out.push(...telAlerts(m.tel));
       return out;
     }
-    const alertList = (items) => items.length ? `<ul class="alerts">${items.map(([lvl, txt, code]) =>
-      `<li><span class="pill ${lvl}">${lvl === 'bad' ? 'action' : lvl === 'warn' ? 'check' : 'note'}</span><span>${esc(txt)}${code ? ` <button class="btn" type="button" data-n="${esc(code)}" style="padding:1px 8px">open</button>` : ''}</span></li>`).join('')}</ul>`
-      : '<div class="dim">Nothing needs attention.</div>';
+    const alertList = (items) => {
+      const seen = new Map();                            // the same alert raised four times is one line, ×4
+      items.forEach(([lvl, txt, code]) => { const k = lvl + '|' + txt, h = seen.get(k); if (h) h.n++; else seen.set(k, { lvl, txt, code, n: 1 }); });
+      const rows = [...seen.values()];
+      return rows.length ? `<ul class="alerts">${rows.map(({ lvl, txt, code, n }) =>
+        `<li><span class="pill ${lvl}">${lvl === 'bad' ? 'action' : lvl === 'warn' ? 'check' : 'note'}</span><span>${esc(txt)}${n > 1 ? ` <span class="pill neutral" title="raised ${n} times">×${n}</span>` : ''}${code ? ` <button class="btn" type="button" data-n="${esc(code)}" style="padding:1px 8px">open</button>` : ''}</span></li>`).join('')}</ul>`
+        : '<div class="dim">Nothing needs attention.</div>';
+    };
 
     // ── telemetry (what the swarm did that the record can't see) ──
     function telUpTo() {                                   // the telemetry the current replay position has reached
@@ -515,7 +524,7 @@
       switch (t.kind) {
         case 'model_end': what = t.ok === false ? `<span class="tel-bad">model call failed</span> ${d(String(t.error || '').slice(0, 120))}`
           : `model ${d(t.model || '')} · ${fmtN(t.in || 0)}→${fmtN(t.out || 0)} tokens${t.usd ? ' · ' + fmtUsd(t.usd) : ''} · ${t.s}s${(t.tool_calls || []).length ? ' → ' + t.tool_calls.map(esc).join(', ') : ''}`; break;
-        case 'tool_end': what = refusedCall(t) ? `<span class="tel-warn">${esc(t.tool)} refused by the record</span> ${d(String(t.error || '').replace(/^refused:?\s*/, '').slice(0, 140))}`
+        case 'tool_end': what = refusedCall(t) ? `<span class="tel-warn">${esc(t.tool)} refused by the record</span> ${d(String(t.error || '').replace(/^refused:?\s*/, '').replace(/\b(\w+ refused):\s*\1:\s*/g, '$1: ').slice(0, 140))}`
           : t.ok === false ? `<span class="tel-bad">tool ${esc(t.tool)} failed</span> ${d(String(t.error || '').slice(0, 120))}` : `tool ${c(t.tool)} · ${t.s}s`; break;
         case 'order_start': what = `took ${c(t.order)} ${d('· ' + (t.model || ''))}`; break;
         case 'order_end': what = `finished ${c(t.order)} · ${t.calls || 0} call(s)${t.stopped ? ' ' + d('· ' + t.stopped) : ''}`; break;
@@ -725,10 +734,10 @@
         ${m.tel.length ? `<div class="card" style="margin-top:14px"><h3>Trace <span class="sub">where a work order's time went: each model and tool call</span></h3><div class="body">${trace(tel)}</div></div>` : ''}`;
     }
     function feed(seen, tel, running) {
-      const mode = S.feed || 'all';
-      const rec = mode === 'telemetry' ? [] : seen.slice(-300).map((e) => ({ ts: Date.parse(e.at) / 1000, e }));
-      const tl = mode === 'record' ? [] : tel.filter((t) => !t.kind.endsWith('_start') || t.kind === 'order_start' || t.kind === 'run_start').slice(-400).map((t) => ({ ts: t.ts, t }));
-      const all = rec.concat(tl).sort((a, b) => b.ts - a.ts || ((b.e ? b.e.seq : 0) - (a.e ? a.e.seq : 0))).slice(0, 400);
+      const mode = S.feed || 'all', cap = opts.embed ? 15 : 400;
+      const rec = mode === 'telemetry' ? [] : seen.slice(-cap).map((e) => ({ ts: Date.parse(e.at) / 1000, e }));
+      const tl = mode === 'record' ? [] : tel.filter((t) => !t.kind.endsWith('_start') || t.kind === 'order_start' || t.kind === 'run_start').slice(-cap).map((t) => ({ ts: t.ts, t }));
+      const all = rec.concat(tl).sort((a, b) => b.ts - a.ts || ((b.e ? b.e.seq : 0) - (a.e ? a.e.seq : 0))).slice(0, cap);
       return all.map((x, i) => x.e ? evRow(x.e, i === 0 && (S.playing || running)) : telRow(x.t)).join('') || '<div class="empty">Nothing yet.</div>';
     }
     function seats(seen, tel) {
