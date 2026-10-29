@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.7 — 2026-10-29: `hypgraph serve` inside a container
 
 - **`hypgraph serve` bound to `0.0.0.0` answered 421 to everyone.** Its Host check knew only the bind address,
   which no browser sends: inside a container with a published port, every request arrives as
