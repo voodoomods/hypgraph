@@ -125,6 +125,25 @@ TRANSLATE: dict[tuple[str, str, str], str] = {
     ("part_of", "claim", "artifact"): "derived_from",
     ("supports", "decision", "hypothesis"): "based_on", ("supports", "decision", "claim"): "based_on",
     ("supports", "decision", "result"): "based_on",
+    ("derived_from", "hypothesis", "claim"): "motivated_by", ("derived_from", "hypothesis", "result"): "motivated_by",
+    ("derived_from", "experiment", "hypothesis"): "tests", ("derived_from", "question", "claim"): "motivated_by",
+}
+
+# A relation written as a word the grammar doesn't have — the run's own verb ("generated", "ran", "test") — read as
+# the relation it names. Only words with one reading.
+REL_SYNONYMS: dict[str, str] = {
+    "generated": "produced", "generates": "produced", "created": "produced", "creates": "produced",
+    "wrote": "produced", "writes": "produced", "produces": "produced", "output": "produced",
+    "ran": "executes", "runs": "executes", "executed": "executes", "execute": "executes", "performs": "executes",
+    "test": "tests", "tested": "tests", "testing": "tests", "answer": "answers", "answered": "answers",
+    "support": "supports", "supported": "supports", "challenge": "challenges", "challenged": "challenges",
+    "contradicts": "challenges", "refutes": "challenges", "derived": "derived_from", "derives_from": "derived_from",
+    "computed_from": "derived_from", "based": "based_on", "use": "uses", "used": "uses", "using": "uses",
+    "reads": "uses", "read": "uses", "cite": "cites", "cited": "cites", "citing": "cites", "replicate": "replicates",
+    "replicated": "replicates", "supersede": "supersedes", "superseded": "supersedes", "replaces": "supersedes",
+    "correct": "corrects", "corrected": "corrects", "require": "requires", "required": "requires",
+    "depends_on": "requires", "part": "part_of", "belongs_to": "part_of", "motivated": "motivated_by",
+    "rests": "rests_on", "works": "works_on", "blocked": "blocked_by", "settle": "settles", "settled": "settles",
 }
 
 SYNONYMS: dict[tuple[str, str], dict[str, str]] = {

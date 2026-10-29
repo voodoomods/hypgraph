@@ -8,6 +8,12 @@
   claim derives from and the results its measurements bind now count as lines of support (each once; shared runs
   or data still merge into one line), so the evidence profile is the result's — lab-recorded when the instrument
   filed it — and `unsupported` means what it says.
+- **A relation word the grammar doesn't have is read as the relation it names.** "generated", "created", "wrote"
+  → `produced`; "ran", "executed" → `executes`; "test" → `tests`; "answer" → `answers`; "used", "reads" → `uses`;
+  "contradicts", "refutes" → `challenges`; and so on (`schema.REL_SYNONYMS`, one reading each), noted on the
+  link like a translation. A hypothesis "derived from" a claim or result is `motivated_by` it; an experiment
+  "derived from" a hypothesis `tests` it. The link refusals left in the runs after 0.7.3: an unknown relation
+  `generated`, `derived_from hypothesis → claim`.
 
 ## 0.7.3 — 2026-10-28: the refusal log sees everything — results, shape, links — and reads a link as the relation that joins
 
