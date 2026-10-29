@@ -1,6 +1,6 @@
 # Changelog
  
-## Unreleased
+## 0.7.6 — 2026-10-29: the swarm as swimlanes, and the UI walked on a real record
 
 - **UI polish from a walk of a real swarm record.** Identical alerts collapse into one line with a count (a seat
   that looped four times showed four lines); the six KPI tiles fit one row where the sixth sat orphaned below;
@@ -11,8 +11,6 @@
   grows to its content and scrolls nothing inside, so a wheel over it moves the page (twenty ticks over the
   homepage's embed used to move nothing), and its feed shows the latest 15 events. hypgraph.com: the hero's chips no
   longer wrap mid-phrase.
-
-## Unreleased
 
 - **The Live view shows the swarm as swimlanes.** Seats as rows in the order they first took work, time across,
   every work order a bar coloured by how the record settled it (accepted, reworked, returned, cancelled, in
