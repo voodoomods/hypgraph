@@ -31,7 +31,7 @@ from . import derive as D
 from . import refusals, store
 from .checks import claim_issues, value_issues
 from .policy import Policy
-from .schema import REPLICATION, RELS, SAME_TYPE, SYNONYMS, TRANSLATE, TYPES, VERDICTS
+from .schema import REL_SYNONYMS, REPLICATION, RELS, SAME_TYPE, SYNONYMS, TRANSLATE, TYPES, VERDICTS
 from .store import canon, now
 
 
@@ -462,14 +462,25 @@ class Graph:
     @staticmethod
     def _translate(s: D.Snap, src: str, rel: str, dst: str) -> tuple[str, str]:
         """A relation that can't join these two types, read as the one that says the same thing between them
-        (schema.TRANSLATE): the relation to apply and a note, or the given relation and ''."""
+        (schema.TRANSLATE), or a word the grammar doesn't have read as the relation it names (schema.REL_SYNONYMS):
+        the relation to apply and a note, or the given relation and ''."""
+        given = rel
+        if rel not in RELS:
+            word = str(rel or "").strip().lower().replace(" ", "_").replace("-", "_")
+            rel = REL_SYNONYMS.get(word, rel)
+            if rel in RELS and src in s.nodes and dst in s.nodes:
+                st, dt = s.nodes[src]["type"], s.nodes[dst]["type"]
+                srcs, dsts = RELS[rel]
+                if (st in srcs and dt in dsts) or (dt in srcs and st in dsts):
+                    return rel, (f"{s.nodes[src].get('code') or src} -{given}-> {s.nodes[dst].get('code') or dst} "
+                                 f"read as {rel}")
         if rel in RELS and src in s.nodes and dst in s.nodes:
             st, dt = s.nodes[src]["type"], s.nodes[dst]["type"]
             srcs, dsts = RELS[rel]
             if not (st in srcs and dt in dsts) and not (dt in srcs and st in dsts):
                 new = TRANSLATE.get((rel, st, dt))
                 if new:
-                    return new, (f"{s.nodes[src].get('code') or src} -{rel}-> {s.nodes[dst].get('code') or dst} "
+                    return new, (f"{s.nodes[src].get('code') or src} -{given}-> {s.nodes[dst].get('code') or dst} "
                                  f"read as {new} (a {st} {new.replace('_', ' ')} a {dt}; {rel} joins "
                                  f"{', '.join(sorted(srcs))} to {', '.join(sorted(dsts))})")
         return rel, ""

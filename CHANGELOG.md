@@ -1,6 +1,6 @@
 # Changelog
  
-## Unreleased
+## 0.7.4 — 2026-10-28: a bound result is a line of support, and a relation word is read as the relation it names
 
 - **A bound result is a line of support.** A claim's standing counted only `supports` edges into it, so a claim
   that derives from a result and binds its numbers to it by `measurements` read "no live support", evidence
