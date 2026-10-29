@@ -168,6 +168,34 @@
 .hg .tel-bad { color: var(--bad); font-weight: 600; } .hg .tel-warn { color: var(--warn); font-weight: 600; }
 .hg .fly { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px;
   vertical-align: 0; animation: hg-pulse 1.2s infinite; }
+/* the timeline: seats as rows, orders as bars, calls as ticks above (model) and below (tool) the bar */
+.hg .lanes { display: grid; gap: 3px; }
+.hg .lane-row { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 10px; align-items: center; }
+.hg .lane-lbl { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; font-size: 12px; }
+.hg .lane-lbl b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .hg .lane-lbl .dim { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hg .lane { position: relative; height: 28px; background: var(--sunken); border-radius: 4px; }
+.hg .lane .ord { position: absolute; top: 8px; height: 12px; border: 0; border-radius: 3px; padding: 0 4px; margin: 0; font: 600 10px/12px var(--mono);
+  color: #fff; text-align: left; overflow: hidden; white-space: nowrap; cursor: pointer; opacity: .92; box-sizing: border-box; }
+.hg .lane .ord:hover, .hg .lane .ord:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; z-index: 3; }
+.hg .ord.ok { background: var(--ok); } .hg .ord.warn { background: var(--warn); } .hg .ord.info { background: var(--info); }
+.hg .ord.off { background: var(--ink3); } .hg .ord.done { background: var(--accent-ink); } .hg .ord.open { background: var(--accent); animation: hg-blink 1.2s ease-in-out infinite; }
+.hg .lane .tick { position: absolute; top: 2px; height: 5px; min-width: 2px; border-radius: 1px; background: var(--ink); opacity: .6; z-index: 1; }
+.hg .lane .tick.tool { top: 21px; background: var(--ink3); }
+.hg .lane .tick.refused, .hg .lane .tick.bad { top: 21px; height: 6px; background: var(--bad); opacity: 1; min-width: 3px; z-index: 2; }
+.hg .lane .tick.model.bad { top: 1px; }
+.hg .lane .tick.open { opacity: 1; background: var(--accent); animation: hg-blink 1.2s ease-in-out infinite; }
+.hg .lane .mark { position: absolute; top: 9px; width: 10px; height: 10px; margin-left: -5px; background: var(--warn); transform: rotate(45deg); border-radius: 2px; z-index: 1; }
+.hg .lane .playhead { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--bad); z-index: 4; pointer-events: none; }
+.hg .lane-row.axis .lane { height: 16px; background: none; }
+.hg .lane-row.axis .lane span { position: absolute; top: 1px; font: 10.5px var(--mono); color: var(--ink3); transform: translateX(-50%); }
+.hg .lane-row.axis .lane span:first-child { transform: none; } .hg .lane-row.axis .lane span:last-child { transform: translateX(-100%); }
+.hg .legend { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 11.5px; margin-top: 10px; }
+.hg .legend .ord, .hg .legend .tick, .hg .legend .mark { position: static; display: inline-block; width: 16px; height: 10px; margin: 0 2px 0 0; vertical-align: middle; animation: none; }
+.hg .legend .tick { height: 5px; } .hg .legend .mark { width: 8px; height: 8px; transform: rotate(45deg); } .hg .legend .gap { width: 10px; }
+@container hg-main (max-width: 560px) { .hg .lane-row { grid-template-columns: 84px minmax(0, 1fr); } .hg .lane-lbl .dim { display: none; }
+  .hg .lane-row.axis .lane span:nth-child(even) { display: none; } }
+@keyframes hg-blink { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .hg .ord.open, .hg .lane .tick.open { animation: none; } }
 .hg .trace { display: grid; gap: 4px; }
 .hg .trace .tr { display: grid; grid-template-columns: minmax(160px, 300px) 1fr 64px; gap: 10px; align-items: center; font-size: 12px; }
 .hg .trace .tl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); }

@@ -12,6 +12,15 @@
   homepage's embed used to move nothing), and its feed shows the latest 15 events. hypgraph.com: the hero's chips no
   longer wrap mid-phrase.
 
+## Unreleased
+
+- **The Live view shows the swarm as swimlanes.** Seats as rows in the order they first took work, time across,
+  every work order a bar coloured by how the record settled it (accepted, reworked, returned, cancelled, in
+  flight), every model call a tick above the bar and every tool call a tick below, refusals and failures in
+  red, the scheduler's reworks and escalations as marks on their own row, and the playhead sweeping across
+  during replay on a fixed axis. Hover anything for its figures; click an order for its trace. Drawn from the
+  telemetry the view already holds, no dependency.
+
 ## 0.7.5 — 2026-10-28: a cited source is a line of support, and a finding of failure is not a fall
 
 - **A cited source is a line of support, and a succeeded run's "failed" outcome is a finding, not a fall.**
