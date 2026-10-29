@@ -1,5 +1,5 @@
 # Changelog
-
+ 
 ## Unreleased
 
 - **A bound result is a line of support.** A claim's standing counted only `supports` edges into it, so a claim
