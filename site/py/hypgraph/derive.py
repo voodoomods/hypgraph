@@ -134,7 +134,11 @@ def fallen(s: Snap, nid: str) -> bool:
     if n["type"] == "run" and n["body"].get("state") in ("failed", "timeout", "cancelled", "interrupted"):
         return True
     if n["type"] == "result" and n["body"].get("outcome") == "failed":
-        return True
+        # "failed" means the measurement didn't happen. A result a succeeded run produced did happen: its author
+        # wrote "failed" for what it measured (the code under test failing its spec — 30 results in the challenge
+        # records, 13 carrying checked claims that then read UNSUPPORTED). That is a finding, not a fall.
+        run = producing_run(s, nid)
+        return not (run and s.nodes[run]["body"].get("state") == "succeeded")
     return False
 
 
@@ -349,8 +353,8 @@ def dependents(s: Snap, nid: str, limit: int = 500) -> list[tuple[str, str, int]
 
 
 def supporters(s: Snap, nid: str) -> list[dict]:
-    """What stands behind a node: every `supports` edge into it, and — for a claim — the results it is derived from
-    and the results its measurements bind (each once). A claim that binds its numbers to a result rests on that
+    """What stands behind a node: every `supports` edge into it, and — for a claim — the results it is derived from,
+    the sources it derives from or cites, and the results its measurements bind (each once). A claim that binds its numbers to a result rests on that
     result whether or not anyone also wrote `supports`; until 0.7.4 only the edge counted, and most honest claims
     read "no live support" with their evidence "unverified"."""
     out = [e for e in s.inn.get(nid, []) if e["rel"] == "supports"]
@@ -358,10 +362,11 @@ def supporters(s: Snap, nid: str) -> list[dict]:
     if n and n["type"] == "claim":
         seen = {e["src"] for e in out}
         for e in s.out.get(nid, []):
-            if e["rel"] == "derived_from" and e["dst"] in s.nodes and s.nodes[e["dst"]]["type"] == "result" \
-                    and e["dst"] not in seen:
+            # a result it derives from, or a source it derives from or cites: what the claim rests on
+            if e["rel"] in ("derived_from", "cites") and e["dst"] in s.nodes and e["dst"] not in seen \
+                    and s.nodes[e["dst"]]["type"] in (("result", "source") if e["rel"] == "derived_from" else ("source",)):
                 seen.add(e["dst"])
-                out.append({"src": e["dst"], "rel": "derived_from", "dst": nid, "data": {}, "by": n["created_by"]})
+                out.append({"src": e["dst"], "rel": e["rel"], "dst": nid, "data": {}, "by": n["created_by"]})
         for m in n["body"].get("measurements") or []:
             rid = m.get("result") if isinstance(m, dict) else None
             if rid and rid in s.nodes and s.nodes[rid]["type"] == "result" and rid not in seen:
