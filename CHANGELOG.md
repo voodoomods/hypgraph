@@ -1,5 +1,17 @@
 # Changelog
  
+## Unreleased
+
+- **UI polish from a walk of a real swarm record.** Identical alerts collapse into one line with a count (a seat
+  that looped four times showed four lines); the six KPI tiles fit one row where the sixth sat orphaned below;
+  the grids break on the panel's own width, not the window's (container queries: an embed is narrower than its
+  page, and the Live view squeezed its graph to 130 px between two full columns); the theme follows the OS unless
+  the visitor chose one; a refusal relayed twice ("claim refused: claim
+  refused:") reads once in the event stream; `mount(…, {embed: true})` marks an app on a page of its own: it
+  grows to its content and scrolls nothing inside, so a wheel over it moves the page (twenty ticks over the
+  homepage's embed used to move nothing), and its feed shows the latest 15 events. hypgraph.com: the hero's chips no
+  longer wrap mid-phrase.
+
 ## 0.7.5 — 2026-10-28: a cited source is a line of support, and a finding of failure is not a fall
 
 - **A cited source is a line of support, and a succeeded run's "failed" outcome is a finding, not a fall.**

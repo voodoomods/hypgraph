@@ -21,7 +21,7 @@
 <script>
   const stored = (() => { try { return localStorage.getItem('hypgraph-theme'); } catch { return null; } })();
   HypGraph.mount(document.getElementById('app'), {
-    source: HypGraph.HttpSource('api/graph'), hash: true, theme: stored || 'light',
+    source: HypGraph.HttpSource('api/graph'), hash: true, theme: stored || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
     onTheme: (t) => { try { localStorage.setItem('hypgraph-theme', t); } catch { /* private mode */ } },
   });
 </script>
