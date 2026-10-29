@@ -1,4 +1,12 @@
 # Changelog
+
+## Unreleased
+
+- **`hypgraph serve` bound to `0.0.0.0` answered 421 to everyone.** Its Host check knew only the bind address,
+  which no browser sends: inside a container with a published port, every request arrives as
+  `Host: 127.0.0.1:<host port>` and was refused as a possible DNS rebinding. A wildcard bind now accepts the
+  loopback names (the port was never part of the check), and `--allow-host NAME` (repeatable; `allow_hosts=` on
+  `make_server` / `serve`) adds a LAN or service name. A wildcard bind still never means "any Host".
  
 ## 0.7.6 — 2026-10-29: the swarm as swimlanes, and the UI walked on a real record
 

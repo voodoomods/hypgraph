@@ -425,6 +425,7 @@ def cmd_serve(args) -> int:
     if tokens and not args.writable:
         print("note: --token only matters with --writable (reads are open)")
     serve(args.db, host=args.host, port=args.port, writable=args.writable, open_browser=not args.no_browser,
+          allow_hosts=tuple(args.allow_host or ()),
           tokens=tokens or None, telemetry=(args.telemetry or "auto") if not args.no_telemetry else None)
     return 0
 
@@ -537,6 +538,8 @@ def build_parser() -> argparse.ArgumentParser:
     s = cmd("serve", cmd_serve, "the HypGraph UI and JSON API on localhost")
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8765)
+    s.add_argument("--allow-host", action="append", metavar="NAME",
+                   help="a Host header name to answer to besides loopback (a LAN or service name); repeatable")
     s.add_argument("--writable", action="store_true", help="also accept writes (POST /api/graph/write)")
     s.add_argument("--no-browser", action="store_true")
     s.add_argument("--telemetry", default="", metavar="FILE",
