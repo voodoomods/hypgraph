@@ -236,6 +236,28 @@ def read_telemetry(path: Path | None, after: int = 0, inv: str = "", limit: int 
     return out, after + end + 1
 
 
+LOOPBACK_NAMES = frozenset({"localhost", "127.0.0.1", "::1"})
+WILDCARD_BINDS = frozenset({"", "0.0.0.0", "::", "*"})
+
+
+def accepted_hosts(host: str, allow_hosts: tuple[str, ...] | list[str] = ()) -> set[str]:
+    """The names a request's Host header may carry (port ignored); anything else is 421.
+
+    Bound to a loopback name, the server answers to every loopback name. Bound to a wildcard (``0.0.0.0``,
+    ``::``) — as inside a container whose port is published — it answers to the loopback names too, since the
+    browser reaches the published port as ``127.0.0.1:<host port>``; the bind address itself is never a name a
+    browser sends. ``allow_hosts`` adds names: a LAN hostname, a service name. The check is DNS-rebinding
+    defence (a page on another origin can't make the browser talk to this server by name), so a wildcard bind
+    never means "any Host"."""
+    names = {h.strip().lower() for h in allow_hosts if h and h.strip()}
+    h = (host or "").strip().lower()
+    if h in LOOPBACK_NAMES or h in WILDCARD_BINDS:
+        names |= LOOPBACK_NAMES
+    if h and h not in WILDCARD_BINDS:
+        names.add(h)
+    return names
+
+
 def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
                  tokens: dict[str, frozenset] | None = None, telemetry: Path | None = None):
     class Handler(BaseHTTPRequestHandler):
@@ -389,7 +411,8 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
 
 
 def make_server(graph: Graph | str, host: str = "127.0.0.1", port: int = 8765, *, writable: bool = False,
-                tokens: dict[str, frozenset] | None = None, telemetry: str | Path | None = "auto"):
+                tokens: dict[str, frozenset] | None = None, telemetry: str | Path | None = "auto",
+                allow_hosts: tuple[str, ...] | list[str] = ()):
     """``telemetry``: the swarm's sidecar to serve and stream — "auto" is ``<db>.telemetry.jsonl`` beside the record
     (it may appear later: a run started after the server is picked up), a path, or None for none."""
     g = graph if isinstance(graph, Graph) else Graph(graph)
@@ -399,19 +422,20 @@ def make_server(graph: Graph | str, host: str = "127.0.0.1", port: int = 8765, *
             tel = Path(g.path + ".telemetry.jsonl")
     elif telemetry:
         tel = Path(telemetry)
-    hosts = {host.lower(), "localhost", "127.0.0.1", "::1"} if host in ("127.0.0.1", "localhost", "::1") else \
-        {host.lower()}
+    hosts = accepted_hosts(host, allow_hosts)
     root = static_dir().resolve()
     return ThreadingHTTPServer((host, port), make_handler(g, writable=writable, hosts=hosts, root=root, tokens=tokens,
                                                           telemetry=tel))
 
 
 def serve(db: str, host: str = "127.0.0.1", port: int = 8765, *, writable: bool = False,
-          open_browser: bool = True, tokens: dict[str, frozenset] | None = None, telemetry: str | None = "auto") -> None:
+          open_browser: bool = True, tokens: dict[str, frozenset] | None = None, telemetry: str | None = "auto",
+          allow_hosts: tuple[str, ...] | list[str] = ()) -> None:
     if not Path(db).exists():
         print(f"{db} doesn't exist yet — `hypgraph demo` builds one to explore, `hypgraph init` starts your own.")
         return
-    srv = make_server(db, host, port, writable=writable, tokens=tokens, telemetry=telemetry)
+    srv = make_server(db, host, port, writable=writable, tokens=tokens, telemetry=telemetry,
+                      allow_hosts=allow_hosts)
     url = f"http://{host}:{srv.server_address[1]}/"
     auth = f", {len(tokens)} write token(s)" if tokens else (", writes unauthenticated" if writable else "")
     tel = telemetry if telemetry not in ("auto", None) else (db + ".telemetry.jsonl" if telemetry == "auto" else "")
