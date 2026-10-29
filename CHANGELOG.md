@@ -1,7 +1,13 @@
 # Changelog
-
+ 
 ## Unreleased
 
+- **A bound result is a line of support.** A claim's standing counted only `supports` edges into it, so a claim
+  that derives from a result and binds its numbers to it by `measurements` read "no live support", evidence
+  "unverified" — 73 of 113 active claims in the challenge records, each with its result right there. The results a
+  claim derives from and the results its measurements bind now count as lines of support (each once; shared runs
+  or data still merge into one line), so the evidence profile is the result's — lab-recorded when the instrument
+  filed it — and `unsupported` means what it says.
 - **A relation word the grammar doesn't have is read as the relation it names.** "generated", "created", "wrote"
   → `produced`; "ran", "executed" → `executes`; "test" → `tests`; "answer" → `answers`; "used", "reads" → `uses`;
   "contradicts", "refutes" → `challenges`; and so on (`schema.REL_SYNONYMS`, one reading each), noted on the

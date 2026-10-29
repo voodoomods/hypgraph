@@ -349,7 +349,25 @@ def dependents(s: Snap, nid: str, limit: int = 500) -> list[tuple[str, str, int]
 
 
 def supporters(s: Snap, nid: str) -> list[dict]:
-    return [e for e in s.inn.get(nid, []) if e["rel"] == "supports"]
+    """What stands behind a node: every `supports` edge into it, and — for a claim — the results it is derived from
+    and the results its measurements bind (each once). A claim that binds its numbers to a result rests on that
+    result whether or not anyone also wrote `supports`; until 0.7.4 only the edge counted, and most honest claims
+    read "no live support" with their evidence "unverified"."""
+    out = [e for e in s.inn.get(nid, []) if e["rel"] == "supports"]
+    n = s.nodes.get(nid)
+    if n and n["type"] == "claim":
+        seen = {e["src"] for e in out}
+        for e in s.out.get(nid, []):
+            if e["rel"] == "derived_from" and e["dst"] in s.nodes and s.nodes[e["dst"]]["type"] == "result" \
+                    and e["dst"] not in seen:
+                seen.add(e["dst"])
+                out.append({"src": e["dst"], "rel": "derived_from", "dst": nid, "data": {}, "by": n["created_by"]})
+        for m in n["body"].get("measurements") or []:
+            rid = m.get("result") if isinstance(m, dict) else None
+            if rid and rid in s.nodes and s.nodes[rid]["type"] == "result" and rid not in seen:
+                seen.add(rid)
+                out.append({"src": rid, "rel": "measurement", "dst": nid, "data": {}, "by": n["created_by"]})
+    return out
 
 
 def at_risk(s: Snap, nid: str) -> list[str]:
