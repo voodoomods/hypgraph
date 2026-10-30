@@ -146,7 +146,7 @@ FOOTER = """<footer><div class="wrap"><span class="slogan">Don't believe the hyp
 <span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="../disclaimer/">Disclaimer</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>"""
 
 
-def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str) -> str:
+def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str, kicker: str = "hypgraph/1 · draft 1") -> str:
     nav = nav_links(current)
     toc_html = "".join(f'<a href="#{s}">{html.escape(t)}</a>' for s, t in toc)
     return f"""<!doctype html>
@@ -167,7 +167,7 @@ def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: 
   <nav aria-label="Site">{nav}<button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
 <main id="main">
-<div class="phead"><div class="wrap"><div class="kicker">hypgraph/1 · draft 1</div><h1>{html.escape(title)}</h1>
+<div class="phead"><div class="wrap"><div class="kicker">{html.escape(kicker)}</div><h1>{html.escape(title)}</h1>
 <p>{html.escape(lede)}</p></div></div>
 <div class="wrap doc"><nav class="toc" aria-label="On this page">{toc_html}</nav><article class="prose">
 {body}
@@ -388,7 +388,7 @@ def main() -> None:
     body, toc = markdown((ROOT / "DISCLAIMER.md").read_text(encoding="utf-8").split(chr(10), 1)[1])   # drop the title
     write(SITE / "disclaimer" / "index.html", page("Disclaimer", "What HypGraph promises, and what it does not: "
                                                                  "provided as is, standing derived rather than "
-                                                                 "certified, and no advice.", body, toc, ""))
+                                                                 "certified, and no advice.", body, toc, "", kicker="Terms"))
     shutil.copy2(ROOT / "AGENTS.md", SITE / "agents.md")
     skill = PKG / "skill" / "SKILL.md"
     shutil.copy2(skill, SITE / "SKILL.md")
