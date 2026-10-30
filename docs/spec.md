@@ -28,7 +28,7 @@ correction is a new row, never an edited one.
 | `run` | RUN | **kind**\*, job_id, name, state, code, inputs, outputs, args, config, seed, env, started, finished, exit_code, log_sha256, note | One execution: code, inputs and outputs hashed, seed, state. `kind=lab` only from an instrument. |
 | `result` | RS | **summary**\*, kind, outcome, values, expected, limitations, power, evidence_note, legacy | What a run (or an observation, or a citation) found: values, outcome, power. |
 | `artifact` | A | **sha256**\*, path, size, format | Exact bytes, by sha256 — data, code, a model, a figure. |
-| `source` | S | **citation**\*, doi, url, passage, retrieved, says | Outside literature or data: citation, DOI, the passage that says it. |
+| `source` | S | **citation**\*, doi, url, passage, retrieved, says, kind, reliability, record, node, version, hash | Outside literature or data: citation, DOI, the passage that says it. Or another record's node, pinned: `record` (its URL), `node`, `version` and `hash` (sha256 of that version's canonical body) — all four or none. |
 | `review` | RV | **verdict**\*, **method**\*, **notes**\*, official | A verdict on one version of a claim, result, run, experiment or hypothesis. |
 | `decision` | D | **choice**\*, alternatives, **reasons**\*, revisit_if, meeting | A choice made on the evidence; flagged when what it was based on changes. |
 | `task` | T | **kanban_id**\*, title | A unit of work in your tracker, linked to what it works on. |

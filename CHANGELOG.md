@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased: pinned references between records
+
+- **A record can cite a node of another record and prove what it read.** A `source` takes four more fields,
+  `record` (the cited record's URL), `node`, `version` and `hash` (sha256 of that version's canonical body, the
+  same hash the cited record's chain holds), all four or none (`SHAPE_REFERENCE` otherwise). `Graph.pin(node,
+  record_url)` / `GET /api/graph/pin/{id}?record=` build them for one of this record's nodes, with the node's own
+  words in `citation` and `says`, so the citing record reads without the cited one. `Graph.references(inv)` /
+  `GET /api/graph/references` list the sources here that pin other records, with who cites them.
+  `hypgraph.verify_reference(fields, fetch=)` reads the cited record's node route (HTTP, or a host's own reader)
+  and reports whether the pinned version still hashes to the pin, whether it was revised since, and whether it
+  was withdrawn. The citing record never trusts the other's status; it trusts the hash it pinned. A record stays
+  one trust boundary; a host that holds many (a mesh) derives the network from these pins.
+
 ## 0.7.7 — 2026-10-29: `hypgraph serve` inside a container
 
 - **`hypgraph serve` bound to `0.0.0.0` answered 421 to everyone.** Its Host check knew only the bind address,

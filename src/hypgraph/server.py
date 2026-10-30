@@ -5,6 +5,8 @@
     GET  /api/graph/investigations          {investigations, stats}
     GET  /api/graph/subgraph?inv=&types=    nodes (with standing) and live edges
     GET  /api/graph/node/{id}?history=1     one node, its links, its versions
+    GET  /api/graph/pin/{id}?record=URL     source fields another record cites this node by (version + hash pinned)
+    GET  /api/graph/references?inv=         the sources here that pin nodes of other records
     GET  /api/graph/why/{id}                what it rests on        /impact/{id}  what rests on it
     GET  /api/graph/neighborhood/{id}?depth=
     GET  /api/graph/search?text=&type=&inv=&limit=
@@ -160,6 +162,15 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
             return 200, g.subgraph(inv, types=types)
         if head == "node" and arg:
             return 200, g.get(arg, history=q.get("history") in ("1", "true"))
+        if head == "pin" and arg:
+            if not q.get("record"):
+                return 400, {"detail": "record=<the URL this record is served at> is required"}
+            try:
+                return 200, g.pin(arg, q["record"])
+            except ValueError as e:
+                return 400, {"detail": str(e)}
+        if head == "references":
+            return 200, {"references": g.references(inv)}
         if head == "why" and arg:
             return 200, g.why(arg)
         if head == "impact" and arg:
