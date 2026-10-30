@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: pinned references between records
+## 0.7.8 — 2026-10-29: pinned references between records
 
 - **A record can cite a node of another record and prove what it read.** A `source` takes four more fields,
   `record` (the cited record's URL), `node`, `version` and `hash` (sha256 of that version's canonical body, the
