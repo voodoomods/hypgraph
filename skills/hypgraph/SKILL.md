@@ -10,6 +10,9 @@ result, claim, source, decision) and typed links. **You cannot set how well anyt
 independent support and evidence strength are derived on every read. When the record refuses a write, the message
 says exactly what to fix: fix that, don't route around it.
 
+Standing is derived from what was written, by the record's rules: never present it to anyone as a certification, a
+peer review or advice (https://hypgraph.com/disclaimer/).
+
 Prefer the MCP tools if a `hypgraph` server is connected (`overview`, `find`, `show`, `add`, `link`, `review`,
 `register_run`, `next_experiments`, `work_queue`, `report`, `verify`). Otherwise use the CLI below, adding `--json`
 when you need to parse the output. Install it with `pip install hypgraph`.

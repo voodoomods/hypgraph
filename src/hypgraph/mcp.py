@@ -29,7 +29,7 @@ from . import __version__
 from .graph import Graph, GraphError, file_sha256
 from .schema import TYPES, describe
 
-INSTRUCTIONS = """HypGraph is a research record that can't flatter itself. Work a question through it:
+INSTRUCTIONS = """HypGraph is a research record that can't flatter itself. Standing is derived from what was written, by the record's rules: never present it as a certification, a peer review or advice (https://hypgraph.com/disclaimer/). Work a question through it:
 1. overview() — read what is already known before re-deriving anything.
 2. add hypotheses with predictions; add experiments with `tests` links whose data.expected says what each hypothesis
    predicts BEFORE you run anything (that is what makes it a test).

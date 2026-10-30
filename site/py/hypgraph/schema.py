@@ -65,7 +65,9 @@ TYPES: dict[str, dict] = {
     "source": {"prefix": "S", "fields": {
         "citation": _f("text", 1000, True), "doi": _f("str", 200), "url": _f("str", 500), "passage": _f("text", 3000),
         "retrieved": _f("str", 40), "says": _f("text", 1500), "kind": _f("enum:primary|secondary|tertiary"),
-        "reliability": _f("text", 1000)}},
+        "reliability": _f("text", 1000),
+        # a pinned reference to a node of another record (references.py): all four or none
+        "record": _f("str", 500), "node": _f("str", 80), "version": _f("num"), "hash": _f("str", 64)}},
     "review": {"prefix": "RV", "fields": {
         "verdict": _f("enum:" + "|".join(sorted(VERDICTS)), req=True), "method": _f("text", 1500, True),
         "notes": _f("text", 4000, True), "official": _f("bool")}},
@@ -179,7 +181,7 @@ ABOUT = {
     "run": "One execution: code, inputs and outputs hashed, seed, state. `kind=lab` only from an instrument.",
     "result": "What a run (or an observation, or a citation) found: values, outcome, power.",
     "artifact": "Exact bytes, by sha256 — data, code, a model, a figure.",
-    "source": "Outside literature or data: citation, DOI, the passage that says it.",
+    "source": "Outside literature or data: citation, DOI, the passage that says it — or another record's node, pinned by version and hash.",
     "review": "A verdict on one version of a claim, result, run, experiment or hypothesis.",
     "decision": "A choice made on the evidence; flagged when what it was based on changes.",
     "task": "A unit of work linked to what it works on — or a work order: objective, assignee, done-when "

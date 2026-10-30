@@ -8,6 +8,7 @@ Regenerate the website's generated files from the package:
     site/examples/                       one live example per profile, from site/data/examples/ (dev/site_examples.py)
     site/py/                             the engine's source + manifest.json, for the Pyodide playground
     site/spec/index.html                 docs/spec.md as a page
+    site/disclaimer/index.html           DISCLAIMER.md as a page
     site/agents.md                       AGENTS.md
     site/SKILL.md, skills/hypgraph/      the agent skill (source: src/hypgraph/skill/SKILL.md)
 
@@ -142,7 +143,7 @@ def nav_links(current: str, up: str = "../") -> str:
 
 
 FOOTER = """<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
-<span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>"""
+<span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="../disclaimer/">Disclaimer</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>"""
 
 
 def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str) -> str:
@@ -384,6 +385,10 @@ def main() -> None:
     write(SITE / "spec" / "index.html", page("The record format", "Everything needed to write another "
                                                                    "implementation, a verifier or a viewer of HypGraph "
                                                                    "records.", body, toc, "../spec/"))
+    body, toc = markdown((ROOT / "DISCLAIMER.md").read_text(encoding="utf-8").split(chr(10), 1)[1])   # drop the title
+    write(SITE / "disclaimer" / "index.html", page("Disclaimer", "What HypGraph promises, and what it does not: "
+                                                                 "provided as is, standing derived rather than "
+                                                                 "certified, and no advice.", body, toc, ""))
     shutil.copy2(ROOT / "AGENTS.md", SITE / "agents.md")
     skill = PKG / "skill" / "SKILL.md"
     shutil.copy2(skill, SITE / "SKILL.md")

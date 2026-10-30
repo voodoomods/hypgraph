@@ -46,7 +46,7 @@ path = "src/hypgraph/__init__.py"
 packages = ["src/hypgraph"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/hypgraph", "tests", "docs", "README.md", "LICENSE", "NOTICE", "CITATION.cff", "AGENTS.md", "CHANGELOG.md"]
+include = ["src/hypgraph", "tests", "docs", "README.md", "DISCLAIMER.md", "LICENSE", "NOTICE", "CITATION.cff", "AGENTS.md", "CHANGELOG.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "src/hypgraph/__init__.py"]
