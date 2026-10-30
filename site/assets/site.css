@@ -275,3 +275,13 @@ footer .slogan { font-family: var(--mono); color: var(--ink2); }
 .flow li span { display: block; font-size: 13px; color: var(--ink2); margin-top: 2px; }
 .wf .ref { margin-top: 12px; font: 12.5px var(--mono); color: var(--bad); }
 .wf .ref b { color: var(--ink2); font-weight: 600; margin-right: 6px; }
+
+/* the family: one card per project, each with its icon (the same block on every site) */
+.family { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.family a { display: flex; gap: 14px; align-items: flex-start; text-decoration: none; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r); padding: 16px; transition: border-color .15s; }
+.family a:hover, .family a[aria-current] { border-color: var(--accent); }
+.family img { flex: none; width: 40px; height: 40px; border-radius: 10px; }
+.family b { display: block; font-family: var(--mono); color: var(--accent); }
+.family .here { font: 600 10.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); margin-left: 6px; }
+.family .what { display: block; font-size: 13.5px; color: var(--ink2); margin-top: 4px; }
