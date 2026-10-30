@@ -15,6 +15,8 @@ what is stopped when a premise falls — all computed from the record, with no m
     accept_work(g, …)         only when every predicate is met: a decision that settles the order, based_on the
                               evidence — audited, and flagged REVISIT if that evidence changes.
     rework(g, …)              a new order superseding the old one, saying what was missing.
+    issue_work(…, blind=True) a blind order: the record is sealed from the assignee until it returns the order, and
+                              what it writes meanwhile is written blind (blind.py).
     cancel_work / cancel_moot withdraw an order; cancel_moot withdraws every open order whose target or premise fell.
 
 An order's status is derived, never set: open · returned · overdue · accepted · reworked · cancelled · moot.
@@ -351,10 +353,15 @@ def _known_predicates(preds: list[dict]) -> None:
 
 def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str, objective: str, role: str = "",
                done_when: list | None = None, prediction: str = "", method: str = "", budget: dict | None = None,
-               premises: list | None = None, lease_minutes: int = 240, note: str = "") -> dict:
+               premises: list | None = None, lease_minutes: int = 240, note: str = "", blind: bool = False) -> dict:
     """Issue one work order on one live target. Refused if the target is out of play or an open order already works
     on it (the duplicate is named). Premises default to what the target rests on (and, for an experiment, the
-    hypotheses it tests), pinned to their current versions."""
+    hypotheses it tests), pinned to their current versions.
+
+    ``blind=True``: the assignee works without seeing what the record holds (blind.py). Refused with a prediction,
+    with a predicate that has to read its target (reviewed, no_open_objection, report_clean), for an assignee that
+    has already written in this record, or when the objective, method or note quote a number only the sealed
+    material carries."""
     from .graph import GraphError
     s = g.snapshot()
     try:
@@ -374,9 +381,14 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
     lease = s.leases.get(t)
     if lease and lease["agent"] != assignee:
         raise GraphError(f"{lease['agent']} holds {_code(s, t)} until {lease['expires']}")
+    if blind and not done_when:
+        done_when = [{"p": "result_exists"}]
     preds = [norm_pred(p) for p in (done_when or profiles.default_done(s, inv, s.nodes[t]["type"])
                                      or DEFAULT_DONE.get(s.nodes[t]["type"], [{"p": "result_exists"}]))]
     _known_predicates(preds)
+    if blind:
+        _blind_ok(s, inv=inv, author=author, assignee=assignee, target=t, preds=preds, prediction=prediction,
+                  texts=[objective, method, note, role])
     if premises is None:
         prem = [a for a, _r, _d in D.ancestors(s, t, limit=40) if s.nodes[a]["type"] not in ("artifact", "task")]
         if s.nodes[t]["type"] == "experiment":
@@ -387,12 +399,43 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
     fields = {"objective": objective, "assignee": assignee, "role": role, "done_when": preds,
               "prediction": prediction, "method": method, "budget": budget or {}, "note": note,
               "title": objective[:300]}
+    if blind:
+        fields["blind"] = True
     links = [{"rel": "works_on", "to": t}] + [{"rel": "rests_on", "to": p} for p in prem]
     out = g.create(author=author, type="task", inv=inv, fields=fields, links=links)
     oid = out["id"]
     _lease_for(g, author=author, node=t, agent=assignee, task=oid, minutes=lease_minutes)
     return {"order": oid, "code": out["code"], "target": _code(s, t), "premises": [_code(s, p) for p in prem],
             "done_when": preds, "text": order_text(g, oid)}
+
+
+def _blind_ok(s: D.Snap, *, inv: str, author: str, assignee: str, target: str, preds: list[dict], prediction: str,
+              texts: list[str]) -> None:
+    """A blind order's checks at issue: what the record can see of whether the assignee will really work blind."""
+    from .graph import GraphError
+    from . import blind as B
+    if prediction.strip():
+        raise GraphError("a blind order carries no prediction: the assignee would read it. Keep the prediction on "
+                         "the hypothesis (sealed from the assignee) and leave prediction= empty")
+    if s.nodes[target]["type"] == "investigation":
+        raise GraphError("a blind order works on an experiment, hypothesis, question or claim; a report has to read "
+                         "the record")
+    bad = [p["p"] for p in preds if p["p"] not in B.BLIND_PREDICATES]
+    if bad:
+        raise GraphError(f"a blind order asks for a measurement; {', '.join(bad)} has to read what it judges. Use "
+                         + ", ".join(sorted(B.BLIND_PREDICATES)) + " (default: result_exists)")
+    if assignee == author:
+        raise GraphError("a blind order goes to someone else: you have seen what it would seal")
+    wrote = [n["code"] or i for i, n in s.nodes.items() if n["created_by"] == assignee][:4]
+    if wrote:
+        raise GraphError(f"{assignee} has already written in this record ({', '.join(wrote)}), so it has read what a "
+                         "blind order would seal. Give the blind order to a seat that hasn't")
+    w = B.Window("", [], assignee, inv, s.seq, None, sealing=True, fresh=True)
+    found = B.leaks(s, w, [x for x in texts if x])
+    if found:
+        said = "; ".join(f"{k} (in {', '.join(v[:3])})" for k, v in sorted(found.items())[:6])
+        raise GraphError(f"the order quotes what it would seal: {said}. Say what to measure and how, not what it "
+                         "came to")
 
 
 def _lease_for(g: "Graph", *, author: str, node: str, agent: str, task: str, minutes: int) -> None:
@@ -492,6 +535,8 @@ def rework(g: "Graph", *, author: str, order: str, missing: str, done_when: list
               "done_when": done_when or b.get("done_when") or [], "prediction": b.get("prediction", ""),
               "method": b.get("method", ""), "budget": b.get("budget") or {},
               "note": f"Rework of {s.nodes[order]['code']}: {missing.strip()}"[:1500], "title": b.get("title", "")}
+    if b.get("blind"):
+        fields["blind"] = True             # still marked; the window closed at the first return (blind.windows)
     links = ([{"rel": "works_on", "to": t}] + [{"rel": "rests_on", "to": p} for p in prem]
              + [{"rel": "supersedes", "to": order}])
     out = g.create(author=author, type="task", inv=s.nodes[order]["inv"], fields=fields, links=links)
@@ -629,6 +674,9 @@ def order_text(g: "Graph", order: str) -> str:
          f"{n['created_by']} at {n['created_at']}", "", f"OBJECTIVE    {b['objective']}"]
     if b.get("note"):
         L.append(f"NOTE         {b['note']}")
+    from . import blind as B
+    if any(w.sealing and order in w.orders for w in B.windows(s)):
+        return "\n".join(_blind_order_text(s, order, t, L))
     if t:
         L += ["", "TARGET       " + _standing_line(s, t)]
         L += _target_detail(s, t)
@@ -689,6 +737,35 @@ def order_text(g: "Graph", order: str) -> str:
           "are checked as you write them). Then return_work with a note of at most 120 words: what you did, what you "
           "could not do. No conclusion that isn't in a claim."]
     return "\n".join(L)
+
+
+def _blind_order_text(s: D.Snap, order: str, t: str, L: list[str]) -> list[str]:
+    """A sealing blind order, as its assignee reads it: the objective and the method, the target by code only, and
+    nothing other authors wrote about it."""
+    b = s.nodes[order]["body"]
+    L[0] += " — BLIND"
+    if t:
+        L += ["", f"TARGET       {_code(s, t)} ({s.nodes[t]['type']}) — sealed from you: work it from the objective"]
+    prem = [_code(s, e["dst"]) for e in premises_of(s, order)]
+    if prem:
+        L.append(f"PREMISES     {', '.join(prem[:12])} (sealed)")
+    if b.get("method"):
+        L += ["", f"METHOD       {b['method']}"]
+    L += ["", "DONE WHEN (checked against the record; only what you write after the order counts)"]
+    L += [f"  {_done_text(p, s.nodes[t]['type'] if t else '')}" for p in b.get("done_when") or []]
+    bud = b.get("budget") or {}
+    if bud:
+        L += ["", "BUDGET       " + ", ".join(f"{k} {v}" for k, v in sorted(bud.items()))]
+    lease = s.leases.get(t) if t else None
+    if lease and lease.get("task") == order:
+        L.append(f"LEASE        until {lease['expires']}")
+    L += ["", "BLIND        What others wrote on this — hypotheses, predictions, results, claims, reviews, code, other "
+          "attempts — is sealed from you until you return this order. Measure it yourself from the objective and "
+          "record what you find, whatever it is. Results you write before returning are recorded as written blind; "
+          "the record compares them with the sealed ones after you return.",
+          "", "RETURN       Your deliverable is the writes above: register runs, record results (they are checked as "
+          "you write them). Then return_work with a note of at most 120 words: what you did, what you could not do."]
+    return L
 
 
 def _since(g: "Graph", s: D.Snap, inv: str, seq: int) -> list[str]:

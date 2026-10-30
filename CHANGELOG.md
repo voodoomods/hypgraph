@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased: blind work orders
+
+- **A checker can measure without seeing the answer it checks.** `issue_work(..., blind=True)` (MCP `issue_work`
+  `blind=true`, HTTP write `blind`) issues a work order whose assignee works blind until it returns the order.
+  The order text gives the objective, the method and the target by code only. Hypotheses and their predictions,
+  results, claims, reviews, runs and their code, sources, other orders and other teams' attempts are sealed.
+  `hypgraph.blind` holds the rules:
+  - **At issue**, a blind order is refused with a prediction, with a predicate that has to read its target
+    (`reviewed`, `no_open_objection`, `report_clean`), for an assignee that has already written in the record, and
+    when its objective, method or note quote a number only the sealed material carries.
+  - **At read**, the MCP server seals its seat while that seat holds an open blind order. The tools that summarise
+    what others wrote are refused, `show` refuses a sealed node, `find` leaves sealed nodes out, and every number
+    only the sealed material carries is scrubbed from what comes back. `blind.dispatch(g, ..., keep=)` gives a host
+    the same redaction for its HTTP routes, per reader (HypMesh uses it). `hypgraph serve` and the Python API read
+    the whole record: a file is only as blind as whoever holds it.
+  - **In standing**, a result its assignee wrote inside the window is `blind` (and `sealed` while the window is
+    open). After the return, a blind result that repeats an earlier result's numbers `agrees_blind` with it
+    instead of restating it, and a claim or hypothesis counts its `blind_lines`: "2 independent lines of support
+    (1 written blind)". A result revised after the window closed is no longer blind.
+  - The record sees writes, not reads. A seat that read the record before its order was issued has already seen
+    what is now sealed: give a checker its order first.
+
 ## 0.7.8 — 2026-10-29: pinned references between records
 
 - **A record can cite a node of another record and prove what it read.** A `source` takes four more fields,

@@ -144,6 +144,13 @@ Implementations must derive these, never store them:
   - A replication edge on the run raises the profile according to its `differs`.
   - A result of `kind=cited` is external only if it `cites` a source node.
 - **basis_changed** (decisions): a `based_on` edge whose target's version has moved past the pinned `dst_v`.
+- **written blind** (results): a work order with `blind: true` opens a window at its creation event and closes it at
+  the first release (return or cancel) or withdrawal of any order in its rework chain. A result its assignee
+  created inside the window, and has not revised since it closed, is written blind under that order, provided the
+  assignee had created nothing in the record before the window opened. While the window is open the result is
+  `sealed`. Once it is closed, earlier results whose numbers it repeats are `agrees_blind`, not `restates`.
+- **blind lines** (claims, hypotheses): independent lines whose group contains a result written blind under a
+  closed window.
 
 ## 6. Write rules (normative for writers)
 
