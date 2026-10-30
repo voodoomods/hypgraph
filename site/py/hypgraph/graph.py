@@ -28,6 +28,7 @@ from typing import Any, Callable, Optional
 
 from . import profiles
 from . import derive as D
+from . import references as R
 from . import refusals, store
 from .checks import claim_issues, value_issues
 from .policy import Policy
@@ -158,6 +159,12 @@ def clean_body(ntype: str, body: dict, *, partial_ok: bool = False) -> dict:
             if len(canon(v)) > n:
                 raise _shape("SHAPE_TOO_LONG", f"{k} is too long", words=[k])
         out[k] = v
+    if ntype == "source":
+        try:
+            out = R.check_fields(out)
+        except ValueError as e:
+            raise _shape("SHAPE_REFERENCE", str(e), "pin another record's node with record, node, version and hash "
+                         "(its /api/graph/pin/<id>?record=<url> gives them)", ["record", "node", "version", "hash"])
     return out
 
 
@@ -1224,6 +1231,14 @@ class Graph:
         if history:
             out["versions"] = list(s.versions.get(nid, []))
         return out
+
+    def pin(self, nid: str, record: str) -> dict:
+        """Source fields another record can cite this node by: its version and hash, pinned (references.pin)."""
+        return R.pin(self, nid, record)
+
+    def references(self, inv: str = "") -> list[dict]:
+        """The sources here that pin nodes of other records, with who cites them (references.references)."""
+        return R.references(self, inv)
 
     def resolve(self, ref: str, inv: str = "") -> str:
         """A node id from an id or a display code (CL3, H2, X4 …), within an investigation when given."""

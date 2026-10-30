@@ -411,7 +411,7 @@
   },
   "source": {
    "prefix": "S",
-   "about": "Outside literature or data: citation, DOI, the passage that says it.",
+   "about": "Outside literature or data: citation, DOI, the passage that says it — or another record's node, pinned by version and hash.",
    "fields": {
     "citation": {
      "kind": "text",
@@ -451,6 +451,26 @@
     "reliability": {
      "kind": "text",
      "max": 1000,
+     "required": false
+    },
+    "record": {
+     "kind": "str",
+     "max": 500,
+     "required": false
+    },
+    "node": {
+     "kind": "str",
+     "max": 80,
+     "required": false
+    },
+    "version": {
+     "kind": "num",
+     "max": 2000,
+     "required": false
+    },
+    "hash": {
+     "kind": "str",
+     "max": 64,
      "required": false
     }
    }

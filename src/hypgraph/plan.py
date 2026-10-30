@@ -310,7 +310,8 @@ def report_markdown(r: dict) -> str:
     cut = lambda t, k=160: (t[:k] + "…") if len(t) > k else t  # noqa: E731
     L = [f"## Facts from the research graph — {r['code']} {r['title']} ({r['state']})",
          f"_Generated from the record at event {r['seq']}; do not edit — regenerate it from the graph. "
-         "Interpretation goes below this section._", "", "### Claims", "",
+         "Standing is derived by the record's rules, not certified, and none of this is advice "
+         "(https://hypgraph.com/disclaimer/). Interpretation goes below this section._", "", "### Claims", "",
          "| claim | standing | review | verdicts | statement |", "|---|---|---|---|---|"]
     for c in r["claims"]:
         rv = (c['review'] or '-') + (" · STALE" if c.get("stale") else "")

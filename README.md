@@ -213,6 +213,12 @@ affect, and a randomized suite checks that against a full rebuild. Run `python d
 
 HypGraph is made by **Nicolas Houghtaling** at **[VoodooMods LLC](https://github.com/voodoomods)**.
 
+## Disclaimer
+
+Provided as is, without warranty. Standing is derived from what was written into a record, by rules you can
+read; it is not a certification or an endorsement, a verified chain proves a record unchanged rather than correct, and
+nothing here is legal, medical or financial advice. The full text: [DISCLAIMER.md](https://github.com/voodoomods/hypgraph/blob/main/DISCLAIMER.md).
+
 ## License
 
 Code: [Apache-2.0](https://github.com/voodoomods/hypgraph/blob/main/LICENSE). The record format ([docs/spec.md](https://github.com/voodoomods/hypgraph/blob/main/docs/spec.md)) and the docs: CC BY 4.0. Cite it with

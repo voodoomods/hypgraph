@@ -1,5 +1,5 @@
 {
- "version": "0.7.7",
+ "version": "0.7.8",
  "files": [
   "hypgraph/__init__.py",
   "hypgraph/__main__.py",
@@ -15,6 +15,7 @@
   "hypgraph/plan.py",
   "hypgraph/policy.py",
   "hypgraph/profiles.py",
+  "hypgraph/references.py",
   "hypgraph/refusals.py",
   "hypgraph/report_check.py",
   "hypgraph/schema.py",
