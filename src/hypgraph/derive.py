@@ -686,6 +686,14 @@ def state(s: Snap, nid: str) -> dict:
         st["independent_lines"] = independent_lines(s, nid)
         st["challenges"] = sum(1 for e in s.inn.get(nid, []) if e["rel"] == "challenges" and not fallen(s, e["src"]))
         st["unsupported"] = unsupported(s, nid)
+    if t in ("result", "claim", "hypothesis"):
+        from . import blind                      # blind work orders (blind.py): written blind, sealed, agreeing
+        b = blind.blind_state(s, nid)
+        if "blind" in b and st.get("restates"):
+            rs = st.pop("restates")
+            if not b.get("sealed"):              # measured without seeing them: agreement, not a copy
+                b["agrees_blind"] = rs
+        st.update(b)
     if t == "decision":
         moved = basis_changed(s, nid)
         if moved:
@@ -730,9 +738,15 @@ def sentence(s: Snap, nid: str, st: dict) -> str:
         parts.append(f"outcome {st['outcome']}")
     if st.get("restates"):
         parts.append("RESTATES " + ", ".join(s.nodes[r]["code"] or r for r in st["restates"][:4]))
+    if st.get("blind"):
+        parts.append(f"written blind under {st['blind']}" + (" (sealed until it is returned)" if st.get("sealed") else ""))
+    if st.get("agrees_blind"):
+        parts.append("agrees blind with " + ", ".join(s.nodes[r]["code"] or r for r in st["agrees_blind"][:4]))
     if "evidence" in st:
         k = st["independent_lines"]
-        parts.append(f"{k} independent line{'s' if k != 1 else ''} of support" if k else "no live support")
+        parts.append((f"{k} independent line{'s' if k != 1 else ''} of support"
+                      + (f" ({st['blind_lines']} written blind)" if st.get("blind_lines") else "")) if k
+                     else "no live support")
         parts.append(PROFILE_LABEL[st["evidence"]])
         if st["evidence"] != "external":
             parts.append("no external replication")

@@ -18,12 +18,14 @@ Prompt: method — how to work a question through the record.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
 from pathlib import Path
 from typing import Any, Optional
 
+from . import blind as B
 from . import profiles
 from . import __version__
 from .graph import Graph, GraphError, file_sha256
@@ -141,6 +143,11 @@ def bound_text(k: int, n: int, exposure: float = 0, unit: str = "uses") -> str:
     return "\n".join(lines)
 
 
+# Tools that summarise what other authors wrote: refused to a seat holding an open blind order (blind.py).
+SEALED_TOOLS = frozenset({"overview", "next_experiments", "work_queue", "report", "check_report", "refusal_log",
+                          "briefing", "completion", "stage"})
+
+
 def build(graph: Graph | str, author: Optional[str] = None, files_root: str | None = None):
     """The FastMCP server over one graph, writing as one author."""
     try:
@@ -158,6 +165,32 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
 
     def _orders(n: dict) -> str:
         return ("\nYour work orders: " + "; ".join(n["orders"])) if n.get("orders") else ""
+
+    def sealed() -> B.View:
+        """What is sealed from this seat: empty unless it holds an open blind work order (blind.py). A record behind
+        an HTTP API (HypMesh's RemoteGraph) seals on its own side and has no local snapshot."""
+        try:
+            s = g.snapshot()
+        except Exception:
+            return B.View()
+        return B.view_for_author(s, me)
+
+    def tool(fn):
+        """@mcp.tool, sealed: while this seat holds an open blind order, the tools that summarise what others wrote
+        are refused and every number only the sealed material carries is scrubbed from what comes back."""
+        @functools.wraps(fn)
+        def wrapped(*a, **kw):
+            v = sealed()
+            if v and fn.__name__ in SEALED_TOOLS:
+                raise ToolError(v.message(f"{fn.__name__}()"))
+            try:
+                out = fn(*a, **kw)
+            except ToolError as e:
+                if v:
+                    raise ToolError(v.scrub(str(e))) from None
+                raise
+            return v.scrub(out) if v and isinstance(out, str) else out
+        return mcp.tool(wrapped)
 
     def fail(e: Exception):
         raise ToolError(str(e) if not isinstance(e, KeyError) else f"not found: {e.args[0] if e.args else e}")
@@ -182,7 +215,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             out.append(ln)
         return out
 
-    @mcp.tool
+    @tool
     def overview(investigation: str = "") -> str:
         """Read this first. The record around an investigation: objective, reviewers, live hypotheses, established
         claims (and how they're known), contested and at-risk work, who's on what, reviews and revalidations
@@ -198,7 +231,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         except (GraphError, KeyError) as e:
             fail(e)
 
-    @mcp.tool
+    @tool
     def find(text: str = "", type: str = "", investigation: str = "", limit: int = 20) -> str:
         """Search the record by words or code (H1, CL3 …). type filters: investigation, question, hypothesis, claim,
         experiment, run, result, artifact, source, review, decision, task."""
@@ -207,33 +240,39 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
                             limit=max(1, min(int(limit), 100)))
         except (GraphError, KeyError) as e:
             fail(e)
+        v = sealed()
+        if v:
+            rows = v.apply(v.search(rows))
         return "\n".join(f"{_line(n)} · {n['id']} · {n['state']['sentence'][:150]}" for n in rows) or "Nothing found."
 
-    @mcp.tool
+    @tool
     def show(node: str, view: str = "summary", investigation: str = "") -> str:
         """One node by id or code. view: summary (fields, standing, links) | why (what it rests on, down to runs, data
         and sources) | impact (what rests on it — what breaks if it's wrong) | history (its versions)."""
         try:
             nid = g.resolve(node, g.resolve(investigation) if investigation else "")
+            v = sealed()
+            if nid in v.hide:
+                raise GraphError(v.message(node))
             if view == "why":
-                r = g.why(nid)
+                r = v.apply(g.why(nid))
                 return f"WHY {node} — what it rests on:\n" + "\n".join(
                     f"  {_line(n)} — {n['state']['sentence'][:150]}" for n in r["nodes"] if n["id"] != nid) \
                     + "\n  edges:\n" + "\n".join(f"    {e['src']} -{e['rel']}-> {e['dst']}" for e in r["edges"][:60])
             if view == "impact":
-                r = g.impact(nid)
+                r = v.apply(g.impact(nid))
                 return (f"IF {node} IS WRONG — {len(r['dependents'])} node(s) rest on it:\n" + "\n".join(
                     f"  {'  ' * (d['depth'] - 1)}{d['rel']} ← {_line(d['node'])}" for d in r["dependents"][:40])) \
                     if r["dependents"] else f"Nothing rests on {node}."
             if view == "history":
-                n = g.get(nid, history=True)
+                n = v.apply(g.get(nid, history=True))
                 return show_text(n) + "\n  versions:\n" + "\n".join(
                     f"    v{v['v']} {v['at'][:10]} {v['by']}: {v['reason'] or '(created)'}" for v in n["versions"])
-            return show_text(g.get(nid))
+            return show_text(v.apply(g.get(nid)))
         except (GraphError, KeyError) as e:
             fail(e)
 
-    @mcp.tool
+    @tool
     def start_investigation(title: str, objective: str, reviewers: list[str] | None = None, scope: str = "",
                             success_criteria: str = "") -> str:
         """Open an investigation: what you want to find out (objective, a sentence), its scope, what would count as
@@ -246,7 +285,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return f"Opened {n['code']} ({n['id']}). Next: add questions and hypotheses (with predictions)."
 
-    @mcp.tool
+    @tool
     def add(type: str, fields: dict[str, Any], investigation: str = "", links: list[dict[str, Any]] | None = None) -> str:
         """Add a node. type: question {text} · hypothesis {statement, predictions[]} · experiment {aim, protocol,
         success_criteria, controls, method, power_check, cost_minutes} with `tests` links carrying data.expected per
@@ -267,7 +306,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         notes = "".join(f" Note: {x}." for x in n.get("notes") or [])
         return f"Added {n['code']} ({n['id']}) — {n['state']['sentence']}.{notes}" + _orders(n)
 
-    @mcp.tool
+    @tool
     def link(src: str, rel: str, dst: str, why: str = "", data: dict[str, Any] | None = None,
              investigation: str = "") -> str:
         """Connect two nodes. rel: supports | challenges (why required) | requires | tests (data.expected) | executes
@@ -283,7 +322,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         return f"Linked {r['src']} -{r['rel']}-> {r['dst']} (edge {r['edge']})" + \
             (" — turned round to the direction the relation allows." if r["flipped"] else ".")
 
-    @mcp.tool
+    @tool
     def revise(node: str, fields: dict[str, Any], reason: str, investigation: str = "") -> str:
         """A new version of a node you wrote (or review): the given fields replace the old ones. Reviews of the old
         version stay on record but go stale; decisions based on it are flagged to revisit."""
@@ -294,7 +333,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return f"{n['code']} is now v{n['v']} — {n['state']['sentence']}"
 
-    @mcp.tool
+    @tool
     def withdraw(node: str, why: str, investigation: str = "") -> str:
         """Withdraw a node you wrote. It stays on record, marked withdrawn; whatever rested on it is flagged AT RISK."""
         try:
@@ -304,7 +343,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         br = n.get("blast_radius") or {}
         return f"{n['code']} — {n['state']['sentence']}" + (f"\nNow AT RISK: {br['sentence']}" if br.get("count") else "")
 
-    @mcp.tool
+    @tool
     def retract_link(edge: int, why: str) -> str:
         """Retract a link you made (by edge id), saying why it no longer holds. The retraction is on record."""
         try:
@@ -313,7 +352,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return f"Retracted edge {edge}."
 
-    @mcp.tool
+    @tool
     def review(node: str, verdict: str, method: str, notes: str, investigation: str = "") -> str:
         """Review a node's current version: checked | pass | reproduced | replicated | separate_implementation |
         generalizes | fail | not_reproduced | not_replicated | does_not_generalize | objection | resolved |
@@ -328,7 +367,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         return f"Recorded on {n['code']}: {n['state']['sentence']}" + (
             f"\nNow AT RISK: {br['sentence']}" if br.get("count") else "") + _orders(n)
 
-    @mcp.tool
+    @tool
     def next_experiments(investigation: str = "") -> str:
         """Planned experiments ranked by how well they separate the live hypotheses (distinct expected outcomes),
         whether they can show their own power, and cost; duplicates and work someone holds flagged; untested
@@ -346,7 +385,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             out.append("Untested hypotheses: " + ", ".join(_line(h, 80) for h in r["untested_hypotheses"]))
         return "\n".join(out)
 
-    @mcp.tool
+    @tool
     def work_queue(investigation: str = "") -> str:
         """What needs doing: leases (who's on what), the review queue, revalidations (something a node rests on
         moved), contested work, decisions to revisit, duplicate experiments."""
@@ -362,7 +401,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
                           sec("Contested", w["contested"]), sec("Decisions to revisit", w["decisions_to_revisit"]),
                           f"Duplicate experiment groups: {len(w['duplicates'])}"])
 
-    @mcp.tool
+    @tool
     def claim_work(node: str, release: bool = False, minutes: int = 240, investigation: str = "") -> str:
         """Take a node (an experiment to run, a claim to review) so others see you're on it — or release it."""
         try:
@@ -372,7 +411,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return f"{'Released' if release else 'Took'} {n['code']} — {n['state']['sentence']}"
 
-    @mcp.tool
+    @tool
     def register_run(name: str, investigation: str = "", code_paths: list[str] | None = None,
                      input_paths: list[str] | None = None, output_paths: list[str] | None = None, command: str = "",
                      seed: str = "", experiment: str = "", result_summary: str = "",
@@ -427,7 +466,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         except (GraphError, KeyError, OSError) as e:
             fail(e)
 
-    @mcp.tool
+    @tool
     def report(investigation: str = "") -> str:
         """The facts of an investigation generated from the record (markdown): every claim with its standing and
         verdicts, every result and whether a claim carries it, hypotheses, experiments (preregistered or not), open
@@ -437,14 +476,14 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         except (GraphError, KeyError) as e:
             fail(e)
 
-    @mcp.tool
+    @tool
     def verify() -> str:
         """Recompute the hash chain and check every stored version and link against the event that wrote it."""
         v = g.verify()
         return (f"Verified {v['checked']} events: chain intact, every row matches its event (head {v['head'][:16]}…)."
                 if v["ok"] else f"VERIFY FAILED: {v['problem']}")
 
-    @mcp.tool
+    @tool
     def bound(k: int, n: int, exposure: float = 0, unit: str = "uses") -> str:
         """What 'k of n' actually supports: the observed rate, its 95% interval, what 'never' (k = 0) or 'always'
         (k = n) can honestly mean, how many trials a tighter bound needs, and — with exposure, the number of uses or
@@ -453,7 +492,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             raise ToolError("give k (how many times it happened) and n (trials), with 0 <= k <= n")
         return bound_text(k, n, exposure, unit)
 
-    @mcp.tool
+    @tool
     def check_report(text: str, investigation: str = "") -> str:
         """Lint a write-up (markdown) against the record BEFORE you hand it over: numbers no result contains, claims
         stated as settled that the record has as unchecked / contested / withdrawn, codes that don't exist, never /
@@ -464,7 +503,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return r["markdown"]
 
-    @mcp.tool
+    @tool
     def refusal_log(investigation: str = "", author: str = "") -> str:
         """The overclaims the record refused — per author and rule, fixed or still open. With author: that author's
         refusals in full, so you can see what you (or a teammate) tried to say and what the record said back."""
@@ -480,7 +519,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
 
     # ── coordinating a team (coord.py) ──────────────────────────────
-    @mcp.tool
+    @tool
     def briefing(investigation: str = "", since_seq: int = 0, roster: list[dict[str, str]] | None = None) -> str:
         """For an orchestrator: your whole context, compiled from the record — mission, rules, standing, the
         frontier, orders in flight and returned (predicates already checked), budget. Pass back the seq it ends with
@@ -491,23 +530,26 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return b["text"] + f"\n\n(seq {b['seq']} · sha256 {b['sha256'][:12]})"
 
-    @mcp.tool
+    @tool
     def issue_work(target: str, assignee: str, objective: str, investigation: str = "", role: str = "",
                    done_when: list[dict[str, Any]] | None = None, prediction: str = "", method: str = "",
-                   budget: dict[str, Any] | None = None) -> str:
+                   budget: dict[str, Any] | None = None, blind: bool = False) -> str:
         """For an orchestrator: one work order on one target (experiment, hypothesis, question, claim to review, or
         the investigation for the report) for one assignee. The target is leased to them; a duplicate is refused.
         done_when defaults by target type; predicates: run_registered, result_exists, claim_made, reviewed,
-        no_open_objection, report_clean, within_budget. Returns the order text to hand to the assignee."""
+        no_open_objection, report_clean, within_budget. Returns the order text to hand to the assignee.
+        blind=true: a checker measures without seeing the answer. The record is sealed from the assignee until it
+        returns the order, and what it writes meanwhile is recorded as written blind. Give it to a seat that hasn't
+        written here yet, with no prediction, and an objective that says what to measure, not what it came to."""
         try:
             o = g.issue_work(author=me, inv=inv_of(investigation), target=target, assignee=assignee.strip().lower(),
                              objective=objective, role=role, done_when=done_when, prediction=prediction,
-                             method=method, budget=budget)
+                             method=method, budget=budget, blind=bool(blind))
         except (GraphError, KeyError) as e:
             fail(e)
         return o["text"]
 
-    @mcp.tool
+    @tool
     def my_work(investigation: str = "") -> str:
         """Your open work orders, each with its full text. An order you have returned is no longer yours to work:
         it waits for acceptance, and comes back as a new order if it is reworked."""
@@ -520,7 +562,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         text = "\n\n---\n\n".join(g.order_text(o["id"]) for o in mine) or "No open work orders for you."
         return text + (f"\n\n(returned, awaiting acceptance: {', '.join(waiting)})" if waiting else "")
 
-    @mcp.tool
+    @tool
     def check_work(order: str, text: str = "", investigation: str = "") -> str:
         """Every done-when predicate of an order: MET / NOT MET, with the nodes that satisfy it."""
         try:
@@ -531,7 +573,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             f"  {'MET    ' if x['met'] else 'NOT MET'} {x['p']} {', '.join(x['evidence_codes'])} {x['why']}".rstrip()
             for x in c["predicates"])
 
-    @mcp.tool
+    @tool
     def return_work(order: str, note: str = "", investigation: str = "") -> str:
         """For the assignee: hand an order back with a note of at most 120 words (what you did, what you couldn't)."""
         try:
@@ -542,7 +584,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         return f"{c['code']} returned — " + ("every predicate met" if c["all_met"] else "NOT every predicate is met: "
                                              + "; ".join(x["why"] for x in c["predicates"] if not x["met"]))
 
-    @mcp.tool
+    @tool
     def accept_work(order: str, reason: str = "", text: str = "", investigation: str = "") -> str:
         """For the orchestrator: accept an order whose predicates are all met — a decision based on the evidence."""
         try:
@@ -552,7 +594,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return f"{a['code']} accepted ({a['decision']})"
 
-    @mcp.tool
+    @tool
     def rework(order: str, missing: str, investigation: str = "") -> str:
         """For the orchestrator: send an order back as a new order that supersedes it, saying what was missing."""
         try:
@@ -562,7 +604,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return r["text"]
 
-    @mcp.tool
+    @tool
     def cancel_work(order: str, why: str, investigation: str = "") -> str:
         """For the orchestrator: cancel an order (withdrawn, with the reason)."""
         try:
@@ -571,7 +613,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             fail(e)
         return f"{order} cancelled"
 
-    @mcp.tool
+    @tool
     def completion(investigation: str = "") -> str:
         """What this investigation's governance profile says "done" means, each criterion checked against the
         record (questions settled; requirements verified by instrument runs; positions recorded; claims sourced;
@@ -584,7 +626,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             ("COMPLETE" if c["complete"] else "not complete") + "\n" + \
             "\n".join(f"  {x['name']}: {'MET' if x['met'] else 'NOT MET'} — {x['why']}" for x in c["criteria"])
 
-    @mcp.tool
+    @tool
     def stage(question: str = "", investigation: str = "") -> str:
         """Where a question stands in its profile's workflow (@2 profiles: scientific, software, trading, knowledge,
         optimization): the stage it is in — derived from the record, never set — and every gate MET / NOT MET with
@@ -607,7 +649,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
                     for gt in x["gates"]]
         return "\n".join(out) or "no live questions"
 
-    @mcp.tool
+    @tool
     def settle_work(investigation: str = "") -> str:
         """For the orchestrator: accept every returned order whose predicates are all met (a decision each, based
         on the evidence). The mechanical half of accepting; your judgement is for the rest."""
@@ -618,7 +660,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         return "\n".join(f"{d['order']} ({d['assignee']}) accepted — {d['decision']}" for d in done) or \
             "Nothing returned with every predicate met."
 
-    @mcp.tool
+    @tool
     def cancel_moot(investigation: str = "") -> str:
         """For the orchestrator: cancel exactly the orders whose target or a premise has fallen."""
         try:
@@ -628,7 +670,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         return "\n".join(f"{c['order']} ({c['assignee']}) cancelled — {', '.join(c['because'])} fell"
                          for c in gone) or "No order is moot."
 
-    @mcp.tool
+    @tool
     def schema() -> dict:
         """The node types (fields, which are required), the relations (which types each may join) and the verdicts."""
         return describe()
@@ -641,12 +683,18 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
     @mcp.resource("hypgraph://investigations", mime_type="application/json")
     def investigations_resource() -> str:
         """Every investigation with its counts."""
+        v = sealed()
+        if v:
+            return json.dumps(v.apply([{k: i[k] for k in ("id", "code", "title", "counts")} for i in g.investigations()]))
         return json.dumps([{k: i[k] for k in ("id", "code", "title", "counts")} | {"state": i["state"]["lifecycle"]}
                            for i in g.investigations()], indent=1)
 
     @mcp.resource("hypgraph://investigation/{inv}/report", mime_type="text/markdown")
     def report_resource(inv: str) -> str:
         """The facts of one investigation, generated from the record."""
+        v = sealed()
+        if v:
+            return v.message("the report")
         return g.report(g.resolve(inv))["markdown"]
 
     @mcp.resource("hypgraph://skill", mime_type="text/markdown")

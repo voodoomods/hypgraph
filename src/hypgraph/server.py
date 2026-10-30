@@ -63,7 +63,7 @@ WRITES = {
     "lease": ("lease", ("node", "task", "minutes", "release", "note")),
     # coordination (coord.py): orders issued, returned, accepted, reworked, cancelled through the record
     "issue_work": ("issue_work", ("inv", "target", "assignee", "objective", "role", "done_when", "prediction", "method",
-                                  "budget", "premises", "lease_minutes", "note")),
+                                  "budget", "premises", "lease_minutes", "note", "blind")),
     "return_work": ("return_work", ("order", "note")),
     "accept_work": ("accept_work", ("order", "reason", "text")),
     "rework": ("rework", ("order", "missing", "done_when")),

@@ -80,7 +80,9 @@ TYPES: dict[str, dict] = {
     "task": {"prefix": "T", "fields": {
         "kanban_id": _f("str", 80), "title": _f("str", 300), "objective": _f("text", 2000),
         "assignee": _f("str", 80), "role": _f("str", 80), "prediction": _f("text", 1500), "method": _f("text", 1500),
-        "done_when": _f("list", 12), "budget": _f("dict", 400), "note": _f("text", 1500)}},
+        "done_when": _f("list", 12), "budget": _f("dict", 400), "note": _f("text", 1500),
+        # a blind work order (blind.py): the record is sealed from its assignee until it is returned
+        "blind": _f("bool")}},
 }
 
 ANY = set(TYPES)

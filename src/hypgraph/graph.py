@@ -433,6 +433,17 @@ class Graph:
             s._state = {k: v for k, v in old._state.items() if k not in stale}
         elif not touched:
             s._state = dict(old._state)
+        # A blind work order (blind.py) opens and closes its window with events no node is touched by (a return is a
+        # lease release), and what it seals or marks written blind is record-wide: while the record holds one, the
+        # standing of results, claims and hypotheses is derived again after every write.
+        blind_any = getattr(old, "_blind_any", None)
+        if blind_any is None:
+            blind_any = any(n["type"] == "task" and n["body"].get("blind") for n in old.nodes.values())
+        s._blind_any = blind_any or any(s.nodes[i]["type"] == "task" and s.nodes[i]["body"].get("blind")
+                                        for i in touched if i in s.nodes)
+        if s._blind_any and s.seq != old.seq:
+            s._state = {k: v for k, v in s._state.items()
+                        if (s.nodes.get(k) or {}).get("type") not in ("result", "claim", "hypothesis")}
         return s
 
     def _invalidate(self) -> None:
