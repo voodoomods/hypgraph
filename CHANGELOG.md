@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: blind work orders
+## 0.7.9 — 2026-10-30: blind work orders
 
 - **A checker can measure without seeing the answer it checks.** `issue_work(..., blind=True)` (MCP `issue_work`
   `blind=true`, HTTP write `blind`) issues a work order whose assignee works blind until it returns the order.
