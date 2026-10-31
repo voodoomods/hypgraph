@@ -482,7 +482,8 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
     def verify() -> str:
         """Recompute the hash chain and check every stored version and link against the event that wrote it."""
         v = g.verify()
-        return (f"Verified {v['checked']} events: chain intact, every row matches its event (head {v['head'][:16]}…)."
+        head = "sealed while your blind order is open" if sealed() else f"{v['head'][:16]}…"   # a hash over sealed bodies
+        return (f"Verified {v['checked']} events: chain intact, every row matches its event (head {head})."
                 if v["ok"] else f"VERIFY FAILED: {v['problem']}")
 
     @tool

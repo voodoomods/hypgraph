@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased: verification against a published head, and a clean-install walkthrough in CI
+## Unreleased: the trust boundary and verification, reviewed before launch
+
+A pre-launch review of who may write as whom, through every interface. Each fix has a test that failed first
+(`tests/test_trust_boundary.py`).
+
+- **A page on another port can't write.** `hypgraph serve` compared a write's `Origin` by host name only, so a page
+  served from another port of the same machine (a dev server, an agent-built page) could write to a server running
+  without tokens. A browser write must now come from the exact host and port the server was reached at;
+  `Origin: null` is refused. Clients that send no `Origin` are unaffected.
+- **A `*` token can't write as a reviewer.** `--token SECRET=*` covered every non-reserved name, reviewers included,
+  so an agent holding one could review its own work officially under a reviewer's name. A name on a review board
+  (the policy's reviewers, or the ones an investigation names) must now be named on a token. Tokens that name their
+  authors are unchanged.
+- **Only an order's issuer directs it.** `accept_work`, `rework` and `settle` didn't check who called them, so a
+  worker (through its MCP seat, say) could rework its own order with an easier `done_when`, meet it and accept it.
+  Now only the author who issued an order, or a curator, accepts or reworks it, and `settle` settles only the
+  orders its caller issued. HypSwarm's scheduler and lead (which act as the harness that issued the orders) and
+  HypMesh pass their suites unchanged.
+- **A bad `Content-Length` is a 400.** A non-numeric one crashed the request handler and a negative one held its
+  thread until the client hung up.
+- **A refused write gets its refusal.** The server read a write's body only after the origin check, and closing on
+  an unread body reset the connection on Windows, so a client saw "connection aborted" instead of the 403.
+- **More blind adversarial tests:** graph operations on sealed nodes (link, retract, withdraw, revise, lease), the
+  work-order lifecycle as the checker (return, accept, rework, cancel, settle), every enumeration route, 25 guesses
+  in a row on one record, and eight MCP tools. The chain head is no longer shown to a sealed reader (`/verify`, the
+  MCP `verify` tool): it is a hash over sealed bodies, and a reader that is sealed has no use for it.
+- **SECURITY.md rewritten** for what the record enforces, which interface is trusted, what tokens do and don't
+  protect (writes, not reads), what blind orders protect and where they don't apply, and what verification shows.
+
+Verification against a published head, and a clean-install walkthrough in CI:
 
 - **`hypgraph verify --head HEX`** (and `verify_bundle(b, head=...)`, `anchored(res, head)`) fails unless the chain
   ends at a head published elsewhere. A chain only shows it is consistent with itself: whoever can write a record can
