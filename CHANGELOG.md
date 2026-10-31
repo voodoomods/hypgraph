@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Examples for agent frameworks** (`examples/frameworks/`): LangGraph, PydanticAI, CrewAI, the OpenAI Agents SDK
+  and the Claude Agent SDK, each connected to a record through `hypgraph mcp`. All five tell the same story: the
+  agent claims a 1.2-point difference is significant, the record refuses with the arithmetic, and the agent writes
+  the honest claim, which is accepted. They run offline with a scripted model through each framework's own
+  tool-calling path, or with `--real` on a real model. The README covers the one setting each framework needs so a
+  refusal reaches the model instead of ending the run. A new CI job runs them all (the Claude Agent SDK, which has no
+  scripted mode, gets a wiring check).
+
 ## 0.7.12 — 2026-10-31: the trust boundary, verification and docs, reviewed before launch
 
 A pre-launch review of who may write as whom, through every interface. Each fix has a test that failed first
