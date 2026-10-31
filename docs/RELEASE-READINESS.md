@@ -22,6 +22,9 @@ was taken from a changelog without being checked against the code.*
 > stages and work-order status were shown beside the verified badge without saying they are as exported. Sequence
 > numbers must now run 1 to n. Tests: `tests/test_verify_trust.py`, `dev/ui_smoke.py`. The required-checks setting is
 > still open, for the operator.
+>
+> **Where that stands.** #68 is merged with green CI (17 of 17 checks); the suite is 399 passed, and hypswarm and
+> hypmesh pass on it. Released as 0.7.14.
 
 ## Recommendation: CONDITIONAL GO
 
