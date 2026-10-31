@@ -142,3 +142,42 @@ def test_the_mcp_seat_writes_as_one_name_and_never_a_reserved_one(tmp_path):
     for who in ("operator", "lab", "importer", "system", "orchestrator"):
         with pytest.raises(SystemExit):
             build(g, author=who)
+
+
+# ── who directs the work ──────────────────────────────────────────
+
+def _returned_order(**kw):
+    """A lead's order to a worker, returned with its predicates met."""
+    from hypgraph import Graph, Policy
+    g = Graph(policy=Policy(reviewers={"critic"}))
+    lead, w = g.author("lead"), g.author("worker")
+    inv = lead.investigation("Orders", "Who may accept, rework and settle an order.")["id"]
+    h = lead.add("hypothesis", inv, statement="The bench reads 41 units.", predictions=["a reading of 41"])["id"]
+    o = g.issue_work(author="lead", inv=inv, target=h, assignee="worker", objective="Read the bench and record it.",
+                     done_when=[{"p": "result_exists"}], **kw)
+    run = w.add("run", inv, kind="agent", name="bench read", state="succeeded")["id"]
+    w.add("result", inv, summary="The bench read 41 units.", outcome="positive", values={"x": {"value": 41}},
+          links=[{"rel": "produced", "from": run}, {"rel": "supports", "to": h, "why": "the reading it predicts"}])
+    g.return_work(author="worker", order=o["order"], note="read it")
+    return g, inv, o["order"]
+
+
+def test_a_worker_cannot_accept_rework_or_settle_its_own_order():
+    """Accepting, reworking and settling are the issuer's: a worker reworking its own order could rewrite its
+    done_when to something easier, meet it and accept it (found in the pre-launch review, 2026-10-31)."""
+    from hypgraph import GraphError
+    g, inv, o = _returned_order()
+    with pytest.raises(GraphError, match="issued"):
+        g.rework(author="worker", order=o, missing="nothing, I want an easier test", done_when=[{"p": "run_registered"}])
+    with pytest.raises(GraphError, match="issued"):
+        g.accept_work(author="worker", order=o, reason="it's done")
+    assert g.settle(author="worker", inv=inv) == []                # settles only what the author issued
+    assert g.orders(inv)[0]["status"] == "returned"
+    assert [x["order"] for x in g.settle(author="lead", inv=inv)] == ["T1"]
+
+
+def test_the_issuer_and_the_operator_direct_the_work():
+    g, inv, o = _returned_order()
+    assert g.accept_work(author="lead", order=o, reason="checked the reading")["status"] == "accepted"
+    g, inv, o = _returned_order()
+    assert g.rework(author="operator", order=o, missing="a second reading, on another day")["replaces"] == "T1"

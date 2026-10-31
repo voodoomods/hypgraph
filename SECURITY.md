@@ -24,6 +24,9 @@ or MCP server, or behind your own layer that fixes `author` and refuses the rese
 - **Nobody reviews their own work officially.** A verdict counts only from a reviewer (the policy's, or the ones an
   investigation names), never on the reviewer's own node; anyone else's review is recorded as a comment.
 - **Instruments speak for themselves.** Only the instrument author files `kind=lab` runs and what they produced.
+- **Whoever issues work directs it.** Only an order's issuer (or the operator / importer) accepts, reworks or settles
+  it, so an assignee can't rewrite what counts as done for its own order and then accept it. An order is accepted only
+  when every predicate is met.
 - **Claims carry their numbers.** Every number in a claim must come from a bound measurement, the scope or a declared
   constant; absolute words need k of n with k = 0 or n. A refused claim says what to fix.
 - **History is append-only.** Revisions add versions; withdrawals and retractions are new rows; SQLite triggers refuse
