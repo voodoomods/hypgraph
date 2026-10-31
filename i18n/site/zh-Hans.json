@@ -602,6 +602,8 @@
 "derived views": "推导视图",
 "none: exported without them, so there is nothing to show beyond the rows": "无：导出时未包含，因此除了各行之外没有可显示的内容",
 "checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)": "已对照各行检查：它们显示的每个节点、链接和生命周期都在记录中（现状按导出时）",
+"not checked: some lifecycles follow hypgraph 0.3's rule, not the current one (see the note above)": "未核查：部分生命周期遵循 hypgraph 0.3 的规则，而非当前规则（见上方说明）",
+"not checked: some nodes are shown superseded by something outside this bundle, which can't be confirmed here (see the note above)": "未核查：部分节点显示为已被此记录包之外的内容取代，这在此处无法确认（见上方说明）",
 "exported": "导出",
 "{at} by {who}": "{at}，由 {who}",
 "investigations": "调查",

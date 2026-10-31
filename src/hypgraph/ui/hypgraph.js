@@ -32,6 +32,8 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const RISKY = ['requires', 'derived_from', 'based_on'];
   const SAME_TYPE = ['supersedes', 'corrects'];      // schema.SAME_TYPE: a replacement of the same type
+  // bundle.REPLACEABLE: the types a supersedes / corrects link can point at (schema.RELS); no other type is superseded
+  const REPLACEABLE = ['artifact', 'claim', 'decision', 'experiment', 'hypothesis', 'question', 'result', 'run', 'source', 'task'];
   const cap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : '');
 
   // ── hashing (WebCrypto, with a small fallback for insecure contexts) ─────
@@ -204,8 +206,9 @@
 
   /** The derived views are presentation; every fact in them the rows fix must agree with the verified rows. A
    *  lifecycle is checked against the current rule only; one that matches only 0.3's rule goes on `historical` as
-   *  [name, shown, current] (bundle.py _derived_problem): not a problem, not checked either. */
-  function derivedProblem(b, tables, historical = null) {
+   *  [name, shown, current] (bundle.py _derived_problem): not a problem, not checked either. A scoped bundle with
+   *  redacted events may show a replaceable node superseded from another investigation: it goes on `unconfirmed`. */
+  function derivedProblem(b, tables, historical = null, unconfirmed = null, redacted = 0) {
     const d = b.derived;
     if (d == null) return '';
     if (typeof d !== 'object') return 'derived is not an object';
@@ -241,7 +244,11 @@
       if (!st || typeof st !== 'object' || !('lifecycle' in st)) return `${where} shows ${name} without its lifecycle`;
       const w = lifecycle(n.id, true), shown = st.lifecycle;
       if (shown === w) return '';
-      if (scope && !withdrawn.has(n.id) && shown === 'superseded') return '';   // a scoped bundle leaves out links to other investigations
+      if (shown === 'superseded' && scope && redacted && !withdrawn.has(n.id) && REPLACEABLE.includes(n.type)) {
+        // a replacement in another investigation is among the redacted events: possible, not confirmable
+        if (unconfirmed && !unconfirmed.includes(name)) unconfirmed.push(name);
+        return '';
+      }
       if (shown === lifecycle(n.id, false)) {
         if (historical && !historical.some(([a, s, c]) => a === name && s === shown && c === w)) historical.push([name, shown, w]);
         return '';
@@ -342,22 +349,23 @@
     if (rows.problem) return { ok: false, problem: rows.problem + (stated !== importer ? ` (the bundle names ${stated} as its importer, which the chain doesn't cover; if you trust that, verify with --importer ${stated})` : '') };
     const sp = scopeProblem(b, tables, red);
     if (sp) return { ok: false, problem: sp };
-    const historical = [];
-    const dp = derivedProblem(b, tables, historical);
+    const historical = [], unconfirmed = [];
+    const dp = derivedProblem(b, tables, historical, unconfirmed, red);
     if (dp) return { ok: false, problem: `the derived views contradict the verified record: ${dp}` };
     const partial = Object.keys(rows.unchecked).length > 0 || red > 0;
     const out = { ok: true, checked, head: prev, complete: red === 0, redacted: red, nodes: tables.nodes.length,
       edges: tables.edges.length, unchecked: rows.unchecked, coverage: partial ? 'partial' : 'complete',
-      views: b.derived == null ? 'none' : historical.length ? 'historical' : 'checked',
+      views: b.derived == null ? 'none' : historical.length ? 'historical' : unconfirmed.length ? 'unconfirmed' : 'checked',
       policy: { trusted: Object.keys(policy || {}).sort(), importer }, standing: { checked: false, note: STANDING_NOTE } };
     const notes = [];
     if (red) notes.push(`${red} event(s) are redacted. The bundle says they lie outside this investigation, but a redacted event keeps only its hash, so that can't be checked: a change hidden among them (a withdrawal, say) would not show. Only the full record, verified against the published head, rules that out.`);
     if (stated !== importer) notes.push(`The bundle names ${stated} as its importer; the chain doesn't cover that, so ${importer} was used.`);
+    const listed = (names) => names.slice(0, 8).join('; ') + (names.length > 8 ? `; and ${names.length - 8} more` : '');
     if (historical.length) {
-      const shown = historical.slice(0, 8).map(([a, s, c]) => `${a} shown ${s}, the current rule makes it ${c}`).join('; ');
-      const more = historical.length > 8 ? `; and ${historical.length - 8} more` : '';
-      notes.push(`The views are not checked: ${historical.length} lifecycle(s) follow hypgraph 0.3's rule, not the current one (${shown}${more}). A bundle exported by 0.3 shows them so, but the chain doesn't record which version exported a bundle, so this can't be told from an edited view. Go by the current rule.`);
+      const shown = listed(historical.map(([a, s, c]) => `${a} shown ${s}, the current rule makes it ${c}`));
+      notes.push(`The views are not checked: ${historical.length} lifecycle(s) follow hypgraph 0.3's rule, not the current one (${shown}). A bundle exported by 0.3 shows them so, but the chain doesn't record which version exported a bundle, so this can't be told from an edited view. Go by the current rule.`);
     }
+    if (unconfirmed.length) notes.push(`The views are not checked: ${unconfirmed.length} node(s) are shown superseded with no replacement in this bundle (${listed(unconfirmed)}). A replacement in another investigation would be among the redacted events, which keep only their hashes, so this can't be confirmed here: the rows make them active. Only the full record, verified against the published head, settles it.`);
     if (notes.length) out.warning = notes.join(' ');
     return anchored(out, head);
   }
@@ -599,7 +607,7 @@
     "chain.ok": "⛓ verified · {n}", "chain.ok.tip": "hash chain and every row re-verified: {n} events, head {head}…",
     "chain.partial": "partial coverage", "chain.partial.tip": "Not every row field is vouched for by its event",
     "chain.partial.redacted": "{n} event(s) outside this investigation are redacted", "chain.exported": "standing as exported",
-    "chain.bad": "⛓ does not verify", "chain.bad.at": "⛓ does not verify at #{n}",
+    "chain.views": "views not checked", "chain.bad": "⛓ does not verify", "chain.bad.at": "⛓ does not verify at #{n}",
     "stream.live": "live", "stream.polling": "polling", "stream.polling.tip": "this host has no event stream; checking every 5 s",
     "stream.reconnecting": "reconnecting", "stream.offline": "offline",
     "exported": "{what} as exported with the bundle, not verified: the chain covers the record's rows, not what an engine derived from them. Re-derive it with <code>hypgraph verify --standing</code>.",
@@ -892,6 +900,7 @@
       // the verifier's own problem, warning and note are shown verbatim (English): only the frame around them is translated
       $('#hg-chain').innerHTML = !v ? '' : v.ok ? `<span class="pill ok" title="${esc(T('chain.ok.tip', { n: v.checked, head: String(v.head || '').slice(0, 12) }))}">${esc(T('chain.ok', { n: v.checked }))}</span>` +
           (v.coverage === 'partial' ? ` <span class="pill warn" title="${esc(T('chain.partial.tip') + (Object.keys(v.unchecked || {}).length ? ': ' + Object.entries(v.unchecked || {}).map(([f, n]) => `${f} ×${n}`).join(', ') : '') + (v.redacted ? '; ' + T('chain.partial.redacted', { n: v.redacted }) : ''))}">${esc(T('chain.partial'))}</span>` : '') +
+          (v.views === 'historical' || v.views === 'unconfirmed' ? ` <span class="pill warn" title="${esc(v.warning || '')}">${esc(T('chain.views'))}</span>` : '') +
           (v.standing && !v.standing.checked ? ` <span class="pill neutral" title="${esc(v.standing.note || '')}">${esc(T('chain.exported'))}</span>` : '')
         : `<span class="pill bad" title="${esc(v.problem || '')}">${esc(v.broken_at ? T('chain.bad.at', { n: v.broken_at }) : T('chain.bad'))}</span>`;
       const s = !live ? '' : S.stream === 'live' ? `<span class="pill ok"><span class="d"></span>${esc(T('stream.live'))}</span>`

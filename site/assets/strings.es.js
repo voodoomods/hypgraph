@@ -135,6 +135,8 @@ window.HG_T = {
 "derived views": "vistas derivadas",
 "none: exported without them, so there is nothing to show beyond the rows": "ninguna: se exportó sin ellas, así que no hay nada que mostrar aparte de las filas",
 "checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)": "comprobadas frente a las filas: cada nodo, enlace y ciclo de vida que muestran está en el registro (la situación, tal como se exportó)",
+"not checked: some lifecycles follow hypgraph 0.3's rule, not the current one (see the note above)": "sin comprobar: algunos ciclos de vida siguen la regla de hypgraph 0.3, no la actual (véase la nota de arriba)",
+"not checked: some nodes are shown superseded by something outside this bundle, which can't be confirmed here (see the note above)": "sin comprobar: algunos nodos aparecen como sustituidos por algo de fuera de este bundle, lo que aquí no se puede confirmar (véase la nota de arriba)",
 "exported": "exportado",
 "{at} by {who}": "{at} por {who}",
 "investigations": "investigaciones",

@@ -602,6 +602,8 @@
 "derived views": "vues dérivées",
 "none: exported without them, so there is nothing to show beyond the rows": "aucune : exporté sans elles, il n'y a donc rien à montrer au-delà des lignes",
 "checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)": "vérifiées face aux lignes : chaque nœud, lien et cycle de vie qu'elles montrent est dans le registre (statut tel qu'exporté)",
+"not checked: some lifecycles follow hypgraph 0.3's rule, not the current one (see the note above)": "non contrôlées : certains cycles de vie suivent la règle de hypgraph 0.3, pas l'actuelle (voir la note ci-dessus)",
+"not checked: some nodes are shown superseded by something outside this bundle, which can't be confirmed here (see the note above)": "non contrôlées : certains nœuds apparaissent remplacés par quelque chose hors de ce bundle, ce qui ne peut pas être confirmé ici (voir la note ci-dessus)",
 "exported": "exporté",
 "{at} by {who}": "{at} par {who}",
 "investigations": "enquêtes",

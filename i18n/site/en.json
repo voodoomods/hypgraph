@@ -763,6 +763,8 @@
   "scope",
   "derived views",
   "none: exported without them, so there is nothing to show beyond the rows",
+  "not checked: some lifecycles follow hypgraph 0.3's rule, not the current one (see the note above)",
+  "not checked: some nodes are shown superseded by something outside this bundle, which can't be confirmed here (see the note above)",
   "checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)",
   "exported",
   "{at} by {who}",

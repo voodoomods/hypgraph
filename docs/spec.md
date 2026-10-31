@@ -153,7 +153,9 @@ out a change hidden among them. `scope.title` is a label; a viewer names the sco
 **What a verifier vouches for.** `ok` means the chain links and every row and event agree, both ways. `coverage:
 complete` means every row field was vouched for by its event and nothing is redacted (`partial` otherwise). `views:
 checked` means every fact the derived views show that the rows fix is present and agrees with the rows, and the
-scope is a real one; `views: none` means the bundle carries no views. None of them vouches for standing, the report,
+scope is a real one; `views: none` means the bundle carries no views. `views: historical` and `views: unconfirmed`
+mean the views verify but some lifecycles in them couldn't be checked (below), and the warning names each one: a
+viewer must not present them as checked. None of them vouches for standing, the report,
 stages or work orders (as exported), for who an author really is, or that the head was published.
 
 **Anchoring.** A bundle proves only its own consistency. To prove it wasn't rebuilt from scratch, publish its `head`
@@ -171,10 +173,16 @@ investigation node), which investigations the list shows (each once), which node
 `by` and `why`. Every one of these must be **present**, not only equal where present: a viewer fills a missing fact
 with a default, and a withdrawn claim without its lifecycle would read as active. The lifecycle is derived from the
 verified rows (withdrawn when a withdrawal exists; superseded when a live `supersedes` or `corrects` replacement is
-active or, since 0.4, itself superseded; an investigation's own `state` otherwise), and a verifier accepts the value
-either rule gives. A scoped bundle leaves out links to other investigations, so it may also call a node superseded
-(never a withdrawn node anything but withdrawn). A bundle exported without derived views verifies, and a verifier says
-it has none (`views: none`). **Standing** (review state, support, at-risk, the sentence) can't
+active or, since 0.4, itself superseded; an investigation's own `state` otherwise). A verifier checks the
+lifecycle against the current rule. A lifecycle that only 0.3's rule gives (it counted an active replacement only)
+verifies, since a 0.3 export shows it so, but the chain doesn't record which version exported a bundle, so the views
+are `historical`, not `checked`. A scoped bundle with redacted events leaves out links from other investigations, and
+one of them may replace a node: a node shown superseded with no replacement in the rows verifies only if its type can
+be replaced at all (every type but `investigation` and `review`) and it isn't withdrawn, and the views are
+`unconfirmed`, since that replacement is among the redacted events. A bundle with no redacted events holds every link,
+scoped or not, so any other lifecycle the rows don't give fails. `scope` isn't covered by the chain, so naming one
+never loosens a check on its own. A bundle exported without derived views verifies, and a verifier says it has none
+(`views: none`). **Standing** (review state, support, at-risk, the sentence) can't
 be checked from the rows alone: it is what the exporting engine derived, and so are the report, the workflow stages,
 completion, the question board and work-order status. A verifier reports them as not checked, or re-derives them with
 the same engine version (`hypgraph verify FILE --standing`, under the caller's policy with `--policy`) and compares.

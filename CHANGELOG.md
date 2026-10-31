@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **A scoped bundle can't show an active node as superseded and still say its views are checked.** A re-audit of
+  0.7.17 found that a bundle naming a `scope.inv` (which the chain doesn't cover) could show any node, an active claim
+  or the investigation itself, as superseded, and verify against its published head with `views: "checked"` and
+  coverage complete: the verifier let a scoped bundle call any non-withdrawn node superseded, because links from
+  other investigations are left out. Now, in the Python and browser verifiers alike, that allowance applies only
+  when events really are redacted (without them every link is in the bundle, so the lifecycle fails) and only to a
+  type a `supersedes` or `corrects` link can point at (never an investigation or a review), and even then the views
+  are `"unconfirmed"`, not `"checked"`, with a warning naming each node; `hypgraph verify` prints
+  `views: NOT CHECKED`. The Explorer header shows a *views not checked* pill for `historical` and `unconfirmed`
+  views, and the verify page names both instead of calling them checked (`tests/test_verify_scoped_views.py`).
+- **The spec says what a verifier does with lifecycles.** `docs/spec.md` and `docs/verification.md` no longer say a
+  verifier accepts the value either rule gives: the current rule is authoritative, a 0.3-only lifecycle is
+  `historical`, a scoped one superseded from outside is `unconfirmed`, anything else fails.
+
 ## 0.7.17 — 2026-10-31: a superseded node can't verify as active
 
 - **A superseded node can't verify as active.** A pre-launch audit of 0.7.16 found that the verifier accepted a node's
