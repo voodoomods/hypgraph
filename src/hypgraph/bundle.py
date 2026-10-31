@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from . import __version__
-from .schema import SAME_TYPE
+from .schema import RELS, SAME_TYPE
 from .store import GENESIS, ROW_TABLES, check_rows, event_body, now
 
 if TYPE_CHECKING:
@@ -242,13 +242,15 @@ def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
     if problem:
         return {"ok": False, "problem": problem}
     historical: list = []
-    problem = _derived_problem(b, tables, historical)
+    unconfirmed: list = []
+    problem = _derived_problem(b, tables, historical, unconfirmed, red)
     if problem:
         return {"ok": False, "problem": f"the derived views contradict the verified record: {problem}"}
     out = {"ok": True, "checked": checked, "head": prev, "complete": red == 0, "redacted": red,
            "nodes": len(tables["nodes"]), "edges": len(tables["edges"]), "unchecked": rows["unchecked"],
            "coverage": "complete" if not rows["unchecked"] and not red else "partial",
-           "views": "none" if b.get("derived") is None else "historical" if historical else "checked",
+           "views": ("none" if b.get("derived") is None else "historical" if historical
+                     else "unconfirmed" if unconfirmed else "checked"),
            "policy": {"trusted": sorted(policy or {}), "importer": importer},
            "standing": {"checked": False, "note": STANDING_NOTE}}
     notes = []
@@ -262,17 +264,29 @@ def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
                      "used.")
     if historical:
         notes.append(_historical_note(historical))
+    if unconfirmed:
+        notes.append(_unconfirmed_note(unconfirmed))
     if notes:
         out["warning"] = " ".join(notes)
     return out
 
 
+def _listed(names: list) -> str:
+    return "; ".join(names[:8]) + (f"; and {len(names) - 8} more" if len(names) > 8 else "")
+
+
 def _historical_note(historical: list) -> str:
-    shown = "; ".join(f"{name} shown {s}, the current rule makes it {w}" for name, s, w in historical[:8])
-    more = f"; and {len(historical) - 8} more" if len(historical) > 8 else ""
+    shown = _listed([f"{name} shown {s}, the current rule makes it {w}" for name, s, w in historical])
     return (f"The views are not checked: {len(historical)} lifecycle(s) follow hypgraph 0.3's rule, not the current "
-            f"one ({shown}{more}). A bundle exported by 0.3 shows them so, but the chain doesn't record which version "
+            f"one ({shown}). A bundle exported by 0.3 shows them so, but the chain doesn't record which version "
             "exported a bundle, so this can't be told from an edited view. Go by the current rule.")
+
+
+def _unconfirmed_note(unconfirmed: list) -> str:
+    return (f"The views are not checked: {len(unconfirmed)} node(s) are shown superseded with no replacement in this "
+            f"bundle ({_listed(unconfirmed)}). A replacement in another investigation would be among the redacted "
+            "events, which keep only their hashes, so this can't be confirmed here: the rows make them active. Only "
+            "the full record, verified against the published head, settles it.")
 
 
 def _j(v: Any) -> str:
@@ -320,6 +334,10 @@ def _scope_problem(b: dict, tables: dict, redacted: int) -> str:
     return ""
 
 
+# the node types a supersedes or corrects link can point at: no other type can be superseded
+REPLACEABLE = frozenset().union(*(RELS[r][1] for r in SAME_TYPE))
+
+
 def _eid(v: Any) -> int | None:
     """A link id as the browser's verifier reads one (Number.isInteger): 7 and 7.0, not true or "7"."""
     if isinstance(v, bool) or not isinstance(v, (int, float)) or not float(v).is_integer():
@@ -327,7 +345,8 @@ def _eid(v: Any) -> int | None:
     return int(v)
 
 
-def _derived_problem(b: dict, tables: dict, historical: list | None = None) -> str:
+def _derived_problem(b: dict, tables: dict, historical: list | None = None, unconfirmed: list | None = None,
+                     redacted: int = 0) -> str:
     """The derived views are presentation, but a viewer shows them beside a verified chain: every fact in them that
     the rows fix — which investigations there are, which nodes and live links each has, each node's type, code,
     author, time, version, title and lifecycle, each link's ends and fields — must be present and agree with the
@@ -337,7 +356,13 @@ def _derived_problem(b: dict, tables: dict, historical: list | None = None) -> s
     A lifecycle is checked against the current rule only. One that matches only 0.3's rule (the end of a chain of
     replacements shown active) is no problem — a 0.3 export shows it so — but it isn't checked either: the chain
     doesn't record which version exported a bundle, so it can't be told from an edited view. Each such node goes on
-    ``historical`` as (name, shown, current), and the bundle's views are reported as historical, not checked."""
+    ``historical`` as (name, shown, current), and the bundle's views are reported as historical, not checked.
+
+    A bundle with no redacted events holds every link, scoped or not, so a lifecycle the rows don't give fails. A
+    scoped bundle with redacted events leaves out links from other investigations, and one of them may replace a node:
+    a node of a type that can be replaced (``REPLACEABLE``) shown superseded with no replacement in the rows goes on
+    ``unconfirmed`` by name, and the views are reported as unconfirmed, not checked. ``scope`` isn't covered by the
+    chain, so naming one never loosens anything on its own."""
     d = b.get("derived")
     if d is None:
         return ""
@@ -392,8 +417,12 @@ def _derived_problem(b: dict, tables: dict, historical: list | None = None) -> s
         w, shown = lifecycle(n["id"], True), st["lifecycle"]
         if shown == w:
             return ""
-        if scope and n["id"] not in withdrawn and shown == "superseded":
-            return ""   # a scoped bundle leaves out links to other investigations: one may replace it
+        if (shown == "superseded" and scope and redacted and n["id"] not in withdrawn
+                and n["type"] in REPLACEABLE):
+            # a replacement in another investigation is among the redacted events: possible, not confirmable
+            if unconfirmed is not None and name not in unconfirmed:
+                unconfirmed.append(name)
+            return ""
         if shown == lifecycle(n["id"], False):
             if historical is not None and (name, shown, w) not in historical:
                 historical.append((name, shown, w))

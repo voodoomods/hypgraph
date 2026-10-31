@@ -299,6 +299,9 @@ def cmd_verify(args) -> int:
         text += "\n  no derived views: exported without them, so a viewer has nothing to show beyond the rows"
     if ok and res.get("views") == "historical":
         text += "\n  views: NOT CHECKED — some lifecycles follow hypgraph 0.3's rule, not the current one (see the note)"
+    if ok and res.get("views") == "unconfirmed":
+        text += ("\n  views: NOT CHECKED — some nodes are shown superseded by something outside this bundle, which "
+                 "can't be confirmed here (see the note)")
     if ok and res.get("unchecked"):
         text += ("\n  not covered (written before events hashed these fields): "
                  + ", ".join(f"{f} ×{n}" for f, n in sorted(res["unchecked"].items())))

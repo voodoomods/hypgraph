@@ -90,6 +90,11 @@ separate implementation.
   title and lifecycle, each link's ends and fields, the full investigation list — must be present in the derived
   views, not only right where present: a view that drops a withdrawn claim's lifecycle fails, rather than being shown
   as active. A bundle exported without derived views (`export(derived=False)`) verifies and says `views: none`.
+- **A lifecycle that can't be checked isn't called checked.** One only hypgraph 0.3's rule gives verifies with
+  `views: historical`. In a scoped bundle with redacted events, a node shown superseded with no replacement in the
+  rows (a replacement in another investigation would be redacted) verifies with `views: unconfirmed`, and only if its
+  type can be superseded at all; investigations and reviews can't. Without redacted events every link is in the
+  bundle, so such a node fails. The warning names each node; the Explorer and the verify page say *views not checked*.
 
 ## Scoped bundles and references
 
