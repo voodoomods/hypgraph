@@ -121,7 +121,10 @@ HypMesh for every reader, and by any host that answers through `blind.dispatch` 
   mismatch; [docs/verification.md](docs/verification.md) shows how to publish and sign a head. The authenticity of
   that published copy is outside the record.
 - **Scoped bundles are partial.** Events outside the exported investigation are redacted and their content can't be
-  checked. The verifier says how many.
+  checked. The verifier says how many, and that only the full record against the published head rules out a change
+  hidden among them. The scope isn't hashed: until 0.7.16 any node could be named as the scope, or a whole record
+  relabelled as one investigation, and the rest vanished from the views while the bundle verified. Now the scope must
+  name an investigation and the bundle hold only its nodes, and only a scoped bundle may redact.
 - **Pinned references** between records check that the cited node's body still hashes to the pinned version. They
   don't check the cited record's history.
 - **Not that a claim is true.** Verification shows the record wasn't edited and how each claim stands under the

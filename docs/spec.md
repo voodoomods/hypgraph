@@ -143,6 +143,19 @@ A **scoped** bundle (one investigation out of a shared record) replaces events o
 checked, so a change hidden among them would not show. Verifiers must report `complete: false`. To publish a study,
 keep it in a record of its own.
 
+`scope` isn't covered by the chain, so a verifier requires the one shape an export writes: `scope.inv` names a node
+of type `investigation`, and every node row is that investigation or belongs to it; a bundle without a scope has no
+redacted events. Otherwise any node could pose as the investigation, or a whole record pass as one investigation,
+and the views would hide the rest beside a verified chain. A redacted event keeps only its hash, so that it lies
+outside the investigation is the bundle's word: only the full record, verified against the published head, rules
+out a change hidden among them. `scope.title` is a label; a viewer names the scope from the verified investigation.
+
+**What a verifier vouches for.** `ok` means the chain links and every row and event agree, both ways. `coverage:
+complete` means every row field was vouched for by its event and nothing is redacted (`partial` otherwise). `views:
+checked` means every fact the derived views show that the rows fix is present and agrees with the rows, and the
+scope is a real one; `views: none` means the bundle carries no views. None of them vouches for standing, the report,
+stages or work orders (as exported), for who an author really is, or that the head was published.
+
 **Anchoring.** A bundle proves only its own consistency. To prove it wasn't rebuilt from scratch, publish its `head`
 hash somewhere independent at the time (a paper, a preregistration, a repository tag). A later bundle whose chain
 passes through that hash can't have rewritten anything before it. A verifier given a published head (the full hash,

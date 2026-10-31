@@ -183,6 +183,22 @@
   const titleOf = (b) => cp(b.statement || b.title || b.text || b.aim || b.summary || b.choice || b.citation || b.name
     || b.path || b.verdict || '', 300);
 
+  /** The investigation a bundle says it is scoped to ('' for the whole record). Not covered by the chain. */
+  const scopeOf = (b) => (b.scope && typeof b.scope === 'object' && !Array.isArray(b.scope) ? String(b.scope.inv || '') : '');
+
+  /** The scope must be the one shape export() writes (bundle.py _scope_problem): it names an investigation node, the
+   *  bundle holds only that investigation's nodes, and only a scoped bundle redacts events. */
+  function scopeProblem(b, tables, redacted) {
+    const inv = scopeOf(b);
+    if (!inv) return redacted ? `the bundle has no scope but ${redacted} redacted event(s): only an export of one investigation redacts events, so this is a cut of the record presented as the whole of it` : '';
+    const n = tables.nodes.find((x) => x.id === inv);
+    if (!n) return `the bundle's scope names ${inv}, which the record doesn't hold`;
+    if (n.type !== 'investigation') return `the bundle's scope names ${n.code || inv}, a ${n.type}, not an investigation: a scope is always an investigation`;
+    const other = tables.nodes.filter((x) => x.id !== inv && x.inv !== inv);
+    if (other.length) return `the bundle's scope is ${n.code || inv}, but it holds ${other.length} node(s) of other investigations (${other[0].code || other[0].id} first): an export of one investigation holds only its own`;
+    return '';
+  }
+
   /** The derived views are presentation; every fact in them the rows fix must agree with the verified rows. */
   function derivedProblem(b, tables) {
     const d = b.derived;
@@ -192,7 +208,7 @@
     tables.versions.forEach((v) => { if (v.v > ((latest.get(v.node) || [0])[0])) latest.set(v.node, [v.v, JSON.parse(v.body)]); });
     const withdrawn = new Set(tables.withdrawals.map((w) => w.node)), retracted = new Set(tables.retractions.map((r) => Number(r.edge)));
     const live = new Map(tables.edges.filter((e) => !retracted.has(Number(e.id))).map((e) => [Number(e.id), e]));
-    const scope = String((b.scope || {}).inv || '');
+    const scope = scopeOf(b);
     const invs = new Set(scope ? [scope] : [...nodes.values()].filter((n) => n.type === 'investigation').map((n) => n.id));
     const replaced = new Map();
     live.forEach((e) => { if (SAME_TYPE.includes(e.rel)) (replaced.get(e.dst) || replaced.set(e.dst, []).get(e.dst)).push(e.src); });
@@ -315,6 +331,8 @@
     const importer = String((policy || {}).importer || 'importer'), stated = String((b.policy || {}).importer || 'importer');
     const rows = await checkRows(events, tables, importer);
     if (rows.problem) return { ok: false, problem: rows.problem + (stated !== importer ? ` (the bundle names ${stated} as its importer, which the chain doesn't cover; if you trust that, verify with --importer ${stated})` : '') };
+    const sp = scopeProblem(b, tables, red);
+    if (sp) return { ok: false, problem: sp };
     const dp = derivedProblem(b, tables);
     if (dp) return { ok: false, problem: `the derived views contradict the verified record: ${dp}` };
     const partial = Object.keys(rows.unchecked).length > 0 || red > 0;
@@ -323,7 +341,7 @@
       views: b.derived == null ? 'none' : 'checked',
       policy: { trusted: Object.keys(policy || {}).sort(), importer }, standing: { checked: false, note: STANDING_NOTE } };
     const notes = [];
-    if (red) notes.push(`${red} event(s) outside this investigation are redacted: their content can't be checked, so a change hidden among them (a withdrawal, say) would not show. The full record rules that out.`);
+    if (red) notes.push(`${red} event(s) are redacted. The bundle says they lie outside this investigation, but a redacted event keeps only its hash, so that can't be checked: a change hidden among them (a withdrawal, say) would not show. Only the full record, verified against the published head, rules that out.`);
     if (stated !== importer) notes.push(`The bundle names ${stated} as its importer; the chain doesn't cover that, so ${importer} was used.`);
     if (notes.length) out.warning = notes.join(' ');
     return anchored(out, head);

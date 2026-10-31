@@ -94,8 +94,12 @@ separate implementation.
 ## Scoped bundles and references
 
 - `hypgraph export --inv INV` writes one investigation. Events outside it are redacted to their hash, so the chain
-  still verifies, but their content can't be checked; the verifier says how many. The full record rules out a change
+  still verifies, but their content can't be checked; the verifier says how many. That they lie outside the
+  investigation is the bundle's word: only the full record, verified against the published head, rules out a change
   hidden among them.
+- The scope itself isn't hashed, so the verifier requires what an export writes: it names an investigation, and the
+  bundle holds only that investigation's nodes. A claim posing as the scope, or a whole record relabelled as one
+  investigation, fails; so does a bundle without a scope that has redacted events.
 - A source that pins another record's node checks that the cited body still hashes to the pinned version. It doesn't
   check the cited record's history: for that, verify that record against its own published head.
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **A bundle's scope must be a real one.** A re-audit of 0.7.15 found that `scope.inv`, which the chain doesn't
+  cover, was taken on trust: naming a claim, question, result or hypothesis as the scope showed that one node, hid the
+  rest of the record, and still verified against the published head; a full export of two investigations relabelled
+  as one hid the other. Now, in the Python and browser verifiers alike, the scope must name an investigation and the
+  bundle hold only that investigation's nodes, as an export writes it; a bundle without a scope may not redact events
+  (`tests/test_verify_scope.py`).
+- **The redaction warning says what can't be checked.** A redacted event keeps only its hash, so that it lies
+  outside the investigation is the bundle's word; the warning says so, and that only the full record against the
+  published head rules out a change hidden among them.
+- **The verify page names the scope from the verified investigation**, not from the unhashed `scope.title`, and says
+  whether the bundle's derived views were checked or absent. The spec says what `ok`, `coverage` and `views` vouch for.
+
 ## 0.7.15 — 2026-10-31: derived views must carry every fact the rows fix
 
 - **Derived views must carry every fact the rows fix.** A re-audit of 0.7.14 found that a derived field was compared
