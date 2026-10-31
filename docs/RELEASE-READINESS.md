@@ -47,6 +47,17 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #72 is merged with green CI (17 of 17 checks); the suite is 412 passed, and hypswarm and
 > hypmesh pass on it. Released as 0.7.16.
 
+> **Pre-launch audit of 0.7.16 (2026-10-31).** Confirmed and fixed for 0.7.17: the verifier accepted a lifecycle under
+> either the current rule or 0.3's, so the oldest node of a chain of two or more replacements could be shown active
+> and the bundle verified with `views: "checked"`, chain, rows and head untouched; a `generator` set to 0.3 (not
+> covered by the chain) also turned `--standing` into "not checked". A lifecycle is now checked against the current
+> rule only; one that matches only 0.3's verifies with `views: "historical"` and a warning naming each node, in
+> Python and the browser alike, whatever the generator says. Tests: `tests/test_verify_lifecycle.py` (five fail on
+> the 0.7.16 code). The required checks are now all 17 CI jobs, and the repository has its homepage and topics.
+>
+> **Where that stands.** #75 is merged with green CI (17 of 17 checks); from the 0.7.17 wheel in a fresh venv the
+> suite is 424 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.17.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
