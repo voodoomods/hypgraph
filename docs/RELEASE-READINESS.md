@@ -43,6 +43,9 @@ was taken from a changelog without being checked against the code.*
 > must now name an investigation, the bundle hold only its nodes, and only a scoped bundle redact; the redaction
 > warning says the bundle's word that redacted events lie outside can't be checked. Tests: `tests/test_verify_scope.py`.
 > The required checks and the repository's About metadata are still the operator's.
+>
+> **Where that stands.** #72 is merged with green CI (17 of 17 checks); the suite is 412 passed, and hypswarm and
+> hypmesh pass on it. Released as 0.7.16.
 
 ## Recommendation: CONDITIONAL GO
 
