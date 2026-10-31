@@ -166,3 +166,49 @@ def test_mcp_seat_holding_a_blind_order(env, tmp_path):
             ov = text(await c.call_tool("overview", {"investigation": inv}))
             assert "Primes below" in ov
     asyncio.run(go())
+
+
+# ── from the first live run (Claude leading, Codex checking on HypMesh, 2026-10-30) ──
+def test_a_framing_investigation_is_the_problem_statement_and_my_work_finds_the_order():
+    fastmcp = pytest.importorskip("fastmcp")
+    from hypgraph.mcp import build
+    g = Graph(clock=Clock())
+    lead = g.author("lead")
+    frame = lead.investigation("The question", "Count the primes below 1,000,000 whose digits sum to 23.")["id"]
+    inv = lead.investigation("Lead's attempt", "Count them, and have the count checked blind.")["id"]
+    h = lead.add("hypothesis", inv, statement="There are 5503 primes below 1,000,000 whose digits sum to 23.",
+                 predictions=["an independent count finds 5503"])["id"]
+    o = g.issue_work(author="lead", inv=inv, target=h, assignee="checker", blind=True,
+                     objective="Count the primes below 1,000,000 whose digits sum to 23, with your own code.")
+    v = B.view_for_author(g.snapshot(), "checker")
+    assert frame not in v.hide and h in v.hide and "5503" in v.secrets and "23" not in v.secrets
+    with pytest.raises(GraphError, match="quotes what it would seal: 5503"):
+        h2 = lead.add("hypothesis", inv, statement="Most of them are below 900,000.",
+                      predictions=["more than half fall below 900,000"])["id"]
+        g.issue_work(author="lead", inv=inv, target=h2, assignee="other", blind=True,
+                     objective="Check that the count is 5503.")
+
+    async def go():
+        async with fastmcp.Client(build(g, author="checker")) as c:
+            r = await c.call_tool("my_work", {})                 # no investigation named, two in the record
+            assert o["code"] in r.content[0].text and "BLIND" in r.content[0].text
+    asyncio.run(go())
+
+
+def test_inverse_relation_words_are_turned_round(env):
+    g, inv, h1, rs1 = env
+    a = g.author("lead")
+    run = a.add("run", inv, kind="agent", name="second sieve", state="succeeded")["id"]
+    rs = a.add("result", inv, summary="The second sieve counts 1230 primes below 10,000; the largest is 9967.",
+               outcome="positive", values={"count": 1230, "largest": 9967},
+               links=[{"rel": "produced_by", "to": run}])
+    assert any(e["rel"] == "produced" and e["src"] == run for e in rs["in"])
+
+
+def test_the_embedded_app_never_widens_its_page():
+    from pathlib import Path
+    import hypgraph.ui as ui
+    css = (Path(ui.__file__).parent / "hypgraph.css").read_text(encoding="utf-8")
+    assert ".hg.hg-embed { overflow-x: clip;" in css
+    narrow = css.split("@container hg (max-width: 760px)", 1)[1].split("\n}\n", 1)[0]
+    assert ".hg.hg-embed .hg-nav { overflow-x: auto;" in narrow

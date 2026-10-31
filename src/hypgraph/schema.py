@@ -148,6 +148,10 @@ REL_SYNONYMS: dict[str, str] = {
     "correct": "corrects", "corrected": "corrects", "require": "requires", "required": "requires",
     "depends_on": "requires", "part": "part_of", "belongs_to": "part_of", "motivated": "motivated_by",
     "rests": "rests_on", "works": "works_on", "blocked": "blocked_by", "settle": "settles", "settled": "settles",
+    # inverses whose node types fix the direction (a result can't produce a run): turned round by _orient. Not
+    # supported_by / challenged_by: a claim can sit at either end of those.
+    "produced_by": "produced", "generated_by": "produced", "output_of": "produced", "executed_by": "executes",
+    "tested_by": "tests",
 }
 
 SYNONYMS: dict[tuple[str, str], dict[str, str]] = {

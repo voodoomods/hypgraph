@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased: fixes from the first live blind run
+
+Claude led a question on a HypMesh and issued a blind order; Codex took the order through its seat and counted the
+primes below 1,000,000 whose digits sum to 23 with its own sieve. The record marked its result written blind and
+agreeing blind with Claude's, and nothing sealed reached Codex. Four fixes from that run and a phone-width check:
+
+- **Investigations are part of the problem statement a blind checker reads.** Only the order's own investigation
+  and the curators' were. A lead whose framing lived in a second investigation had it sealed, the numbers that
+  define the problem (1,000,000; 23) read as secrets, and an honest blind order was refused. Questions and
+  investigations say what is being found out; don't put answers in them.
+- **`my_work` without an investigation lists your orders in every investigation.** It asked "which
+  investigation?" when a record held two, and the seat's first call failed.
+- **`produced_by`, `generated_by`, `output_of`, `executed_by` and `tested_by` are read as the relation they
+  invert.** The node types fix the direction, so the link is turned round. Codex's first result was refused for
+  `produced_by`.
+- **On a phone, every tab of the embedded app can be reached.** The embed's `overflow: visible` beat the narrow
+  rule that makes the nav a scrolling strip. On hypdmz.com at 375 px, four of the eight tabs (Evidence, Work
+  orders, Audit log, Report) sat past the edge with no way to scroll to them. The nav now scrolls, and the embed
+  clips sideways, so the closed drawer can't widen a host page that doesn't clip it.
+
 ## 0.7.9 — 2026-10-30: blind work orders
 
 - **A checker can measure without seeing the answer it checks.** `issue_work(..., blind=True)` (MCP `issue_work`

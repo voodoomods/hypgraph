@@ -2,8 +2,8 @@
 Blind work orders: a checker measures without seeing the answer it is checking.
 
 A work order issued with ``blind=True`` seals the record from its assignee until the order is returned. While it is
-open, the assignee reads the problem statement (the investigation the order belongs to, the curators' investigations,
-the questions) and its own order; everything else other authors wrote — hypotheses and their predictions, results,
+open, the assignee reads the problem statement (the investigations and questions: what is being found out, never what
+was found) and its own order; everything else other authors wrote — hypotheses and their predictions, results,
 claims, reviews, runs and their code, sources, other orders, other teams' attempts — is sealed: shown as a placeholder,
 left out of search, its numbers scrubbed wherever else they appear.
 
@@ -39,7 +39,10 @@ _NUM = re.compile(r"(?<![\w.,])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\w])")
 READ_ROUTES = frozenset({"investigations", "orders", "order", "resolve", "subgraph", "node", "why", "impact",
                          "neighborhood", "search", "events", "verify", "profiles", "profile", "references"})
 POST_ROUTES = frozenset({"check_work"})
-VISIBLE_TYPES = frozenset({"question"})
+# The problem statement every reader keeps. An investigation says what is being found out; a lead whose framing
+# lived in a second investigation had it sealed, and the numbers that define the problem (1,000,000; 23) then read
+# as secrets, so an honest blind order was refused (first live run, 2026-10-30). Don't put answers in them.
+VISIBLE_TYPES = frozenset({"question", "investigation"})
 # A blind order asks for a measurement. A review or a report has to read what it judges.
 BLIND_PREDICATES = frozenset({"run_registered", "result_exists", "claim_made", "within_budget"})
 SEALED = "sealed"
@@ -228,10 +231,8 @@ def _derived(s: D.Snap, x: str, limit: int = 60) -> set[str]:
 
 # ── what is sealed, and from whom ──────────────────────────────────
 def public(s: D.Snap, n: dict, w: Window) -> bool:
-    """The problem statement every reader keeps: questions, the curators' investigations, the order's own
-    investigation, and the order chain itself."""
-    return (n["type"] in VISIBLE_TYPES
-            or (n["type"] == "investigation" and (n["created_by"] in s.policy.curators or n["id"] == w.inv)))
+    """The problem statement every reader keeps: questions and investigations (the order chain is kept apart)."""
+    return n["type"] in VISIBLE_TYPES
 
 
 def scope(s: D.Snap, w: Window) -> set[str]:

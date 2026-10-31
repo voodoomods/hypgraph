@@ -551,10 +551,12 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
 
     @tool
     def my_work(investigation: str = "") -> str:
-        """Your open work orders, each with its full text. An order you have returned is no longer yours to work:
-        it waits for acceptance, and comes back as a new order if it is reworked."""
+        """Your open work orders, each with its full text, in every investigation unless you name one. An order you
+        have returned is no longer yours to work: it waits for acceptance, and comes back as a new order if it is
+        reworked."""
         try:
-            allmine = [o for o in g.orders(inv_of(investigation)) if o["assignee"] == me]
+            invs = [g.resolve(investigation)] if investigation else [i["id"] for i in g.investigations()]
+            allmine = [o for inv in invs for o in g.orders(inv) if o["assignee"] == me]
         except (GraphError, KeyError) as e:
             fail(e)
         mine = [o for o in allmine if o["status"] in ("open", "overdue")]
