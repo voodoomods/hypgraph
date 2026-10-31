@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **A LangChain example** (`examples/frameworks/langchain_agent.py`): `create_agent` with the record's tools from a
+  `MultiServerMCPClient` session, the same story as the others. It runs in the `frameworks` CI job.
 - **Examples for agent frameworks** (`examples/frameworks/`): LangGraph, PydanticAI, CrewAI, the OpenAI Agents SDK
   and the Claude Agent SDK, each connected to a record through `hypgraph mcp`. All five tell the same story: the
   agent claims a 1.2-point difference is significant, the record refuses with the arithmetic, and the agent writes

@@ -12,7 +12,8 @@ The framework doesn't need to know HypGraph exists. It sees MCP tools, and the r
 
 | Framework | File | Install | MCP wiring |
 |---|---|---|---|
-| LangGraph / LangChain | [langgraph_agent.py](langgraph_agent.py) | `langgraph langchain-mcp-adapters` | `load_mcp_tools(session)` into a `ToolNode` |
+| LangChain | [langchain_agent.py](langchain_agent.py) | `langchain langchain-mcp-adapters` | `MultiServerMCPClient` session → `create_agent` |
+| LangGraph | [langgraph_agent.py](langgraph_agent.py) | `langgraph langchain-mcp-adapters` | `load_mcp_tools(session)` into a `ToolNode` |
 | PydanticAI | [pydantic_ai_agent.py](pydantic_ai_agent.py) | `"pydantic-ai-slim[mcp]"` | `MCPToolset(StdioTransport(...))` |
 | CrewAI | [crewai_agent.py](crewai_agent.py) | `crewai` | `Agent(mcps=[MCPServerStdio(...)])` |
 | OpenAI Agents SDK | [openai_agents_sdk.py](openai_agents_sdk.py) | `openai-agents` | `Agent(mcp_servers=[MCPServerStdio(...)])` |
@@ -49,6 +50,9 @@ record's server from the exact options the SDK would use and confirms every allo
   in a team its own server, with its own author.
 - **Let a refusal reach the model.** A refused write is an MCP tool error whose text names the problem and the fix
   (for example `[SIGNIFICANCE_NOT_SHOWN]`). If the framework ends the run on a tool error, the agent never sees it:
+  - LangChain: `load_mcp_tools(session, handle_tool_errors=True)`, the adapter's default, returns it as the tool's
+    output, so `create_agent` needs nothing more. Hold one `client.session(...)` for the run: `client.get_tools()`
+    alone starts a server process for every tool call.
   - LangGraph: `ToolNode(tools, handle_tool_errors=True)`.
   - PydanticAI: the default (`tool_error_behavior="retry"`) sends it back as a retry prompt. `max_retries` bounds it.
   - CrewAI and the OpenAI Agents SDK hand it back as the tool's output by default.
@@ -62,5 +66,5 @@ record's server from the exact options the SDK would use and confirms every allo
 Frameworks that take plain Python functions as tools can skip MCP. Call `Graph` directly and return the refusal text
 from `GraphError`; see [hypgraph.com/engineers](https://hypgraph.com/engineers/#connect).
 
-Tested with langgraph 1.x, pydantic-ai 2.x, crewai 1.15, openai-agents 0.20 and claude-agent-sdk 0.2 (the scripted
+Tested with langchain 1.4, langgraph 1.2, pydantic-ai 2.x, crewai 1.15, openai-agents 0.20 and claude-agent-sdk 0.2 (the scripted
 runs, and the Claude `--check`, run in CI).
