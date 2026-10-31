@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: a sealed checker can't learn the answer by asking
+## 0.7.11 — 2026-10-30: a sealed checker can't learn the answer by asking
 
 An adversarial test on a local HypMesh planted a 5-digit reading and 12-digit tags in a lead's sealed nodes and
 attacked every route as the blind checker. Nothing leaked directly, but the checker could tell a right guess from a
