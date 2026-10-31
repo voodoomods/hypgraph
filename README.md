@@ -148,6 +148,10 @@ the record from its checker until it is returned. The method is in [AGENTS.md](h
 [llms.txt](https://hypgraph.com/llms.txt). What the server enforces, and what it leaves to you, is in
 [SECURITY.md](https://github.com/voodoomods/hypgraph/blob/main/SECURITY.md).
 
+Runnable examples for LangGraph, PydanticAI, CrewAI, the OpenAI Agents SDK and the Claude Agent SDK, each the same
+story wired a different way, are in
+[examples/frameworks](https://github.com/voodoomods/hypgraph/tree/main/examples/frameworks).
+
 ## Wire it into your system
 
 The core is one Python package with no dependencies. You decide who is trusted to do what:

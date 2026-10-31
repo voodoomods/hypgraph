@@ -88,6 +88,9 @@ g = Graph("research.hypgraph", policy=POLICY)</pre></div>
 hypgraph --db research.hypgraph --as worker-1 mcp --transport http --port 8766 # streamable HTTP</pre></div>
 <p>Or build it in-process (custom policy, your own auth): <code>hypgraph.mcp.build(graph, author="worker-1")</code>
   returns the FastMCP server.</p>
+<p>Runnable examples, the same story wired five ways (LangGraph, PydanticAI, CrewAI, OpenAI Agents SDK, Claude Agent
+  SDK): <a href="https://github.com/voodoomods/hypgraph/tree/main/examples/frameworks">examples/frameworks</a>. Each
+  runs offline with a scripted model, or with <code>--real</code> on a real one.</p>
 <h3>Agent Skill</h3>
 <p><code>hypgraph skill --install</code> writes <code>.claude/skills/hypgraph/SKILL.md</code>: the method, the refusals
   and their fixes, through the CLI.</p>
