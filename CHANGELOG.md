@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.17 — 2026-10-31: a superseded node can't verify as active
 
 - **A superseded node can't verify as active.** A pre-launch audit of 0.7.16 found that the verifier accepted a node's
   lifecycle under either the current rule or 0.3's, which counted only an active replacement: in a chain RS3
