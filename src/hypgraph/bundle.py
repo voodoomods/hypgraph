@@ -238,6 +238,9 @@ def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
         hint = (f" (the bundle names {stated} as its importer, which the chain doesn't cover; if you trust that, "
                 f"verify with --importer {stated})" if stated != importer else "")
         return {"ok": False, "problem": rows["problem"] + hint}
+    problem = _scope_problem(b, tables, red)
+    if problem:
+        return {"ok": False, "problem": problem}
     problem = _derived_problem(b, tables)
     if problem:
         return {"ok": False, "problem": f"the derived views contradict the verified record: {problem}"}
@@ -249,8 +252,10 @@ def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
            "standing": {"checked": False, "note": STANDING_NOTE}}
     notes = []
     if red:
-        notes.append(f"{red} event(s) outside this investigation are redacted: their content can't be checked, so a "
-                     "change hidden among them (a withdrawal, say) would not show. The full record rules that out.")
+        notes.append(f"{red} event(s) are redacted. The bundle says they lie outside this investigation, but a "
+                     "redacted event keeps only its hash, so that can't be checked: a change hidden among them (a "
+                     "withdrawal, say) would not show. Only the full record, verified against the published head, "
+                     "rules that out.")
     if stated != importer:
         notes.append(f"The bundle names {stated} as its importer; the chain doesn't cover that, so {importer} was "
                      "used.")
@@ -270,6 +275,38 @@ def _title(body: dict) -> str:
          or body.get("choice") or body.get("citation") or body.get("name") or body.get("path") or body.get("verdict")
          or "")
     return str(t)[:300]
+
+
+def _scope_of(b: dict) -> str:
+    """The investigation a bundle says it is scoped to ("" for the whole record). Not covered by the chain."""
+    sc = b.get("scope")
+    return str(sc.get("inv") or "") if isinstance(sc, dict) else ""
+
+
+def _scope_problem(b: dict, tables: dict, redacted: int) -> str:
+    """The scope isn't hashed, so it must be the one shape export() writes: a scoped bundle names an investigation
+    node and holds only that investigation's nodes; only a scoped bundle redacts events. Otherwise any node could
+    pose as the investigation, or a whole record pass as one investigation, and hide the rest behind a verified
+    chain."""
+    inv = _scope_of(b)
+    if not inv:
+        if redacted:
+            return (f"the bundle has no scope but {redacted} redacted event(s): only an export of one investigation "
+                    "redacts events, so this is a cut of the record presented as the whole of it")
+        return ""
+    nodes = {n["id"]: n for n in tables["nodes"]}
+    n = nodes.get(inv)
+    if n is None:
+        return f"the bundle's scope names {inv}, which the record doesn't hold"
+    if n["type"] != "investigation":
+        return (f"the bundle's scope names {n['code'] or inv}, a {n['type']}, not an investigation: a scope is "
+                "always an investigation")
+    other = [x for x in tables["nodes"] if x["id"] != inv and x["inv"] != inv]
+    if other:
+        return (f"the bundle's scope is {n['code'] or inv}, but it holds {len(other)} node(s) of other "
+                f"investigations ({other[0]['code'] or other[0]['id']} first): an export of one investigation holds "
+                "only its own")
+    return ""
 
 
 def _eid(v: Any) -> int | None:
@@ -298,7 +335,7 @@ def _derived_problem(b: dict, tables: dict) -> str:
     withdrawn = {w["node"] for w in tables["withdrawals"]}
     retracted = {int(r["edge"]) for r in tables["retractions"]}
     live = {int(e["id"]): e for e in tables["edges"] if int(e["id"]) not in retracted}
-    scope = str((b.get("scope") or {}).get("inv") or "")
+    scope = _scope_of(b)
     invs = {scope} if scope else {i for i, n in nodes.items() if n["type"] == "investigation"}
     replaced: dict[str, list] = {}
     for e in live.values():

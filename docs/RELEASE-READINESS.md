@@ -37,6 +37,13 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #70 is merged with green CI (17 of 17 checks); the suite is 406 passed, and hypswarm and
 > hypmesh pass on it. Released as 0.7.15.
 
+> **Re-audit of 0.7.15 (2026-10-31).** Confirmed and fixed for 0.7.16: the scope isn't hashed and wasn't checked, so a
+> claim, question, result or hypothesis named as the scope showed alone, the rest of the record hidden, and the bundle
+> verified against the published head; a full export of two investigations relabelled as one did the same. The scope
+> must now name an investigation, the bundle hold only its nodes, and only a scoped bundle redact; the redaction
+> warning says the bundle's word that redacted events lie outside can't be checked. Tests: `tests/test_verify_scope.py`.
+> The required checks and the repository's About metadata are still the operator's.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
