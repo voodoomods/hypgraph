@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>示例 — HypGraph</title>
+<meta name="description" content="五个智能体群，每种配置一个 — 科学、软件、交易、知识、优化 — 在 HypGraph 中实时回放：每次模型调用、工具调用、工单、审查和拒绝。">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.zh-Hans.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/examples/" data-rel="../../examples/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/examples/" data-rel="../../es/examples/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/examples/" data-rel="../../fr/examples/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/examples/" data-rel="../../de/examples/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/examples/" data-rel="../../zh-Hans/examples/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/examples/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">跳到内容</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="网站"><a href="../agents/">智能体</a><a href="../engineers/">工程师</a><a href="../examples/" aria-current="page">示例</a><a href="../never/" class="hide-sm">从不</a><a href="../#workflows" class="hide-sm">工作流</a><a href="../play/" class="hide-sm">试验场</a><a href="../verify/" class="hide-sm">验证</a><a href="../spec/" class="hide-sm">Spec</a><a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a><!--i18n:menu--><details class="langs"><summary aria-label="语言" title="语言">中文</summary><div class="langs-menu"><a href="../../examples/" hreflang="en" lang="en">English</a><a href="../../es/examples/" hreflang="es" lang="es">Español</a><a href="../../fr/examples/" hreflang="fr" lang="fr">Français</a><a href="../../de/examples/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/examples/" hreflang="zh-Hans" lang="zh-Hans" aria-current="page">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="切换浅色和深色">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">本页为译文。以英文版为准： <a href="../../examples/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">在线示例</div><h1>观看智能体群工作，覆盖每种配置</h1>
+<p>每个示例都是在真实记录上的一次真实 HypSwarm 运行：席位从记录领取工单，通过记录写入结果和主张，过度主张时被拒绝，任何内容在被审查之前都不算数。打开一个，它会从第一个事件开始回放 — 进行中的模型和工具调用、不断生长的图、逐渐稳定的看板。然后探索它的阶段、图、证据和报告。</p></div></div>
+<div class="wrap"><div class="exgrid">
+<a class="excard" href="scientific/">
+  <div class="who">科学 · <span translate="no">Facts from the record</span></div>
+  <h2 translate="no">Does A beat B</h2>
+  <p>两名分析员和一名批评者检验一条评估主张。仪器在任何审查之前重新运行每个值，报告再对照记录进行检查。</p>
+  <dl><dt>席位</dt><dd translate="no">analyst, stats, critic, lead</dd>
+    <dt>运行</dt><dd><span data-v>14</span> 次模型调用 · <span data-v>14</span> 次工具调用 · <span data-v>12</span> 秒 · 已稳定</dd>
+    <dt>记录</dt><dd><span data-v>80</span> 个事件 · <span data-v>29</span> 个节点 · 无拒绝</dd></dl>
+  <span class="go">观看运行</span>
+</a>
+<a class="excard" href="software/">
+  <div class="who">软件 · <span translate="no">Change report</span></div>
+  <h2 translate="no">Importer keeps quoted commas</h2>
+  <p>测试只有在仪器运行时才算数。测试者在该运行之前写下的“通过”会被拒绝、重做，并在实验室运行到达后被接受。</p>
+  <dl><dt>席位</dt><dd translate="no">implementer, tester, reviewer, lead</dd>
+    <dt>运行</dt><dd><span data-v>16</span> 次模型调用 · <span data-v>14</span> 次工具调用 · <span data-v>16</span> 秒 · 已稳定</dd>
+    <dt>记录</dt><dd><span data-v>81</span> 个事件 · <span data-v>28</span> 个节点 · <span data-v>1</span> 次写入被拒绝后重写</dd></dl>
+  <span class="go">观看运行</span>
+</a>
+<a class="excard" href="trading/">
+  <div class="who">交易 · <span translate="no">Desk note</span></div>
+  <h2 translate="no">Mean reversion after a 3 % five-day drop</h2>
+  <p>在保留时间窗口上进行的回测，计入手续费和滑点。没有成本的结果在成为论点之前就会被拒绝。</p>
+  <dl><dt>席位</dt><dd translate="no">quant, risk, lead</dd>
+    <dt>运行</dt><dd><span data-v>14</span> 次模型调用 · <span data-v>13</span> 次工具调用 · <span data-v>16</span> 秒 · 已稳定</dd>
+    <dt>记录</dt><dd><span data-v>56</span> 个事件 · <span data-v>21</span> 个节点 · <span data-v>1</span> 次写入被拒绝后重写</dd></dl><div class="codes"><code>BACKTEST_WITHOUT_COSTS</code></div>
+  <span class="go">观看运行</span>
+</a>
+<a class="excard" href="knowledge/">
+  <div class="who">知识 · <span translate="no">Sourced brief</span></div>
+  <h2 translate="no">Three facts, sourced</h2>
+  <p>三个事实，每个都有一个来源节点和一条引用它的主张。背后没有任何依据的主张会被拒绝。</p>
+  <dl><dt>席位</dt><dd translate="no">researcher, fact_checker, lead</dd>
+    <dt>运行</dt><dd><span data-v>26</span> 次模型调用 · <span data-v>23</span> 次工具调用 · <span data-v>27</span> 秒 · 已稳定</dd>
+    <dt>记录</dt><dd><span data-v>84</span> 个事件 · <span data-v>29</span> 个节点 · <span data-v>3</span> 次写入被拒绝后重写</dd></dl><div class="codes"><code>EVIDENCE_MISSING</code></div>
+  <span class="go">观看运行</span>
+</a>
+<a class="excard" href="optimization/">
+  <div class="who">优化 · <span translate="no">Solution report</span></div>
+  <h2 translate="no">Assign six customers to three depots at minimum cost</h2>
+  <p>目标值、可行性和间隙。没有可行性检查的目标值会被拒绝，“最优”需要一个达到它的界。</p>
+  <dl><dt>席位</dt><dd translate="no">modeller, solver, verifier, lead</dd>
+    <dt>运行</dt><dd><span data-v>14</span> 次模型调用 · <span data-v>13</span> 次工具调用 · <span data-v>19</span> 秒 · 已稳定</dd>
+    <dt>记录</dt><dd><span data-v>59</span> 个事件 · <span data-v>21</span> 个节点 · <span data-v>1</span> 次写入被拒绝后重写</dd></dl><div class="codes"><code>OBJECTIVE_WITHOUT_FEASIBILITY</code></div>
+  <span class="go">观看运行</span>
+</a>
+</div>
+<p class="note">这些运行使用 HypSwarm 的脚本化模型，因此不花钱，每次回放都一样；用 <code>python run.py --model &lt;id&gt;</code> 在真实模型上运行任意一个。用 <code>dev/site_examples.py</code> 重建这些页面。每个记录包都能独立验证：<a href="../verify/">验证一个</a>。</p>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">别信炒作。检验假设。</span>
+<span>由 <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> 创建 · VoodooMods LLC · 代码 Apache-2.0 · 格式与文档 CC BY 4.0 · <a href="../disclaimer/">免责声明</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>

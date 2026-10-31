@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beispiele — HypGraph</title>
+<meta name="description" content="Fünf Schwärme, einer pro Profil — Wissenschaft, Software, Trading, Wissen, Optimierung — live in HypGraph abgespielt: jeder Modellaufruf, Werkzeugaufruf, Arbeitsauftrag, jede Prüfung und Ablehnung.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.de.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/examples/" data-rel="../../examples/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/examples/" data-rel="../../es/examples/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/examples/" data-rel="../../fr/examples/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/examples/" data-rel="../../de/examples/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/examples/" data-rel="../../zh-Hans/examples/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/examples/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Website"><a href="../agents/">Agenten</a><a href="../engineers/">Ingenieure</a><a href="../examples/" aria-current="page">Beispiele</a><a href="../never/" class="hide-sm">Nie</a><a href="../#workflows" class="hide-sm">Workflows</a><a href="../play/" class="hide-sm">Spielwiese</a><a href="../verify/" class="hide-sm">Verifizieren</a><a href="../spec/" class="hide-sm">Spec</a><a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a><!--i18n:menu--><details class="langs"><summary aria-label="Sprache" title="Sprache">DE</summary><div class="langs-menu"><a href="../../examples/" hreflang="en" lang="en">English</a><a href="../../es/examples/" hreflang="es" lang="es">Español</a><a href="../../fr/examples/" hreflang="fr" lang="fr">Français</a><a href="../../de/examples/" hreflang="de" lang="de" aria-current="page">Deutsch</a><a href="../../zh-Hans/examples/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Zwischen hell und dunkel wechseln">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Diese Seite ist eine Übersetzung. Maßgeblich ist die englische Fassung: <a href="../../examples/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">Live-Beispiele</div><h1>Sehen Sie einem Schwarm bei der Arbeit zu, in jedem Profil</h1>
+<p>Jedes Beispiel ist ein echter HypSwarm-Lauf auf einem echten Protokoll: Plätze nehmen Arbeitsaufträge aus dem Protokoll, schreiben Ergebnisse und Behauptungen über es, werden bei Überbehauptungen abgelehnt und geprüft, bevor irgendetwas zählt. Öffnen Sie eines, und es wird ab dem ersten Ereignis abgespielt — laufende Modell- und Werkzeugaufrufe, der wachsende Graph, das sich klärende Board. Erkunden Sie dann seine Phasen, seinen Graphen, seine Belege und seinen Bericht.</p></div></div>
+<div class="wrap"><div class="exgrid">
+<a class="excard" href="scientific/">
+  <div class="who">Wissenschaft · <span translate="no">Facts from the record</span></div>
+  <h2 translate="no">Does A beat B</h2>
+  <p>Zwei Analysten und ein Kritiker stellen eine Evaluationsbehauptung auf die Probe. Das Instrument führt jeden Wert vor jeder Prüfung erneut aus, und der Bericht wird gegen das Protokoll geprüft.</p>
+  <dl><dt>Plätze</dt><dd translate="no">analyst, stats, critic, lead</dd>
+    <dt>Lauf</dt><dd><span data-v>14</span> Modellaufrufe · <span data-v>14</span> Werkzeugaufrufe · <span data-v>12</span> s · geklärt</dd>
+    <dt>Protokoll</dt><dd><span data-v>80</span> Ereignisse · <span data-v>29</span> Knoten · keine Ablehnungen</dd></dl>
+  <span class="go">Beim Laufen zusehen</span>
+</a>
+<a class="excard" href="software/">
+  <div class="who">Software · <span translate="no">Change report</span></div>
+  <h2 translate="no">Importer keeps quoted commas</h2>
+  <p>Tests zählen nur, wenn das Instrument sie ausführt. Ein „besteht“ eines Testers, geschrieben vor diesem Lauf, wird abgelehnt, neu gemacht und angenommen, sobald der Laborlauf eintrifft.</p>
+  <dl><dt>Plätze</dt><dd translate="no">implementer, tester, reviewer, lead</dd>
+    <dt>Lauf</dt><dd><span data-v>16</span> Modellaufrufe · <span data-v>14</span> Werkzeugaufrufe · <span data-v>16</span> s · geklärt</dd>
+    <dt>Protokoll</dt><dd><span data-v>81</span> Ereignisse · <span data-v>28</span> Knoten · <span data-v>1</span> Schreibvorgang abgelehnt und dann neu geschrieben</dd></dl>
+  <span class="go">Beim Laufen zusehen</span>
+</a>
+<a class="excard" href="trading/">
+  <div class="who">Trading · <span translate="no">Desk note</span></div>
+  <h2 translate="no">Mean reversion after a 3 % five-day drop</h2>
+  <p>Ein Backtest auf einem zurückgehaltenen Zeitfenster, mit Gebühren und Slippage. Ein Ergebnis ohne Kosten wird abgelehnt, bevor es zur These werden kann.</p>
+  <dl><dt>Plätze</dt><dd translate="no">quant, risk, lead</dd>
+    <dt>Lauf</dt><dd><span data-v>14</span> Modellaufrufe · <span data-v>13</span> Werkzeugaufrufe · <span data-v>16</span> s · geklärt</dd>
+    <dt>Protokoll</dt><dd><span data-v>56</span> Ereignisse · <span data-v>21</span> Knoten · <span data-v>1</span> Schreibvorgang abgelehnt und dann neu geschrieben</dd></dl><div class="codes"><code>BACKTEST_WITHOUT_COSTS</code></div>
+  <span class="go">Beim Laufen zusehen</span>
+</a>
+<a class="excard" href="knowledge/">
+  <div class="who">Wissen · <span translate="no">Sourced brief</span></div>
+  <h2 translate="no">Three facts, sourced</h2>
+  <p>Drei Fakten, jeder mit einem Quellknoten und einer Behauptung, die ihn zitiert. Eine Behauptung ohne etwas dahinter wird abgelehnt.</p>
+  <dl><dt>Plätze</dt><dd translate="no">researcher, fact_checker, lead</dd>
+    <dt>Lauf</dt><dd><span data-v>26</span> Modellaufrufe · <span data-v>23</span> Werkzeugaufrufe · <span data-v>27</span> s · geklärt</dd>
+    <dt>Protokoll</dt><dd><span data-v>84</span> Ereignisse · <span data-v>29</span> Knoten · <span data-v>3</span> Schreibvorgänge abgelehnt und dann neu geschrieben</dd></dl><div class="codes"><code>EVIDENCE_MISSING</code></div>
+  <span class="go">Beim Laufen zusehen</span>
+</a>
+<a class="excard" href="optimization/">
+  <div class="who">Optimierung · <span translate="no">Solution report</span></div>
+  <h2 translate="no">Assign six customers to three depots at minimum cost</h2>
+  <p>Zielwert, Zulässigkeit und eine Lücke. Ein Zielwert ohne Zulässigkeitsprüfung wird abgelehnt, und „optimal“ braucht eine Schranke, die ihn erreicht.</p>
+  <dl><dt>Plätze</dt><dd translate="no">modeller, solver, verifier, lead</dd>
+    <dt>Lauf</dt><dd><span data-v>14</span> Modellaufrufe · <span data-v>13</span> Werkzeugaufrufe · <span data-v>19</span> s · geklärt</dd>
+    <dt>Protokoll</dt><dd><span data-v>59</span> Ereignisse · <span data-v>21</span> Knoten · <span data-v>1</span> Schreibvorgang abgelehnt und dann neu geschrieben</dd></dl><div class="codes"><code>OBJECTIVE_WITHOUT_FEASIBILITY</code></div>
+  <span class="go">Beim Laufen zusehen</span>
+</a>
+</div>
+<p class="note">Die Läufe nutzen die geskripteten Modelle von HypSwarm, kosten also nichts und laufen jedes Mal gleich ab; führen Sie einen mit einem echten Modell mit <code>python run.py --model &lt;id&gt;</code> aus. Bauen Sie diese Seiten mit <code>dev/site_examples.py</code> neu. Jedes Bundle verifiziert sich für sich: <a href="../verify/">verifizieren Sie eines</a>.</p>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Glauben Sie dem Hype nicht. Prüfen Sie die Hypothese.</span>
+<span>Erstellt von <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · Format und Dokumentation CC BY 4.0 · <a href="../disclaimer/">Haftungsausschluss</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>

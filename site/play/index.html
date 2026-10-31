@@ -8,6 +8,7 @@
 <link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/play/" data-rel="../play/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/play/" data-rel="../es/play/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/play/" data-rel="../fr/play/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/play/" data-rel="../de/play/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/play/" data-rel="../zh-Hans/play/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/play/"><!--/i18n:alt-->
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -16,7 +17,7 @@
   <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Engineers</a><a href="../examples/">Examples</a><a href="../never/" class="hide-sm">Never</a><a href="../#workflows" class="hide-sm">Workflows</a>
     <a href="../play/" aria-current="page" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
-    <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Language" title="Language">EN</summary><div class="langs-menu"><a href="../play/" hreflang="en" lang="en" aria-current="page">English</a><a href="../es/play/" hreflang="es" lang="es">Español</a><a href="../fr/play/" hreflang="fr" lang="fr">Français</a><a href="../de/play/" hreflang="de" lang="de">Deutsch</a><a href="../zh-Hans/play/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
 <main id="main">
 <div class="phead"><div class="wrap"><div class="kicker">Playground</div>
@@ -80,6 +81,7 @@ print(g.report(inv)["markdown"][:900])</textarea></div>
 <script src="../assets/site.js" defer></script>
 <script>
 (() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
   const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -110,12 +112,12 @@ print(g.report(inv)["markdown"][:900])</textarea></div>
     $('load').disabled = true;
     const msg = (t) => { $('bootmsg').textContent = t; };
     try {
-      msg('Loading Python…');
+      msg(t('Loading Python…'));
       await new Promise((ok, fail) => { const s = document.createElement('script'); s.src = PYODIDE + 'pyodide.js'; s.onload = ok; s.onerror = () => fail(new Error('could not load Pyodide')); document.head.appendChild(s); });
       py = await loadPyodide({ indexURL: PYODIDE });
-      msg('Loading sqlite3…');
+      msg(t('Loading sqlite3…'));
       await py.loadPackage('sqlite3');
-      msg('Loading the hypgraph engine…');
+      msg(t('Loading the hypgraph engine…'));
       const man = await (await fetch('../py/manifest.json')).json();
       for (const f of man.files) {
         const text = await (await fetch('../py/' + f)).text();
@@ -155,28 +157,28 @@ def _run(code):
     return buf.getvalue()
 `);
       const rs = JSON.parse(py.globals.get('_results')());
-      $('sup').innerHTML = '<option value="">(nothing)</option>' + rs.map((r) => `<option value="${esc(r.code)}">${esc(r.code)} — ${esc(r.title.slice(0, 60))}</option>`).join('');
-      $('res').innerHTML = rs.map((r) => `<b>${esc(r.code)}</b> ${esc(r.title)}${Object.keys(r.values).length ? `\n  <span class="dim">values: ${esc(JSON.stringify(r.values))}</span>` : ''}`).join('\n\n');
+      $('sup').innerHTML = `<option value="">${esc(t('(nothing)'))}</option>` + rs.map((r) => `<option value="${esc(r.code)}">${esc(r.code)} — ${esc(r.title.slice(0, 60))}</option>`).join('');
+      $('res').innerHTML = rs.map((r) => `<b>${esc(r.code)}</b> ${esc(r.title)}${Object.keys(r.values).length ? `\n  <span class="dim">${esc(t('values:'))} ${esc(JSON.stringify(r.values))}</span>` : ''}`).join('\n\n');
       fill('always');
-      msg(`Engine ready: hypgraph ${py.runPython('hypgraph.__version__')} on Python ${py.runPython('import sys; sys.version.split()[0]')}, in your browser.`);
+      msg(t('Engine ready: hypgraph {v} on Python {py}, in your browser.', { v: py.runPython('hypgraph.__version__'), py: py.runPython('import sys; sys.version.split()[0]') }));
       $('test').disabled = false; $('run').disabled = false;
-      $('out').innerHTML = '<span class="dim">Pick an example above, or write your own, and test it.</span>';
+      $('out').innerHTML = `<span class="dim">${esc(t('Pick an example above, or write your own, and test it.'))}</span>`;
     } catch (e) {
-      msg('Could not load the engine: ' + e.message + ' — try again, or pip install hypgraph.'); $('load').disabled = false;
+      msg(t('Could not load the engine: {e} — try again, or pip install hypgraph.', { e: e.message })); $('load').disabled = false;
     }
   }
   $('load').addEventListener('click', boot);
 
   $('test').addEventListener('click', () => {
     let ms;
-    try { ms = JSON.parse($('ms').value || '[]'); } catch (e) { $('out').innerHTML = `<span class="x">Measurements must be JSON: ${esc(e.message)}</span>`; return; }
+    try { ms = JSON.parse($('ms').value || '[]'); } catch (e) { $('out').innerHTML = `<span class="x">${esc(t('Measurements must be JSON: {e}', { e: e.message }))}</span>`; return; }
     const spec = { sup: $('sup').value, fields: { statement: $('st').value, scope: $('sc').value, kind: $('kind').value, measurements: ms } };
     const r = JSON.parse(py.globals.get('_try_claim')(JSON.stringify(spec)));
     $('out').innerHTML = r.ok
-      ? `<span class="ok">✓ Added ${esc(r.code)}</span>\n${esc(r.sentence)}\n\n<span class="dim">It's in the record — unchecked until a reviewer who isn't you checks it.</span>`
-      : `<span class="x">✗ Refused</span>\n${esc(r.error)}`;
+      ? `<span class="ok">${esc(t('✓ Added {code}', { code: r.code }))}</span>\n${esc(r.sentence)}\n\n<span class="dim">${esc(t('It\'s in the record — unchecked until a reviewer who isn\'t you checks it.'))}</span>`
+      : `<span class="x">${esc(t('✗ Refused'))}</span>\n${esc(r.error)}`;
   });
-  $('run').addEventListener('click', () => { $('pyout').textContent = py.globals.get('_run')($('py').value) || '(no output)'; });
+  $('run').addEventListener('click', () => { $('pyout').textContent = py.globals.get('_run')($('py').value) || t('(no output)'); });
 })();
 </script>
 </body>

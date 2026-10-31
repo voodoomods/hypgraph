@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HypGraph — un registre qui vérifie ce qu'affirment vos agents</title>
+<meta name="description" content="HypGraph est un registre chaîné par hachage dans lequel vos agents d&#x27;IA écrivent leurs résultats et leurs affirmations. Il refuse les surinterprétations à l&#x27;écriture et dérive ce qui a été démontré. Serveur MCP, Agent Skill, Python sans dépendances.">
+<meta property="og:title" content="HypGraph — Don't believe the hype. Test the hyp.">
+<meta property="og:description" content="A record that checks what your agents claim: overclaims refused as they're written, standing derived from the record.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hypgraph.com/">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="../llms.txt" title="Pour les modèles de langage">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../app/hypgraph.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../assets/strings.fr.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/" data-rel="../"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/" data-rel="../es/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/" data-rel="../fr/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/" data-rel="../de/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/" data-rel="../zh-Hans/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/"><!--/i18n:alt-->
+</head>
+<body id="top">
+<!-- The figures on this page are claims in its own HypGraph record (data/site-record.bundle.json), built and
+     re-measured by dev/site_record.py, which also checks this page's text against the record with `hypgraph check`.
+     A figure goes in a data-fact slot; a word quoted as an example of what gets refused is marked data-quote; a phrase
+     true by the engine's design is marked data-ok="<why>" and listed on the page. -->
+<a class="skip" href="#main">Aller au contenu</a><header class="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Site">
+      <a href="agents/">Agents</a><a href="engineers/">Ingénieurs</a><a href="examples/">Exemples</a><a href="never/" class="hide-sm">Jamais</a><a href="#workflows" class="hide-sm">Workflows</a><a href="play/" class="hide-sm">Bac à sable</a>
+      <a href="verify/" class="hide-sm">Vérifier</a><a href="spec/" class="hide-sm">Spec</a>
+      <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+      <!--i18n:menu--><details class="langs"><summary aria-label="Langue" title="Langue">FR</summary><div class="langs-menu"><a href="../" hreflang="en" lang="en">English</a><a href="../es/" hreflang="es" lang="es">Español</a><a href="../fr/" hreflang="fr" lang="fr" aria-current="page">Français</a><a href="../de/" hreflang="de" lang="de">Deutsch</a><a href="../zh-Hans/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Basculer entre clair et sombre">◐</button></nav>
+  </div>
+</header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Cette page est une traduction. La version anglaise fait foi : <a href="../" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<section class="hero"><div class="wrap">
+  <div class="hero-tags"><span class="pill accent" data-fact="version-pill"></span><span class="pill">Open source · <span data-fact="licence"></span></span> <span class="pill">Python · <span data-fact="deps-word"></span> dépendances</span><span class="pill">Serveur MCP · Agent Skill · API HTTP</span></div>
+  <h1>Un registre qui vérifie ce qu'affirment vos agents.</h1>
+  <p class="lede">Les agents écrivent dans HypGraph leurs hypothèses, exécutions, résultats et affirmations. Il refuse un nombre qu'aucun résultat n'explique, <span data-quote>« toujours »</span> sans les décomptes et <span data-quote>« exclu »</span> sans une recherche suffisamment puissante, et déduit du registre, <span data-ok="design: standing is derived on read, never stored (derive.py)">à chaque lecture</span>, ce qui a été démontré et ce qui est menacé.</p>
+  <div class="row"><a class="btn primary" href="#product">Voir une exécution</a><a class="btn" href="engineers/">Commencer</a>
+    <a class="btn" href="#refuses">Voir ce qu'il refuse</a></div>
+  <div class="tagline">Ne croyez pas le hype. Testez l'hypothèse.</div>
+
+  <div class="stage" id="product">
+    <div class="stage-bar"><div class="stage-tabs" role="group" aria-label="Choisissez un registre" id="stage-tabs"></div>
+      <span class="pill" id="stage-chain">vérification…</span></div>
+    <div class="stage-app"><div id="app"></div></div>
+    <div class="stage-foot" id="stage-foot"></div>
+  </div>
+</div></section>
+
+<section class="block" id="start"><div class="wrap">
+  <div class="kicker">Deux portes d'entrée</div>
+  <h2 class="h">Pour l'agent, et pour ceux qui le déploient.</h2>
+  <div class="door">
+    <a class="portal" href="agents/">
+      <div class="who">Pour les agents</div>
+      <h2>Branchez votre agent</h2>
+      <p>Une ligne de MCP, ou l'Agent Skill. Les affirmations sont vérifiées à l'écriture, la relecture qu'un agent fait de son propre travail ne compte pas, et chaque refus dit quoi corriger. Lisible par machine : <code>/llms.txt</code>, <code>/SKILL.md</code>.</p>
+      <pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph mcp
+hypgraph skill --install</pre>
+      <span class="go">Le guide des agents</span>
+    </a>
+    <a class="portal" href="engineers/">
+      <div class="who">Pour les ingénieurs et les scientifiques</div>
+      <h2>Intégrez-le à votre stack</h2>
+      <p>Un paquet avec <span data-fact="deps-word"></span> dépendances d'exécution. Vous décidez qui relit, quels enregistrements de quel exécuteur comptent comme l'instrument et combien coûte le travail. En plus : l'API JSON, l'interface et des bundles vérifiables pour la CI.</p>
+      <pre>pip install hypgraph
+Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
+      <span class="go">Le guide d'ingénierie</span>
+    </a>
+  </div>
+</div></section>
+
+<section class="block" id="facts"><div class="wrap">
+  <div class="kicker">Ce que vous pouvez vérifier</div>
+  <h2 class="h">Des faits, chacun avec sa source.</h2>
+  <p class="sub">Chaque chiffre de cette page est une affirmation dans le propre registre HypGraph de la page, liée à la mesure dont elle provient et mesurée à nouveau autrement par un relecteur avant la construction de la page. Cliquez sur une affirmation pour l'ouvrir dans le registre.</p>
+  <div class="grid3">
+    <div class="card fact"><div class="k">Tests</div><div class="v" data-fact="tests"></div><div class="s">réussis dans cette compilation ; la CI tourne sous Linux, macOS et Windows</div>
+      <div class="src" data-claim="tests"></div></div>
+    <div class="card fact"><div class="k">Dépendances d'exécution</div><div class="v" data-fact="deps"></div><div class="s">Le moteur, la CLI, le serveur HTTP et l'interface utilisent la bibliothèque standard</div>
+      <div class="src" data-claim="deps"></div></div>
+    <div class="card fact"><div class="k">Les registres d'exemple se vérifient</div><div class="v" data-fact="verify-v"></div>
+      <div class="s"><code>SHA-256</code> sur les chaînes exactes qui ont été hachées — exécutez-le ici, dans votre navigateur</div>
+      <div class="row" style="margin-top:10px"><span data-claim="bundles"></span><button class="btn" id="verify" type="button">Lancer la vérification</button></div>
+      <div class="verify-out" id="verify-out" aria-live="polite"></div></div>
+  </div>
+</div></section>
+
+<section class="block" id="refuses"><div class="wrap">
+  <div class="kicker">Ce qu'il refuse</div>
+  <h2 class="h">Les surinterprétations n'entrent pas dans le registre.</h2>
+  <p class="sub">Elles ont été écrites dans un registre de test lors de la construction de cette page. Le moteur a refusé chacune avec un code et ce qu'il fallait corriger ; la réécriture ci-dessous, avec la même évidence, a été acceptée.</p>
+  <div class="grid3" id="refusals"></div>
+  <div style="margin-top:14px" data-claim="refusals"></div>
+</div></section>
+
+<section class="block" id="rules"><div class="wrap">
+  <div class="kicker">Huit règles</div>
+  <h2 class="h">Chaque règle est une erreur qui a réellement été commise.</h2>
+  <p class="sub">HypGraph est né d'une équipe d'agents d'IA menant de longues recherches, et des erreurs qu'ils commettaient malgré les consignes. Chacune est devenue une règle que le registre applique au moment où le travail est écrit, et non un conseil qui espère être suivi.</p>
+  <div class="grid4">
+    <div class="card rule"><h3>Le statut est dérivé</h3><p>Aucun champ ne dit <span data-quote>« confirmé »</span>. La relecture, le risque, le soutien et la force de l'évidence sont calculés à partir du registre au moment de la lecture.</p></div>
+    <div class="card rule"><h3>Ajout seul</h3><p>Chaîné avec <code>SHA-256</code>. Les corrections sont de nouvelles versions ; les retraits restent dans le registre. <code>verify()</code> détecte une modification.</p></div>
+    <div class="card rule"><h3>Les relectures épinglent des versions</h3><p>Si vous corrigez une affirmation vérifiée, sa vérification devient périmée. Une décision fondée sur l'ancienne version est signalée à revoir.</p></div>
+    <div class="card rule"><h3>Les affirmations portent des nombres</h3><p>Les nombres d'une affirmation sont liés à des champs de résultats. Un nombre sans source est refusé — la façon la plus courante dont les résumés se trompent.</p></div>
+    <div class="card rule"><h3>L'indépendance est comptée</h3><p>Trois résultats issus d'une seule exécution forment une ligne d'évidence, pas trois. Les lignes qui partagent des données ou une source fusionnent.</p></div>
+    <div class="card rule"><h3>Les exclusions exigent de la puissance</h3><p><span data-quote>« Exclut »</span> seulement après avoir montré qu'une recherche retrouve une réponse plantée. Sinon, le résultat n'est pas concluant.</p></div>
+    <div class="card rule"><h3>Les auteurs ne se relisent pas eux-mêmes</h3><p>Seuls comptent les verdicts des relecteurs désignés, et jamais sur leur propre travail. Ceux des autres sont gardés comme commentaires.</p></div>
+    <div class="card rule"><h3>Les instruments parlent pour eux-mêmes</h3><p>Seul l'exécuteur du laboratoire enregistre une exécution de laboratoire. Une exécution que vous décrivez est marquée comme votre rapport.</p></div>
+  </div>
+</div></section>
+
+<section class="block never-band" id="never"><div class="wrap grid2" style="align-items:center">
+  <div>
+    <div class="kicker" style="color:var(--bad)">L'arithmétique du <span data-quote>jamais</span></div>
+    <h2 class="h"><span data-fact="never-k"></span> défaillances en <span data-fact="never-n"></span> tests laissent encore <span data-fact="never-upto"></span> sur un million d'utilisations.</h2>
+    <p class="sub">Un agent qui n'en voit aucune dans ses tests écrit <span data-quote>« cela n'arrive jamais »</span>. Le registre refuse cette phrase et demande les décomptes, puis indique ce qu'ils laissent ouvert à l'échelle où vous déployez.</p>
+    <a class="btn" href="never/">L'arithmétique, pas à pas</a></div>
+  <div class="card"><div class="never-num" data-fact="never-upto"></div>
+    <p>défaillances non exclues sur <span data-fact="never-exposure"></span> utilisations, à 95 % de confiance, à partir de <span data-fact="never-k"></span> sur <span data-fact="never-n"></span> tests.</p>
+    <div style="margin-top:10px" data-claim="never"></div></div>
+</div></section>
+
+<section class="block" id="workflows"><div class="wrap">
+  <div class="kicker">Un registre, cinq workflows</div>
+  <h2 class="h">La méthode de chaque discipline, appliquée par le registre.</h2>
+  <p class="sub">Un profil porte les étapes de sa discipline, le seuil de sortie de chacune et ce qui compte comme terminé. L'étape est dérivée du registre, <span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">jamais fixée par un agent</span>. Chaque ligne a un exemple en direct.</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>profil</th><th>le chemin d'une question</th><th>le registre refuse</th><th>terminé quand</th><th></th></tr></thead>
+    <tbody>
+      <tr><td><code>scientific@2</code></td><td>posée → conjecturée → préenregistrée avant l'exécution → exécutée → étayée → affirmée → relue</td>
+        <td>des nombres qu'aucun résultat n'explique ; <span data-quote>« jamais »</span> sans le décompte ; <span data-quote>« significatif »</span> sans le test ; une vérification sur une évidence périmée</td><td>chaque question résolue</td><td><a href="examples/scientific/">Voir</a></td></tr>
+      <tr><td><code>software@2</code></td><td>spécifiée → implémentée (un diff par hash) → vérifiée par l'instrument sur cette tête → affirmée → relue</td>
+        <td><span data-quote>« ça passe »</span> sans exécution de l'instrument, ou sur une tête remplacée ; l'auteur du diff comme son relecteur</td><td>l'affirmation de chaque exigence repose sur une exécution réussie sur la tête actuelle</td><td><a href="examples/software/">Voir</a></td></tr>
+      <tr><td><code>trading@2</code></td><td>posée → thèse formulée → préenregistrée → backtest hors échantillon, après coûts → affirmée → revue des risques → position prise → surveillée</td>
+        <td>un backtest sans ses coûts ; <span data-quote>« avantage »</span> sans les deux, ou sans les configurations essayées ; une position sans taille, stop et date de revue ; un ordre réel</td><td>questions résolues ; une position prise ou écartée</td><td><a href="examples/trading/">Voir</a></td></tr>
+      <tr><td><code>knowledge@2</code></td><td>posée → sourcée (le passage, récupéré, son type) → affirmée → vérifiée</td>
+        <td>une affirmation sans source ; une source sans son passage</td><td>chaque affirmation cite une source et est vérifiée</td><td><a href="examples/knowledge/">Voir</a></td></tr>
+      <tr><td><code>optimization@2</code></td><td>posé (l'instance par hash) → modélisé → configuré → résolu → vérifié → affirmé → contrôlé</td>
+        <td>un objectif sans faisabilité ; <span data-quote>« optimal »</span> sans borne, ou sur une instance modifiée</td><td>une solution courante faisable et bornée, vérifiée sur l'instance actuelle</td><td><a href="examples/optimization/">Voir</a></td></tr>
+    </tbody></table></div>
+</div></section>
+
+<section class="block" id="deploy"><div class="wrap">
+  <div class="kicker">Pour ceux qui déploient des agents</div>
+  <h2 class="h">Intégrez-le là où vos agents tournent déjà.</h2>
+  <div class="grid3 uses">
+    <div class="card"><h3>Les agents, via MCP</h3><p>Votre agent reçoit les outils du registre, et la méthode sous forme d'Agent Skill.</p>
+      <div class="code"><pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph mcp
+hypgraph skill --install</pre></div></div>
+    <div class="card"><h3>Python</h3><p>Les rôles comme politique : relecteurs, l'instrument, auteurs réservés.</p>
+      <div class="code"><pre>from hypgraph import Graph, Policy
+g = Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre></div></div>
+    <div class="card"><h3>L'interface et l'API JSON</h3><p>En lecture seule par défaut ; suit en direct un essaim en marche.</p>
+      <div class="code"><pre>hypgraph serve --db study.hypgraph</pre></div></div>
+    <div class="card"><h3>Conditionnez la CI au rapport</h3><p>Vérifie un rapport contre le registre ; sort avec un code non nul en cas d'erreur.</p>
+      <div class="code"><pre>hypgraph check summary.md</pre></div></div>
+    <div class="card"><h3>Livrez un bundle vérifiable</h3><p>N'importe qui peut le vérifier, dans n'importe quel langage ou dans le navigateur.</p>
+      <div class="code"><pre>hypgraph export --telemetry -o study.bundle.json
+hypgraph verify study.bundle.json</pre></div></div>
+    <div class="card"><h3>Faites tourner un essaim dessus</h3><p>HypSwarm planifie les agents à partir du propre tableau de travail du registre.</p>
+      <div class="code"><pre>pip install --pre hypswarm</pre></div></div>
+  </div>
+</div></section>
+
+<section class="block" id="record"><div class="wrap">
+  <div class="kicker">Cette page a un registre</div>
+  <h2 class="h">Nous soumettons cette page aux règles qu'elle décrit.</h2>
+  <p class="sub">Les chiffres ci-dessus sont des affirmations dans un registre HypGraph construit avec la page. L'instrument de la compilation les mesure, un relecteur mesure chacune à nouveau autrement, et le texte de la page est vérifié contre le registre avec <code>hypgraph check</code> : un chiffre que le registre ne contient pas n'arrive pas sur la page. Ouvrez-le dans l'application ci-dessus avec <a href="#product" data-show="page">Le registre de cette page</a>, ou téléchargez <a href="../data/site-record.bundle.json">le bundle</a> et <a href="verify/">vérifiez-le</a> vous-même.</p>
+  <div id="record-claims"></div>
+</div></section>
+
+<section class="block" id="trust"><div class="wrap">
+  <div class="kicker">Confiance</div>
+  <h2 class="h">Ce que montre le registre, et ce qu'il n'affirme pas.</h2>
+  <div class="grid2 claims">
+    <div class="card yes"><h3>✓ Il montre</h3><ul>
+      <li>qu'aucun événement n'a été modifié après son écriture : chaque écriture est hachée dans une chaîne que chacun peut revérifier ;</li>
+      <li>quels nombres d'une affirmation sont liés à quel résultat, et quelle exécution l'a produit ;</li>
+      <li>qui a vérifié quoi, sur quelle version, et si cette version est toujours en vigueur ;</li>
+      <li>ce qui tombe si une prémisse est retirée.</li></ul></div>
+    <div class="card"><h3>— Il n'affirme pas</h3><ul>
+      <li>qu'une affirmation est vraie. Il vérifie ce qui est écrit par rapport à ce qui est enregistré ;</li>
+      <li>qu'il fait mieux raisonner un modèle. Il garde hors du registre les surinterprétations d'un modèle ;</li>
+      <li>quoi que ce soit sur la télémétrie qui voyage dans un bundle : elle est hors de la chaîne de hachage ;</li>
+      <li>vérifier les événements qu'un bundle restreint masque. La vérification signale quand un bundle est restreint.</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:20px">Il tourne là où vous le lancez : un fichier local, sans compte et sans appels réseau propres. Les versions sont publiées sur PyPI depuis GitHub Actions par publication de confiance.</p>
+</div></section>
+<section class="block" id="family"><div class="wrap">
+  <div class="kicker">La famille</div>
+  <div class="family">
+    <a href="#top" aria-current="page"><img src="../assets/family/hypgraph.svg" alt="" width="40" height="40"><span><b>HypGraph<span class="here">vous êtes ici</span></b><span class="what">Le registre : en ajout seul, chaîné par hachage, il vérifie les affirmations face aux mesures et refuse les surinterprétations. Le moteur et l'interface.</span></span></a>
+    <a href="https://hypswarm.com"><img src="../assets/family/hypswarm.svg" alt="" width="40" height="40"><span><b>HypSwarm</b><span class="what">De nombreux agents, un registre. Le planificateur est du code, l'instrument réexécute ce que les auteurs ont calculé, et le registre décide de ce qui est fait.</span></span></a>
+    <a href="https://hypdmz.com"><img src="../assets/family/hypdmz.svg" alt="" width="40" height="40"><span><b>HypDMZ</b><span class="what">Le pod dans lequel tourne un essaim : une seule sortie, chaque octet vérifié, testé de l'intérieur à chaque démarrage.</span></span></a>
+    <a href="https://hypmesh.com"><img src="../assets/family/hypmesh.svg" alt="" width="40" height="40"><span><b>HypMesh</b><span class="what">Des questions ouvertes, un registre par question. Les agents de chacun occupent un poste sous leur propre nom ; le registre décide de ce qui tient. Bientôt.</span></span></a></div>
+</div></section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="slogan">Ne croyez pas le hype. Testez l'hypothèse.</span>
+    <span>Créé par <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format et documentation CC BY 4.0 · <a href="disclaimer/">Avertissement</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a> · <a href="../llms.txt">llms.txt</a> · <a href="spec/">spécification</a> · <a href="https://hypswarm.com">HypSwarm</a></span></div>
+</footer>
+
+<script src="../app/vendor/cytoscape.min.js" defer></script>
+<script src="../app/vendor/layout-base.js" defer></script>
+<script src="../app/vendor/cose-base.js" defer></script>
+<script src="../app/vendor/cytoscape-fcose.js" defer></script>
+<script src="../app/hypgraph.js" defer></script>
+<script src="../assets/site.js" defer></script>
+<script src="../assets/site-data.js" defer></script>
+<script src="../assets/home.js" defer></script>
+</body>
+</html>

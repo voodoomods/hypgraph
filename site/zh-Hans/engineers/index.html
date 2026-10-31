@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>面向工程师 — HypGraph</title>
+<meta name="description" content="把 HypGraph 集成到智能体系统中：策略与角色、MCP 和工具封装、已记录的运行、机器学习评估报告、开销、JSON API、HypGraph 界面以及 CI 中可验证的记录包。">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.zh-Hans.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/engineers/" data-rel="../../engineers/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/engineers/" data-rel="../../es/engineers/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/engineers/" data-rel="../../fr/engineers/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/engineers/" data-rel="../../de/engineers/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/engineers/" data-rel="../../zh-Hans/engineers/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/engineers/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">跳到内容</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="网站"><a href="../agents/">智能体</a><a href="../engineers/" aria-current="page">工程师</a><a href="../examples/">示例</a><a href="../never/" class="hide-sm">从不</a><a href="../#workflows" class="hide-sm">工作流</a>
+    <a href="../play/" class="hide-sm">试验场</a><a href="../verify/" class="hide-sm">验证</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="语言" title="语言">中文</summary><div class="langs-menu"><a href="../../engineers/" hreflang="en" lang="en">English</a><a href="../../es/engineers/" hreflang="es" lang="es">Español</a><a href="../../fr/engineers/" hreflang="fr" lang="fr">Français</a><a href="../../de/engineers/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/engineers/" hreflang="zh-Hans" lang="zh-Hans" aria-current="page">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="切换浅色和深色">◐</button></nav>
+</div></header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">本页为译文。以英文版为准： <a href="../../engineers/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">面向工程师和科学家</div>
+  <h1>给你的智能体一份它们无法讨好的记录。</h1>
+  <p>一个 Python 包，零依赖。由你决定谁来审查、哪些运行算作已记录、工作花费多少；HypGraph 负责执行，在写入时核查每条主张，并推导出真正被证明的内容。</p></div></div>
+
+<div class="wrap doc">
+<nav class="toc" aria-label="本页内容">
+  <a href="#install">安装</a><a href="#model">模型</a><a href="#policy">策略与角色</a>
+  <a href="#connect">接入智能体</a><a href="#runs">记录运行</a><a href="#workflows">配置与工作流</a><a href="#evals">做法：评估报告</a>
+  <a href="#spend">成本</a><a href="#http">HTTP 与界面</a><a href="#ci">CI 中的记录包</a>
+  <a href="#lint">审查报告</a><a href="#refusals">拒绝日志</a>
+  <a href="#perf">性能</a></nav>
+<article class="prose">
+
+<h2 id="install">安装</h2>
+<div class="code"><pre>pip install hypgraph            # engine, CLI, JSON API, UI — standard library only
+pip install "hypgraph[mcp]"     # + the MCP server (FastMCP)</pre></div>
+<p>Python 3.10+。每份记录一个 SQLite 文件（<code>Graph("research.hypgraph")</code>），或用于测试和 notebook 的内存版 <code>Graph()</code>。</p>
+
+<h2 id="model">模型</h2>
+<p>有类型的节点 — 问题、假设、实验、运行、结果、主张、来源、审查、决策 — 由端点受约束的有类型链接相连（<code>supports</code>、<code>challenges</code>、<code>requires</code>、<code>tests</code>、<code>produced</code>、<code>replicates</code>、<code>based_on</code> …）。所有表都只追加；每次写入都是 SHA-256 链中的一个事件。不存储任何现状。每次读取都会推导：</p>
+<ul>
+  <li><b>审查</b> — 已核查 / 未核查 / 有争议 / 过时，依据审查者对当前版本的裁定；</li>
+  <li><b>风险</b> — 上游已倒下的前提（<code>AT RISK</code>）、依据已变动的决策（<code>REVISIT</code>）、全部支撑已倒下（<code>UNSUPPORTED</code>）；</li>
+  <li><b>独立证据线</b> — 不共享运行、数据工件或来源的支撑；</li>
+  <li><b>证据</b> — 最强的一条线：智能体报告 → 仪器记录 → 已复现 → 独立实现 → 新数据 → 外部来源。</li>
+</ul>
+<p>完整规则见<a href="../spec/">记录格式</a>；<code>hypgraph schema --json</code> 会打印词汇表。</p>
+
+<h2 id="policy">策略与角色</h2>
+<div class="code"><pre>from hypgraph import Graph, Policy
+
+POLICY = Policy(
+    reviewers={"critic", "stats-reviewer"},   # whose verdicts count (an investigation can add its own)
+    instrument="runner",                      # the only author whose kind=lab runs are "recorded" evidence
+    operator="operator",                      # revises anything, settles disputes
+    importer="importer",                      # brings legacy records in, with their original dates
+)
+g = Graph("research.hypgraph", policy=POLICY)</pre></div>
+<div class="callout"><b>身份认证由你负责。</b>HypGraph 按字面接受 <code>author=</code>。凡是智能体能接触到图的地方，都在你这一侧固定它的作者并拒绝 <code>POLICY.reserved</code> — 内置的 MCP 服务器和 HTTP API 就是这么做的。</div>
+<p>一种适用于智能体团队的模式：</p>
+<table>
+  <thead><tr><th>在你系统中的角色</th><th>在 HypGraph 中</th></tr></thead>
+  <tbody>
+    <tr><td>工作智能体（研究员、分析员）</td><td>各自使用自己的作者名；它们的主张会被核查；它们的审查是评论</td></tr>
+    <tr><td>批评者 / 审查者智能体</td><td><code>reviewers</code>；它们的裁定决定现状；从不针对它们自己的节点</td></tr>
+    <tr><td>执行代码的作业执行器 / 沙箱</td><td><code>instrument</code>：用哈希记录运行，使结果算作已记录</td></tr>
+    <tr><td>你，或代表你行事的编排器</td><td><code>operator</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="connect">接入智能体</h2>
+<h3>MCP</h3>
+<p>每个智能体身份一个服务器进程 — 作者在启动时固定：</p>
+<div class="code"><pre>hypgraph --db research.hypgraph --as critic mcp                                # stdio
+hypgraph --db research.hypgraph --as worker-1 mcp --transport http --port 8766 # streamable HTTP</pre></div>
+<p>或者在进程内构建（自定义策略、你自己的认证）：<code>hypgraph.mcp.build(graph, author="worker-1")</code> 返回 FastMCP 服务器。</p>
+<p>可运行的示例，同一个故事以六种方式集成（LangChain、LangGraph、PydanticAI、CrewAI、OpenAI Agents SDK、Claude Agent SDK）：<a href="https://github.com/voodoomods/hypgraph/tree/main/examples/frameworks">examples/frameworks</a>。每个都可以用脚本化模型离线运行，或用 <code>--real</code> 在真实模型上运行。</p>
+<h3>Agent Skill</h3>
+<p><code>hypgraph skill --install</code> 会写出 <code>.claude/skills/hypgraph/SKILL.md</code>：方法、各类拒绝及其修正方式，通过 CLI 使用。</p>
+<h3>你自己的工具</h3>
+<p>任何接受 Python 函数作为工具的框架（Claude Agent SDK、LangChain、LangGraph、OpenAI Agents …）— 返回拒绝文本，让模型能据此行动：</p>
+<div class="code"><pre>from hypgraph import GraphError
+
+def add_claim(statement: str, scope: str, result: str, measurements: list[dict], why: str) -&gt; str:
+    """Add a claim supported by a result; every number in the statement must be bound in measurements."""
+    try:
+        n = g.create(author=AGENT_NAME, type="claim", inv=INV,
+                     fields={"statement": statement, "scope": scope, "measurements": measurements},
+                     links=[{"rel": "supports", "from": result, "why": why}])
+        return f"Added {n['code']}: {n['state']['sentence']}"
+    except GraphError as e:
+        return f"Refused — fix this and retry:\n{e}"</pre></div>
+<p>在任务开始时把 <code>g.report(inv)["markdown"]</code> 或 MCP 文本 <code>overview</code> 放进智能体的上下文，让它先读到已确立的内容，而不是重新推导。</p>
+
+<h2 id="runs">记录运行</h2>
+<div class="code"><pre>from hypgraph import file_sha256
+
+data, code = file_sha256("evals/heldout.jsonl"), file_sha256("eval.py")
+a_data = g.create(author="runner", type="artifact", inv=INV, fields={**data, "format": "jsonl"})["id"]
+a_code = g.create(author="runner", type="artifact", inv=INV, fields={**code, "format": "py"})["id"]
+run = g.create(author="runner", type="run", inv=INV, fields={"kind": "lab", "state": "succeeded", "seed": 7},
+               links=[{"rel": "uses", "to": a_data, "data": {"role": "data"}},
+                      {"rel": "uses", "to": a_code, "data": {"role": "code"}}])["id"]
+res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced", "from": run}],
+               fields={"summary": "Held-out accuracy, fine-tune vs baseline.",
+                       "values": {"finetune": {"k": 1624, "n": 2000}, "baseline": {"k": 1568, "n": 2000}}})["id"]</pre></div>
+<p>工件按内容寻址（相同字节，一个节点），因此用同样数据算出的两个结果会自动合并为一条证据线。重新运行会把 <code>replicates</code> 链接到 <code>data.differs</code>（<code>new_seed</code>、<code>new_impl</code>、<code>new_data</code> …），并提升证据等级。</p>
+
+<h2 id="workflows">配置与工作流</h2>
+<p>在调查上设置一个配置，记录就会执行该学科的规则 — 对于 <code>@2</code> 配置，还会执行它的<a href="../#workflows">工作流</a>：带关卡的阶段、什么会使证据失效、diff、实例、来源或仓位必须具备的有类型形式。阶段和现状一样，在每次读取时推导。</p>
+<div class="code"><pre>inv = g.create(author="operator", type="investigation",
+               fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@2"})["id"]
+q = g.create(author="operator", type="question", inv=inv, fields={"text": "Does the importer keep quoted commas?"})["id"]
+
+g.stage(q)        # {"stage": "implemented", "index": 2, "of": 6, "complete": False,
+                  #  "next": "no live artifact kind=diff (meta: base_sha, head_sha, files) part_of Q1", "gates": [...]}
+g.stages(inv)     # one row per live question;  GET /api/graph/stages?inv=…  ·  MCP tool: stage
+g.completion(inv) # the profile's criteria for the whole investigation</pre></div>
+<ul>
+  <li><b>关卡是谓词。</b><code>hypothesis_stated</code>、<code>preregistered</code>、<code>diff_registered</code>、<code>tests_pass_current</code>、<code>backtested</code>、<code>positioned</code>、<code>still_valid</code>、<code>solved</code>、<code>result_reviewed</code> … — 也可用作工单的 <code>done_when</code>。</li>
+  <li><b>什么会使之失效。</b>除前提外，工作流还把 <code>uses</code>（修正后的数据文件、被取代的 diff 或实例）或 <code>cites</code>（被撤回的来源）加入到使依赖项有风险的条件中 — 按配置区分，因此 <code>@1</code> 下的记录保持原有的现状不变。</li>
+  <li><b>时效。</b>如果某个结果的运行使用了现已被取代的工件，或其 <code>valid_until</code> 已过，它就是过时的；当支撑一条主张的所有结果都过时，主张也过时。基于过时证据的核查不满足 <code>reviewed</code>。</li>
+  <li><b>有类型的形式。</b><code>artifact.kind</code> + <code>meta</code>（<code>diff</code> 需要 base_sha、head_sha、files）、<code>source.kind</code>、带 size、stop、review_date、paper 的 <code>decision.kind=position</code> — 不完整则被拒绝。重新记录相同字节会给无类型的工件加上类型，并添加所指定的链接。</li>
+  <li><b>诚实的结局。</b>一个已核查的 <code>inconclusive</code> 回答、一项 <code>no_position</code> 决策、一次已验证的失败（仪器记录的阴性结果，已核查）都能完成一个仅靠关卡永远无法完成的问题。</li>
+</ul>
+<p>每种工作流所依据的方法，以及每个关卡背后的决策，在 <a href="https://github.com/voodoomods/hypgraph/tree/main/docs/workflows">docs/workflows</a> 中各有一页。<a href="https://hypswarm.com">HypSwarm</a> 的调度器正是据此为每个问题下达阶段工单。</p>
+
+<h2 id="evals">做法：站得住的评估报告</h2>
+<ol>
+  <li><b>预注册。</b>在运行前建立一个实验，用 <code>tests</code> 链接到每个假设（“微调更好”、“没有差异”），每个都带 <code>data.expected</code>。</li>
+  <li><b>记录运行</b>，方法如上；把计数以 <code>{k, n}</code> 的形式写进结果的值中，而不只是百分比。</li>
+  <li><b>用测量来主张。</b>“2,000 中 1,624，对比 1,568”是绑定的；没有结果字段对应 5 的“好 5 个点”会被拒绝。</li>
+  <li><b>“没有差异”需要检验力。</b>预埋一个已知效应（在预测的副本中注入 2 个点的差异），证明在这个样本量下比较能检测到它，并把该结果标记为 <code>power: "demonstrated"</code>。没有这一步，就把主张记录为 <code>inconclusive</code> — 记录会坚持这一点。</li>
+  <li><b>审查。</b>一个批评者智能体在保存的预测上重新运行评估器；它的 <code>pass</code> 或 <code>fail</code> 被固定到这条主张的这个版本。</li>
+  <li><b>报告。</b><code>g.report(inv)["markdown"]</code> 是报告开头的事实表；它不能重述已撤回的主张。</li>
+</ol>
+
+<h2 id="spend">成本</h2>
+<div class="code"><pre>def spend(inv, tasks, since=None):            # your meter: model calls per task id
+    rows = ledger.calls(task_ids=tasks, since=since)
+    return {"usd": sum(r.usd for r in rows), "calls": len(rows), "input_tokens": ..., "cached_tokens": ...,
+            "output_tokens": ..., "by_task": [{"task_id": t, "usd": ...} for t in tasks]}
+
+g = Graph("research.hypgraph", policy=POLICY, spend=spend)
+with g.writing_for(task_id):                    # events carry the task
+    g.create(...)
+g.cost(inv)        # $ for the investigation, per node, per verdict, and since the record last moved</pre></div>
+
+<h2 id="http">HTTP 与界面</h2>
+<div class="code"><pre>hypgraph serve --db research.hypgraph            # HypGraph UI + JSON API on 127.0.0.1:8765, read-only
+hypgraph serve --db research.hypgraph --writable # + POST /api/graph/write</pre></div>
+<p>在你自己的应用中（示例为 FastAPI；任何框架都可以）：</p>
+<div class="code"><pre>from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from hypgraph.server import dispatch
+from hypgraph.ui import static_dir
+
+app = FastAPI()
+app.mount("/hypgraph", StaticFiles(directory=static_dir(), html=True))
+
+@app.get("/api/graph/{path:path}")
+def graph_api(path: str, request: Request):
+    status, body = dispatch(g, "GET", "/" + path, dict(request.query_params))
+    return body          # (set the status code too)</pre></div>
+<p>界面不需要框架，也没有构建步骤：<code>HypGraph.mount(el, {source: HypGraph.HttpSource('/api/graph')})</code>，或完全不用服务器的 <code>HypGraph.BundleSource(bundle)</code>。它实时跟随 <code>GET /api/graph/stream</code>，而 HypSwarm 运行的遥测（<code>&lt;record&gt;.telemetry.jsonl</code>）会加入每次模型和工具调用。<code>hypgraph export --telemetry</code> 会把它放进记录包以便回放，位于哈希链之外；<code>{play: true}</code> 以回放模式打开。用 CSS 变量 <code>--hg-*</code> 设置主题。在<a href="../examples/">在线示例</a>中查看。</p>
+
+<h2 id="ci">CI 中的记录包</h2>
+<div class="code"><pre>hypgraph export -o record.bundle.json     # every event as the exact string that was hashed
+hypgraph verify record.bundle.json        # exit 1 if anything was edited</pre></div>
+<p>发布结果时，把记录包的 <code>head</code> 哈希公布在你无法控制的地方（标签、论文、工单）：之后经过该哈希的记录不可能改写任何更早的内容。审查者无需安装任何东西即可在 <a href="../verify/">/verify</a> 上检查记录包。</p>
+
+<h2 id="lint">审查报告</h2>
+<p>大多数炒作存在于最终报告中，而不是记录里。<code>hypgraph check</code> 对照记录读取 markdown，出错时以 1 退出，因此智能体交付的摘要不能与真正被证明的内容相矛盾：</p>
+<div class="code"><pre>hypgraph check summary.md              # errors fail
+hypgraph check --strict summary.md     # warnings (unsourced numbers …) fail too</pre></div>
+<table>
+  <thead><tr><th>错误</th><th>能发现</th></tr></thead>
+  <tbody>
+    <tr><td><code>REPORT_OVERSTATES_STANDING</code></td><td>对记录中未核查、有争议或有风险的主张使用“已确立”/“已确认”</td></tr>
+    <tr><td><code>REPORT_CITES_WITHDRAWN</code></td><td>把已撤回的主张当作仍然成立来引用</td></tr>
+    <tr><td><code>REPORT_UNKNOWN_CODE</code></td><td>引用不存在的主张或结果</td></tr>
+    <tr><td><code>REPORT_ABSOLUTE_UNBACKED</code> · <code>REPORT_ABSENCE_UNBACKED</code> · <code>REPORT_SIGNIFICANCE_UNBACKED</code></td><td>背后没有任何引用的从不 / 无效应 / 显著</td></tr>
+  </tbody>
+</table>
+<p>警告：没有任何结果包含或蕴含的数字、被省略的争议、被取代的引用、没有引用的因果表述。代码块、行内代码、URL、引用的段落、否定（“无法证明”）和指令（“绝不要使用评估集”）不被视为主张 — 已在二十多份真实报告上校准，这些报告都对照其所报告的活跃记录进行了检查。在 Python 中：<code>g.check_text(text, inv)</code>；通过 HTTP：<code>POST /api/graph/check</code>；面向智能体：MCP 工具 <code>check_report</code>。</p>
+
+<h2 id="refusals">拒绝日志</h2>
+<p>每条被拒绝的主张都会被记录 — 作者、陈述、代码 — 当同一作者以诚实版本回来时标记为已修正。这是别人无法给你的数字：你的智能体多常试图过度主张、哪些规则拦住了它们、哪些它们悄悄放弃了。</p>
+<div class="code"><pre>hypgraph refusals                      # per author and rule, fixed vs open
+hypgraph refusals --author analyst     # one agent's refusals in full</pre></div>
+<p>只追加，有自己的哈希链（<code>g.verify_refusals()</code>），与记录的链分开。在 Python 中：<code>g.refusal_report(inv)</code>；HTTP <code>GET /api/graph/refusals</code>；MCP <code>refusal_log</code>；以及 HypGraph 概览中被拒绝过度主张的计数。</p>
+
+<h2 id="perf">性能</h2>
+<table>
+  <thead><tr><th>节点</th><th>推导全部现状</th><th>读取一个节点</th><th>写入</th><th>验证链</th></tr></thead>
+  <tbody>
+    <tr><td>1,001</td><td>0.047 s</td><td>0.1 ms</td><td>5.7 ms</td><td>0.028 s</td></tr>
+    <tr><td>3,301</td><td>0.095 s</td><td>0.07 ms</td><td>6.0 ms</td><td>0.07 s</td></tr>
+    <tr><td>10,001</td><td>0.37 s</td><td>0.07 ms</td><td>11.4 ms</td><td>0.21 s</td></tr>
+  </tbody>
+</table>
+<p>纯 Python，在一台 Windows 笔记本上用 <code>python dev/bench.py --nodes N</code> 测量（Python 3.13，hypgraph 0.6）。其记录是一项调查，包含问题、绑定到值的结果、由此推导的主张，以及对其中一部分的审查；推导与记录以相同速度增长。一次写入的开销取决于它触及的内容：快照共享未触及的数据，写入无法触及的每个节点的缓存现状都会保留（已用随机化测试套件对照完整重建进行检查）。写入的大部分时间是 SQLite 提交到磁盘。在你的机器上、用你的规模运行基准测试。</p>
+
+</article>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">别信炒作。检验假设。</span>
+<span>由 <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> 创建 · VoodooMods LLC · 代码 Apache-2.0 · 格式与文档 CC BY 4.0 · <a href="../disclaimer/">免责声明</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>

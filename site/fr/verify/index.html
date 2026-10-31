@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vérifier un bundle — HypGraph</title>
+<meta name="description" content="Vérifiez un bundle HypGraph dans votre navigateur : la chaîne de hachage, chaque ligne face à l&#x27;événement qui l&#x27;a écrite, et la présence de la ligne de chaque événement. Rien n&#x27;est envoyé.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.fr.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/verify/" data-rel="../../verify/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/verify/" data-rel="../../es/verify/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/verify/" data-rel="../../fr/verify/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/verify/" data-rel="../../de/verify/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/verify/" data-rel="../../zh-Hans/verify/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/verify/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Ingénieurs</a><a href="../examples/">Exemples</a><a href="../never/" class="hide-sm">Jamais</a><a href="../#workflows" class="hide-sm">Workflows</a>
+    <a href="../play/" class="hide-sm">Bac à sable</a><a href="../verify/" aria-current="page" class="hide-sm">Vérifier</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Langue" title="Langue">FR</summary><div class="langs-menu"><a href="../../verify/" hreflang="en" lang="en">English</a><a href="../../es/verify/" hreflang="es" lang="es">Español</a><a href="../../fr/verify/" hreflang="fr" lang="fr" aria-current="page">Français</a><a href="../../de/verify/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/verify/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Basculer entre clair et sombre">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Cette page est une traduction. La version anglaise fait foi : <a href="../../verify/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">Faire confiance, mais vérifier</div>
+  <h1>Vérifiez un bundle.</h1>
+  <p>Déposez un <code>.bundle.json</code> de <code>hypgraph export</code>. Votre navigateur recalcule chaque SHA-256 de la chaîne et vérifie les lignes face aux événements dans les deux sens : chaque ligne a été écrite par un événement et lui correspond champ par champ, et la ligne de chaque événement est présente. Rien ne quitte votre machine.</p></div></div>
+<div class="wrap" style="padding:32px 16px 80px;max-width:860px">
+  <label class="drop" id="drop" for="file">
+    <div style="font-size:20px;font-weight:700">Déposez un bundle ici</div>
+    <div class="note">ou cliquez pour choisir un fichier · ou <button class="btn" type="button" id="demo" style="padding:4px 10px;font-size:14px">essayez le bundle de Broad Street</button></div>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </label>
+  <p style="margin-top:16px"><label for="anchor"><b>Tête publiée</b> (facultatif) — le hash de tête cité dans un article, un préenregistrement ou une étiquette, ou ses 16+ premiers caractères :</label><br>
+    <input id="anchor" type="text" spellcheck="false" autocomplete="off" placeholder="p. ex. 3f9a0c…" style="width:100%;font-family:var(--mono, monospace);padding:6px 8px;margin-top:6px"></p>
+  <div class="vres" id="res" aria-live="polite"></div>
+  <div class="prose" style="margin-top:40px">
+    <h2>Ce que cela prouve — et ce que cela ne prouve pas</h2>
+    <ul>
+      <li><b>Prouve :</b> que le hash de chaque événement est le SHA-256 de la chaîne exacte affichée et que chacun est lié au précédent ; que chaque nœud, version, lien, retrait, rétractation et réservation du bundle a été écrit par un événement et lui correspond champ par champ ; et qu'il ne manque aucune ligne écrite par un événement. Rien n'a été modifié, ajouté ni supprimé après écriture. Les faits que l'explorateur affiche à côté (quels nœuds et liens, leurs titres, auteurs, heures, s'ils sont retirés) sont eux aussi vérifiés face à ces lignes.</li>
+      <li><b>Ne couvre pas :</b> le <b>statut</b> (état de relecture, soutien, risque, le résumé d'une ligne). C'est ce qu'a dérivé le moteur qui l'a exporté ; redérivez-le à partir des lignes vérifiées avec <code>hypgraph verify --standing</code>. Les registres écrits avant la 0.7.13 ne hachaient pas certains champs de ligne dans leurs événements (le motif d'un lien, par exemple) ; le résultat les liste comme <i>non couverts</i>.</li>
+      <li><b>Ne se fie pas à la politique propre du bundle</b> (qui sont l'importateur et les relecteurs) : la chaîne ne la couvre pas, donc cette page utilise l'importateur par défaut et avertit quand le bundle en nomme un autre. Pour vérifier selon la politique que déclare l'éditeur, utilisez <code>hypgraph verify --policy policy.json</code> (ou <code>--importer NAME</code>).</li>
+      <li><b>Ne prouve pas à lui seul :</b> que le registre entier n'a pas été reconstruit de zéro. Pour cela, collez ci-dessus le hash de <b>tête</b> publié à l'époque (dans un article, un préenregistrement, une étiquette de dépôt).</li>
+      <li><b>Les bundles restreints</b> (une enquête extraite d'un registre partagé) masquent les événements extérieurs. Ceux-là ne peuvent pas être vérifiés, et le résultat le dit : qu'ils soient à l'extérieur relève de la parole du bundle, et seul le registre complet face à la tête publiée exclut un changement caché parmi eux. La portée elle-même doit nommer une enquête et le bundle ne contenir que ses nœuds, afin qu'aucune affirmation ne se fasse passer pour l'enquête ni aucun registre entier pour l'une de ses parties.</li>
+    </ul>
+  </div>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Ne croyez pas le hype. Testez l'hypothèse.</span>
+<span>Créé par <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format et documentation CC BY 4.0 · <a href="../disclaimer/">Avertissement</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../app/hypgraph.js"></script>
+<script src="../../assets/site.js" defer></script>
+<script>
+(() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
+  const res = document.getElementById('res');
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  async function check(text, name) {
+    let b;
+    try { b = JSON.parse(text); } catch (e) { res.innerHTML = `<div class="big bad">${esc(t('✗ Not JSON'))}</div><p>${esc(e.message)}</p>`; return; }
+    res.innerHTML = `<div class="note">${esc(t('Hashing…'))}</div>`;
+    const t0 = performance.now();
+    const v = await HypGraph.verifyBundle(b, document.getElementById('anchor').value);
+    const ms = Math.round(performance.now() - t0);
+    if (!v.ok) {
+      res.innerHTML = `<div class="big bad">${esc(t('✗ {name} does not verify', { name }))}</div><p>${esc(v.problem)}${v.broken_at ? esc(t(' (event {n})', { n: v.broken_at })) : ''}</p>`;
+      return;
+    }
+    const invs = (b.derived && b.derived.investigations) || [];
+    // the scope's own title isn't hashed: name it from the verified investigation instead
+    const scope = b.scope && typeof b.scope === 'object' ? String(b.scope.inv || '') : '';
+    const scopeName = scope ? ((invs.find((i) => i.id === scope) || {}).title || scope) : t('the whole record');
+    const gaps = Object.entries(v.unchecked || {});
+    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">${esc(t('✓ {name}: {n} events verified', { name, n: v.checked }))}${v.complete ? '' : esc(t(' (scoped)'))}${v.anchored ? esc(t(' · anchored')) : ''}${v.coverage === 'partial' ? esc(t(' · partial coverage')) : ''}</div>
+      <p>${esc(t('The chain is intact, every row matches the event that wrote it, and every event\'s row is present.'))}${v.anchored ? esc(t(' It ends at the head you pasted.')) : ''} ${esc(t('Checked in your browser in {ms} ms.', { ms }))}</p>
+      ${v.warning ? `<p class="warn">${esc(v.warning)}</p>` : ''}
+      ${gaps.length ? `<p class="warn">${esc(t('Not covered (written before events hashed these fields): {list}.', { list: gaps.map(([f, n]) => `${f} ×${n}`).join(' · ') }))}</p>` : ''}
+      <dl class="kv"><dt>${esc(t('head'))}</dt><dd>${esc(v.head)}</dd><dt>${esc(t('nodes'))}</dt><dd>${v.nodes}</dd><dt>${esc(t('links'))}</dt><dd>${v.edges}</dd>
+        <dt>${esc(t('scope'))}</dt><dd>${esc(scopeName)}</dd>
+        <dt>${esc(t('derived views'))}</dt><dd>${esc(v.views === 'none' ? t('none: exported without them, so there is nothing to show beyond the rows') : t('checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)'))}</dd><dt>${esc(t('exported'))}</dt><dd>${esc(t('{at} by {who}', { at: b.exported_at || '—', who: b.generator || '—' }))}</dd>
+        <dt>${esc(t('investigations'))}</dt><dd>${invs.map((i) => esc(i.title)).join(' · ') || '—'}</dd>
+        ${b.telemetry ? `<dt>${esc(t('telemetry'))}</dt><dd>${esc(t('{n} events from the run, carried for replay — outside the hash chain, so not verified', { n: (b.telemetry.events || []).length }))}</dd>` : ''}</dl>
+      <div class="row" style="margin-top:16px"><button class="btn primary" id="open" type="button">${esc(t('Open in HypGraph'))}</button></div>
+      <p class="note">${t('Not checked here: the standing (review state, support, at-risk) HypGraph shows is what the bundle was exported with. Re-derive it with <code>hypgraph verify --standing</code>.')}</p>`;
+    document.getElementById('open').addEventListener('click', () => {
+      try { sessionStorage.setItem('hg-bundle', text); location.href = '../explore/?from=verify'; }
+      catch { res.insertAdjacentHTML('beforeend', `<p class="bad">${t('This bundle is too large to hand over in this browser — open it with <code>hypgraph import</code> and <code>hypgraph serve</code>.')}</p>`); }
+    });
+  }
+  const file = document.getElementById('file'), drop = document.getElementById('drop');
+  file.addEventListener('change', async () => { const f = file.files[0]; if (f) check(await f.text(), f.name); });
+  ['dragenter', 'dragover'].forEach((k) => drop.addEventListener(k, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((k) => drop.addEventListener(k, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', async (e) => { const f = e.dataTransfer.files[0]; if (f) check(await f.text(), f.name); });
+  document.getElementById('demo').addEventListener('click', async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = await fetch('../../data/broad-street.bundle.json'); check(await r.text(), 'broad-street.bundle.json');
+  });
+})();
+</script>
+</body>
+</html>

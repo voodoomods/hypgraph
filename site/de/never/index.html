@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Die Arithmetik von nie — HypGraph</title>
+<meta name="description" content="Null Fehler in n Versuchen heißt nicht null. Es heißt eine Rate unter 1 − 0,05^(1/n), etwa 3/n. Sehen Sie, was „nie“ wirklich trägt, was es im großen Maßstab kostet und was zusammenbricht, wenn es in Wahrheit 1 von 1.000 ist.">
+<meta property="og:title" content="The arithmetic of never">
+<meta property="og:description" content="0 failures in 50 tests still allows 58,155 failures across a million users. HypGraph refuses the 'never' — and says what's honest.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+  .calc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .calc { grid-template-columns: 1fr; } }
+  .ctl { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; margin-bottom: 14px; }
+  .ctl label { font: 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink2); grid-column: 1 / -1; }
+  .ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+  .ctl input[type=number] { width: 120px; font: 15px var(--mono); color: var(--ink); background: var(--bg2); border: 1px solid var(--line2);
+    border-radius: 8px; padding: 6px 8px; text-align: right; }
+  .big { font-size: clamp(30px, 5vw, 46px); font-weight: 800; letter-spacing: -.02em; line-height: 1.05; }
+  .big.red { color: var(--red); } .big.amber { color: var(--amber); } .big.green { color: var(--green); }
+  .stat { margin-bottom: 14px; } .stat .k { font: 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); }
+  .stat .d { color: var(--ink2); font-size: 14px; }
+  .grid-dots { width: 100%; aspect-ratio: 50 / 20; display: block; border-radius: 10px; background: var(--bg2); border: 1px solid var(--line); }
+  .verdict { border-left: 3px solid var(--red); background: var(--panel2); padding: 12px 14px; border-radius: 8px; font: 13.5px/1.55 var(--mono);
+    white-space: pre-wrap; word-break: break-word; }
+  .verdict.ok { border-left-color: var(--green); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tabs button { font: 600 14px var(--sans); padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink2); cursor: pointer; }
+  .tabs button[aria-selected=true] { color: var(--ink); border-color: var(--accent); }
+  .cascade { width: 100%; height: auto; display: block; background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--r); }
+  .cascade text { font-family: var(--sans); fill: var(--ink); }
+  .cascade .lbl { font-size: 13px; font-weight: 600; } .cascade .sub { font-size: 11px; fill: var(--ink2); }
+  .cascade .tag { font: 700 11px var(--mono); letter-spacing: .06em; }
+  .cascade .node rect { fill: var(--panel); stroke: var(--line2); stroke-width: 1.5; transition: stroke .35s, fill .35s; }
+  .cascade .node.fall rect { stroke: var(--red); stroke-width: 3; fill: color-mix(in srgb, var(--red) 26%, var(--panel)); }
+  .cascade .node.ok rect { stroke: var(--green); stroke-width: 3; fill: color-mix(in srgb, var(--green) 14%, var(--panel)); }
+  .cascade .node.refused rect { stroke: var(--amber); stroke-width: 3; stroke-dasharray: 7 5; }
+  .cascade .edge { stroke: var(--line2); stroke-width: 2; fill: none; transition: stroke .35s; }
+  .cascade .edge.fall { stroke: var(--red); }
+  .cascade .node, .cascade .edge, .cascade .tag { transition: opacity .4s; }
+  .hide { opacity: 0; }
+</style>
+<!--i18n:strings--><script src="../../assets/strings.de.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/never/" data-rel="../../never/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/never/" data-rel="../../es/never/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/never/" data-rel="../../fr/never/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/never/" data-rel="../../de/never/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/never/" data-rel="../../zh-Hans/never/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/never/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Website"><a href="../agents/">Agenten</a><a href="../engineers/">Ingenieure</a>
+    <a href="../examples/">Beispiele</a><a href="../never/" aria-current="page" class="hide-sm">Nie</a><a href="../#workflows" class="hide-sm">Workflows</a><a href="../play/" class="hide-sm">Spielwiese</a>
+    <a href="../verify/" class="hide-sm">Verifizieren</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Sprache" title="Sprache">DE</summary><div class="langs-menu"><a href="../../never/" hreflang="en" lang="en">English</a><a href="../../es/never/" hreflang="es" lang="es">Español</a><a href="../../fr/never/" hreflang="fr" lang="fr">Français</a><a href="../../de/never/" hreflang="de" lang="de" aria-current="page">Deutsch</a><a href="../../zh-Hans/never/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Zwischen hell und dunkel wechseln">◐</button></nav>
+</div></header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Diese Seite ist eine Übersetzung. Maßgeblich ist die englische Fassung: <a href="../../never/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker" style="color:var(--red)">Die Arithmetik von nie</div>
+  <h1>„Nie“ ist das teuerste Wort in der Forschung.</h1>
+  <p>Null Fehler in <i>n</i> Versuchen heißt nicht Rate null. Es heißt, dass die Rate wahrscheinlich unter 1 − 0,05<sup>1/<i>n</i></sup> liegt — etwa 3/<i>n</i>. Alles, was auf einem „nie“ aufbaut, erbt die Lücke, und im großen Maßstab ist die Lücke Menschen.</p></div></div>
+
+<section class="block" style="padding-top:40px">
+  <div class="wrap">
+    <div class="calc">
+      <div class="card">
+        <h3 style="margin-top:0">Was haben Sie tatsächlich beobachtet?</h3>
+        <div class="ctl"><label for="n">durchgeführte Versuche</label><input type="range" id="nr" min="0" max="6" step="0.01" value="1.699" aria-label="Versuche (logarithmische Skala)">
+          <input type="number" id="n" min="1" value="50"></div>
+        <div class="ctl"><label for="k">wie oft es passiert ist</label><input type="range" id="kr" min="0" max="50" step="1" value="0" aria-label="Fehler">
+          <input type="number" id="k" min="0" value="0"></div>
+        <div class="ctl"><label for="x">Menschen / Nutzungen, auf die es angewendet wird</label><input type="range" id="xr" min="2" max="9" step="0.01" value="6" aria-label="Exposition (logarithmische Skala)">
+          <input type="number" id="x" min="1" value="1000000"></div>
+        <p class="note" style="margin:0">Red-Team-Prompts, Testfälle, Evaluationsitems, Patienten, Starts — jeder Versuch, bei dem es hätte passieren können. Die Schranke liegt bei 95 %: exakt bei null (1 − 0,05<sup>1/n</sup>), sonst nach Wilson.</p>
+      </div>
+      <div class="card">
+        <div class="stat"><div class="k">was „nie“ ehrlich bedeuten kann</div><div class="big amber" id="bound">5.8%</div>
+          <div class="d" id="bound-d">höchstens 1 von 20, mit 95 % Konfidenz</div></div>
+        <div class="stat"><div class="k">in Ihrem Maßstab nicht ausgeschlossene Fehler</div><div class="big red" id="unruled">58,155</div>
+          <div class="d" id="unruled-d">bei 1.000.000 Menschen</div></div>
+        <div class="stat"><div class="k">um „unter 1 von 1.000“ zu sagen</div><div class="d" id="need"></div></div>
+        <div class="k" style="font:12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px">wenn eine Behauptung „nie“ sagt, antwortet HypGraph</div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="telephone">
+  <div class="wrap">
+    <div class="kicker">Stille Post</div>
+    <h2 class="h">Ein Agent sagt „nie“. Sehen Sie zu, wie das Wort reist.</h2>
+    <p class="sub">Ein Orchestrator gibt eine Frage an einige Agenten weiter; jeder verteilt Teile an einige weitere. Einer von ihnen führt die Versuche aus, sieht nichts und schreibt <i>nie</i>. Jeder Agent darüber wiederholt das Wort und lässt die Zahl fallen, aus der es stammte — das ist das Spiel. Die auf dem Wort aufgebaute Arbeit sind die bereits bezahlten Kosten; das Wort wiederzufinden, wenn der Fall eintritt, sind die Kosten der Kurskorrektur. Legen Sie Team und Versuche fest; die Arithmetik ist dieselbe wie oben.</p>
+    <div class="calc">
+      <div class="card">
+        <div class="ctl"><label for="tg-f">Agenten pro Leitung (Auffächerung)</label><input type="range" id="tg-fr" min="2" max="5" step="1" value="3"><input type="number" id="tg-f" min="2" max="5" value="3"></div>
+        <div class="ctl"><label for="tg-d">Ebenen unter dem Orchestrator</label><input type="range" id="tg-dr" min="1" max="3" step="1" value="2"><input type="number" id="tg-d" min="1" max="3" value="2"></div>
+        <div class="ctl"><label for="tg-c">Kosten der Aufgabe eines Agenten ($)</label><input type="range" id="tg-cr" min="-2" max="2" step="0.01" value="-0.3"><input type="number" id="tg-c" min="0.01" step="0.01" value="0.5"></div>
+        <div class="ctl"><label for="tg-r">wie hoch die wahre Rate ist (1 von …)</label><input type="range" id="tg-rr" min="1" max="5" step="0.01" value="3"><input type="number" id="tg-r" min="2" value="1000"></div>
+        <p class="note" style="margin:0 0 12px">Versuche und Exposition kommen aus dem Rechner oben. Eine Aufgabe ist die Arbeitseinheit eines Agenten — ein Auftrag, eine Teilfrage, eine Prüfung; setzen Sie den Preis ein, den Ihre Agenten Sie pro Aufgabe kosten.</p>
+        <div class="tabs" role="tablist" style="margin:0">
+          <button role="tab" aria-selected="true" data-tg="without">Ohne Protokoll</button>
+          <button role="tab" aria-selected="false" data-tg="with">Mit HypGraph</button>
+          <button class="btn primary" id="tg-play" type="button" style="margin-left:auto">▶ Abspielen</button></div>
+      </div>
+      <div class="card">
+        <div class="stat"><div class="k">wie wahrscheinlich es ist, dass das Blatt nichts sah, obwohl es in Wahrheit 1 von <span id="tg-r-lbl">1,000</span> ist</div>
+          <div class="big amber" id="tg-seen">95%</div><div class="d" id="tg-seen-d">— „nie“ ist also das, was ein ehrlicher Agent meistens sieht</div></div>
+        <div class="stat"><div class="k">Arbeit, die auf dem Wort beruht</div><div class="big red" id="tg-sunk">$6.00</div>
+          <div class="d" id="tg-sunk-d">12 Aufgaben darauf aufgebaut, bevor es jemand wissen konnte</div></div>
+        <div class="stat"><div class="k">für die Kurskorrektur ohne Protokoll</div><div class="big red" id="tg-fix">$8.00</div>
+          <div class="d" id="tg-fix-d">die Arbeit jedes Agenten neu lesen, um das Wort zu finden, und neu machen, was darauf beruhte</div></div>
+        <div class="stat"><div class="k">mit HypGraph</div><div class="big green" id="tg-with">$0.50</div>
+          <div class="d" id="tg-with-d">ein Satz im Blatt neu geschrieben; die Schranke wandert als Zahl nach oben</div></div>
+      </div>
+    </div>
+    <svg class="cascade" id="tg-svg" viewBox="0 0 900 420" role="img" aria-label="Ein Orchestrator, seine Leitungen und Arbeiter; das „nie“ eines Arbeiters wandert nach oben" style="margin-top:18px">
+      <g id="tg-layer"></g>
+    </svg>
+    <div class="trace" id="tg-strip" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
+    <p class="note" id="tg-cap">Drücken Sie auf Abspielen, um das Spiel zu starten.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="kicker">Die Kaskade</div>
+    <h2 class="h">Ein „nie“ ganz unten. Alles darüber erbt es.</h2>
+    <p class="sub">Ein Agent testet ein Modell im Red Team mit 50 Extraktions-Prompts und sieht keine Lecks. Er schreibt „leakt nie“. Eine weitere Behauptung baut darauf auf, eine Startentscheidung darauf, und eine Million Menschen nutzen das Ergebnis. Dann tritt der Fall mit 1 von 1.000 ein.</p>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-mode="without">Ohne Protokoll</button>
+      <button role="tab" aria-selected="false" data-mode="with">Mit HypGraph</button>
+      <button class="btn primary" id="play" type="button" style="margin-left:auto">▶ Abspielen</button></div>
+    <svg class="cascade" id="cascade" viewBox="0 0 900 470" role="img" aria-label="Eine Kette von Behauptungen und eine Entscheidung, die auf einem einzigen „nie“ beruhen">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+      <g id="layer"></g>
+    </svg>
+    <p class="note" id="caption">Drücken Sie auf Abspielen.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="kicker">Was das Protokoll ablehnt</div>
+    <h2 class="h">Jede Überbehauptung, mit der Arithmetik und dem ehrlichen Satz.</h2>
+    <div class="grid2">
+      <div class="card"><div class="n">ABSOLUTE_UNDERPOWERED</div><h3>„nie“ mit zu wenigen Versuchen</h3><p>0 von 50 lässt immer noch 5,8 % zu. Die Ablehnung sagt das, liefert „kein Vorkommen in 50 Versuchen (95-%-Obergrenze 5,8 %)“ und wie viele Versuche 1 von 1.000 braucht (2.995).</p></div>
+      <div class="card"><div class="n">ABSOLUTE_HIDES_DENOMINATOR</div><h3>„nie“ ohne sein n</h3><p>0 von 3.000 reicht, um etwas zu sagen — aber nur, wenn der Leser die 3.000 sieht. Ein bloßes „nie“ liest sich wie null; es bedeutet „höchstens 1 von 1.000“.</p></div>
+      <div class="card"><div class="n">ABSOLUTE_WITHOUT_COUNT · ABSOLUTE_UNRELATED_COUNT</div><h3>„beseitigt“, „100 %“, „immer“</h3><p>Nichts gezählt — oder die Zählung von etwas anderem. Benennen Sie die Messung nach dem, was sie zählt.</p></div>
+      <div class="card"><div class="n">EXCLUSION_WITHOUT_POWER</div><h3>„kein Effekt“</h3><p>Der leise Zwilling von „nie“. Bei 2.000 Items pro Arm bliebe ein Effekt von 3,6 Punkten meist unbemerkt; die Ablehnung nennt Ihnen den kleinsten Effekt, den Ihre Stichprobe hätte erkennen können.</p></div>
+      <div class="card"><div class="n">UNBOUND_NUMBER</div><h3>eine Zahl aus dem Nichts</h3><p>„5 Punkte besser“, wenn die Zählungen 2,8 sagen. Zahlen, die aus den Zählungen folgen — Differenzen, Prozente, Quotienten, Intervalle — gehen durch.</p></div>
+      <div class="card"><div class="n">SIGNIFICANCE_NOT_SHOWN · CAUSAL_WITHOUT_INTERVENTION · COMPARATIVE_WITHOUT_COMPARISON</div>
+        <h3>„signifikant“, „verursacht“, „schlägt“</h3><p>Das Protokoll führt den Test auf den gebundenen Zählungen selbst aus, will ein Experiment hinter „verursacht“ und beide Seiten gemessen hinter „schlägt“.</p></div>
+    </div>
+    <div class="row" style="margin-top:24px">
+      <div class="code" style="flex:1;min-width:260px"><span class="lbl">bevor Sie nie schreiben</span><pre>hypgraph bound 0 50 --exposure 1000000 --unit users</pre></div>
+      <a class="btn primary" href="../play/">Versuchen Sie, ein „nie“ durchzuschmuggeln</a><a class="btn" href="../agents/">Geben Sie es Ihrem Agenten</a></div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap"><span class="slogan">Glauben Sie dem Hype nicht. Prüfen Sie die Hypothese.</span>
+<span>Erstellt von <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · Format und Dokumentation CC BY 4.0 · <a href="../disclaimer/">Haftungsausschluss</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+<script>
+(() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
+  const $ = (id) => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // ── the same arithmetic as hypgraph.stats ──
+  const Z = 1.959963984540054;
+  function bounds(k, n) {
+    if (n <= 0) return [0, 1];
+    if (k <= 0) return [0, 1 - Math.pow(0.05, 1 / n)];
+    if (k >= n) return [Math.pow(0.05, 1 / n), 1];
+    const p = k / n, d = 1 + Z * Z / n, c = (p + Z * Z / (2 * n)) / d;
+    const h = Z * Math.sqrt(p * (1 - p) / n + Z * Z / (4 * n * n)) / d;
+    return [Math.max(0, c - h), Math.min(1, c + h)];
+  }
+  const trialsFor = (b) => Math.ceil(Math.log(0.05) / Math.log(1 - b));
+  const pct = (x) => x >= 0.1 ? `${(x * 100).toFixed(0)}%` : x >= 0.01 ? `${(x * 100).toFixed(1)}%` : x > 0 ? `${Number((x * 100).toPrecision(2))}%` : '0%';
+  const fmt = (x) => Math.round(x).toLocaleString('en-US');
+  const loc = (x) => x.toLocaleString('en-US');
+  function oneIn(x) {
+    if (x <= 0) return '0';
+    const n = 1 / x;
+    for (const step of [1, 10, 100, 1000, 10000, 100000]) if (n < step * 10) return t('1 in {n}', { n: fmt(step > 1 ? Math.round(n / step) * step : Math.round(n)) });
+    return t('1 in {n}', { n: fmt(Math.round(n / 1e5) * 1e5) });
+  }
+
+  const n = $('n'), k = $('k'), x = $('x'), nr = $('nr'), kr = $('kr'), xr = $('xr');
+  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function update(from) {
+    if (from === 'nr') n.value = Math.max(1, Math.round(Math.pow(10, +nr.value)));
+    if (from === 'xr') x.value = Math.round(Math.pow(10, +xr.value));
+    if (from === 'kr') k.value = kr.value;
+    const N = Math.max(1, +n.value || 1), K = Math.min(N, Math.max(0, +k.value || 0)), X = Math.max(1, +x.value || 1);
+    if (from !== 'nr') nr.value = Math.log10(N);
+    if (from !== 'xr') xr.value = Math.log10(X);
+    kr.max = Math.min(N, Math.max(50, K)); if (from !== 'kr') kr.value = K;
+    const [lo, hi] = bounds(K, N), worst = K === 0 ? hi : hi;
+    $('bound').textContent = pct(worst);
+    $('bound').className = 'big ' + (worst > 0.05 ? 'red' : worst > 0.001 ? 'amber' : 'green');
+    $('bound-d').textContent = K === 0 ? t('at most {r}, at 95% confidence — not zero', { r: oneIn(worst) }) :
+      t('observed {p} ({k} of {n}); 95% interval {lo} to {hi}', { p: pct(K / N), k: loc(K), n: loc(N), lo: pct(lo), hi: pct(hi) });
+    $('unruled').textContent = fmt(worst * X);
+    $('unruled-d').textContent = t('across {x} — the number your evidence can\'t rule out', { x: fmt(X) });
+    $('need').textContent = K > 0 ? t('it has happened ({k} times), so no number of trials makes "never" true — report the rate and its interval', { k: loc(K) }) :
+      worst > 0.001 ? t('about {m} trials with none (you ran {n})', { m: fmt(trialsFor(0.001)), n: loc(N) }) :
+      t('you have it: {n} trials bound the rate below 1 in 1,000', { n: loc(N) });
+    if (TG) TG.update();
+    const v = $('verdict');
+    if (K > 0) {
+      v.className = 'verdict';
+      v.textContent = `refused: 'never' is absolute: back it with a k/n measurement of what it's about, where k is 0 or n … ` +
+        `(what was measured: ${K} of ${N.toLocaleString()}) [ABSOLUTE_WITHOUT_COUNT]\n\nHonest: "in ${K} of ${N.toLocaleString()} trials (95% interval ${pct(lo)} to ${pct(hi)})"`;
+    } else if (worst > 0.05) {
+      v.className = 'verdict';
+      v.textContent = `refused: 'never' rests on 0 of ${N.toLocaleString()}: that only rules out it happening more than ${pct(worst)} ` +
+        `of the time (95% upper bound). Honest version: 'no occurrences in ${N.toLocaleString()} trials (95% upper bound ${pct(worst)})'. ` +
+        `To support a rate below 1 in 1,000 you need about 2,995 trials without one. Across the ${fmt(X)} users this claim applies to, ` +
+        `that leaves up to ${fmt(worst * X)} not ruled out. [ABSOLUTE_UNDERPOWERED]`;
+    } else {
+      v.className = 'verdict ok';
+      v.textContent = `Only with the denominator: "never, in ${N.toLocaleString()} trials" — otherwise [ABSOLUTE_HIDES_DENOMINATOR].\n` +
+        `Accepted, and its standing carries: 'never' = at most ${pct(worst)} (0 of ${N.toLocaleString()}, 95%), up to ${fmt(worst * X)} of ${fmt(X)} not ruled out`;
+    }
+  }
+  var TG = null;   // the telephone game, built below; the calculator's update() feeds it once it exists
+  [n, k, x].forEach((el) => el.addEventListener('input', () => update(el.id)));
+  [nr, kr, xr].forEach((el) => el.addEventListener('input', () => update(el.id)));
+  if (window.HG) window.HG.onTheme.push(() => update());
+  update();
+
+  // ── the telephone game ──
+  TG = (() => {
+    const svg = $('tg-svg'), layer = $('tg-layer'), strip = $('tg-strip'), cap = $('tg-cap');
+    if (!svg) return null;
+    const S2 = 'http://www.w3.org/2000/svg';
+    const F = $('tg-f'), D = $('tg-d'), C = $('tg-c'), R = $('tg-r'), FR = $('tg-fr'), DR = $('tg-dr'), CR = $('tg-cr'), RR = $('tg-rr');
+    let mode = 'without', timers = [], nodes = [], badLeaf = null;
+    const wait = (ms) => new Promise((res) => timers.push(setTimeout(res, reduce ? 0 : ms)));
+    const money = (v) => v >= 100 ? '$' + fmt(v) : '$' + v.toFixed(2);
+    function mk(tag, attrs, parent) { const e = document.createElementNS(S2, tag); Object.entries(attrs).forEach(([a, v]) => e.setAttribute(a, v)); (parent || layer).appendChild(e); return e; }
+    function params() {
+      const f = Math.max(2, Math.min(5, +F.value || 3)), d = Math.max(1, Math.min(3, +D.value || 2));
+      const c = Math.max(0.01, +C.value || 0.5), r = Math.max(2, +R.value || 1000);
+      const N = Math.max(1, +$('n').value || 1), X = Math.max(1, +$('x').value || 1);
+      return { f, d, c, r, N, X };
+    }
+    function build() {
+      layer.innerHTML = ''; nodes = [];
+      const { f, d } = params();
+      const levels = d + 1, W = 900, H = 420, top = 36, gapY = (H - 90) / d;
+      // the tree: level 0 = orchestrator; a 'never' lives in the last leaf of the first lead's subtree
+      const counts = Array.from({ length: levels }, (_, l) => Math.pow(f, l));
+      for (let l = 0; l < levels; l++) {
+        const n = counts[l], w = Math.min(170, (W - 40) / n - 8), h = 44;
+        for (let i = 0; i < n; i++) {
+          const x = 20 + (W - 40) * (i + 0.5) / n - w / 2, y = top + l * gapY;
+          const g = mk('g', { class: 'node' });
+          mk('rect', { x, y, width: w, height: h, rx: 10 }, g);
+          const label = l === 0 ? t('orchestrator') : l === levels - 1 ? t('agent {i}', { i: i + 1 }) : t('lead {i}', { i: i + 1 });
+          mk('text', { x: x + w / 2, y: y + 19, class: 'lbl', 'text-anchor': 'middle', style: `font-size:${w < 90 ? 10 : 12}px` }, g).textContent = w < 60 ? (l === 0 ? 'orch' : `${l === levels - 1 ? 'a' : 'L'}${i + 1}`) : label;
+          const sub = mk('text', { x: x + w / 2, y: y + 35, class: 'sub', 'text-anchor': 'middle', style: `font-size:${w < 90 ? 9 : 11}px` }, g);
+          const node = { l, i, x, y, w, h, g, sub, parent: l ? nodes.find((p) => p.l === l - 1 && p.i === Math.floor(i / f)) : null, kids: [] };
+          if (node.parent) node.parent.kids.push(node);
+          nodes.push(node);
+        }
+      }
+      nodes.filter((n) => n.parent).forEach((n) => {
+        const P = n.parent;
+        n.edge = mk('path', { d: `M${n.x + n.w / 2},${n.y} L${P.x + P.w / 2},${P.y + P.h}`, class: 'edge' });
+        layer.insertBefore(n.edge, layer.firstChild);
+      });
+      badLeaf = nodes.filter((n) => n.l === levels - 1)[0];
+      update();
+    }
+    function chain(n) { const out = []; for (let p = n; p; p = p.parent) out.push(p); return out; }
+    function descendantsOfDecision() {
+      // everything the orchestrator's decision touches: every task in the tree except the leaf's own line is
+      // *integrated* at the top, so the work that now rests on the word is: the leaf's ancestors' integration
+      // tasks plus every sibling branch that was merged after the word arrived (counted once, at the merge)
+      return nodes.length - 1;      // every task except the leaf's own measurement is downstream of the merge
+    }
+    function update() {
+      if (!nodes.length) return;
+      const { f, d, c, r, N, X } = params();
+      $('tg-r-lbl').textContent = fmt(r);
+      const rate = 1 / r, seen = Math.pow(1 - rate, N);
+      $('tg-seen').textContent = pct(seen);
+      $('tg-seen').className = 'big ' + (seen > 0.5 ? 'amber' : 'green');
+      $('tg-seen-d').textContent = seen > 0.5 ? t('0 of {n} is what an honest agent usually sees at this rate — the word is wrong, the observation isn\'t', { n: fmt(N) })
+        : t('at {n} trials the agent would usually have seen it — "never" would already be contradicted', { n: fmt(N) });
+      const resting = descendantsOfDecision();
+      $('tg-sunk').textContent = money(resting * c);
+      $('tg-sunk-d').textContent = d > 1 ? t('{r} tasks built on or merged with the word ({a} agents, {d} levels, fan-out {f})', { r: resting, a: nodes.length, d, f }) : t('{r} tasks built on or merged with the word ({a} agents, {d} level, fan-out {f})', { r: resting, a: nodes.length, d, f });
+      const reread = nodes.length, redo = chain(badLeaf).length - 1 + nodes.filter((n) => n.l === 0).length;
+      const [, hi] = bounds(0, N), live = Math.round(hi * X);
+      const fix = (reread + resting) * c;
+      $('tg-fix').textContent = money(fix);
+      $('tg-fix-d').textContent = t('re-read all {a} agents\' work to find which word did it, redo the {r} tasks that rested on it — and {live} of {x} uses were never ruled out', { a: reread, r: resting, live: fmt(live), x: fmt(X) });
+      const withRec = 1 * c;
+      $('tg-with').textContent = money(withRec);
+      $('tg-with-d').textContent = t('the leaf\'s "never" is refused as it\'s written and rewritten as "0 of {n} (≤ {hi})"; every node above carries that number; if the case still turns up, the record names exactly which {redo} nodes rest on it', { n: fmt(N), hi: pct(hi), redo });
+    }
+    function reset() {
+      timers.forEach(clearTimeout); timers = [];
+      nodes.forEach((n) => { n.g.setAttribute('class', 'node'); n.sub.textContent = ''; if (n.edge) n.edge.setAttribute('class', 'edge'); });
+      strip.innerHTML = ''; cap.textContent = t('Press play to run the game.');
+    }
+    function say(n, text, cls) { n.sub.textContent = text; if (cls) n.g.setAttribute('class', 'node ' + cls); }
+    function card(step, text, cls) {
+      const d = document.createElement('div'); d.className = 'verdict' + (cls ? ' ' + cls : ''); d.style.fontSize = '12.5px';
+      d.textContent = `${step}\n${text}`; strip.appendChild(d);
+    }
+    async function play() {
+      reset(); const { N, X, f } = params(); const [, hi] = bounds(0, N);
+      const up = chain(badLeaf);   // leaf → … → orchestrator
+      say(badLeaf, t('0 of {n}', { n: fmt(N) }), ''); card(t('the trials'), t('{n} tried, none happened.', { n: fmt(N) }), 'ok'); cap.textContent = t('The agent runs the trials and sees nothing. True, so far.'); await wait(900);
+      if (mode === 'with') {
+        say(badLeaf, t('refused: "never"'), 'refused'); card(t('the write'), t('"never" → refused [ABSOLUTE_UNDERPOWERED]'), ''); cap.textContent = t('"Never" is refused at the write. The honest sentence replaces it.'); await wait(1400);
+        say(badLeaf, `≤ ${pct(hi)} (0/${fmt(N)})`, 'ok'); card(t('the honest sentence'), t('"no occurrences in {n} trials (95% upper bound {hi})"', { n: fmt(N), hi: pct(hi) }), 'ok'); await wait(900);
+        for (let k = 1; k < up.length; k++) {
+          const n = up[k]; if (up[k - 1].edge) up[k - 1].edge.setAttribute('class', 'edge');
+          say(n, t('carries ≤ {hi}', { hi: pct(hi) }), 'ok'); card(k === up.length - 1 ? t('the decision') : t('lead {i}', { i: n.i + 1 }), k === up.length - 1 ? t('decided with "up to {live} of {x} not ruled out" in view', { live: fmt(Math.round(hi * X)), x: fmt(X) }) : t('restates the bound, not the word — the record checks the number against the result'), 'ok'); await wait(800);
+        }
+        cap.textContent = t('The number never degrades: every hop is checked against the result it came from. Whoever decides, decides on arithmetic.');
+        return;
+      }
+      say(badLeaf, t('"never"'), 'fall'); card(t('the write'), t('"the model never leaks" — nothing checks it.')); cap.textContent = t('The agent writes the word. Nobody asks for the number.'); await wait(1100);
+      const words = [t('"never leaks"'), t('"safe"'), t('"no risk — ship"'), t('"done"')];
+      for (let k = 1; k < up.length; k++) {
+        const n = up[k]; if (up[k - 1].edge) up[k - 1].edge.setAttribute('class', 'edge fall');
+        say(n, words[Math.min(k - 1, words.length - 1)], 'fall');
+        card(k === up.length - 1 ? t('the decision') : t('lead {i}', { i: n.i + 1 }), k === up.length - 1 ? t('{w} — {m} tasks merged behind it', { w: words[Math.min(k - 1, 3)], m: nodes.length - 1 }) : t('repeats {w}; the {n} is gone', { w: words[Math.min(k - 1, 3)], n: fmt(N) })); await wait(900);
+      }
+      cap.textContent = t('Every branch merges at the top. The 1-in-{r} case arrives with {live} of {x} never ruled out — and nobody can say which sentence it was.', { r: fmt(params().r), live: fmt(Math.round(hi * X)), x: fmt(X) }); await wait(1200);
+      nodes.forEach((n) => { if (!up.includes(n)) n.g.setAttribute('class', 'node fall'); say(n, n.l === 0 ? t('REVISIT') : t('AT RISK?'), 'fall'); });
+      card(t('course-correcting'), t('re-read {a} agents\' work; redo {m} tasks; the exposure already happened.', { a: nodes.length, m: nodes.length - 1 }));
+    }
+    [F, D, C, R].forEach((el) => el.addEventListener('input', () => { if (el === F || el === D) build(); else update(); }));
+    FR.addEventListener('input', () => { F.value = FR.value; build(); });
+    DR.addEventListener('input', () => { D.value = DR.value; build(); });
+    CR.addEventListener('input', () => { C.value = Math.pow(10, +CR.value).toFixed(2); update(); });
+    RR.addEventListener('input', () => { R.value = Math.round(Math.pow(10, +RR.value)); update(); });
+    document.querySelectorAll('[data-tg]').forEach((b) => b.addEventListener('click', () => {
+      mode = b.dataset.tg; document.querySelectorAll('[data-tg]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); play();
+    }));
+    $('tg-play').addEventListener('click', play);
+    build();
+    return { update };
+  })();
+
+  // ── the cascade ──
+  const S = 'http://www.w3.org/2000/svg';
+  const nodes = [
+    { id: 'r', x: 60, y: 360, w: 230, t: t('RESULT'), l: t('0 leaks in 50 prompts'), s: t('red-team run, temperature 0') },
+    { id: 'c1', x: 330, y: 360, w: 240, t: t('CLAIM'), l: t('"The model never leaks"'), s: t('written by the agent') },
+    { id: 'c2', x: 330, y: 220, w: 240, t: t('CLAIM'), l: t('"Safe for all customers"'), s: t('requires the claim below') },
+    { id: 'd', x: 610, y: 220, w: 240, t: t('DECISION'), l: t('Ship to 1,000,000 users'), s: t('based on "safe for all customers"') },
+    { id: 'inc', x: 610, y: 70, w: 240, t: t('IN PRODUCTION'), l: t('The 1-in-1,000 case'), s: t('up to 58,155 not ruled out') },
+  ];
+  const edges = [['r', 'c1'], ['c1', 'c2'], ['c2', 'd'], ['d', 'inc']];
+  const layer = $('layer'); const el = {};
+  function mk(tag, attrs, parent) { const e = document.createElementNS(S, tag); Object.entries(attrs).forEach(([a, v]) => e.setAttribute(a, v)); (parent || layer).appendChild(e); return e; }
+  const center = (n) => [n.x + n.w / 2, n.y + 34];
+  edges.forEach(([a, b]) => {
+    const A = nodes.find((n) => n.id === a), B = nodes.find((n) => n.id === b);
+    let [x1, y1] = center(A), [x2, y2] = center(B);
+    if (A.y === B.y) { x1 = A.x + A.w; x2 = B.x; } else { y1 = A.y; y2 = B.y + 68; }
+    el['e' + a + b] = mk('path', { d: `M${x1},${y1} L${x2},${y2}`, class: 'edge', 'marker-end': 'url(#ar)', style: 'color:var(--line2)' });
+  });
+  nodes.forEach((n) => {
+    const g = mk('g', { class: 'node' }); el[n.id] = g;
+    mk('rect', { x: n.x, y: n.y, width: n.w, height: 68, rx: 12 }, g);
+    mk('text', { x: n.x + 14, y: n.y + 20, class: 'tag', fill: 'currentColor', style: 'fill:var(--ink3)' }, g).textContent = n.t;
+    mk('text', { x: n.x + 14, y: n.y + 40, class: 'lbl' }, g).textContent = n.l;
+    const sub = mk('text', { x: n.x + 14, y: n.y + 57, class: 'sub' }, g); sub.textContent = n.s; n.sub = sub;
+    const tag = mk('text', { x: n.x + n.w - 10, y: n.y + 20, class: 'tag', 'text-anchor': 'end', style: 'fill:var(--red)' }, g);
+    n.flag = tag;
+  });
+  let mode = 'without', timers = [];
+  const wait = (ms) => new Promise((r) => timers.push(setTimeout(r, reduce ? 0 : ms)));
+  function reset() {
+    timers.forEach(clearTimeout); timers = [];
+    nodes.forEach((n) => { el[n.id].setAttribute('class', 'node hide'); n.flag.textContent = ''; });
+    edges.forEach(([a, b]) => el['e' + a + b].setAttribute('class', 'edge hide'));
+    nodes.find((n) => n.id === 'c1').sub.textContent = t('written by the agent');
+    nodes.find((n) => n.id === 'c1').l && (el.c1.querySelector('.lbl').textContent = t('"The model never leaks"'));
+    el.inc.querySelector('.sub').textContent = t('up to 58,155 not ruled out');
+  }
+  const show = (id) => el[id].setAttribute('class', 'node');
+  const showE = (a, b) => el['e' + a + b].setAttribute('class', 'edge');
+  async function play() {
+    reset(); const cap = $('caption');
+    show('r'); cap.textContent = t('The red-team run: 50 extraction prompts, no leaks.'); await wait(900);
+    if (mode === 'with') {
+      showE('r', 'c1'); show('c1'); el.c1.setAttribute('class', 'node refused');
+      el.c1.querySelector('.sub').textContent = t('refused — ABSOLUTE_UNDERPOWERED');
+      cap.textContent = t('"Never leaks" is refused: 0 of 50 only rules out rates above 5.8%. The honest sentence goes in instead.'); await wait(1800);
+      el.c1.querySelector('.lbl').textContent = t('"No leaks in 50 prompts"');
+      el.c1.querySelector('.sub').textContent = t('≤ 5.8% · up to 58,155 of 1M not ruled out');
+      el.c1.setAttribute('class', 'node ok'); await wait(1300);
+      showE('c1', 'c2'); show('c2'); el.c2.querySelector('.sub').textContent = t('inherits "up to 58,155 not ruled out"'); await wait(1100);
+      showE('c2', 'd'); show('d'); el.d.querySelector('.sub').textContent = t('decided with the bound in view');
+      cap.textContent = t('Whoever decides sees the number: ship with monitoring, or run the ~3,000 prompts that bound it below 1 in 1,000.'); await wait(1600);
+      cap.textContent = t('The record didn’t stop the decision. It stopped the decision from being made on a word.');
+      return;
+    }
+    showE('r', 'c1'); show('c1'); cap.textContent = t('The agent writes "never leaks". Nothing checks it.'); await wait(1100);
+    showE('c1', 'c2'); show('c2'); cap.textContent = t('Another claim builds on it.'); await wait(1000);
+    showE('c2', 'd'); show('d'); cap.textContent = t('A decision is based on that claim.'); await wait(1000);
+    showE('d', 'inc'); show('inc'); cap.textContent = t('A million people use the result. The rare case was always possible.'); await wait(1300);
+    el.inc.setAttribute('class', 'node fall'); el.inc.querySelector('.sub').textContent = t('it happens'); await wait(700);
+    for (const [id, edge, flag] of [['d', ['d', 'inc'], t('REVISIT')], ['c2', ['c2', 'd'], t('AT RISK')], ['c1', ['c1', 'c2'], t('FALSE')], ['r', ['r', 'c1'], '']]) {
+      el['e' + edge[0] + edge[1]].setAttribute('class', 'edge fall');
+      el[id].setAttribute('class', id === 'r' ? 'node' : 'node fall');
+      nodes.find((n) => n.id === id).flag.textContent = flag; await wait(650);
+    }
+    cap.textContent = t('Every node above the "never" falls with it — and nobody can say which other decisions rested on it.');
+  }
+  document.querySelectorAll('.tabs [data-mode]').forEach((b) => b.addEventListener('click', () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll('.tabs [data-mode]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    play();
+  }));
+  $('play').addEventListener('click', play);
+  reset(); nodes.forEach((n) => show(n.id)); edges.forEach(([a, b]) => showE(a, b));
+})();
+</script>
+</body>
+</html>

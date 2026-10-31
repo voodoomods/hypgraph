@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HypGraph — 核查智能体主张的记录</title>
+<meta name="description" content="HypGraph 是一份哈希链接的记录，你的 AI 智能体把结果和主张写入其中。它在写入时拒绝过度主张，并推导出已被证明的内容。MCP 服务器、Agent Skill、零依赖 Python。">
+<meta property="og:title" content="HypGraph — Don't believe the hype. Test the hyp.">
+<meta property="og:description" content="A record that checks what your agents claim: overclaims refused as they're written, standing derived from the record.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hypgraph.com/">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="../llms.txt" title="面向语言模型">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../app/hypgraph.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../assets/strings.zh-Hans.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/" data-rel="../"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/" data-rel="../es/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/" data-rel="../fr/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/" data-rel="../de/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/" data-rel="../zh-Hans/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/"><!--/i18n:alt-->
+</head>
+<body id="top">
+<!-- The figures on this page are claims in its own HypGraph record (data/site-record.bundle.json), built and
+     re-measured by dev/site_record.py, which also checks this page's text against the record with `hypgraph check`.
+     A figure goes in a data-fact slot; a word quoted as an example of what gets refused is marked data-quote; a phrase
+     true by the engine's design is marked data-ok="<why>" and listed on the page. -->
+<a class="skip" href="#main">跳到内容</a><header class="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="网站">
+      <a href="agents/">智能体</a><a href="engineers/">工程师</a><a href="examples/">示例</a><a href="never/" class="hide-sm">从不</a><a href="#workflows" class="hide-sm">工作流</a><a href="play/" class="hide-sm">试验场</a>
+      <a href="verify/" class="hide-sm">验证</a><a href="spec/" class="hide-sm">Spec</a>
+      <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+      <!--i18n:menu--><details class="langs"><summary aria-label="语言" title="语言">中文</summary><div class="langs-menu"><a href="../" hreflang="en" lang="en">English</a><a href="../es/" hreflang="es" lang="es">Español</a><a href="../fr/" hreflang="fr" lang="fr">Français</a><a href="../de/" hreflang="de" lang="de">Deutsch</a><a href="../zh-Hans/" hreflang="zh-Hans" lang="zh-Hans" aria-current="page">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="切换浅色和深色">◐</button></nav>
+  </div>
+</header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">本页为译文。以英文版为准： <a href="../" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<section class="hero"><div class="wrap">
+  <div class="hero-tags"><span class="pill accent" data-fact="version-pill"></span><span class="pill">开源 · <span data-fact="licence"></span></span> <span class="pill">Python · <span data-fact="deps-word"></span> 依赖</span><span class="pill">MCP 服务器 · Agent Skill · HTTP API</span></div>
+  <h1>一份核查智能体主张的记录。</h1>
+  <p class="lede">智能体把假设、运行、结果和主张写进 HypGraph。它会拒绝没有任何结果支撑的数字、没有计数的<span data-quote>“总是”</span>，以及没有足够检验力的搜索就宣称的<span data-quote>“已排除”</span>；并且<span data-ok="design: standing is derived on read, never stored (derive.py)">每次读取时</span>都从记录中推导出哪些已被证明、哪些处于风险之中。</p>
+  <div class="row"><a class="btn primary" href="#product">观看一次运行</a><a class="btn" href="engineers/">开始使用</a>
+    <a class="btn" href="#refuses">看看它拒绝什么</a></div>
+  <div class="tagline">别信炒作。检验假设。</div>
+
+  <div class="stage" id="product">
+    <div class="stage-bar"><div class="stage-tabs" role="group" aria-label="选择一份记录" id="stage-tabs"></div>
+      <span class="pill" id="stage-chain">验证中…</span></div>
+    <div class="stage-app"><div id="app"></div></div>
+    <div class="stage-foot" id="stage-foot"></div>
+  </div>
+</div></section>
+
+<section class="block" id="start"><div class="wrap">
+  <div class="kicker">两个入口</div>
+  <h2 class="h">为智能体，也为部署它的人。</h2>
+  <div class="door">
+    <a class="portal" href="agents/">
+      <div class="who">面向智能体</div>
+      <h2>接入你的智能体</h2>
+      <p>一行 MCP 配置，或使用 Agent Skill。主张在写入时即被核查，智能体对自己工作的审查不算数，每次拒绝都说明该改什么。机器可读：<code>/llms.txt</code>、<code>/SKILL.md</code>。</p>
+      <pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph mcp
+hypgraph skill --install</pre>
+      <span class="go">智能体指南</span>
+    </a>
+    <a class="portal" href="engineers/">
+      <div class="who">面向工程师和科学家</div>
+      <h2>嵌入你的技术栈</h2>
+      <p>一个运行时依赖为 <span data-fact="deps-word"></span> 的包。由你决定谁来审查、哪个执行器的记录算作仪器、工作花费多少。另有 JSON API、界面，以及可在 CI 中验证的记录包。</p>
+      <pre>pip install hypgraph
+Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
+      <span class="go">工程指南</span>
+    </a>
+  </div>
+</div></section>
+
+<section class="block" id="facts"><div class="wrap">
+  <div class="kicker">你可以核查的</div>
+  <h2 class="h">事实，每一条都有来源。</h2>
+  <p class="sub">本页的每个数字都是本页自身 HypGraph 记录中的一条主张，绑定到它所来自的测量，并在构建本页前由一名审查者用另一种方式重新测量。点击一条主张即可在记录中打开它。</p>
+  <div class="grid3">
+    <div class="card fact"><div class="k">测试</div><div class="v" data-fact="tests"></div><div class="s">在本次构建中通过；CI 在 Linux、macOS 和 Windows 上运行</div>
+      <div class="src" data-claim="tests"></div></div>
+    <div class="card fact"><div class="k">运行时依赖</div><div class="v" data-fact="deps"></div><div class="s">引擎、CLI、HTTP 服务器和界面都只使用标准库</div>
+      <div class="src" data-claim="deps"></div></div>
+    <div class="card fact"><div class="k">示例记录可通过验证</div><div class="v" data-fact="verify-v"></div>
+      <div class="s">对被哈希的原始字符串运行 <code>SHA-256</code> — 就在这里，在你的浏览器中运行</div>
+      <div class="row" style="margin-top:10px"><span data-claim="bundles"></span><button class="btn" id="verify" type="button">运行核查</button></div>
+      <div class="verify-out" id="verify-out" aria-live="polite"></div></div>
+  </div>
+</div></section>
+
+<section class="block" id="refuses"><div class="wrap">
+  <div class="kicker">它拒绝什么</div>
+  <h2 class="h">过度主张进不了记录。</h2>
+  <p class="sub">这些是在构建本页时写入一份测试记录的。引擎逐一拒绝，并给出代码和需要修正的内容；下面的改写使用同样的证据，被接受了。</p>
+  <div class="grid3" id="refusals"></div>
+  <div style="margin-top:14px" data-claim="refusals"></div>
+</div></section>
+
+<section class="block" id="rules"><div class="wrap">
+  <div class="kicker">八条规则</div>
+  <h2 class="h">每条规则都对应一个真实犯过的错误。</h2>
+  <p class="sub">HypGraph 源自一个做长期研究的 AI 智能体团队，以及它们在被明确告知不要犯的情况下仍然犯下的错误。每个错误都变成了一条规则，由记录在写入工作时强制执行，而不是一条只能期望被遵守的建议。</p>
+  <div class="grid4">
+    <div class="card rule"><h3>现状是推导出来的</h3><p>没有任何字段写着<span data-quote>“已确认”</span>。审查、风险、支撑和证据强度都在读取时由记录计算得出。</p></div>
+    <div class="card rule"><h3>只追加</h3><p>用 <code>SHA-256</code> 串成链。更正是新版本；撤回的内容仍留在记录中。<code>verify()</code> 能发现任何编辑。</p></div>
+    <div class="card rule"><h3>审查固定版本</h3><p>修正一条已核查的主张，其核查就会过时。基于旧版本的决策会被标记为需要重审。</p></div>
+    <div class="card rule"><h3>主张带着数字</h3><p>主张中的数字绑定到结果字段。没有来源的数字会被拒绝 — 这是摘要出错最常见的方式。</p></div>
+    <div class="card rule"><h3>独立性被计数</h3><p>同一次运行得出的三个结果是一条证据线，而不是三条。共享数据或来源的证据线会合并。</p></div>
+    <div class="card rule"><h3>排除需要检验力</h3><p>只有在证明某次搜索能找到预埋的答案之后，才能说<span data-quote>“排除”</span>。否则结果是不确定的。</p></div>
+    <div class="card rule"><h3>作者不审查自己</h3><p>只有指定审查者的裁定才算数，而且不能针对自己的工作。其他人的裁定保留为评论。</p></div>
+    <div class="card rule"><h3>仪器自己说话</h3><p>只有实验室执行器才能记录一次实验室运行。你描述的运行会被标记为你的报告。</p></div>
+  </div>
+</div></section>
+
+<section class="block never-band" id="never"><div class="wrap grid2" style="align-items:center">
+  <div>
+    <div class="kicker" style="color:var(--bad)"><span data-quote>从不</span>的算术</div>
+    <h2 class="h"><span data-fact="never-n"></span> 次测试中出现 <span data-fact="never-k"></span> 次失败，在一百万次使用中仍可能有 <span data-fact="never-upto"></span> 次。</h2>
+    <p class="sub">一个在测试中一次也没看到的智能体会写下<span data-quote>“从不发生”</span>。记录拒绝这句话并要求给出计数，然后说明在你部署的规模下这些计数还留有多少余地。</p>
+    <a class="btn" href="never/">一步一步的算术</a></div>
+  <div class="card"><div class="never-num" data-fact="never-upto"></div>
+    <p>在 <span data-fact="never-exposure"></span> 次使用中未被排除的失败，置信度 95%，依据 <span data-fact="never-n"></span> 次测试中的 <span data-fact="never-k"></span> 次。</p>
+    <div style="margin-top:10px" data-claim="never"></div></div>
+</div></section>
+
+<section class="block" id="workflows"><div class="wrap">
+  <div class="kicker">一份记录，五种工作流</div>
+  <h2 class="h">每个学科的方法，由记录来执行。</h2>
+  <p class="sub">一种配置包含其学科的各个阶段、每个阶段的出口关卡，以及什么算完成。阶段由记录推导，<span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">从不由智能体设定</span>。每一行都有一个在线示例。</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>配置</th><th>一个问题经过的路径</th><th>记录拒绝</th><th>完成条件</th><th></th></tr></thead>
+    <tbody>
+      <tr><td><code>scientific@2</code></td><td>提出 → 猜想 → 运行前预注册 → 运行 → 有证据 → 主张 → 审查</td>
+        <td>没有结果支撑的数字；没有计数的<span data-quote>“从不”</span>；没有检验的<span data-quote>“显著”</span>；基于过时证据的核查</td><td>每个问题都已解决</td><td><a href="examples/scientific/">查看</a></td></tr>
+      <tr><td><code>software@2</code></td><td>规定 → 实现（按哈希的 diff）→ 仪器在该链头上验证 → 主张 → 审查</td>
+        <td>没有仪器运行，或基于已被取代的链头，就宣称<span data-quote>“通过”</span>；diff 的作者充当其审查者</td><td>每项需求的主张都建立在当前链头上一次通过的运行之上</td><td><a href="examples/software/">查看</a></td></tr>
+      <tr><td><code>trading@2</code></td><td>提出 → 形成论点 → 预注册 → 计入成本的样本外回测 → 主张 → 风险审查 → 建仓 → 监控</td>
+        <td>没有成本的回测；两者都没有、或没有列出尝试过的配置就宣称<span data-quote>“优势”</span>；没有规模、止损和复审日期的仓位；真实下单</td><td>问题已解决；仓位已建立或已放弃</td><td><a href="examples/trading/">查看</a></td></tr>
+      <tr><td><code>knowledge@2</code></td><td>提出 → 有出处（段落、获取时间、类型）→ 主张 → 核查</td>
+        <td>没有来源的主张；没有段落的来源</td><td>每条主张都引用来源并经过核查</td><td><a href="examples/knowledge/">查看</a></td></tr>
+      <tr><td><code>optimization@2</code></td><td>提出（按哈希的实例）→ 建模 → 配置 → 求解 → 验证 → 主张 → 核查</td>
+        <td>没有可行性的目标值；没有界、或基于已改变实例的<span data-quote>“最优”</span></td><td>一个可行且有界的当前最优解，在当前实例上验证</td><td><a href="examples/optimization/">查看</a></td></tr>
+    </tbody></table></div>
+</div></section>
+
+<section class="block" id="deploy"><div class="wrap">
+  <div class="kicker">面向部署智能体的人</div>
+  <h2 class="h">把它接到你的智能体已经在运行的地方。</h2>
+  <div class="grid3 uses">
+    <div class="card"><h3>智能体，通过 MCP</h3><p>你的智能体获得记录的工具，以及作为 Agent Skill 的方法。</p>
+      <div class="code"><pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph mcp
+hypgraph skill --install</pre></div></div>
+    <div class="card"><h3>Python</h3><p>角色即策略：审查者、仪器、保留作者。</p>
+      <div class="code"><pre>from hypgraph import Graph, Policy
+g = Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre></div></div>
+    <div class="card"><h3>界面和 JSON API</h3><p>默认只读；实时跟随正在运行的智能体群。</p>
+      <div class="code"><pre>hypgraph serve --db study.hypgraph</pre></div></div>
+    <div class="card"><h3>用报告来把关 CI</h3><p>对照记录审查报告；出错时以非零代码退出。</p>
+      <div class="code"><pre>hypgraph check summary.md</pre></div></div>
+    <div class="card"><h3>交付可验证的记录包</h3><p>任何人都可以用任何语言或在浏览器中检查它。</p>
+      <div class="code"><pre>hypgraph export --telemetry -o study.bundle.json
+hypgraph verify study.bundle.json</pre></div></div>
+    <div class="card"><h3>在其上运行一个智能体群</h3><p>HypSwarm 依据记录自身的工作看板来调度智能体。</p>
+      <div class="code"><pre>pip install --pre hypswarm</pre></div></div>
+  </div>
+</div></section>
+
+<section class="block" id="record"><div class="wrap">
+  <div class="kicker">本页有一份记录</div>
+  <h2 class="h">我们让本页遵守它所描述的规则。</h2>
+  <p class="sub">上面的数字是与本页一同构建的 HypGraph 记录中的主张。构建的仪器测量它们，一名审查者用另一种方式重新测量每一个，本页文本再用 <code>hypgraph check</code> 对照记录进行检查 — 记录中没有的数字不会出现在页面上。在上方的应用中通过<a href="#product" data-show="page">本页的记录</a>打开它，或下载<a href="../data/site-record.bundle.json">记录包</a>并自己<a href="verify/">验证</a>。</p>
+  <div id="record-claims"></div>
+</div></section>
+
+<section class="block" id="trust"><div class="wrap">
+  <div class="kicker">信任</div>
+  <h2 class="h">记录展示了什么，又不主张什么。</h2>
+  <div class="grid2 claims">
+    <div class="card yes"><h3>✓ 它展示</h3><ul>
+      <li>没有任何事件在写入后被改动：每次写入都被哈希进一条任何人都可以重新检查的链；</li>
+      <li>主张中的哪些数字绑定到哪个结果，以及是哪次运行产生了它；</li>
+      <li>谁针对哪个版本核查了什么，以及该版本是否仍然有效；</li>
+      <li>如果某个前提被撤回，什么会随之倒下。</li></ul></div>
+    <div class="card"><h3>— 它不主张</h3><ul>
+      <li>某条主张为真。它检查写下的内容与记录的内容是否一致；</li>
+      <li>让模型推理得更好。它把模型的过度主张挡在记录之外；</li>
+      <li>任何关于随记录包附带的遥测的内容：遥测在哈希链之外；</li>
+      <li>检查限定范围的记录包所隐藏的事件。验证会指出记录包何时限定了范围。</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:20px">它在你运行它的地方运行：一个本地文件，无需账户，自身不发起网络调用。版本通过可信发布从 GitHub Actions 发布到 PyPI。</p>
+</div></section>
+<section class="block" id="family"><div class="wrap">
+  <div class="kicker">家族</div>
+  <div class="family">
+    <a href="#top" aria-current="page"><img src="../assets/family/hypgraph.svg" alt="" width="40" height="40"><span><b>HypGraph<span class="here">你在这里</span></b><span class="what">记录：只追加、哈希链接，对照测量核查主张并拒绝过度主张。引擎和界面。</span></span></a>
+    <a href="https://hypswarm.com"><img src="../assets/family/hypswarm.svg" alt="" width="40" height="40"><span><b>HypSwarm</b><span class="what">多个智能体，一份记录。调度器是代码，仪器会重新运行作者计算的内容，由记录决定什么算完成。</span></span></a>
+    <a href="https://hypdmz.com"><img src="../assets/family/hypdmz.svg" alt="" width="40" height="40"><span><b>HypDMZ</b><span class="what">智能体群运行所在的 pod：唯一的出口，每个字节都经过检查，每次启动都从内部测试。</span></span></a>
+    <a href="https://hypmesh.com"><img src="../assets/family/hypmesh.svg" alt="" width="40" height="40"><span><b>HypMesh</b><span class="what">开放问题，每个问题一份记录。任何人的智能体都以自己的名义占据一个席位；由记录决定什么站得住。即将推出。</span></span></a></div>
+</div></section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="slogan">别信炒作。检验假设。</span>
+    <span>由 <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> 创建 · VoodooMods LLC · 代码 Apache-2.0 · 格式与文档 CC BY 4.0 · <a href="disclaimer/">免责声明</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a> · <a href="../llms.txt">llms.txt</a> · <a href="spec/">规范</a> · <a href="https://hypswarm.com">HypSwarm</a></span></div>
+</footer>
+
+<script src="../app/vendor/cytoscape.min.js" defer></script>
+<script src="../app/vendor/layout-base.js" defer></script>
+<script src="../app/vendor/cose-base.js" defer></script>
+<script src="../app/vendor/cytoscape-fcose.js" defer></script>
+<script src="../app/hypgraph.js" defer></script>
+<script src="../assets/site.js" defer></script>
+<script src="../assets/site-data.js" defer></script>
+<script src="../assets/home.js" defer></script>
+</body>
+</html>

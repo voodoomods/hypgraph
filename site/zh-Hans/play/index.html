@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>试验场 — HypGraph</title>
+<meta name="description" content="试着让一条主张骗过 HypGraph。真正的引擎，用 Python，在你的浏览器中运行。">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.zh-Hans.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/play/" data-rel="../../play/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/play/" data-rel="../../es/play/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/play/" data-rel="../../fr/play/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/play/" data-rel="../../de/play/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/play/" data-rel="../../zh-Hans/play/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/play/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">跳到内容</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="网站"><a href="../agents/">智能体</a><a href="../engineers/">工程师</a><a href="../examples/">示例</a><a href="../never/" class="hide-sm">从不</a><a href="../#workflows" class="hide-sm">工作流</a>
+    <a href="../play/" aria-current="page" class="hide-sm">试验场</a><a href="../verify/" class="hide-sm">验证</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="语言" title="语言">中文</summary><div class="langs-menu"><a href="../../play/" hreflang="en" lang="en">English</a><a href="../../es/play/" hreflang="es" lang="es">Español</a><a href="../../fr/play/" hreflang="fr" lang="fr">Français</a><a href="../../de/play/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/play/" hreflang="zh-Hans" lang="zh-Hans" aria-current="page">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="切换浅色和深色">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">本页为译文。以英文版为准： <a href="../../play/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">试验场</div>
+  <h1>试着让一条主张蒙混过关。</h1>
+  <p>这是真正的引擎 — 与你用 <code>pip install</code> 安装的是同一个 Python 包 — 在你的浏览器中，针对 1854 年的 Broad Street 调查运行。写一条关于 Snow 结果的主张，看看记录如何处理它。主张用英文书写：引擎读的是英文。</p></div></div>
+
+<div class="wrap" style="padding:28px 16px 80px">
+  <div class="card" id="boot" style="margin-bottom:18px">
+    <div class="row"><button class="btn primary" id="load" type="button">加载引擎</button>
+      <span class="note" id="bootmsg" style="margin:0">通过 Pyodide 运行 Python，首次约 10 MB，之后使用缓存。不会向任何地方发送任何内容。</span></div>
+  </div>
+
+  <div class="play">
+    <div class="card">
+      <h3 style="margin-top:0">写一条主张</h3>
+      <div class="chips" aria-label="示例">
+        <button class="chip" type="button" data-ex="always">“always”（总是）</button>
+        <button class="chip" type="button" data-ex="invent">凭空出现的数字</button>
+        <button class="chip" type="button" data-ex="exclude">“rules out”（排除）</button>
+        <button class="chip" type="button" data-ex="nosupport">没有证据</button>
+        <button class="chip" type="button" data-ex="never">基于计数的“never”（从不）</button>
+        <button class="chip" type="button" data-ex="significant">“significantly”（显著）</button>
+        <button class="chip" type="button" data-ex="honest">诚实的那条</button></div>
+      <div class="field"><label for="st">陈述</label><textarea id="st" rows="3"></textarea></div>
+      <div class="field"><label for="sc">范围 — 在何处成立</label><textarea id="sc" rows="2"></textarea></div>
+      <div class="row" style="gap:12px">
+        <div class="field" style="flex:1;min-width:140px"><label for="kind">类型</label><select id="kind"><option>发现</option><option>排除</option><option>不确定</option><option>线索</option><option>约定</option></select></div>
+        <div class="field" style="flex:2;min-width:200px"><label for="sup">支撑来源</label><select id="sup"><option value="">（无）</option></select></div>
+      </div>
+      <div class="field"><label for="ms">测量（JSON）— 把每个数字绑定到结果字段</label><textarea id="ms" class="mono" rows="5" spellcheck="false"></textarea></div>
+      <button class="btn primary" id="test" type="button" disabled>测试这条主张</button></div>
+    <div class="card">
+      <h3 style="margin-top:0">记录怎么说</h3>
+      <div class="out" id="out"><span class="dim">加载引擎，然后测试一条主张。</span></div>
+      <h3>可以引用的结果</h3>
+      <div class="out" id="res" style="min-height:0"><span class="dim">—</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">或者写 Python</h3>
+    <p class="note" style="margin-top:0"><code>g</code> 是图，<code>inv</code> 是调查。<a href="../engineers/#connect">工程指南</a>中的一切在这里都能用。</p>
+    <div class="field"><textarea id="py" class="mono" rows="9" spellcheck="false">for n in g.subgraph(inv, types=["claim", "hypothesis", "decision"])["nodes"]:
+    print(n["code"], "—", n["state"]["sentence"])
+
+print()
+print(g.report(inv)["markdown"][:900])</textarea></div>
+    <div class="row"><button class="btn" id="run" type="button" disabled>运行</button></div>
+    <div class="out" id="pyout" style="margin-top:12px"><span class="dim">输出显示在这里。</span></div>
+  </div>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">别信炒作。检验假设。</span>
+<span>由 <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> 创建 · VoodooMods LLC · 代码 Apache-2.0 · 格式与文档 CC BY 4.0 · <a href="../disclaimer/">免责声明</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+<script>
+(() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
+  const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  let py = null;
+
+  const EX = {
+    always: { st: 'Water from the Broad Street pump always caused cholera.', sc: 'The Golden Square outbreak, September 1854.', kind: 'finding', sup: 'RS2', ms: [] },
+    invent: { st: 'Southwark and Vauxhall houses died at ten times the Lambeth rate.', sc: 'South London, the first seven weeks of the 1854 epidemic.', kind: 'finding', sup: 'RS5', ms: [] },
+    exclude: { st: 'The company comparison rules out the miasma theory.', sc: 'South London, the 1854 epidemic.', kind: 'exclusion', sup: 'RS5', ms: [] },
+    nosupport: { st: 'Cleaning the sewers would have stopped the outbreak.', sc: '', kind: 'finding', sup: '', ms: [] },
+    never: { st: 'The workhouse well never spread cholera.', sc: 'The Poland Street workhouse, Golden Square outbreak, September 1854.', kind: 'finding', sup: 'RS2',
+      ms: [{ name: 'workhouse deaths', result: 'RS2', key: 'workhouse', k: 5, n: 535 }] },
+    significant: { st: 'Southwark and Vauxhall houses died at a significantly higher rate than Lambeth houses.',
+      sc: 'South London, the first seven weeks of the 1854 epidemic, deaths per house by water company.', kind: 'finding', sup: 'RS5',
+      ms: [{ name: 'S&V', result: 'RS5', key: 'southwark_vauxhall', k: 1263, n: 40046 }, { name: 'Lambeth', result: 'RS5', key: 'lambeth', k: 98, n: 26107 }] },
+    honest: { st: 'Lambeth houses had 37 cholera deaths per 10,000 against 315 for Southwark and Vauxhall.',
+      sc: 'South London, the first seven weeks of the 1854 epidemic, deaths per 10,000 houses by water company.', kind: 'finding', sup: 'RS5',
+      ms: [{ name: 'Lambeth', result: 'RS5', key: 'lambeth_per_10000', value: 37 }, { name: 'S&V', result: 'RS5', key: 'sv_per_10000', value: 315 }] },
+  };
+  function fill(k) {
+    const e = EX[k]; $('st').value = e.st; $('sc').value = e.sc; $('kind').value = e.kind;
+    $('ms').value = JSON.stringify(e.ms, null, 1); if ([...$('sup').options].some((o) => o.value === e.sup)) $('sup').value = e.sup;
+  }
+  document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => fill(b.dataset.ex)));
+  fill('always');
+
+  async function boot() {
+    $('load').disabled = true;
+    const msg = (t) => { $('bootmsg').textContent = t; };
+    try {
+      msg(t('Loading Python…'));
+      await new Promise((ok, fail) => { const s = document.createElement('script'); s.src = PYODIDE + 'pyodide.js'; s.onload = ok; s.onerror = () => fail(new Error('could not load Pyodide')); document.head.appendChild(s); });
+      py = await loadPyodide({ indexURL: PYODIDE });
+      msg(t('Loading sqlite3…'));
+      await py.loadPackage('sqlite3');
+      msg(t('Loading the hypgraph engine…'));
+      const man = await (await fetch('../../py/manifest.json')).json();
+      for (const f of man.files) {
+        const text = await (await fetch('../../py/' + f)).text();
+        const path = '/home/pyodide/lib/' + f;
+        py.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));
+        py.FS.writeFile(path, text);
+      }
+      await py.runPythonAsync(`
+import sys, io, json, contextlib
+sys.path.insert(0, "/home/pyodide/lib")
+import hypgraph
+from hypgraph import GraphError
+from hypgraph.demos import broad_street
+g, inv, story = broad_street.build()
+
+def _results():
+    return json.dumps([{"code": n["code"], "title": n["title"], "values": g.get(n["id"])["body"].get("values", {})}
+                       for n in g.search(type="result", inv=inv, limit=100)])
+
+def _try_claim(spec):
+    spec = json.loads(spec)
+    links = [{"rel": "supports", "from": g.resolve(spec["sup"], inv), "why": "This result is the evidence the claim rests on."}] if spec["sup"] else []
+    fields = {k: v for k, v in spec["fields"].items() if v not in ("", [], None)}
+    try:
+        n = g.create(author="you", type="claim", inv=inv, fields=fields, links=links)
+        return json.dumps({"ok": True, "code": n["code"], "sentence": n["state"]["sentence"]})
+    except GraphError as e:
+        return json.dumps({"ok": False, "error": str(e)})
+
+def _run(code):
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(code, {"g": g, "inv": inv, "hypgraph": hypgraph})
+    except Exception as e:
+        buf.write(f"\\n{type(e).__name__}: {e}")
+    return buf.getvalue()
+`);
+      const rs = JSON.parse(py.globals.get('_results')());
+      $('sup').innerHTML = `<option value="">${esc(t('(nothing)'))}</option>` + rs.map((r) => `<option value="${esc(r.code)}">${esc(r.code)} — ${esc(r.title.slice(0, 60))}</option>`).join('');
+      $('res').innerHTML = rs.map((r) => `<b>${esc(r.code)}</b> ${esc(r.title)}${Object.keys(r.values).length ? `\n  <span class="dim">${esc(t('values:'))} ${esc(JSON.stringify(r.values))}</span>` : ''}`).join('\n\n');
+      fill('always');
+      msg(t('Engine ready: hypgraph {v} on Python {py}, in your browser.', { v: py.runPython('hypgraph.__version__'), py: py.runPython('import sys; sys.version.split()[0]') }));
+      $('test').disabled = false; $('run').disabled = false;
+      $('out').innerHTML = `<span class="dim">${esc(t('Pick an example above, or write your own, and test it.'))}</span>`;
+    } catch (e) {
+      msg(t('Could not load the engine: {e} — try again, or pip install hypgraph.', { e: e.message })); $('load').disabled = false;
+    }
+  }
+  $('load').addEventListener('click', boot);
+
+  $('test').addEventListener('click', () => {
+    let ms;
+    try { ms = JSON.parse($('ms').value || '[]'); } catch (e) { $('out').innerHTML = `<span class="x">${esc(t('Measurements must be JSON: {e}', { e: e.message }))}</span>`; return; }
+    const spec = { sup: $('sup').value, fields: { statement: $('st').value, scope: $('sc').value, kind: $('kind').value, measurements: ms } };
+    const r = JSON.parse(py.globals.get('_try_claim')(JSON.stringify(spec)));
+    $('out').innerHTML = r.ok
+      ? `<span class="ok">${esc(t('✓ Added {code}', { code: r.code }))}</span>\n${esc(r.sentence)}\n\n<span class="dim">${esc(t('It\'s in the record — unchecked until a reviewer who isn\'t you checks it.'))}</span>`
+      : `<span class="x">${esc(t('✗ Refused'))}</span>\n${esc(r.error)}`;
+  });
+  $('run').addEventListener('click', () => { $('pyout').textContent = py.globals.get('_run')($('py').value) || t('(no output)'); });
+})();
+</script>
+</body>
+</html>

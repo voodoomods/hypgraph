@@ -9,6 +9,8 @@ Regenerate the website's generated files from the package:
     site/py/                             the engine's source + manifest.json, for the Pyodide playground
     site/spec/index.html                 docs/spec.md as a page
     site/disclaimer/index.html           DISCLAIMER.md as a page
+    site/<lang>/…, site/assets/strings.<lang>.js   the main pages in es / fr / de / zh-Hans (dev/site_i18n.py)
+    site/sitemap.xml                     every page, with its language alternates
     site/agents.md                       AGENTS.md
     site/SKILL.md, skills/hypgraph/      the agent skill (source: src/hypgraph/skill/SKILL.md)
 
@@ -30,6 +32,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from hypgraph import __version__  # noqa: E402
 from hypgraph.demos import broad_street  # noqa: E402
 from hypgraph.schema import describe  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "dev"))
+import site_i18n  # noqa: E402
 
 SITE = ROOT / "site"
 PKG = ROOT / "src" / "hypgraph"
@@ -146,8 +151,10 @@ FOOTER = """<footer><div class="wrap"><span class="slogan">Don't believe the hyp
 <span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="../disclaimer/">Disclaimer</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>"""
 
 
-def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str, kicker: str = "hypgraph/1 · draft 1") -> str:
+def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str, kicker: str = "hypgraph/1 · draft 1",
+         translated_body: bool = True) -> str:
     nav = nav_links(current)
+    no = "" if translated_body else ' translate="no"'          # the spec stays English in every language
     toc_html = "".join(f'<a href="#{s}">{html.escape(t)}</a>' for s, t in toc)
     return f"""<!doctype html>
 <html lang="en">
@@ -169,7 +176,7 @@ def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: 
 <main id="main">
 <div class="phead"><div class="wrap"><div class="kicker">{html.escape(kicker)}</div><h1>{html.escape(title)}</h1>
 <p>{html.escape(lede)}</p></div></div>
-<div class="wrap doc"><nav class="toc" aria-label="On this page">{toc_html}</nav><article class="prose">
+<div class="wrap doc"><nav class="toc" aria-label="On this page"{no}>{toc_html}</nav><article class="prose"{no}>
 {body}
 </article></div>
 </main>
@@ -274,15 +281,16 @@ def write_examples() -> None:
     for k, label, folder, blurb in EXAMPLES:
         s = stats[k]
         codes = f'<div class="codes">{" ".join(f"<code>{c}</code>" for c in s["codes"])}</div>' if s["codes"] else ""
-        refused = (f'{s["refused"]} write{"s" if s["refused"] != 1 else ""} refused, then rewritten' if s["refused"]
+        v = lambda x: f"<span data-v>{html.escape(str(x))}</span>"  # noqa: E731 — a figure, not words to translate
+        refused = (f'{v(s["refused"])} write{"s" if s["refused"] != 1 else ""} refused, then rewritten' if s["refused"]
                    else "no refusals")
         cards.append(f"""<a class="excard" href="{k}/">
-  <div class="who">{html.escape(label)}{f' · {html.escape(s["report"])}' if s["report"] else ''}</div>
-  <h2>{html.escape(s["title"])}</h2>
+  <div class="who">{html.escape(label)}{f' · <span translate="no">{html.escape(s["report"])}</span>' if s["report"] else ''}</div>
+  <h2 translate="no">{html.escape(s["title"])}</h2>
   <p>{html.escape(blurb)}</p>
-  <dl><dt>seats</dt><dd>{html.escape(", ".join(s["seats"]))}</dd>
-    <dt>run</dt><dd>{s["calls"]} model calls · {s["tools"]} tool calls · {s["seconds"]} s · {html.escape(s["stopped"])}</dd>
-    <dt>record</dt><dd>{s["events"]} events · {s["nodes"]} nodes · {refused}</dd></dl>{codes}
+  <dl><dt>seats</dt><dd translate="no">{html.escape(", ".join(s["seats"]))}</dd>
+    <dt>run</dt><dd>{v(s["calls"])} model calls · {v(s["tools"])} tool calls · {v(s["seconds"])} s · {html.escape(s["stopped"])}</dd>
+    <dt>record</dt><dd>{v(s["events"])} events · {v(s["nodes"])} nodes · {refused}</dd></dl>{codes}
   <span class="go">Watch it run</span>
 </a>""")
     body = f"""<!doctype html>
@@ -358,7 +366,7 @@ def main() -> None:
     write(SITE / "schema" / "hypgraph-1.json", json.dumps(describe(), indent=1, ensure_ascii=False))
 
     app = SITE / "app"
-    for f in ("hypgraph.js", "hypgraph.css"):
+    for f in ("hypgraph.js", "hypgraph.i18n.js", "hypgraph.css"):
         write(app / f, (PKG / "ui" / f).read_text(encoding="utf-8"))
     shutil.copytree(PKG / "ui" / "vendor", app / "vendor", dirs_exist_ok=True)
     shutil.copy2(PKG / "ui" / "hypgraph.svg", SITE / "assets" / "hypgraph.svg")
@@ -384,7 +392,7 @@ def main() -> None:
     body, toc = markdown((ROOT / "docs" / "spec.md").read_text(encoding="utf-8"))
     write(SITE / "spec" / "index.html", page("The record format", "Everything needed to write another "
                                                                    "implementation, a verifier or a viewer of HypGraph "
-                                                                   "records.", body, toc, "../spec/"))
+                                                                   "records.", body, toc, "../spec/", translated_body=False))
     body, toc = markdown((ROOT / "DISCLAIMER.md").read_text(encoding="utf-8").split(chr(10), 1)[1])   # drop the title
     write(SITE / "disclaimer" / "index.html", page("Disclaimer", "What HypGraph promises, and what it does not: "
                                                                  "provided as is, standing derived rather than "
@@ -395,6 +403,7 @@ def main() -> None:
     (ROOT / "skills" / "hypgraph").mkdir(parents=True, exist_ok=True)
     shutil.copy2(skill, ROOT / "skills" / "hypgraph" / "SKILL.md")
     print("  site/agents.md, site/SKILL.md, skills/hypgraph/SKILL.md")
+    site_i18n.build(write)
     check_paths()
 
 

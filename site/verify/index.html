@@ -8,6 +8,7 @@
 <link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/verify/" data-rel="../verify/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/verify/" data-rel="../es/verify/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/verify/" data-rel="../fr/verify/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/verify/" data-rel="../de/verify/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/verify/" data-rel="../zh-Hans/verify/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/verify/"><!--/i18n:alt-->
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -16,7 +17,7 @@
   <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Engineers</a><a href="../examples/">Examples</a><a href="../never/" class="hide-sm">Never</a><a href="../#workflows" class="hide-sm">Workflows</a>
     <a href="../play/" class="hide-sm">Playground</a><a href="../verify/" aria-current="page" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
-    <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Language" title="Language">EN</summary><div class="langs-menu"><a href="../verify/" hreflang="en" lang="en" aria-current="page">English</a><a href="../es/verify/" hreflang="es" lang="es">Español</a><a href="../fr/verify/" hreflang="fr" lang="fr">Français</a><a href="../de/verify/" hreflang="de" lang="de">Deutsch</a><a href="../zh-Hans/verify/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
 <main id="main">
 <div class="phead"><div class="wrap"><div class="kicker">Trust, but verify</div>
@@ -65,38 +66,39 @@
 <script src="../assets/site.js" defer></script>
 <script>
 (() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
   const res = document.getElementById('res');
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   async function check(text, name) {
     let b;
-    try { b = JSON.parse(text); } catch (e) { res.innerHTML = `<div class="big bad">✗ Not JSON</div><p>${esc(e.message)}</p>`; return; }
-    res.innerHTML = '<div class="note">Hashing…</div>';
+    try { b = JSON.parse(text); } catch (e) { res.innerHTML = `<div class="big bad">${esc(t('✗ Not JSON'))}</div><p>${esc(e.message)}</p>`; return; }
+    res.innerHTML = `<div class="note">${esc(t('Hashing…'))}</div>`;
     const t0 = performance.now();
     const v = await HypGraph.verifyBundle(b, document.getElementById('anchor').value);
     const ms = Math.round(performance.now() - t0);
     if (!v.ok) {
-      res.innerHTML = `<div class="big bad">✗ ${esc(name)} does not verify</div><p>${esc(v.problem)}${v.broken_at ? ` (event ${v.broken_at})` : ''}</p>`;
+      res.innerHTML = `<div class="big bad">${esc(t('✗ {name} does not verify', { name }))}</div><p>${esc(v.problem)}${v.broken_at ? esc(t(' (event {n})', { n: v.broken_at })) : ''}</p>`;
       return;
     }
     const invs = (b.derived && b.derived.investigations) || [];
     // the scope's own title isn't hashed: name it from the verified investigation instead
     const scope = b.scope && typeof b.scope === 'object' ? String(b.scope.inv || '') : '';
-    const scopeName = scope ? ((invs.find((i) => i.id === scope) || {}).title || scope) : 'the whole record';
+    const scopeName = scope ? ((invs.find((i) => i.id === scope) || {}).title || scope) : t('the whole record');
     const gaps = Object.entries(v.unchecked || {});
-    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">✓ ${esc(name)}: ${v.checked} events verified${v.complete ? '' : ' (scoped)'}${v.anchored ? ' · anchored' : ''}${v.coverage === 'partial' ? ' · partial coverage' : ''}</div>
-      <p>The chain is intact, every row matches the event that wrote it, and every event's row is present.${v.anchored ? ' It ends at the head you pasted.' : ''} Checked in your browser in ${ms} ms.</p>
+    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">${esc(t('✓ {name}: {n} events verified', { name, n: v.checked }))}${v.complete ? '' : esc(t(' (scoped)'))}${v.anchored ? esc(t(' · anchored')) : ''}${v.coverage === 'partial' ? esc(t(' · partial coverage')) : ''}</div>
+      <p>${esc(t('The chain is intact, every row matches the event that wrote it, and every event\'s row is present.'))}${v.anchored ? esc(t(' It ends at the head you pasted.')) : ''} ${esc(t('Checked in your browser in {ms} ms.', { ms }))}</p>
       ${v.warning ? `<p class="warn">${esc(v.warning)}</p>` : ''}
-      ${gaps.length ? `<p class="warn">Not covered (written before events hashed these fields): ${gaps.map(([f, n]) => `${esc(f)} ×${n}`).join(' · ')}.</p>` : ''}
-      <dl class="kv"><dt>head</dt><dd>${esc(v.head)}</dd><dt>nodes</dt><dd>${v.nodes}</dd><dt>links</dt><dd>${v.edges}</dd>
-        <dt>scope</dt><dd>${esc(scopeName)}</dd>
-        <dt>derived views</dt><dd>${v.views === 'none' ? 'none: exported without them, so there is nothing to show beyond the rows' : 'checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)'}</dd><dt>exported</dt><dd>${esc(b.exported_at || '—')} by ${esc(b.generator || '—')}</dd>
-        <dt>investigations</dt><dd>${invs.map((i) => esc(i.title)).join(' · ') || '—'}</dd>
-        ${b.telemetry ? `<dt>telemetry</dt><dd>${((b.telemetry.events || []).length)} events from the run, carried for replay — outside the hash chain, so not verified</dd>` : ''}</dl>
-      <div class="row" style="margin-top:16px"><button class="btn primary" id="open" type="button">Open in HypGraph</button></div>
-      <p class="note">Not checked here: the standing (review state, support, at-risk) HypGraph shows is what the bundle was exported with. Re-derive it with <code>hypgraph verify --standing</code>.</p>`;
+      ${gaps.length ? `<p class="warn">${esc(t('Not covered (written before events hashed these fields): {list}.', { list: gaps.map(([f, n]) => `${f} ×${n}`).join(' · ') }))}</p>` : ''}
+      <dl class="kv"><dt>${esc(t('head'))}</dt><dd>${esc(v.head)}</dd><dt>${esc(t('nodes'))}</dt><dd>${v.nodes}</dd><dt>${esc(t('links'))}</dt><dd>${v.edges}</dd>
+        <dt>${esc(t('scope'))}</dt><dd>${esc(scopeName)}</dd>
+        <dt>${esc(t('derived views'))}</dt><dd>${esc(v.views === 'none' ? t('none: exported without them, so there is nothing to show beyond the rows') : t('checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)'))}</dd><dt>${esc(t('exported'))}</dt><dd>${esc(t('{at} by {who}', { at: b.exported_at || '—', who: b.generator || '—' }))}</dd>
+        <dt>${esc(t('investigations'))}</dt><dd>${invs.map((i) => esc(i.title)).join(' · ') || '—'}</dd>
+        ${b.telemetry ? `<dt>${esc(t('telemetry'))}</dt><dd>${esc(t('{n} events from the run, carried for replay — outside the hash chain, so not verified', { n: (b.telemetry.events || []).length }))}</dd>` : ''}</dl>
+      <div class="row" style="margin-top:16px"><button class="btn primary" id="open" type="button">${esc(t('Open in HypGraph'))}</button></div>
+      <p class="note">${t('Not checked here: the standing (review state, support, at-risk) HypGraph shows is what the bundle was exported with. Re-derive it with <code>hypgraph verify --standing</code>.')}</p>`;
     document.getElementById('open').addEventListener('click', () => {
       try { sessionStorage.setItem('hg-bundle', text); location.href = '../explore/?from=verify'; }
-      catch { res.insertAdjacentHTML('beforeend', '<p class="bad">This bundle is too large to hand over in this browser — open it with <code>hypgraph import</code> and <code>hypgraph serve</code>.</p>'); }
+      catch { res.insertAdjacentHTML('beforeend', `<p class="bad">${t('This bundle is too large to hand over in this browser — open it with <code>hypgraph import</code> and <code>hypgraph serve</code>.')}</p>`); }
     });
   }
   const file = document.getElementById('file'), drop = document.getElementById('drop');

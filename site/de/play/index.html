@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spielwiese — HypGraph</title>
+<meta name="description" content="Versuchen Sie, HypGraph eine Behauptung unterzujubeln. Die echte Engine, in Python, in Ihrem Browser.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.de.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/play/" data-rel="../../play/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/play/" data-rel="../../es/play/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/play/" data-rel="../../fr/play/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/play/" data-rel="../../de/play/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/play/" data-rel="../../zh-Hans/play/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/play/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Website"><a href="../agents/">Agenten</a><a href="../engineers/">Ingenieure</a><a href="../examples/">Beispiele</a><a href="../never/" class="hide-sm">Nie</a><a href="../#workflows" class="hide-sm">Workflows</a>
+    <a href="../play/" aria-current="page" class="hide-sm">Spielwiese</a><a href="../verify/" class="hide-sm">Verifizieren</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Sprache" title="Sprache">DE</summary><div class="langs-menu"><a href="../../play/" hreflang="en" lang="en">English</a><a href="../../es/play/" hreflang="es" lang="es">Español</a><a href="../../fr/play/" hreflang="fr" lang="fr">Français</a><a href="../../de/play/" hreflang="de" lang="de" aria-current="page">Deutsch</a><a href="../../zh-Hans/play/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Zwischen hell und dunkel wechseln">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Diese Seite ist eine Übersetzung. Maßgeblich ist die englische Fassung: <a href="../../play/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">Spielwiese</div>
+  <h1>Versuchen Sie, eine Behauptung durchzuschmuggeln.</h1>
+  <p>Das ist die echte Engine — dasselbe Python-Paket, das Sie mit <code>pip install</code> installieren würden — in Ihrem Browser, auf der Broad-Street-Untersuchung von 1854. Schreiben Sie eine Behauptung über Snows Ergebnisse und sehen Sie, was das Protokoll damit macht. Behauptungen werden auf Englisch geschrieben: Die Engine liest Englisch.</p></div></div>
+
+<div class="wrap" style="padding:28px 16px 80px">
+  <div class="card" id="boot" style="margin-bottom:18px">
+    <div class="row"><button class="btn primary" id="load" type="button">Die Engine laden</button>
+      <span class="note" id="bootmsg" style="margin:0">Python über Pyodide, beim ersten Mal etwa 10 MB, danach im Cache. Nichts wird irgendwohin gesendet.</span></div>
+  </div>
+
+  <div class="play">
+    <div class="card">
+      <h3 style="margin-top:0">Eine Behauptung schreiben</h3>
+      <div class="chips" aria-label="Beispiele">
+        <button class="chip" type="button" data-ex="always">„always“ (immer)</button>
+        <button class="chip" type="button" data-ex="invent">eine Zahl aus dem Nichts</button>
+        <button class="chip" type="button" data-ex="exclude">„rules out“ (schließt aus)</button>
+        <button class="chip" type="button" data-ex="nosupport">ohne Belege</button>
+        <button class="chip" type="button" data-ex="never">„never“ (nie), aus einer Zählung</button>
+        <button class="chip" type="button" data-ex="significant">„significantly“ (signifikant)</button>
+        <button class="chip" type="button" data-ex="honest">die ehrliche</button></div>
+      <div class="field"><label for="st">Aussage</label><textarea id="st" rows="3"></textarea></div>
+      <div class="field"><label for="sc">Geltungsbereich — wo sie gilt</label><textarea id="sc" rows="2"></textarea></div>
+      <div class="row" style="gap:12px">
+        <div class="field" style="flex:1;min-width:140px"><label for="kind">Art</label><select id="kind"><option>Befund</option><option>Ausschluss</option><option>nicht schlüssig</option><option>Hinweis</option><option>Konvention</option></select></div>
+        <div class="field" style="flex:2;min-width:200px"><label for="sup">Gestützt durch</label><select id="sup"><option value="">(nichts)</option></select></div>
+      </div>
+      <div class="field"><label for="ms">Messungen (JSON) — binden Sie jede Zahl an ein Ergebnisfeld</label><textarea id="ms" class="mono" rows="5" spellcheck="false"></textarea></div>
+      <button class="btn primary" id="test" type="button" disabled>Die Behauptung testen</button></div>
+    <div class="card">
+      <h3 style="margin-top:0">Was das Protokoll sagt</h3>
+      <div class="out" id="out"><span class="dim">Laden Sie die Engine und testen Sie dann eine Behauptung.</span></div>
+      <h3>Ergebnisse, die Sie zitieren können</h3>
+      <div class="out" id="res" style="min-height:0"><span class="dim">—</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">Oder schreiben Sie Python</h3>
+    <p class="note" style="margin-top:0"><code>g</code> ist der Graph und <code>inv</code> die Untersuchung. Alles aus dem <a href="../engineers/#connect">Leitfaden für Ingenieure</a> funktioniert hier.</p>
+    <div class="field"><textarea id="py" class="mono" rows="9" spellcheck="false">for n in g.subgraph(inv, types=["claim", "hypothesis", "decision"])["nodes"]:
+    print(n["code"], "—", n["state"]["sentence"])
+
+print()
+print(g.report(inv)["markdown"][:900])</textarea></div>
+    <div class="row"><button class="btn" id="run" type="button" disabled>Ausführen</button></div>
+    <div class="out" id="pyout" style="margin-top:12px"><span class="dim">Die Ausgabe erscheint hier.</span></div>
+  </div>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Glauben Sie dem Hype nicht. Prüfen Sie die Hypothese.</span>
+<span>Erstellt von <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · Format und Dokumentation CC BY 4.0 · <a href="../disclaimer/">Haftungsausschluss</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+<script>
+(() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
+  const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  let py = null;
+
+  const EX = {
+    always: { st: 'Water from the Broad Street pump always caused cholera.', sc: 'The Golden Square outbreak, September 1854.', kind: 'finding', sup: 'RS2', ms: [] },
+    invent: { st: 'Southwark and Vauxhall houses died at ten times the Lambeth rate.', sc: 'South London, the first seven weeks of the 1854 epidemic.', kind: 'finding', sup: 'RS5', ms: [] },
+    exclude: { st: 'The company comparison rules out the miasma theory.', sc: 'South London, the 1854 epidemic.', kind: 'exclusion', sup: 'RS5', ms: [] },
+    nosupport: { st: 'Cleaning the sewers would have stopped the outbreak.', sc: '', kind: 'finding', sup: '', ms: [] },
+    never: { st: 'The workhouse well never spread cholera.', sc: 'The Poland Street workhouse, Golden Square outbreak, September 1854.', kind: 'finding', sup: 'RS2',
+      ms: [{ name: 'workhouse deaths', result: 'RS2', key: 'workhouse', k: 5, n: 535 }] },
+    significant: { st: 'Southwark and Vauxhall houses died at a significantly higher rate than Lambeth houses.',
+      sc: 'South London, the first seven weeks of the 1854 epidemic, deaths per house by water company.', kind: 'finding', sup: 'RS5',
+      ms: [{ name: 'S&V', result: 'RS5', key: 'southwark_vauxhall', k: 1263, n: 40046 }, { name: 'Lambeth', result: 'RS5', key: 'lambeth', k: 98, n: 26107 }] },
+    honest: { st: 'Lambeth houses had 37 cholera deaths per 10,000 against 315 for Southwark and Vauxhall.',
+      sc: 'South London, the first seven weeks of the 1854 epidemic, deaths per 10,000 houses by water company.', kind: 'finding', sup: 'RS5',
+      ms: [{ name: 'Lambeth', result: 'RS5', key: 'lambeth_per_10000', value: 37 }, { name: 'S&V', result: 'RS5', key: 'sv_per_10000', value: 315 }] },
+  };
+  function fill(k) {
+    const e = EX[k]; $('st').value = e.st; $('sc').value = e.sc; $('kind').value = e.kind;
+    $('ms').value = JSON.stringify(e.ms, null, 1); if ([...$('sup').options].some((o) => o.value === e.sup)) $('sup').value = e.sup;
+  }
+  document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => fill(b.dataset.ex)));
+  fill('always');
+
+  async function boot() {
+    $('load').disabled = true;
+    const msg = (t) => { $('bootmsg').textContent = t; };
+    try {
+      msg(t('Loading Python…'));
+      await new Promise((ok, fail) => { const s = document.createElement('script'); s.src = PYODIDE + 'pyodide.js'; s.onload = ok; s.onerror = () => fail(new Error('could not load Pyodide')); document.head.appendChild(s); });
+      py = await loadPyodide({ indexURL: PYODIDE });
+      msg(t('Loading sqlite3…'));
+      await py.loadPackage('sqlite3');
+      msg(t('Loading the hypgraph engine…'));
+      const man = await (await fetch('../../py/manifest.json')).json();
+      for (const f of man.files) {
+        const text = await (await fetch('../../py/' + f)).text();
+        const path = '/home/pyodide/lib/' + f;
+        py.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));
+        py.FS.writeFile(path, text);
+      }
+      await py.runPythonAsync(`
+import sys, io, json, contextlib
+sys.path.insert(0, "/home/pyodide/lib")
+import hypgraph
+from hypgraph import GraphError
+from hypgraph.demos import broad_street
+g, inv, story = broad_street.build()
+
+def _results():
+    return json.dumps([{"code": n["code"], "title": n["title"], "values": g.get(n["id"])["body"].get("values", {})}
+                       for n in g.search(type="result", inv=inv, limit=100)])
+
+def _try_claim(spec):
+    spec = json.loads(spec)
+    links = [{"rel": "supports", "from": g.resolve(spec["sup"], inv), "why": "This result is the evidence the claim rests on."}] if spec["sup"] else []
+    fields = {k: v for k, v in spec["fields"].items() if v not in ("", [], None)}
+    try:
+        n = g.create(author="you", type="claim", inv=inv, fields=fields, links=links)
+        return json.dumps({"ok": True, "code": n["code"], "sentence": n["state"]["sentence"]})
+    except GraphError as e:
+        return json.dumps({"ok": False, "error": str(e)})
+
+def _run(code):
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(code, {"g": g, "inv": inv, "hypgraph": hypgraph})
+    except Exception as e:
+        buf.write(f"\\n{type(e).__name__}: {e}")
+    return buf.getvalue()
+`);
+      const rs = JSON.parse(py.globals.get('_results')());
+      $('sup').innerHTML = `<option value="">${esc(t('(nothing)'))}</option>` + rs.map((r) => `<option value="${esc(r.code)}">${esc(r.code)} — ${esc(r.title.slice(0, 60))}</option>`).join('');
+      $('res').innerHTML = rs.map((r) => `<b>${esc(r.code)}</b> ${esc(r.title)}${Object.keys(r.values).length ? `\n  <span class="dim">${esc(t('values:'))} ${esc(JSON.stringify(r.values))}</span>` : ''}`).join('\n\n');
+      fill('always');
+      msg(t('Engine ready: hypgraph {v} on Python {py}, in your browser.', { v: py.runPython('hypgraph.__version__'), py: py.runPython('import sys; sys.version.split()[0]') }));
+      $('test').disabled = false; $('run').disabled = false;
+      $('out').innerHTML = `<span class="dim">${esc(t('Pick an example above, or write your own, and test it.'))}</span>`;
+    } catch (e) {
+      msg(t('Could not load the engine: {e} — try again, or pip install hypgraph.', { e: e.message })); $('load').disabled = false;
+    }
+  }
+  $('load').addEventListener('click', boot);
+
+  $('test').addEventListener('click', () => {
+    let ms;
+    try { ms = JSON.parse($('ms').value || '[]'); } catch (e) { $('out').innerHTML = `<span class="x">${esc(t('Measurements must be JSON: {e}', { e: e.message }))}</span>`; return; }
+    const spec = { sup: $('sup').value, fields: { statement: $('st').value, scope: $('sc').value, kind: $('kind').value, measurements: ms } };
+    const r = JSON.parse(py.globals.get('_try_claim')(JSON.stringify(spec)));
+    $('out').innerHTML = r.ok
+      ? `<span class="ok">${esc(t('✓ Added {code}', { code: r.code }))}</span>\n${esc(r.sentence)}\n\n<span class="dim">${esc(t('It\'s in the record — unchecked until a reviewer who isn\'t you checks it.'))}</span>`
+      : `<span class="x">${esc(t('✗ Refused'))}</span>\n${esc(r.error)}`;
+  });
+  $('run').addEventListener('click', () => { $('pyout').textContent = py.globals.get('_run')($('py').value) || t('(no output)'); });
+})();
+</script>
+</body>
+</html>
