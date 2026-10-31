@@ -9,6 +9,8 @@
   order to start with `my_work()`, and that a blind order's sealed tools are expected, not an error.
 - **GitHub Releases.** The release job creates one for each tag after PyPI has the files: the changelog's section,
   how to install, and where to check provenance (`dev/release_notes.py`, which you can run to preview).
+- **[docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md):** the pre-launch review's findings, what was fixed and
+  tested, the limitations accepted, what is deferred, and the recommendation (conditional go).
 - **pyflakes in CI** (`ruff check`, rules `F` only): undefined names and dead imports, not style. Five unused imports
   and one unused variable removed.
 
