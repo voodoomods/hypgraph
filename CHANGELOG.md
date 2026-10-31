@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.14 — 2026-10-31: the verifier trusts its caller's policy, and derived screens say they are as exported
 
 - **The verifier trusts its caller's policy, not the bundle's.** A re-audit of 0.7.13 found that the bundle and
   browser verifiers took the importer's name from the bundle's `policy`, which the chain doesn't cover. Older events
