@@ -20,6 +20,9 @@ The conditions are small, and the limitations below are documented where a user 
 3. Make the `ui`, `install` and `lint` jobs required checks in the `protect main` ruleset. Today only the 12 `test`
    jobs are required. This is a repository setting, so it's the operator's call.
 
+**Where the conditions stand.** 1: #59, #60 and #61 are merged, each with green CI; on main after the merges the
+suite is 343 passed. 2: released as 0.7.12. 3: open, for the operator.
+
 ## What was reviewed
 
 The threat model is in [SECURITY.md](../SECURITY.md):
