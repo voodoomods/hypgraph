@@ -1,6 +1,7 @@
 """Blind work orders: a checker measures without seeing the answer it checks, and the record says which results
 were written blind (blind.py)."""
 import asyncio
+import re
 from datetime import datetime, timedelta
 
 import pytest
@@ -34,6 +35,11 @@ def env():
 
 
 OBJECTIVE = "Count the primes below 10,000 by a method of your own, and record the count and the largest one."
+
+
+def leaks(x, *numbers: str) -> bool:
+    """A sealed number shown as a number: not the same digits inside a random id or hash (n08999 9973 4a06)."""
+    return any(re.search(rf"(?<![0-9A-Za-z]){n}(?![0-9A-Za-z])", str(x)) for n in numbers)
 
 
 def issue(g, inv, **kw):
@@ -77,7 +83,7 @@ def test_the_order_and_the_reads_are_sealed_from_the_checker(env):
     assert v.scrub("H1 says 1,229 and 9973 below 10,000") == "H1 says [sealed] and [sealed] below 10,000"
     sub = v.apply(g.subgraph(inv))
     sealed = [n for n in sub["nodes"] if n["id"] in (h1, rs1)]
-    assert sealed and all(n["title"].startswith("sealed until") and "1229" not in str(n) for n in sealed)
+    assert sealed and all(n["title"].startswith("sealed until") and not leaks(n, "1229") for n in sealed)
     assert v.search(g.search("1229")) == []
     assert not B.view_for_author(g.snapshot(), "lead")                       # nothing is sealed from the lead
 
@@ -89,7 +95,7 @@ def test_written_blind_then_compared_after_return(env):
     st = g.state(rs2)
     assert st["blind"] == o["code"] and st["sealed"] and "agrees_blind" not in st and "restates" not in st
     assert "written blind under" in st["sentence"] and "sealed until it is returned" in st["sentence"]
-    assert "1229" not in str(B.view_for_author(g.snapshot(), "checker").apply(g.get(rs2)["state"]))
+    assert not leaks(B.view_for_author(g.snapshot(), "checker").apply(g.get(rs2)["state"]), "1229")
     g.return_work(author="checker", order=o["order"], note="Counted by trial division.")
     assert not B.view_for_author(g.snapshot(), "checker")                    # returned: the seal lifts
     st = g.state(rs2)
@@ -129,7 +135,7 @@ def test_http_reads_for_a_reader_that_owns_nothing(env):
     status, out = B.dispatch(g, "GET", "/report", query={"inv": [inv]})
     assert status == 409 and o["code"] in out["detail"]
     status, out = B.dispatch(g, "GET", "/subgraph", query={"inv": [inv]})
-    assert status == 200 and "1229" not in str(out) and "9973" not in str(out)
+    assert status == 200 and not leaks(out, "1229", "9973")
     status, out = B.dispatch(g, "GET", "/search", query={"text": ["sieve"]})
     assert status == 200 and out["results"] == []
     status, out = B.dispatch(g, "GET", f"/order/{o['order']}")
