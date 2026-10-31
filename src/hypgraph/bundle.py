@@ -241,13 +241,14 @@ def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
     problem = _scope_problem(b, tables, red)
     if problem:
         return {"ok": False, "problem": problem}
-    problem = _derived_problem(b, tables)
+    historical: list = []
+    problem = _derived_problem(b, tables, historical)
     if problem:
         return {"ok": False, "problem": f"the derived views contradict the verified record: {problem}"}
     out = {"ok": True, "checked": checked, "head": prev, "complete": red == 0, "redacted": red,
            "nodes": len(tables["nodes"]), "edges": len(tables["edges"]), "unchecked": rows["unchecked"],
            "coverage": "complete" if not rows["unchecked"] and not red else "partial",
-           "views": "none" if b.get("derived") is None else "checked",
+           "views": "none" if b.get("derived") is None else "historical" if historical else "checked",
            "policy": {"trusted": sorted(policy or {}), "importer": importer},
            "standing": {"checked": False, "note": STANDING_NOTE}}
     notes = []
@@ -259,9 +260,19 @@ def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
     if stated != importer:
         notes.append(f"The bundle names {stated} as its importer; the chain doesn't cover that, so {importer} was "
                      "used.")
+    if historical:
+        notes.append(_historical_note(historical))
     if notes:
         out["warning"] = " ".join(notes)
     return out
+
+
+def _historical_note(historical: list) -> str:
+    shown = "; ".join(f"{name} shown {s}, the current rule makes it {w}" for name, s, w in historical[:8])
+    more = f"; and {len(historical) - 8} more" if len(historical) > 8 else ""
+    return (f"The views are not checked: {len(historical)} lifecycle(s) follow hypgraph 0.3's rule, not the current "
+            f"one ({shown}{more}). A bundle exported by 0.3 shows them so, but the chain doesn't record which version "
+            "exported a bundle, so this can't be told from an edited view. Go by the current rule.")
 
 
 def _j(v: Any) -> str:
@@ -316,12 +327,17 @@ def _eid(v: Any) -> int | None:
     return int(v)
 
 
-def _derived_problem(b: dict, tables: dict) -> str:
+def _derived_problem(b: dict, tables: dict, historical: list | None = None) -> str:
     """The derived views are presentation, but a viewer shows them beside a verified chain: every fact in them that
     the rows fix — which investigations there are, which nodes and live links each has, each node's type, code,
     author, time, version, title and lifecycle, each link's ends and fields — must be present and agree with the
     verified rows. A view that leaves a fact out fails: a viewer would fill the gap with a default (a withdrawn claim
-    shown as active). The rest of standing can't be checked this way."""
+    shown as active). The rest of standing can't be checked this way.
+
+    A lifecycle is checked against the current rule only. One that matches only 0.3's rule (the end of a chain of
+    replacements shown active) is no problem — a 0.3 export shows it so — but it isn't checked either: the chain
+    doesn't record which version exported a bundle, so it can't be told from an edited view. Each such node goes on
+    ``historical`` as (name, shown, current), and the bundle's views are reported as historical, not checked."""
     d = b.get("derived")
     if d is None:
         return ""
@@ -373,13 +389,16 @@ def _derived_problem(b: dict, tables: dict) -> str:
         st = x.get("state")
         if not isinstance(st, dict) or "lifecycle" not in st:
             return f"{where} shows {name} without its lifecycle"
-        w = lifecycle(n["id"], True)
-        allowed = {w, lifecycle(n["id"], False)}
-        if scope and n["id"] not in withdrawn:
-            allowed.add("superseded")   # a scoped bundle leaves out links to other investigations: one may replace it
-        if st["lifecycle"] not in allowed:
-            return f"{where} shows {name} as {_j(st['lifecycle'])}; the record makes it {_j(w)}"
-        return ""
+        w, shown = lifecycle(n["id"], True), st["lifecycle"]
+        if shown == w:
+            return ""
+        if scope and n["id"] not in withdrawn and shown == "superseded":
+            return ""   # a scoped bundle leaves out links to other investigations: one may replace it
+        if shown == lifecycle(n["id"], False):
+            if historical is not None and (name, shown, w) not in historical:
+                historical.append((name, shown, w))
+            return ""
+        return f"{where} shows {name} as {_j(shown)}; the record makes it {_j(w)}"
     by_inv = d.get("by_inv")
     if not isinstance(by_inv, dict) or set(by_inv) != invs:
         return "the views don't cover the record's investigations"
