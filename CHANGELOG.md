@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- **The verifier trusts its caller's policy, not the bundle's.** A re-audit of 0.7.13 found that the bundle and
+  browser verifiers took the importer's name from the bundle's `policy`, which the chain doesn't cover. Older events
+  don't vouch for the author of a node the importer wrote, so naming a historical writer the importer let an edited
+  bundle re-attribute that writer's nodes, and it still verified against the published head. Now the default
+  importer is used unless the caller supplies a policy (`hypgraph verify --policy FILE` / `--importer NAME`,
+  `verify_bundle(b, policy=…)`, `verifyBundle(b, head, {policy})`); every supplied field must match the bundle's, and a
+  different stated importer is reported. `--standing` derives under the supplied policy and names the fields it took
+  from the bundle on trust (`tests/test_verify_trust.py`).
+- **Coverage is stated at the top.** Every result says `coverage: complete` or `partial` (fields no event vouched
+  for, or redacted events); the CLI prints it, and the explorer shows a *partial coverage* badge.
+- **Reports, stages and work orders are labelled as exported.** The explorer's Overview, Pipeline, Evidence, Work
+  orders and Report screens say, for a bundle, that what they show is as exported and not verified, and how to
+  re-derive it; the Report's subtitle no longer says its interpretation is checked. `dev/ui_smoke.py` fails a bundle
+  view that drops the label.
+- **Sequence numbers must run 1 to n**, in bundles and graph files: they aren't hashed, so a relabelled or gapped log
+  now fails.
+
 ## 0.7.13 — 2026-10-31: verification checks every row, and examples for agent frameworks
 
 - **Verification checks every row, both ways.** A pre-launch audit found that `verify_bundle`, `verify_file` and

@@ -155,26 +155,46 @@ def anchored(res: dict, head: str) -> dict:
     return {**res, "anchored": True}
 
 
-def verify_bundle(b: dict, head: str = "", *, standing: bool = False) -> dict:
+def verify_bundle(b: dict, head: str = "", *, standing: bool = False, policy: dict | None = None) -> dict:
     """Check a bundle string-for-string: the chain; then the rows against the events, both ways (every row written by
     an event, every event's row present, every recorded field equal); then the derived views against those rows. With
     ``head``, also that the chain ends at that published head (see ``anchored``). With ``standing``, re-derive the
-    standing from the verified rows and compare it with what the bundle carries (``rederive``)."""
-    res = anchored(_verify_bundle(b), head)
+    standing from the verified rows and compare it with what the bundle carries (``rederive``).
+
+    The bundle's ``policy`` is not covered by the chain, so it is never trusted: whoever edits the bundle could name
+    any author the importer and so loosen what older events vouch for. ``policy`` is what the verifier trusts instead
+    (a dict of Policy fields, e.g. ``{"importer": "importer"}``, from the record's publisher or host). Every field
+    given must equal the bundle's stated one; the importer defaults to the default policy's. ``coverage`` says whether
+    every row field was vouched for by its event ("complete") or not ("partial": see ``unchecked``, ``redacted``)."""
+    res = anchored(_verify_bundle(b, policy), head)
     if standing and res.get("ok"):
-        res = {**res, "standing": rederive(b)}
+        res = {**res, "standing": rederive(b, policy)}
         if res["standing"].get("problem"):
             res = {**res, "ok": False, "problem": res["standing"]["problem"]}
     return res
+
+
+def _policy_problem(b: dict, policy: dict | None) -> str:
+    """A field the caller trusts that the bundle states otherwise."""
+    from .policy import Policy
+    stated = Policy.from_dict(b.get("policy") or {}).to_dict()
+    for k, v in (policy or {}).items():
+        want = Policy.from_dict({k: v}).to_dict().get(k)
+        if k in stated and stated[k] != want:
+            return f"the bundle states {k} {_j(stated[k])}; the policy you trust has {_j(want)}"
+    return ""
 
 
 STANDING_NOTE = ("standing (review state, support, at-risk, the sentence) is what the exporting engine derived: the "
                  "chain doesn't cover it. Re-derive it from the verified rows with `hypgraph verify --standing`.")
 
 
-def _verify_bundle(b: dict) -> dict:
+def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
     if not isinstance(b, dict) or b.get("format") != BUNDLE_FORMAT:
         return {"ok": False, "problem": f"not a {BUNDLE_FORMAT} bundle"}
+    problem = _policy_problem(b, policy)
+    if problem:
+        return {"ok": False, "problem": problem}
     prev, checked, red, seqs = GENESIS, 0, 0, set()
     events: list[dict] = []
     for ev in sorted(b.get("events") or [], key=lambda e: e["seq"]):
@@ -193,22 +213,36 @@ def _verify_bundle(b: dict) -> dict:
             return {"ok": False, "broken_at": ev["seq"], "problem": "chain broken (prev does not match)"}
         prev, checked = ev["hash"], checked + 1
         events.append(body)
+    if sorted(seqs) != list(range(1, len(seqs) + 1)):
+        return {"ok": False, "problem": "the events aren't numbered 1 to n: sequence numbers were changed, or events "
+                                        "dropped from the start or the middle"}
     if b.get("head") and b["head"] != prev:
         return {"ok": False, "problem": "the chain does not end at the bundle's head"}
     tables = {t: b.get(t) or [] for t in ROW_TABLES}
-    rows = check_rows(events, tables, importer=str((b.get("policy") or {}).get("importer") or "importer"))
+    importer = str((policy or {}).get("importer") or "importer")
+    stated = str((b.get("policy") or {}).get("importer") or "importer")
+    rows = check_rows(events, tables, importer=importer)
     if "problem" in rows:
-        return {"ok": False, "problem": rows["problem"]}
+        hint = (f" (the bundle names {stated} as its importer, which the chain doesn't cover; if you trust that, "
+                f"verify with --importer {stated})" if stated != importer else "")
+        return {"ok": False, "problem": rows["problem"] + hint}
     problem = _derived_problem(b, tables)
     if problem:
         return {"ok": False, "problem": f"the derived views contradict the verified record: {problem}"}
     out = {"ok": True, "checked": checked, "head": prev, "complete": red == 0, "redacted": red,
            "nodes": len(tables["nodes"]), "edges": len(tables["edges"]), "unchecked": rows["unchecked"],
+           "coverage": "complete" if not rows["unchecked"] and not red else "partial",
+           "policy": {"trusted": sorted(policy or {}), "importer": importer},
            "standing": {"checked": False, "note": STANDING_NOTE}}
+    notes = []
     if red:
-        out["warning"] = (f"{red} event(s) outside this investigation are redacted: their content can't be checked, so "
-                          "a change hidden among them (a withdrawal, say) would not show. The full record rules that "
-                          "out.")
+        notes.append(f"{red} event(s) outside this investigation are redacted: their content can't be checked, so a "
+                     "change hidden among them (a withdrawal, say) would not show. The full record rules that out.")
+    if stated != importer:
+        notes.append(f"The bundle names {stated} as its importer; the chain doesn't cover that, so {importer} was "
+                     "used.")
+    if notes:
+        out["warning"] = " ".join(notes)
     return out
 
 
@@ -294,11 +328,12 @@ def _derived_problem(b: dict, tables: dict) -> str:
     return ""
 
 
-def rederive(b: dict) -> dict:
+def rederive(b: dict, policy: dict | None = None) -> dict:
     """Replay a complete bundle in memory and derive the standing again, at the time it was derived, with this
     engine: {"checked": True} when it matches what the bundle carries, a "problem" when it doesn't. Standing rules
     change between releases, so only a bundle exported by this version can be compared; others are reported as not
-    checked."""
+    checked. The policy is the bundle's stated one with every field of ``policy`` (the caller's, trusted) over it; the
+    result names the fields that were only as stated (``policy_as_stated``): the chain doesn't cover them."""
     from .graph import Graph
     from .policy import Policy
     d = b.get("derived")
@@ -310,7 +345,7 @@ def rederive(b: dict) -> dict:
     if b.get("redacted_events") or any(e.get("redacted") for e in b.get("events") or []):
         return {"checked": False, "note": "a scoped bundle can't be replayed; re-derive from the full record"}
     at = str(d.get("at") or b.get("exported_at") or now())
-    g = Graph(None, policy=Policy.from_dict(b.get("policy") or {}), clock=lambda: at)
+    g = Graph(None, policy=Policy.from_dict({**(b.get("policy") or {}), **(policy or {})}), clock=lambda: at)
     load(g, b)
     fresh = json.loads(json.dumps(derive_views(g, list(d.get("by_inv") or {})), sort_keys=True))
     old = json.loads(json.dumps(d, sort_keys=True))
@@ -322,7 +357,7 @@ def rederive(b: dict) -> dict:
                               if (fresh[k].get(i) or {}).get(view) != old[k][i][view]), k)
             return {"checked": False, "problem": f"the standing the bundle carries differs from what its record "
                                                  f"derives ({where})"}
-    return {"checked": True}
+    return {"checked": True, "policy_as_stated": sorted(set(Policy().to_dict()) - set(policy or {}))}
 
 
 def load(g: "Graph", b: dict) -> None:

@@ -16,6 +16,13 @@ was taken from a changelog without being checked against the code.*
 > hypswarm, hypmesh and hypdmz pass on it. Released as 0.7.13. The required-checks setting (condition 3 below) is
 > still open, for the operator.
 
+> **Re-audit of 0.7.13 (2026-10-31).** Confirmed: the deletion and field defects are closed. Two gaps remained, both
+> reproduced and both fixed for 0.7.14: the verifier took the importer from the bundle's own (unhashed) policy, which
+> let an edited legacy bundle re-attribute a historical writer's nodes against the published head; and reports,
+> stages and work-order status were shown beside the verified badge without saying they are as exported. Sequence
+> numbers must now run 1 to n. Tests: `tests/test_verify_trust.py`, `dev/ui_smoke.py`. The required-checks setting is
+> still open, for the operator.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one

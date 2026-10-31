@@ -46,6 +46,9 @@
         the exporting engine derived; re-derive it from the verified rows with <code>hypgraph verify --standing</code>.
         Records written before 0.7.13 didn't hash a few row fields into their events (a link's reason, say); the result
         lists those as <i>not covered</i>.</li>
+      <li><b>Doesn't trust the bundle's own policy</b> (who the importer and reviewers are): the chain doesn't cover it,
+        so this page uses the default importer and says when the bundle names another. To check under the policy its
+        publisher states, use <code>hypgraph verify --policy policy.json</code> (or <code>--importer NAME</code>).</li>
       <li><b>Doesn't prove on its own:</b> that the whole record wasn't rebuilt from scratch. For that, paste the
         <b>head</b> hash published at the time (in a paper, a preregistration, a repository tag) above.</li>
       <li><b>Scoped bundles</b> (one investigation out of a shared record) redact the events outside it. Those can't be
@@ -75,7 +78,7 @@
     }
     const invs = (b.derived && b.derived.investigations) || [];
     const gaps = Object.entries(v.unchecked || {});
-    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">✓ ${esc(name)}: ${v.checked} events verified${v.complete ? '' : ' (scoped)'}${v.anchored ? ' · anchored' : ''}</div>
+    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">✓ ${esc(name)}: ${v.checked} events verified${v.complete ? '' : ' (scoped)'}${v.anchored ? ' · anchored' : ''}${v.coverage === 'partial' ? ' · partial coverage' : ''}</div>
       <p>The chain is intact, every row matches the event that wrote it, and every event's row is present.${v.anchored ? ' It ends at the head you pasted.' : ''} Checked in your browser in ${ms} ms.</p>
       ${v.warning ? `<p class="warn">${esc(v.warning)}</p>` : ''}
       ${gaps.length ? `<p class="warn">Not covered (written before events hashed these fields): ${gaps.map(([f, n]) => `${esc(f)} ×${n}`).join(' · ')}.</p>` : ''}
