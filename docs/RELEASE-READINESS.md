@@ -22,6 +22,9 @@ was taken from a changelog without being checked against the code.*
 > stages and work-order status were shown beside the verified badge without saying they are as exported. Sequence
 > numbers must now run 1 to n. Tests: `tests/test_verify_trust.py`, `dev/ui_smoke.py`. The required-checks setting is
 > still open, for the operator.
+>
+> **Where that stands.** #68 is merged with green CI (17 of 17 checks); the suite is 399 passed, and hypswarm and
+> hypmesh pass on it. Released as 0.7.14.
 
 > **Re-audit of 0.7.14 (2026-10-31).** Confirmed and fixed for 0.7.15: derived facts were compared only when present,
 > so deleting a withdrawn claim's `state.lifecycle` (or its `state`) still verified as complete and the explorer showed
@@ -31,8 +34,8 @@ was taken from a changelog without being checked against the code.*
 > unknown. Tests: `tests/test_verify_views.py`. The required checks and the repository's About metadata are still the
 > operator's.
 >
-> **Where that stands.** #68 is merged with green CI (17 of 17 checks); the suite is 399 passed, and hypswarm and
-> hypmesh pass on it. Released as 0.7.14.
+> **Where that stands.** #70 is merged with green CI (17 of 17 checks); the suite is 406 passed, and hypswarm and
+> hypmesh pass on it. Released as 0.7.15.
 
 ## Recommendation: CONDITIONAL GO
 
