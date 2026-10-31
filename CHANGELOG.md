@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.13 — 2026-10-31: verification checks every row, and examples for agent frameworks
 
 - **Verification checks every row, both ways.** A pre-launch audit found that `verify_bundle`, `verify_file` and
   the browser's `verifyBundle` only checked that each row present matched an event. A bundle or graph file with a

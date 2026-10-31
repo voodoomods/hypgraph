@@ -11,6 +11,10 @@ was taken from a changelog without being checked against the code.*
 > Python, SQLite and browser verifiers, events that hash every row field, derived views checked against the rows,
 > standing reported as not covered) is in the pull request that adds `tests/test_verify_complete.py`, and ships as
 > 0.7.13. The recommendation stands again once that is merged with green CI and released.
+>
+> **Where that stands.** #66 is merged with green CI (17 of 17 checks); on main the suite is 386 passed, and
+> hypswarm, hypmesh and hypdmz pass on it. Released as 0.7.13. The required-checks setting (condition 3 below) is
+> still open, for the operator.
 
 ## Recommendation: CONDITIONAL GO
 
