@@ -232,8 +232,30 @@
 
   /** Check a bundle in the browser: the chain, then the rows against the events both ways, then the derived views
    *  against the rows. Standing isn't covered (see STANDING_NOTE). With `head`, also that the chain ends at it. */
-  async function verifyBundle(b, head = '') {
+  // the bundle's policy isn't covered by the chain: the verifier trusts only what its caller supplies (bundle.py)
+  const POLICY_DEFAULT = { reviewers: [], instrument: 'lab', operator: 'operator', importer: 'importer', system: 'system',
+    max_creates_per_minute: 60, extra_reserved: [] };
+  const normPolicy = (p) => {
+    const o = { ...POLICY_DEFAULT };
+    for (const k of Object.keys(o)) if (p && p[k] !== undefined) o[k] = p[k];
+    for (const k of ['reviewers', 'extra_reserved']) o[k] = [...new Set(o[k] || [])].sort();
+    return o;
+  };
+  function policyProblem(b, policy) {
+    const stated = normPolicy(b.policy || {});
+    for (const k of Object.keys(policy || {})) {
+      if (!(k in stated)) continue;
+      const want = normPolicy({ [k]: policy[k] })[k];
+      if (!same(stated[k], want)) return `the bundle states ${k} ${JSON.stringify(stated[k])}; the policy you trust has ${JSON.stringify(want)}`;
+    }
+    return '';
+  }
+
+  async function verifyBundle(b, head = '', opts = {}) {
     if (!b || b.format !== 'hypgraph/1-bundle') return { ok: false, problem: 'not a hypgraph/1-bundle' };
+    const policy = opts.policy || null;
+    const pp = policyProblem(b, policy);
+    if (pp) return { ok: false, problem: pp };
     let prev = '0'.repeat(64), checked = 0, red = 0;
     const events = [], seqs = new Set();
     for (const ev of [...(b.events || [])].sort((x, y) => x.seq - y.seq)) {
@@ -249,15 +271,23 @@
       prev = ev.hash; checked += 1;
       events.push(body);
     }
+    const order = [...seqs].sort((x, y) => x - y);
+    if (!order.every((q, i) => q === i + 1)) return { ok: false, problem: "the events aren't numbered 1 to n: sequence numbers were changed, or events dropped from the start or the middle" };
     if (b.head && b.head !== prev) return { ok: false, problem: "the chain does not end at the bundle's head" };
     const tables = Object.fromEntries(ROW_TABLES.map((t) => [t, b[t] || []]));
-    const rows = await checkRows(events, tables, String((b.policy || {}).importer || 'importer'));
-    if (rows.problem) return { ok: false, problem: rows.problem };
+    const importer = String((policy || {}).importer || 'importer'), stated = String((b.policy || {}).importer || 'importer');
+    const rows = await checkRows(events, tables, importer);
+    if (rows.problem) return { ok: false, problem: rows.problem + (stated !== importer ? ` (the bundle names ${stated} as its importer, which the chain doesn't cover; if you trust that, verify with --importer ${stated})` : '') };
     const dp = derivedProblem(b, tables);
     if (dp) return { ok: false, problem: `the derived views contradict the verified record: ${dp}` };
+    const partial = Object.keys(rows.unchecked).length > 0 || red > 0;
     const out = { ok: true, checked, head: prev, complete: red === 0, redacted: red, nodes: tables.nodes.length,
-      edges: tables.edges.length, unchecked: rows.unchecked, standing: { checked: false, note: STANDING_NOTE } };
-    if (red) out.warning = `${red} event(s) outside this investigation are redacted: their content can't be checked.`;
+      edges: tables.edges.length, unchecked: rows.unchecked, coverage: partial ? 'partial' : 'complete',
+      policy: { trusted: Object.keys(policy || {}).sort(), importer }, standing: { checked: false, note: STANDING_NOTE } };
+    const notes = [];
+    if (red) notes.push(`${red} event(s) outside this investigation are redacted: their content can't be checked, so a change hidden among them (a withdrawal, say) would not show. The full record rules that out.`);
+    if (stated !== importer) notes.push(`The bundle names ${stated} as its importer; the chain doesn't cover that, so ${importer} was used.`);
+    if (notes.length) out.warning = notes.join(' ');
     return anchored(out, head);
   }
 
@@ -571,6 +601,7 @@
         (m.pid ? `<span class="pill accent" title="${esc(m.profile.about || '')}">${esc(m.pid)}</span>` : '<span class="pill neutral">no profile</span>');
       const v = m.verify;
       $('#hg-chain').innerHTML = !v ? '' : v.ok ? `<span class="pill ok" title="hash chain and every row re-verified: ${v.checked} events, head ${esc(String(v.head || '').slice(0, 12))}…">⛓ verified · ${v.checked}</span>` +
+          (v.coverage === 'partial' ? ` <span class="pill warn" title="${esc('Not every row field is vouched for by its event' + (Object.keys(v.unchecked || {}).length ? ': ' + Object.entries(v.unchecked || {}).map(([f, n]) => `${f} ×${n}`).join(', ') : '') + (v.redacted ? `; ${v.redacted} event(s) outside this investigation are redacted` : ''))}">partial coverage</span>` : '') +
           (v.standing && !v.standing.checked ? ` <span class="pill neutral" title="${esc(v.standing.note || '')}">standing as exported</span>` : '')
         : `<span class="pill bad" title="${esc(v.problem || '')}">⛓ does not verify${v.broken_at ? ' at #' + v.broken_at : ''}</span>`;
       const s = !live ? '' : S.stream === 'live' ? '<span class="pill ok"><span class="d"></span>live</span>'
@@ -578,6 +609,11 @@
         : S.stream === 'reconnecting' ? '<span class="pill warn">reconnecting</span>' : S.stream === 'offline' ? '<span class="pill bad">offline</span>' : '';
       $('#hg-status').innerHTML = s;
     }
+    // a bundle's standing, stages, orders and report are what its exporter derived: the chain covers the rows, not these
+    const asExported = (what) => {
+      const v = S.m && S.m.verify;
+      return v && v.ok && v.standing && !v.standing.checked ? `<div class="note" data-exported>${what} as exported with the bundle, not verified: the chain covers the record's rows, not what an engine derived from them. Re-derive it with <code>hypgraph verify --standing</code>.</div>` : '';
+    };
     const head = (h, p, acts = '') => `<div class="head"><div><h1>${h}</h1>${p ? `<p>${p}</p>` : ''}</div>${acts ? `<div class="acts">${acts}</div>` : ''}</div>`;
 
     // ── stage helpers ──
@@ -787,7 +823,7 @@
           : ['Spend', '—', 'not metered', '']];
       const stagesBy = new Map((m.stages || []).map((x) => [x.code, x]));
       const wf = m.profile.workflow;
-      return head(esc(m.title), esc(m.objective), comp ? `<span class="pill ${comp.complete ? 'ok' : 'warn'}"><span class="d"></span>${comp.complete ? 'Complete' : 'In progress'}</span>` : '') +
+      return head(esc(m.title), esc(m.objective), comp ? `<span class="pill ${comp.complete ? 'ok' : 'warn'}"><span class="d"></span>${comp.complete ? 'Complete' : 'In progress'}</span>` : '') + asExported('Completion and the counts below are') +
         `<div class="grid kpis">${kp.map(([k, v, s, c]) => `<div class="card kpi ${c}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>
         <div class="grid two" style="margin-top:14px">
           <div class="card"><h3>${esc(m.L('question'))}s ${wf ? `<span class="sub">through the ${esc(m.profile.name)} workflow · ${wf.stages.map((s) => esc(s.name)).join(' → ')}</span>` : ''}</h3>
@@ -812,7 +848,7 @@
       if (!m.stages) return head('Pipeline', '') + '<div class="note warn">This host doesn\'t serve the workflow stages (<code>/api/graph/stages</code>, hypgraph ≥ 0.5).</div>';
       const stages = wf.stages, cols = `56px repeat(${stages.length}, minmax(120px, 1fr))`;
       const qs = new Map((m.board || []).map((q) => [q.code, q]));
-      return head('Pipeline', `Each ${esc(m.L('question').toLowerCase())} moves through the ${esc(m.profile.name)} workflow. The stage is derived from the record, never set by hand, and each gate says what would meet it.`) +
+      return head('Pipeline', `Each ${esc(m.L('question').toLowerCase())} moves through the ${esc(m.profile.name)} workflow. The stage is derived from the record, never set by hand, and each gate says what would meet it.`) + asExported('Stages and gates are') +
         `<div class="card" style="overflow:auto"><div class="lane" style="grid-template-columns:${cols};border-bottom:1px solid var(--line);background:var(--surface2)">
           <div style="min-height:auto"></div>${stages.map((s, i) => `<div style="min-height:auto"><b>${i + 1}. ${esc(s.name)}</b>${s.optional ? ' <span class="pill neutral">optional</span>' : ''}<div class="dim" style="margin-top:2px">${esc(s.holds)}</div></div>`).join('')}</div>
           ${m.stages.map((sq) => `<div class="lane click" data-q="${esc(sq.code)}" tabindex="0" role="button" aria-label="${esc(sq.code)} ${esc((qs.get(sq.code) || {}).text || '')}" style="grid-template-columns:${cols};border-bottom:1px solid var(--line);cursor:pointer">
@@ -839,7 +875,7 @@
       const m = S.m, rows = evidenceRows();
       const types = ['claim', 'result', 'hypothesis', 'source', 'decision', 'experiment', 'run', 'artifact'].filter((t) => m.nodes.some((n) => n.type === t));
       const th = (k, label, w) => `<th scope="col" ${w ? `style="width:${w}"` : ''} aria-sort="${S.sort.k === k ? (S.sort.asc ? 'ascending' : 'descending') : 'none'}"><button type="button" data-sort="${k}">${label}${S.sort.k === k ? (S.sort.asc ? ' ↑' : ' ↓') : ''}</button></th>`;
-      return head('Evidence', `Every ${esc(m.L('claim').toLowerCase())}, ${esc(m.L('result').toLowerCase())} and source with its derived standing: checked, stale, contested, at risk.`, '<button class="btn" type="button" data-act="csv-evidence">Export CSV</button>') +
+      return head('Evidence', `Every ${esc(m.L('claim').toLowerCase())}, ${esc(m.L('result').toLowerCase())} and source with its derived standing: checked, stale, contested, at risk.`, '<button class="btn" type="button" data-act="csv-evidence">Export CSV</button>') + asExported('Standing is') +
         `<div class="toolbar"><input class="input" id="hg-ev-q" placeholder="Filter by code, text or author" value="${esc(S.ev.q)}" aria-label="Filter evidence">
           ${types.map((t) => `<button type="button" class="chip" data-evtype="${t}" aria-pressed="${S.ev.types.has(t)}">${esc(m.L(t))}</button>`).join('')}
           <select class="select" id="hg-ev-st" aria-label="Standing"><option value="">any standing</option>${['checked', 'unchecked', 'contested', 'stale', 'at risk', 'superseded', 'withdrawn'].map((s) => `<option ${S.ev.standing === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
@@ -854,7 +890,7 @@
       const m = S.m, os = m.orders;
       if (!os) return head('Work orders', '') + '<div class="note warn">This host doesn\'t serve work orders (<code>/api/graph/orders</code>).</div>';
       const col = (name, list) => `<div class="col"><h3>${name}<b>${list.length}</b></h3>${list.map(orderCard).join('') || '<div class="dim" style="padding:6px">none</div>'}</div>`;
-      return head('Work orders', 'What the harness asked each seat to do, the record\'s predicates for done, and how each order ended.', '<button class="btn" type="button" data-act="csv-orders">Export CSV</button>') +
+      return head('Work orders', 'What the harness asked each seat to do, the record\'s predicates for done, and how each order ended.', '<button class="btn" type="button" data-act="csv-orders">Export CSV</button>') + asExported('Order status is') +
         `<div class="kanban">${col('Open', os.filter((o) => ['open', 'overdue'].includes(o.status)))}${col('Returned', os.filter((o) => o.status === 'returned'))}
         ${col('Accepted', os.filter((o) => o.status === 'accepted'))}${col('Cancelled · reworked', os.filter((o) => ['cancelled', 'reworked'].includes(o.status)))}</div>`;
     }
@@ -871,7 +907,7 @@
       const m = S.m, rows = auditRows(), v = m.verify;
       const actors = [...new Set(m.events.map((e) => e.actor))].sort(), kinds = [...new Set(m.events.map((e) => e.kind))].sort();
       return head('Audit log', 'The record\'s append-only event log. Every write is hash-chained, and the chain is re-verified when the record is read.', '<button class="btn" type="button" data-act="csv-audit">Export CSV</button>') +
-        (v ? `<div class="note ${v.ok ? '' : 'warn'}">${v.ok ? `⛓ Verified: ${v.checked} events, head <code>${esc(String(v.head || '').slice(0, 16))}…</code>, and every row against its event${v.warning ? ' · ' + esc(v.warning) : ''}${v.standing && !v.standing.checked ? ' · ' + esc(v.standing.note) : ''}` : `⛓ The record does not verify: ${esc(v.problem || '')}`}</div>` : '') +
+        (v ? `<div class="note ${v.ok ? '' : 'warn'}">${v.ok ? `⛓ Verified: ${v.checked} events, head <code>${esc(String(v.head || '').slice(0, 16))}…</code>, and every row against its event${Object.keys(v.unchecked || {}).length ? ' · not covered (written before events vouched for them): ' + esc(Object.entries(v.unchecked || {}).map(([f, n]) => `${f} ×${n}`).join(', ')) : ''}${v.warning ? ' · ' + esc(v.warning) : ''}${v.standing && !v.standing.checked ? ' · ' + esc(v.standing.note) : ''}` : `⛓ The record does not verify: ${esc(v.problem || '')}`}</div>` : '') +
         `<div class="toolbar"><select class="select" id="hg-au-actor" aria-label="Actor"><option value="">every actor</option>${actors.map((a) => `<option ${S.audit.actor === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
           <select class="select" id="hg-au-kind" aria-label="Event"><option value="">every event</option>${kinds.map((k) => `<option ${S.audit.kind === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><span class="dim">${rows.length} events</span></div>
         <div class="card"><table><thead><tr><th scope="col" style="width:60px">Seq</th><th scope="col" style="width:170px">Time (UTC)</th><th scope="col" style="width:120px">Actor</th><th scope="col" style="width:120px">Event</th><th scope="col">What happened</th></tr></thead><tbody>
@@ -883,7 +919,7 @@
       const m = S.m, name = (m.profile.workflow && m.profile.workflow.report) || 'Facts from the record';
       const acts = '<button class="btn" type="button" data-act="print">Print · PDF</button><button class="btn" type="button" data-act="md">Download Markdown</button>' +
         (src.exportUrl ? `<a class="btn" href="${esc(src.exportUrl(S.inv))}" download>Export bundle</a>` : src.bundle ? '<button class="btn" type="button" data-act="bundle">Export bundle</button>' : '');
-      return head(esc(name), 'Generated from the record. Interpretation is written below it and checked against the record before it is accepted.', acts) +
+      return head(esc(name), 'The facts of the record, generated by the engine that serves or exported it. Interpretation belongs below them.', acts) + asExported('This report is') +
         `<div class="card"><div class="body md">${m.report ? md(m.report.markdown) : '<div class="empty">This host doesn\'t serve the report.</div>'}</div></div>`;
     }
 

@@ -104,7 +104,13 @@ HypMesh for every reader, and by any host that answers through `blind.dispatch` 
   the exporter derived: `hypgraph verify --standing` re-derives it with the same engine version.
 - **Older records are covered field by field where their events allow.** Events written before 0.7.13 don't hash a
   few row fields (a link's reason, a lease note, an importer's credited author). The verifier reports those as not
-  covered instead of passing them silently.
+  covered, and the result says `coverage: partial` at the top.
+- **The verifier trusts its caller's policy, not the bundle's.** A bundle's `policy` isn't covered by the chain;
+  taking the importer from it let an edited bundle re-attribute an older writer's nodes (fixed in 0.7.14). Pass the
+  publisher's policy with `--policy` / `--importer` (`policy=` in Python, `{policy}` in the browser); otherwise the
+  default importer is used and a different stated one is reported.
+- **Reports, stages and work-order status in a bundle are as exported.** The explorer says so on each of those
+  screens; `hypgraph verify --standing` re-derives them.
 - **Not who wrote it, and not that it wasn't rebuilt.** Anyone who can write the file can change it and rebuild the
   whole chain, and the result verifies. To rule that out, compare the bundle's `head` with a copy of the head
   published somewhere its holder doesn't control: a paper, a preregistration, a signed tag or release, a timestamping

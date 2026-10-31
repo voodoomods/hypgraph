@@ -41,6 +41,8 @@ def chrome_path(given: str = "") -> str:
 
 
 EXAMPLES = ["scientific", "software", "trading", "knowledge", "optimization"]
+# views of what an engine derived (standing, stages, orders, the report): a bundle's must say they are as exported
+EXPORTED = {"overview", "pipeline", "evidence", "orders", "report"}
 # site page, the view it must open on ("" = no app on the page), text the page must contain
 SITE_PAGES = ([(f"examples/{k}/", "live", ["Replaying", "not hash-chained", 'aria-current="page"']) for k in EXAMPLES]
               + [("", "live", ["chain verified", "Replaying", "data-open-claim", 'class="card ref"', "0 errors"]),
@@ -89,6 +91,8 @@ def check(dom: str, view: str, el: str = "app", telemetry: bool = False) -> str:
         return "the graph drew nothing"
     if view == "live" and telemetry and ('class="trace"' not in dom or "telemetry · " not in dom):
         return "the run's telemetry isn't shown (no trace or telemetry pill)"
+    if view in EXPORTED and "⛓ verified" in dom and "data-exported" not in dom and 'class="note warn"' not in dom             and "has no workflow profile" not in dom:                # nothing derived on the page
+        return "a bundle's derived view is shown without saying it is as exported, not verified"
     return ""
 
 

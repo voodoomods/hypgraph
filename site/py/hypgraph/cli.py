@@ -276,22 +276,30 @@ def cmd_report(args) -> int:
 def cmd_verify(args) -> int:
     target = args.target or args.db
     if str(target).endswith(".json"):
+        trusted = json.loads(Path(args.policy).read_text(encoding="utf-8")) if args.policy else {}
+        if args.importer:
+            trusted["importer"] = args.importer
         res = verify_bundle(json.loads(Path(target).read_text(encoding="utf-8")), head=args.head,
-                            standing=args.standing)
+                            standing=args.standing, policy=trusted or None)
     else:
-        res = anchored(verify_file(target), args.head)
+        res = anchored(verify_file(target, importer=args.importer or "importer"), args.head)
     ok = res.get("ok")
     text = (f"✓ {target}: {res.get('checked')} events verified — chain intact, every row matches the event that "
             f"wrote it, and none is missing.\n  head {res.get('head', '')}" if ok else f"✗ {target}: {res.get('problem')}")
     if ok:
         text += ("\n  matches the anchored head: not rewritten or cut short since it was published" if res.get("anchored")
                  else "\n  consistent with itself; to rule out a rewrite, check it against a published head (--head)")
+    if ok and res.get("coverage") == "partial":
+        text += "\n  coverage: PARTIAL — not every row field is vouched for by its event (see below)"
     if ok and res.get("unchecked"):
         text += ("\n  not covered (written before events hashed these fields): "
                  + ", ".join(f"{f} ×{n}" for f, n in sorted(res["unchecked"].items())))
     st = res.get("standing") or {}
     if ok and st.get("checked"):
         text += "\n  standing re-derived from the verified rows: it matches what the bundle carries"
+        if st.get("policy_as_stated"):
+            text += ("\n  (under the bundle's stated " + ", ".join(st["policy_as_stated"]) + ", which the chain "
+                     "doesn't cover; pass --policy to derive under yours)")
     elif ok and st:
         text += "\n  standing not checked: " + str(st.get("note") or "")
     if res.get("warning"):
@@ -521,6 +529,10 @@ def build_parser() -> argparse.ArgumentParser:
                                               "fail unless the chain ends there")
     s.add_argument("--standing", action="store_true", help="bundles: re-derive the standing from the verified rows and "
                                                            "fail if it differs from what the bundle carries")
+    s.add_argument("--importer", default="", help="the importer name you trust (default: importer); a bundle's own "
+                                                  "policy isn't covered by the chain, so it is never taken from there")
+    s.add_argument("--policy", default="", help="bundles: a JSON file of the policy you trust (reviewers, importer, …); "
+                                                "every field must match the bundle's, and --standing derives under it")
     s = cmd("export", cmd_export, "write a verifiable bundle")
     s.add_argument("--inv", default="", help="one investigation (events outside it are redacted)")
     s.add_argument("-o", "--output", default="")

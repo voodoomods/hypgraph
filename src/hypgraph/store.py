@@ -265,6 +265,8 @@ def verify_connection(con: sqlite3.Connection, importer: str = "importer") -> di
         payload = json.loads(payload_s)
         if prev_s != prev or sha(event_body(at, actor, kind, ref, payload, prev)) != h:
             return {"ok": False, "broken_at": seq, "checked": n, "problem": "event hash chain broken"}
+        if seq != n + 1:
+            return {"ok": False, "broken_at": seq, "checked": n, "problem": "the events aren't numbered 1 to n"}
         prev, n = h, n + 1
         events.append({"at": at, "actor": actor, "kind": kind, "ref": ref, "payload": payload})
     tables = {}
@@ -274,7 +276,8 @@ def verify_connection(con: sqlite3.Connection, importer: str = "importer") -> di
     res = check_rows(events, tables, importer=importer)
     if "problem" in res:
         return {"ok": False, "checked": n, "problem": res["problem"]}
-    return {"ok": True, "checked": n, "head": prev, "unchecked": res["unchecked"]}
+    return {"ok": True, "checked": n, "head": prev, "unchecked": res["unchecked"],
+            "coverage": "partial" if res["unchecked"] else "complete", "policy": {"importer": importer}}
 
 
 def verify_file(path: str, importer: str = "importer") -> dict:

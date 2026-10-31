@@ -106,7 +106,18 @@ Records written before these fields existed (before 0.7.13) carry events without
 `note_sha`, `as`, or a review's `code` and `inv`. A verifier checks what those events do carry (a revision's or a
 withdrawal's first 300 characters, a lease note given in full, a review's investigation from its target) and
 reports every other non-empty field as **not covered**, by table and field, rather than passing it silently. Without
-`as`, a row the importer wrote may credit any author; that is reported too.
+`as`, a row the importer wrote may credit any author; that is reported too. A verifier states at the top level
+whether every row field was vouched for by its event (`coverage: complete`) or not (`partial`: fields not covered,
+or redacted events).
+
+**What a verifier trusts.** Who the importer is decides which older rows may credit another author, so the importer
+belongs to what a verifier trusts, and the chain doesn't cover a bundle's `policy`. A verifier must not take the
+importer, or any other policy field, from the bundle: it uses a policy its caller supplies (from the record's
+publisher or host), and the default importer name `importer` otherwise. Every field the caller supplies must equal
+the bundle's stated one. When the bundle names a different importer, the verifier says so.
+
+**Sequence numbers** (`seq`) label events but aren't hashed: the order is fixed by `prev`. A verifier requires them
+to run 1 to n, so a relabelled or gapped log fails.
 
 ## 4. Bundles — `hypgraph/1-bundle`
 
@@ -144,8 +155,10 @@ verifier must check every fact in it that the rows fix: which investigations it 
 investigation node), which nodes each investigation's graph shows (all of them, unless capped at 5,000) and which
 live (unretracted) links among them, each node's `type`, `code`, `inv`, `by`, `at`, `v`, `title` and `kind`, whether
 it is shown as withdrawn, and each link's fields. **Standing** (review state, support, at-risk, the sentence) can't
-be checked from the rows alone: it is what the exporting engine derived. A verifier reports it as not checked, or
-re-derives it with the same engine version (`hypgraph verify FILE --standing`) and compares.
+be checked from the rows alone: it is what the exporting engine derived, and so are the report, the workflow stages,
+completion, the question board and work-order status. A verifier reports them as not checked, or re-derives them with
+the same engine version (`hypgraph verify FILE --standing`, under the caller's policy with `--policy`) and compares.
+A viewer must label them as exported wherever it shows them from a bundle.
 
 ## 5. Derived standing (normative)
 

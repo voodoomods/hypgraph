@@ -78,7 +78,14 @@ separate implementation.
 - **Records written before 0.7.13** have events that don't hash a few row fields (a link's reason, a retraction's
   reason, a lease note, a revision's full reason, the credited author of an importer's node). The verifier checks
   what those events carry and lists the rest as *not covered*, with a count per field. Rewriting one of those fields
-  in an old record isn't caught; new writes cover them all.
+  in an old record isn't caught; new writes cover them all. The result says `coverage: partial` at the top, and the
+  explorer shows a *partial coverage* badge beside *verified*.
+- **The bundle's own policy isn't trusted.** Who the importer is decides which older rows may credit another author,
+  and the chain doesn't cover a bundle's `policy`. The verifier uses the default importer, or the policy you give it:
+  `hypgraph verify study.bundle.json --policy policy.json` (or `--importer NAME`), and every field you give must
+  match the bundle's. `--standing` derives under that policy and names the fields it took from the bundle on trust.
+- **The report, stages and work orders** in a bundle are derived like standing. The explorer labels each of those
+  screens *as exported, not verified*; `--standing` re-derives and compares them.
 
 ## Scoped bundles and references
 
