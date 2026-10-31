@@ -17,6 +17,8 @@ import pytest
 HERE = Path(__file__).resolve().parent.parent / "examples" / "frameworks"
 
 CASES = [
+    ("langchain_agent.py", ["langchain", "langgraph", "langchain_mcp_adapters"], [],
+     "OK: the overclaim was refused, and the honest claim was accepted in its place."),
     ("langgraph_agent.py", ["langgraph", "langchain_mcp_adapters"], [],
      "OK: the overclaim was refused, and the honest claim was accepted in its place."),
     ("pydantic_ai_agent.py", ["pydantic_ai"], [],

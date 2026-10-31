@@ -10,7 +10,7 @@ LangGraph: a tool-calling graph whose tools are the record's, through MCP (langc
 The story is in _story.py: the agent overclaims, the record refuses with the arithmetic, the agent writes the honest
 claim. The one setting that matters here: a refused write reaches LangGraph as a tool error, and the ToolNode must
 hand it back to the model (handle_tool_errors=True) instead of ending the run, so the model can read what to fix.
-The same tools work in langchain's create_agent, which builds this graph for you.
+LangChain's create_agent builds this graph for you: see langchain_agent.py.
 """
 from __future__ import annotations
 

@@ -41,8 +41,8 @@ jobs:
       - run: ruff check src tests examples
 
   frameworks:
-    # examples/frameworks end to end: LangGraph, PydanticAI, CrewAI and the OpenAI Agents SDK with scripted models over
-    # the record's MCP server, and the Claude Agent SDK's wiring check (it has no scripted mode)
+    # examples/frameworks end to end: LangChain, LangGraph, PydanticAI, CrewAI and the OpenAI Agents SDK with scripted
+    # models over the record's MCP server, and the Claude Agent SDK's wiring check (it has no scripted mode)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
           python-version: "3.12"
       - run: >-
           python -m pip install --only-binary jiter -e ".[mcp]" pytest
-          langgraph langchain-mcp-adapters "pydantic-ai-slim[mcp]" crewai openai-agents claude-agent-sdk
+          langchain langgraph langchain-mcp-adapters "pydantic-ai-slim[mcp]" crewai openai-agents claude-agent-sdk
       - run: python -m pytest -q tests/test_framework_examples.py
         env:
           HYPGRAPH_EXAMPLES_REQUIRED: "1"
