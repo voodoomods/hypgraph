@@ -22,6 +22,14 @@ was taken from a changelog without being checked against the code.*
 > stages and work-order status were shown beside the verified badge without saying they are as exported. Sequence
 > numbers must now run 1 to n. Tests: `tests/test_verify_trust.py`, `dev/ui_smoke.py`. The required-checks setting is
 > still open, for the operator.
+
+> **Re-audit of 0.7.14 (2026-10-31).** Confirmed and fixed for 0.7.15: derived facts were compared only when present,
+> so deleting a withdrawn claim's `state.lifecycle` (or its `state`) still verified as complete and the explorer showed
+> the claim as active; an emptied investigation list, nodes without a title, author or code, and links without an end
+> verified too; an event body that wasn't JSON raised instead of failing. Every such fact must now be present, the
+> lifecycle is re-derived from the rows, malformed bundles fail cleanly, and the explorer shows a missing lifecycle as
+> unknown. Tests: `tests/test_verify_views.py`. The required checks and the repository's About metadata are still the
+> operator's.
 >
 > **Where that stands.** #68 is merged with green CI (17 of 17 checks); the suite is 399 passed, and hypswarm and
 > hypmesh pass on it. Released as 0.7.14.

@@ -99,9 +99,11 @@ HypMesh for every reader, and by any host that answers through `blind.dispatch` 
   retraction and lease was written by an event and matches it field by field, and every row an event wrote is
   present. A changed body, author, time, link end or reason, a reordered or dropped event, a dropped withdrawal, or a
   row with no event fails. Only the importer may credit another author, and the event says so.
-- **Derived views are checked, standing is not.** A bundle's `derived` views must agree with the verified rows on
-  every fact the rows fix (nodes, live links, titles, authors, times, withdrawn or not). The standing in them is what
-  the exporter derived: `hypgraph verify --standing` re-derives it with the same engine version.
+- **Derived views are checked, standing is not.** A bundle's `derived` views must carry, and agree with the
+  verified rows on, every fact the rows fix (the investigation list, nodes, live links, titles, authors, times,
+  lifecycle). Until 0.7.15 a fact that was left out wasn't checked, so a withdrawn claim with its lifecycle deleted
+  verified and showed as active. The standing in them is what the exporter derived: `hypgraph verify --standing`
+  re-derives it with the same engine version.
 - **Older records are covered field by field where their events allow.** Events written before 0.7.13 don't hash a
   few row fields (a link's reason, a lease note, an importer's credited author). The verifier reports those as not
   covered, and the result says `coverage: partial` at the top.

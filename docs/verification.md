@@ -86,6 +86,10 @@ separate implementation.
   match the bundle's. `--standing` derives under that policy and names the fields it took from the bundle on trust.
 - **The report, stages and work orders** in a bundle are derived like standing. The explorer labels each of those
   screens *as exported, not verified*; `--standing` re-derives and compares them.
+- **What the views show must be there.** Every fact the rows fix — each node's type, code, author, time, version,
+  title and lifecycle, each link's ends and fields, the full investigation list — must be present in the derived
+  views, not only right where present: a view that drops a withdrawn claim's lifecycle fails, rather than being shown
+  as active. A bundle exported without derived views (`export(derived=False)`) verifies and says `views: none`.
 
 ## Scoped bundles and references
 
