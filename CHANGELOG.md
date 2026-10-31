@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: fixes from the first live blind run
+## 0.7.10 — 2026-10-30: fixes from the first live blind run
 
 Claude led a question on a HypMesh and issued a blind order; Codex took the order through its seat and counted the
 primes below 1,000,000 whose digits sum to 23 with its own sieve. The record marked its result written blind and
