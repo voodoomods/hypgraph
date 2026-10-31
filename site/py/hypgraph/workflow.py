@@ -25,8 +25,7 @@ from typing import Callable
 from . import derive as D
 from . import language as L
 from .checks import Problem
-from .profiles import (_EDGE, _OPTIMAL, _PASSES, Profile, _cites_source, _has, _instrument_backed, _lab_positive,
-                       _live, _producing_run, _vals, profile_of)
+from .profiles import (_EDGE, _OPTIMAL, _PASSES, Profile, _cites_source, _has, _instrument_backed, _live, _producing_run, _vals, profile_of)
 from .schema import POSITIVE
 
 _LIVE_ORDER = re.compile(r"\b(live (order|trade|position)|market order|limit order|place[ds]? (an? )?order|"

@@ -78,19 +78,35 @@ where `prev` is the previous event's hash (64 zeros for the first). Kinds and pa
 
 | kind | ref | payload |
 |---|---|---|
-| `create` | the new node | `{type, code, inv, v: 1, body_sha}`; `body_sha` = sha256 of the version's stored body string |
-| `revise` | the node | `{v, reason, body_sha}` |
-| `review` | the reviewed node | `{review: <review node id>, verdict, on_v, official, body_sha}` |
-| `link` | the edge's source | `{edge, rel, dst, src_v, dst_v, data_sha}`; `data_sha` = sha256 of the stored edge data string |
-| `retract` | the edge's source | `{edge}` |
-| `withdraw` | the node | `{why}` |
-| `lease_take` / `lease_release` | the node | `{task, expires}` |
+| `create` | the new node | `{type, code, inv, v: 1, body_sha, reason_sha, as?}`; `body_sha` = sha256 of the version's stored body string, `reason_sha` of its stored reason |
+| `revise` | the node | `{v, reason, body_sha, reason_sha}`; `reason` is the first 300 characters |
+| `review` | the reviewed node | `{review: <review node id>, verdict, on_v, official, body_sha, code, inv, as?}` |
+| `link` | the edge's source | `{edge, rel, dst, src_v, dst_v, data_sha, why_sha}`; `data_sha` = sha256 of the stored edge data string, `why_sha` of its stored reason |
+| `retract` | the edge's source | `{edge, why_sha}` |
+| `withdraw` | the node | `{why, why_sha, as?}`; `why` is the first 300 characters, `why_sha` covers the stored reason |
+| `lease_take` / `lease_release` | the node | `{task, expires, note_sha, for?}`; `for` = the agent holding the lease when it isn't the actor |
 
-Any event may carry `task` in its payload: the unit of work that wrote it.
+Any event may carry `task` in its payload: the unit of work that wrote it. `as` appears only when the importer
+credits a node or withdrawal to another author; from any other actor it is invalid.
 
-**Verifying** a record means recomputing every hash in order and checking each `prev`. Then check that every stored
-version body and edge matches the `body_sha` / `data_sha` of the event that wrote it, and that no row exists without
-its event.
+**Verifying** a record means recomputing every hash in order and checking each `prev`, then checking the rows
+against the events **both ways**: every row was written by an event and matches it field by field, every row an
+event wrote is present, and no key appears twice. The fields each event fixes:
+
+| table | key | must equal |
+|---|---|---|
+| `nodes` | `create.ref`, `review.payload.review` | `type`, `code`, `inv` from the payload (a review: type `review`); `created_at` = the event's `at`; `created_by` = the actor, or `as` |
+| `versions` | node + `v` | `at`, `by` = the actor, sha256 of `body` = `body_sha`, sha256 of `reason` = `reason_sha` (a review's: empty) |
+| `edges` | `payload.edge` | `src` = ref, `rel`, `dst`, `src_v`, `dst_v`, `at`, `by` = the actor, sha256 of `data` = `data_sha`, of `why` = `why_sha` |
+| `withdrawals` | the node | `at`, `by` = the actor or `as`, sha256 of `why` = `why_sha` |
+| `retractions` | `payload.edge` | `at`, `by` = the actor, sha256 of `why` = `why_sha` |
+| `leases` | in id order, one per lease event in order | `node` = ref, `agent` = `for` or the actor, `task`, `kind` (`take` / `release`), `at`, `expires`, sha256 of `note` = `note_sha` |
+
+Records written before these fields existed (before 0.7.13) carry events without `reason_sha`, `why_sha`,
+`note_sha`, `as`, or a review's `code` and `inv`. A verifier checks what those events do carry (a revision's or a
+withdrawal's first 300 characters, a lease note given in full, a review's investigation from its target) and
+reports every other non-empty field as **not covered**, by table and field, rather than passing it silently. Without
+`as`, a row the importer wrote may credit any author; that is reported too.
 
 ## 4. Bundles — `hypgraph/1-bundle`
 
@@ -108,7 +124,7 @@ strings and compares.
  "versions": [{"node": "…", "v": 1, "at": "…", "by": "…", "reason": "", "body": "<stored canonical string>"}],
  "edges": [{"id": 1, "src": "…", "src_v": 1, "rel": "…", "dst": "…", "dst_v": 1, "data": "<stored string>", "…": "…"}],
  "withdrawals": [], "retractions": [], "leases": [],
- "derived": {"…": "standing at export time, for viewers; never trusted by a verifier"}}
+ "derived": {"…": "views for viewers; their facts are checked against the rows, their standing is not"}}
 ```
 
 A **scoped** bundle (one investigation out of a shared record) replaces events outside it with
@@ -122,6 +138,14 @@ passes through that hash can't have rewritten anything before it. A verifier giv
 or a prefix of at least 16 hex characters) fails unless the chain ends there: `hypgraph verify FILE --head HEX`,
 `verify_bundle(b, head=HEX)`. A bundle without a `head` field is checked for consistency only. How a head is
 published and signed, and what each check does and doesn't show: [verification.md](verification.md).
+
+**Derived views.** `derived` is a convenience for viewers, and a viewer shows it beside a verified chain, so a
+verifier must check every fact in it that the rows fix: which investigations it covers (the scope's, or every
+investigation node), which nodes each investigation's graph shows (all of them, unless capped at 5,000) and which
+live (unretracted) links among them, each node's `type`, `code`, `inv`, `by`, `at`, `v`, `title` and `kind`, whether
+it is shown as withdrawn, and each link's fields. **Standing** (review state, support, at-risk, the sentence) can't
+be checked from the rows alone: it is what the exporting engine derived. A verifier reports it as not checked, or
+re-derives it with the same engine version (`hypgraph verify FILE --standing`) and compares.
 
 ## 5. Derived standing (normative)
 

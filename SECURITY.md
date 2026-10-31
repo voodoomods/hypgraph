@@ -94,9 +94,17 @@ HypMesh for every reader, and by any host that answers through `blind.dispatch` 
 
 ## Integrity: what verification shows, and what it doesn't
 
-- **Internal consistency.** `hypgraph verify` and `verify_bundle` recompute the SHA-256 event chain and check every
-  stored body against the event that wrote it. A changed body, a reordered or dropped event, or an edited version
-  fails.
+- **Internal consistency.** `hypgraph verify`, `verify_bundle` and the browser's `verifyBundle` recompute the
+  SHA-256 event chain and check the rows against the events both ways: every node, version, link, withdrawal,
+  retraction and lease was written by an event and matches it field by field, and every row an event wrote is
+  present. A changed body, author, time, link end or reason, a reordered or dropped event, a dropped withdrawal, or a
+  row with no event fails. Only the importer may credit another author, and the event says so.
+- **Derived views are checked, standing is not.** A bundle's `derived` views must agree with the verified rows on
+  every fact the rows fix (nodes, live links, titles, authors, times, withdrawn or not). The standing in them is what
+  the exporter derived: `hypgraph verify --standing` re-derives it with the same engine version.
+- **Older records are covered field by field where their events allow.** Events written before 0.7.13 don't hash a
+  few row fields (a link's reason, a lease note, an importer's credited author). The verifier reports those as not
+  covered instead of passing them silently.
 - **Not who wrote it, and not that it wasn't rebuilt.** Anyone who can write the file can change it and rebuild the
   whole chain, and the result verifies. To rule that out, compare the bundle's `head` with a copy of the head
   published somewhere its holder doesn't control: a paper, a preregistration, a signed tag or release, a timestamping

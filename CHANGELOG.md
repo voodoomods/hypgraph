@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Verification checks every row, both ways.** A pre-launch audit found that `verify_bundle`, `verify_file` and
+  the browser's `verifyBundle` only checked that each row present matched an event. A bundle or graph file with a
+  withdrawal, a version, a link, a lease or a whole table removed still verified, so a withdrawn claim could come
+  back to life through `load()`; changed authors, times, link ends, reasons and duplicated rows passed too. Now every
+  row must be written by an event and match it field by field, every row an event wrote must be present, and no key
+  may appear twice, in Python, SQLite and the browser alike (`tests/test_verify_complete.py`, which also checks the
+  browser verifier agrees on every case).
+- **Events hash every field of the row they write.** New events carry `reason_sha` (create, revise), `why_sha`
+  (link, retract, withdraw), `note_sha` (leases), a review's `code` and `inv`, and `as` when the importer credits
+  another author. Only the importer may. Older records still verify: what their events don't cover is reported as
+  `unchecked`, field by field, instead of passing silently.
+- **Derived views are checked; standing is labelled.** A bundle's `derived` views must agree with the verified rows
+  on every fact the rows fix (nodes, live links, titles, authors, times, withdrawn or not); an edited view fails.
+  Standing can't be checked from the rows, so the result says `standing: {checked: false}`; `hypgraph verify
+  --standing` re-derives it with the same engine version and fails on a difference. The explorer shows a separate
+  "standing as exported" badge beside the verified one, and a banner over a record that doesn't verify.
+- **The verify page takes a published head** and lists the fields an older record doesn't cover.
+
 - **A LangChain example** (`examples/frameworks/langchain_agent.py`): `create_agent` with the record's tools from a
   `MultiServerMCPClient` session, the same story as the others. It runs in the `frameworks` CI job.
 - **Examples for agent frameworks** (`examples/frameworks/`): LangGraph, PydanticAI, CrewAI, the OpenAI Agents SDK

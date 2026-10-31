@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verify a bundle — HypGraph</title>
-<meta name="description" content="Check a HypGraph bundle in your browser: the hash chain, and every row against the event that wrote it. Nothing is uploaded.">
+<meta name="description" content="Check a HypGraph bundle in your browser: the hash chain, every row against the event that wrote it, and every event's row present. Nothing is uploaded.">
 <link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
@@ -22,22 +22,32 @@
 <div class="phead"><div class="wrap"><div class="kicker">Trust, but verify</div>
   <h1>Verify a bundle.</h1>
   <p>Drop a <code>.bundle.json</code> from <code>hypgraph export</code>. Your browser recomputes every SHA-256 in the chain
-    and checks every version and link against the event that wrote it. Nothing leaves your machine.</p></div></div>
+    and checks the rows against the events both ways: every row was written by an event and matches it field by field, and
+    every event's row is there. Nothing leaves your machine.</p></div></div>
 <div class="wrap" style="padding:32px 16px 80px;max-width:860px">
   <label class="drop" id="drop" for="file">
     <div style="font-size:20px;font-weight:700">Drop a bundle here</div>
     <div class="note">or click to choose a file · or <button class="btn" type="button" id="demo" style="padding:4px 10px;font-size:14px">try the Broad Street bundle</button></div>
     <input type="file" id="file" accept=".json,application/json" hidden>
   </label>
+  <p style="margin-top:16px"><label for="anchor"><b>Published head</b> (optional) — the head hash quoted in a paper,
+    preregistration or tag, or its first 16+ characters:</label><br>
+    <input id="anchor" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. 3f9a0c…" style="width:100%;font-family:var(--mono, monospace);padding:6px 8px;margin-top:6px"></p>
   <div class="vres" id="res" aria-live="polite"></div>
   <div class="prose" style="margin-top:40px">
     <h2>What this proves — and what it doesn't</h2>
     <ul>
-      <li><b>Proves:</b> every event's hash is the SHA-256 of the exact string shown, each links to the one before, and
-        every node version, link, withdrawal and retraction in the bundle matches the event that wrote it. Nothing in
-        it was edited after it was written.</li>
-      <li><b>Doesn't prove on its own:</b> that the whole record wasn't rebuilt from scratch. For that, compare the
-        bundle's <b>head</b> hash with one published at the time (in a paper, a preregistration, a repository tag).</li>
+      <li><b>Proves:</b> every event's hash is the SHA-256 of the exact string shown and each links to the one before;
+        every node, version, link, withdrawal, retraction and lease in the bundle was written by an event and matches it
+        field by field; and no row an event wrote is missing. Nothing was edited, added or dropped after it was
+        written. The facts the explorer shows beside it (which nodes and links, their titles, authors, times, whether
+        withdrawn) are checked against those rows too.</li>
+      <li><b>Doesn't cover:</b> the <b>standing</b> (review state, support, at-risk, the one-line summary). That is what
+        the exporting engine derived; re-derive it from the verified rows with <code>hypgraph verify --standing</code>.
+        Records written before 0.7.13 didn't hash a few row fields into their events (a link's reason, say); the result
+        lists those as <i>not covered</i>.</li>
+      <li><b>Doesn't prove on its own:</b> that the whole record wasn't rebuilt from scratch. For that, paste the
+        <b>head</b> hash published at the time (in a paper, a preregistration, a repository tag) above.</li>
       <li><b>Scoped bundles</b> (one investigation out of a shared record) redact the events outside it. Those can't be
         checked, and the result says so.</li>
     </ul>
@@ -57,22 +67,24 @@
     try { b = JSON.parse(text); } catch (e) { res.innerHTML = `<div class="big bad">✗ Not JSON</div><p>${esc(e.message)}</p>`; return; }
     res.innerHTML = '<div class="note">Hashing…</div>';
     const t0 = performance.now();
-    const v = await HypGraph.verifyBundle(b);
+    const v = await HypGraph.verifyBundle(b, document.getElementById('anchor').value);
     const ms = Math.round(performance.now() - t0);
     if (!v.ok) {
       res.innerHTML = `<div class="big bad">✗ ${esc(name)} does not verify</div><p>${esc(v.problem)}${v.broken_at ? ` (event ${v.broken_at})` : ''}</p>`;
       return;
     }
     const invs = (b.derived && b.derived.investigations) || [];
-    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">✓ ${esc(name)}: ${v.checked} events verified${v.complete ? '' : ' (scoped)'}</div>
-      <p>The chain is intact and every row matches the event that wrote it. Checked in your browser in ${ms} ms.</p>
+    const gaps = Object.entries(v.unchecked || {});
+    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">✓ ${esc(name)}: ${v.checked} events verified${v.complete ? '' : ' (scoped)'}${v.anchored ? ' · anchored' : ''}</div>
+      <p>The chain is intact, every row matches the event that wrote it, and every event's row is present.${v.anchored ? ' It ends at the head you pasted.' : ''} Checked in your browser in ${ms} ms.</p>
       ${v.warning ? `<p class="warn">${esc(v.warning)}</p>` : ''}
+      ${gaps.length ? `<p class="warn">Not covered (written before events hashed these fields): ${gaps.map(([f, n]) => `${esc(f)} ×${n}`).join(' · ')}.</p>` : ''}
       <dl class="kv"><dt>head</dt><dd>${esc(v.head)}</dd><dt>nodes</dt><dd>${v.nodes}</dd><dt>links</dt><dd>${v.edges}</dd>
         <dt>scope</dt><dd>${esc((b.scope || {}).title || '—')}</dd><dt>exported</dt><dd>${esc(b.exported_at || '—')} by ${esc(b.generator || '—')}</dd>
         <dt>investigations</dt><dd>${invs.map((i) => esc(i.title)).join(' · ') || '—'}</dd>
         ${b.telemetry ? `<dt>telemetry</dt><dd>${((b.telemetry.events || []).length)} events from the run, carried for replay — outside the hash chain, so not verified</dd>` : ''}</dl>
       <div class="row" style="margin-top:16px"><button class="btn primary" id="open" type="button">Open in HypGraph</button></div>
-      <p class="note">The standing shown in HypGraph is what the bundle was exported with; the chain above is what you just checked.</p>`;
+      <p class="note">Not checked here: the standing (review state, support, at-risk) HypGraph shows is what the bundle was exported with. Re-derive it with <code>hypgraph verify --standing</code>.</p>`;
     document.getElementById('open').addEventListener('click', () => {
       try { sessionStorage.setItem('hg-bundle', text); location.href = '../explore/?from=verify'; }
       catch { res.insertAdjacentHTML('beforeend', '<p class="bad">This bundle is too large to hand over in this browser — open it with <code>hypgraph import</code> and <code>hypgraph serve</code>.</p>'); }

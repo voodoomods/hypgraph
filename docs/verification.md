@@ -8,7 +8,7 @@ somewhere its keeper can't change.
 
 | | What it shows | How | What it doesn't show |
 |---|---|---|---|
-| **1. Internal consistency** | The chain of events is unbroken, and every node, version, link, withdrawal and retraction matches the event that wrote it. | `hypgraph verify study.bundle.json` (or a graph file), `verify_bundle(b)` in Python, `HypGraph.verifyBundle` in the browser | That it wasn't rewritten. Whoever can write the record can change it, recompute every hash, or cut it short, and it still verifies. |
+| **1. Internal consistency** | The chain of events is unbroken; every node, version, link, withdrawal, retraction and lease was written by an event and matches it field by field; no row an event wrote is missing; and the facts a viewer shows beside it (which nodes and links, titles, authors, times, withdrawn or not) agree with those rows. | `hypgraph verify study.bundle.json` (or a graph file), `verify_bundle(b)` in Python, `HypGraph.verifyBundle` in the browser | That it wasn't rewritten. Whoever can write the record can change it, recompute every hash, or cut it short, and it still verifies. |
 | **2. Not rewritten since it was published** | The record ends at the head that was published. Any change to anything before it, or a record cut short, ends somewhere else. | `hypgraph verify study.bundle.json --head <published head>`, `verify_bundle(b, head=...)`, `anchored(g.verify(), head)` | Who published that head. That's the job of where it was published (below). |
 | **3. Provenance of the evidence** | Who recorded what, and how: a lab-recorded run (only the instrument author files those) or an agent's report, its inputs and outputs by hash, which lines of support are independent. | The record's derived standing: `hypgraph show CL1 --why`, the report | That the instrument's own files are honest. A host decides who the instrument is (the policy). |
 | **4. That a claim is true** | Nothing. | Reviews, replications, separate implementations, new data: the evidence the record keeps and ranks | — |
@@ -24,11 +24,12 @@ claims in it stand exactly as well as the record derives, and no better.
 $ hypgraph demo && hypgraph export -o study.bundle.json
 Wrote study.bundle.json: 59 events, 24 nodes
 $ hypgraph verify study.bundle.json
-✓ study.bundle.json: 59 events verified — chain intact, every row matches the event that wrote it.
+✓ study.bundle.json: 59 events verified — chain intact, every row matches the event that wrote it, and none is missing.
   head 565123f3a7ac06ed18ab555935fde0457ebb6a302dc188fc83dbf36af579623f
   consistent with itself; to rule out a rewrite, check it against a published head (--head)
+  standing not checked: standing (review state, support, at-risk, the sentence) is what the exporting engine derived: …
 $ hypgraph verify study.bundle.json --head 565123f3a7ac06ed
-✓ study.bundle.json: 59 events verified — chain intact, every row matches the event that wrote it.
+✓ study.bundle.json: 59 events verified — chain intact, every row matches the event that wrote it, and none is missing.
   head 565123f3a7ac06ed18ab555935fde0457ebb6a302dc188fc83dbf36af579623f
   matches the anchored head: not rewritten or cut short since it was published
 ```
@@ -67,6 +68,18 @@ SHA-256 over strings and compares: no JSON canonicalisation to reimplement. The 
 and the verifier's rules, is in [spec.md](spec.md). The site checks bundles in the browser with WebCrypto, from a
 separate implementation.
 
+## Standing, and older records
+
+- **Standing** (review state, support, at-risk, the one-line summary) is derived, and a bundle carries the standing
+  its exporter derived. The chain doesn't cover it. `hypgraph verify study.bundle.json --standing` replays the
+  verified rows and derives it again; it fails if the result differs. Standing rules change between releases, so it
+  only compares a bundle exported by the same version, and says so otherwise. A graph file has no stored standing:
+  it is derived on every read.
+- **Records written before 0.7.13** have events that don't hash a few row fields (a link's reason, a retraction's
+  reason, a lease note, a revision's full reason, the credited author of an importer's node). The verifier checks
+  what those events carry and lists the rest as *not covered*, with a count per field. Rewriting one of those fields
+  in an old record isn't caught; new writes cover them all.
+
 ## Scoped bundles and references
 
 - `hypgraph export --inv INV` writes one investigation. Events outside it are redacted to their hash, so the chain
@@ -79,5 +92,7 @@ separate implementation.
 
 `dev/e2e_install.py` installs HypGraph into a fresh environment and walks the whole path: a record, a claim accepted
 and one refused, a review, an export, and verification in another directory with no graph file, on its own and
-against the head, and failing on an edited copy. `tests/test_anchoring.py` rewrites a record (changing a claim and
+against the head, and failing on an edited copy. `tests/test_verify_complete.py` drops, duplicates, empties and
+edits every table and every field of a bundle and of a graph file, and edits the derived views: each one fails, in
+Python and in the browser verifier alike. `tests/test_anchoring.py` rewrites a record (changing a claim and
 recomputing every hash) and cuts one short: both verify on their own, and both fail against the published head.

@@ -22,9 +22,9 @@ import sqlite3
 import sys
 import threading
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from . import profiles
 from . import derive as D
@@ -170,6 +170,25 @@ def clean_body(ntype: str, body: dict, *, partial_ok: bool = False) -> dict:
 
 class _Writer(threading.local):
     task = ""
+    hide: Optional[dict] = None
+
+
+class sealed_from:
+    """``with g.sealed_from(hide):`` — the writes inside come from a reader these nodes are sealed from (a host's blind
+    view: node id → the order that seals it, ``blind.view_for(...).hide``). They may not rest on those nodes, and no
+    check reads them on the writer's behalf: a check that did would answer a right guess differently from a wrong one.
+    An author holding a blind order is sealed this way without it; a host passes its reader's view so that writing
+    under another name doesn't escape the seal."""
+    def __init__(self, graph: "Graph", hide: dict | None):
+        self.graph = graph
+        self.hide = dict(hide or {})
+
+    def __enter__(self):
+        self.prev, self.graph._writer.hide = self.graph._writer.hide, self.hide
+        return self
+
+    def __exit__(self, *exc):
+        self.graph._writer.hide = self.prev
 
 
 class writing_for:
@@ -259,6 +278,42 @@ class Graph:
     def writing_for(self, task: str | None) -> writing_for:
         return writing_for(self, task)
 
+    def sealed_from(self, hide: dict | None) -> sealed_from:
+        return sealed_from(self, hide)
+
+    def _hidden(self, s: D.Snap, author: str) -> dict:
+        """What is sealed from this write's author: its own open blind orders' scope, and the host's view if given."""
+        from . import blind
+        out = dict(self._writer.hide or {})
+        for i, c in blind.view_for_author(s, author).hide.items():
+            out.setdefault(i, c)
+        return out
+
+    @staticmethod
+    def _sealed(hidden: dict, what: str) -> GraphError:
+        """The one refusal a sealed writer gets, the same whatever it guessed."""
+        codes = ", ".join(sorted({c for c in hidden.values() if c})) or "a blind work order"
+        return GraphError(f"{what}: that work is sealed from you while {codes} is open, so nothing you write may rest on "
+                          "it or be checked against it. Record your own measurement, return the order (return_work), "
+                          "and build on the rest once it opens.",
+                          [{"code": "SEALED", "message": what}])
+
+    def _sealed_measurements(self, s: D.Snap, hidden: dict, body: dict, inv: str) -> None:
+        for m in body.get("measurements") or []:
+            ref = str(m.get("result") or "") if isinstance(m, dict) else ""
+            hits = [ref] if ref in s.nodes else [i for i, n in s.nodes.items()
+                                                 if ref and n["code"].lower() == ref.lower() and n["inv"] == inv]
+            if any(h in hidden for h in hits):
+                raise self._sealed(hidden, f"a measurement bound to {ref}")
+
+    def _sealed_links(self, s: D.Snap, hidden: dict, links: list[tuple[str, str, str]]) -> None:
+        """A sealed writer's links may reach a sealed node only to say its own work supports, challenges or tests a
+        hypothesis — what a blind order targets; a claim, result or anything else would be read on its behalf."""
+        for a, rel, b in links:
+            for x in (a, b):
+                if x in hidden and not (s.nodes[x]["type"] == "hypothesis" and rel in ("supports", "challenges", "tests")):
+                    raise self._sealed(hidden, f"a {rel} link to {s.nodes[x]['code'] or x}")
+
     def author(self, name: str) -> "Author":
         """A handle that writes as ``name`` — convenient in notebooks and scripts."""
         return Author(self, name)
@@ -271,12 +326,13 @@ class Graph:
         return store.append_event(con, actor, kind, ref, payload, at)
 
     def verify(self, path: str = "") -> dict:
-        """Recompute the hash chain and check every stored body and edge against its event. ``path``: check another
-        copy read-only (a backup) instead."""
+        """Recompute the hash chain and check every table against the events, both ways: every row written by an
+        event, every event's row present, every recorded field equal (store.check_rows). ``path``: check another copy
+        read-only (a backup) instead."""
         if path:
-            return store.verify_file(path)
+            return store.verify_file(path, self.policy.importer)
         with self._snap_lock:
-            return store.verify_connection(self._connect())
+            return store.verify_connection(self._connect(), self.policy.importer)
 
     def verify_chain(self) -> dict:
         """verify(), cached until the record changes."""
@@ -433,6 +489,17 @@ class Graph:
             s._state = {k: v for k, v in old._state.items() if k not in stale}
         elif not touched:
             s._state = dict(old._state)
+        # A blind work order (blind.py) opens and closes its window with events no node is touched by (a return is a
+        # lease release), and what it seals or marks written blind is record-wide: while the record holds one, the
+        # standing of results, claims and hypotheses is derived again after every write.
+        blind_any = getattr(old, "_blind_any", None)
+        if blind_any is None:
+            blind_any = any(n["type"] == "task" and n["body"].get("blind") for n in old.nodes.values())
+        s._blind_any = blind_any or any(s.nodes[i]["type"] == "task" and s.nodes[i]["body"].get("blind")
+                                        for i in touched if i in s.nodes)
+        if s._blind_any and s.seq != old.seq:
+            s._state = {k: v for k, v in s._state.items()
+                        if (s.nodes.get(k) or {}).get("type") not in ("result", "claim", "hypothesis")}
         return s
 
     def _invalidate(self) -> None:
@@ -548,7 +615,7 @@ class Graph:
                           (src, src_v, rel, dst, dst_v, canon(data), at, author, why))
         eid = cur.lastrowid
         self._event(con, author, "link", src, {"edge": eid, "rel": rel, "dst": dst, "src_v": src_v, "dst_v": dst_v,
-                                               "data_sha": store.sha(canon(data))}, at)
+                                               "data_sha": store.sha(canon(data)), "why_sha": store.sha(why)}, at)
         return eid
 
     @staticmethod
@@ -571,6 +638,11 @@ class Graph:
         ids += [b for a, rel, b in pending if rel == "cites" and a == nid and s.nodes.get(b, {}).get("type") == "source"]
         ids += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "cites" and s.nodes.get(e["dst"], {}).get("type") == "source"]
         return list(dict.fromkeys(ids))
+
+    @staticmethod
+    def _reason_sha(reason: str) -> str:
+        """The hash of a version row's reason as stored, so its event vouches for it."""
+        return store.sha(str(reason)[:500])
 
     @staticmethod
     def _version_row(con, nid: str, v: int, at: str, author: str, reason: str, body: dict) -> str:
@@ -696,12 +768,17 @@ class Graph:
                 pending = [(a, rel, b) for a, rel, b, _f in oriented]
                 flipped = [f"{s.nodes[a].get('code') or a} -{rel}-> {s.nodes[b].get('code') or b}"
                            for a, rel, b, f in oriented if f]
+                hidden = self._hidden(s, author)
+                if hidden:
+                    self._sealed_links(s, hidden, pending)
                 for a, rel, b in pending:
                     self._check_link(s, a, rel, b)
                 auto_notes: list[str] = []
                 if type == "claim":
                     body = self._bind_measurements(s, body, inv)
                     staged["body"] = body
+                    if hidden:
+                        self._sealed_measurements(s, hidden, body, inv)
                     # a measurement names the result its number comes from: that result supports the claim, so the
                     # standing counts it as a line of support without a separate link from the writer
                     for m in body.get("measurements") or []:
@@ -718,7 +795,9 @@ class Graph:
                 if type == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, nid, pending), inv)
                     loose = [w for p in problems if p.code == "UNBOUND_NUMBER" for w in p.words]
-                    if loose:                               # repair before refusing: bind what the record holds
+                    # repair before refusing: bind what the record holds — not for a sealed writer, whose numbers
+                    # would be looked up in what is sealed from it
+                    if loose and not hidden:
                         body, extra, auto_notes = self._auto_bind(s, body, inv, who,
                                                                   self._support_ids(s, nid, pending), loose)
                         if auto_notes:
@@ -776,7 +855,8 @@ class Graph:
                                 (nid, type, c, inv, at, who))
                     sha = self._version_row(con, nid, 1, at, author, reason, body)
                     self._event(con, author, "create", nid, {"type": type, "code": c, "inv": inv, "v": 1,
-                                                             "body_sha": sha}, at)
+                                                             "body_sha": sha, "reason_sha": self._reason_sha(reason),
+                                                             **({"as": who} if who != author else {})}, at)
                     for (a, rel, b), l in zip(pending, links):
                         self._insert_edge(con, s, a, rel, b, l.get("data") or {}, l.get("why") or "", author, at)
                 self._transaction(write)
@@ -916,7 +996,9 @@ class Graph:
                 v = con.execute("SELECT MAX(v) FROM versions WHERE node=?", (nid,)).fetchone()[0] + 1
                 sha = self._version_row(con, nid, v, at, author, f"typed as {merged.get('kind')}", merged)
                 self._event(con, author, "revise", nid, {"v": v, "reason": f"typed as {merged.get('kind')}",
-                                                         "body_sha": sha}, at)
+                                                         "body_sha": sha,
+                                                         "reason_sha": self._reason_sha(f"typed as {merged.get('kind')}")},
+                            at)
             for a, rel, b, l in pending:
                 self._insert_edge(con, s, a, rel, b, l.get("data") or {}, l.get("why") or "", author, at)
         self._transaction(write)
@@ -965,15 +1047,22 @@ class Graph:
                     raise
                 extra: list[str] = []
                 auto_notes: list[str] = []
+                hidden = self._hidden(s, author)
+                if hidden and node in hidden:
+                    raise self._sealed(hidden, f"a revision of {n['code'] or node}")
                 if n["type"] == "claim":
                     body = self._bind_measurements(s, body, n["inv"])
+                    if hidden:
+                        self._sealed_measurements(s, hidden, body, n["inv"])
+                        if set(self._support_ids(s, node, [])) & set(hidden):
+                            raise self._sealed(hidden, f"a revision of {n['code'] or node}, which rests on sealed work")
                 if n["type"] == "run" and body.get("kind") != n["body"].get("kind") and author != P.operator:
                     raise GraphError("a run's kind (lab / agent / external) is where its record came from; it doesn't "
                                      "change")
                 if n["type"] == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, node, []), n["inv"])
                     loose = [w for p in problems if p.code == "UNBOUND_NUMBER" for w in p.words]
-                    if loose:
+                    if loose and not hidden:
                         body, extra, auto_notes = self._auto_bind(s, body, n["inv"], n["created_by"],
                                                                   self._support_ids(s, node, []), loose)
                         if auto_notes:
@@ -991,7 +1080,8 @@ class Graph:
                 def write(con):
                     v = con.execute("SELECT MAX(v) FROM versions WHERE node=?", (node,)).fetchone()[0] + 1
                     sha = self._version_row(con, node, v, at, author, reason, body)
-                    self._event(con, author, "revise", node, {"v": v, "reason": str(reason)[:300], "body_sha": sha}, at)
+                    self._event(con, author, "revise", node, {"v": v, "reason": str(reason)[:300], "body_sha": sha,
+                                                              "reason_sha": self._reason_sha(reason)}, at)
                     for dst in extra:
                         self._insert_edge(con, s, dst, "supports", node, {},
                                           "bound by the record: the claim's numbers are this result's", author, at)
@@ -1021,6 +1111,13 @@ class Graph:
                 if translated:
                     data = {**(data or {}), "read_as": given}                       # what the author wrote
                 src, rel, dst, flipped = self._orient(s, src, rel, dst)
+                hidden = self._hidden(s, author)
+                if hidden:
+                    self._sealed_links(s, hidden, [(src, rel, dst)])
+                    for x in (src, dst):                     # a claim of its own may not come to rest on sealed work
+                        if x in s.nodes and s.nodes[x]["type"] == "claim" and \
+                                set(self._support_ids(s, x, [(src, rel, dst)])) & set(hidden):
+                            raise self._sealed(hidden, f"a link that rests {s.nodes[x]['code'] or x} on sealed work")
                 if src in s.nodes:
                     self._fixed_guard(s, author, src)
                 eid = self._transaction(lambda con: self._insert_edge(con, s, src, rel, dst, data or {}, why, author,
@@ -1059,7 +1156,8 @@ class Graph:
                 def write(con):
                     con.execute("INSERT INTO retractions (edge, at, by, why) VALUES (?,?,?,?)",
                                 (int(edge), at, author, why[:1000]))
-                    self._event(con, author, "retract", e["src"], {"edge": int(edge)}, at)
+                    self._event(con, author, "retract", e["src"], {"edge": int(edge),
+                                                                    "why_sha": store.sha(why[:1000])}, at)
                 self._transaction(write)
             finally:
                 self._after_write()
@@ -1081,9 +1179,11 @@ class Graph:
                 at = self._when(author, at)
 
                 def write(con):
+                    shown = self._attribution(author, attribute_to)
                     con.execute("INSERT INTO withdrawals (node, at, by, why) VALUES (?,?,?,?)",
-                                (node, at, self._attribution(author, attribute_to), why[:1000]))
-                    self._event(con, author, "withdraw", node, {"why": why[:300]}, at)
+                                (node, at, shown, why[:1000]))
+                    self._event(con, author, "withdraw", node, {"why": why[:300], "why_sha": store.sha(why[:1000]),
+                                                                **({"as": shown} if shown != author else {})}, at)
                 self._transaction(write)
             finally:
                 self._after_write()
@@ -1135,6 +1235,9 @@ class Graph:
                     raise GraphError(f"no node {target}")
                 if n["type"] not in RELS["reviews"][1]:
                     raise GraphError(f"a {n['type']} isn't reviewed")
+                hidden = self._hidden(s, author)
+                if hidden and target in hidden:
+                    raise self._sealed(hidden, f"a review of {n['code'] or target}")
                 official = author in D.board(s, target) and verdict != "comment"
                 if official and author == n["created_by"] and author not in P.curators:
                     who = ", ".join(sorted(D.board(s, target) - P.curators - {author})[:6]) or "another reviewer"
@@ -1152,18 +1255,20 @@ class Graph:
 
                 def write(con):
                     c = self._code(con, "review", n["inv"])
+                    shown = self._attribution(author, attribute_to)
                     con.execute("INSERT INTO nodes (id, type, code, inv, created_at, created_by) VALUES (?,?,?,?,?,?)",
-                                (nid, "review", c, n["inv"], at, self._attribution(author, attribute_to)))
+                                (nid, "review", c, n["inv"], at, shown))
                     sha = self._version_row(con, nid, 1, at, author, "", body)
                     self._event(con, author, "review", target, {"review": nid, "verdict": body["verdict"],
                                                                 "on_v": n["v"], "official": official,
-                                                                "body_sha": sha}, at)
+                                                                "body_sha": sha, "code": c, "inv": n["inv"],
+                                                                **({"as": shown} if shown != author else {})}, at)
                     cur = con.execute("INSERT INTO edges (src, src_v, rel, dst, dst_v, data, at, by, why) "
                                       "VALUES (?,?,?,?,?,?,?,?,?)", (nid, 1, "reviews", target, n["v"], "{}", at,
                                                                      author, ""))
                     self._event(con, author, "link", nid, {"edge": cur.lastrowid, "rel": "reviews", "dst": target,
                                                            "src_v": 1, "dst_v": n["v"],
-                                                           "data_sha": store.sha("{}")}, at)
+                                                           "data_sha": store.sha("{}"), "why_sha": store.sha("")}, at)
                 self._transaction(write)
             finally:
                 self._after_write()
@@ -1198,7 +1303,8 @@ class Graph:
                 def write(con):
                     con.execute("INSERT INTO leases (node, agent, task, kind, at, expires, note) VALUES (?,?,?,?,?,?,?)",
                                 (node, author, str(task)[:80], kind, at, exp, str(note)[:300]))
-                    self._event(con, author, "lease_" + kind, node, {"task": str(task)[:80], "expires": exp}, at)
+                    self._event(con, author, "lease_" + kind, node, {"task": str(task)[:80], "expires": exp,
+                                                                     "note_sha": store.sha(str(note)[:300])}, at)
                 self._transaction(write)
             finally:
                 self._after_write()

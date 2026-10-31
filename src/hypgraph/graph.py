@@ -326,12 +326,13 @@ class Graph:
         return store.append_event(con, actor, kind, ref, payload, at)
 
     def verify(self, path: str = "") -> dict:
-        """Recompute the hash chain and check every stored body and edge against its event. ``path``: check another
-        copy read-only (a backup) instead."""
+        """Recompute the hash chain and check every table against the events, both ways: every row written by an
+        event, every event's row present, every recorded field equal (store.check_rows). ``path``: check another copy
+        read-only (a backup) instead."""
         if path:
-            return store.verify_file(path)
+            return store.verify_file(path, self.policy.importer)
         with self._snap_lock:
-            return store.verify_connection(self._connect())
+            return store.verify_connection(self._connect(), self.policy.importer)
 
     def verify_chain(self) -> dict:
         """verify(), cached until the record changes."""
@@ -614,7 +615,7 @@ class Graph:
                           (src, src_v, rel, dst, dst_v, canon(data), at, author, why))
         eid = cur.lastrowid
         self._event(con, author, "link", src, {"edge": eid, "rel": rel, "dst": dst, "src_v": src_v, "dst_v": dst_v,
-                                               "data_sha": store.sha(canon(data))}, at)
+                                               "data_sha": store.sha(canon(data)), "why_sha": store.sha(why)}, at)
         return eid
 
     @staticmethod
@@ -637,6 +638,11 @@ class Graph:
         ids += [b for a, rel, b in pending if rel == "cites" and a == nid and s.nodes.get(b, {}).get("type") == "source"]
         ids += [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "cites" and s.nodes.get(e["dst"], {}).get("type") == "source"]
         return list(dict.fromkeys(ids))
+
+    @staticmethod
+    def _reason_sha(reason: str) -> str:
+        """The hash of a version row's reason as stored, so its event vouches for it."""
+        return store.sha(str(reason)[:500])
 
     @staticmethod
     def _version_row(con, nid: str, v: int, at: str, author: str, reason: str, body: dict) -> str:
@@ -849,7 +855,8 @@ class Graph:
                                 (nid, type, c, inv, at, who))
                     sha = self._version_row(con, nid, 1, at, author, reason, body)
                     self._event(con, author, "create", nid, {"type": type, "code": c, "inv": inv, "v": 1,
-                                                             "body_sha": sha}, at)
+                                                             "body_sha": sha, "reason_sha": self._reason_sha(reason),
+                                                             **({"as": who} if who != author else {})}, at)
                     for (a, rel, b), l in zip(pending, links):
                         self._insert_edge(con, s, a, rel, b, l.get("data") or {}, l.get("why") or "", author, at)
                 self._transaction(write)
@@ -989,7 +996,9 @@ class Graph:
                 v = con.execute("SELECT MAX(v) FROM versions WHERE node=?", (nid,)).fetchone()[0] + 1
                 sha = self._version_row(con, nid, v, at, author, f"typed as {merged.get('kind')}", merged)
                 self._event(con, author, "revise", nid, {"v": v, "reason": f"typed as {merged.get('kind')}",
-                                                         "body_sha": sha}, at)
+                                                         "body_sha": sha,
+                                                         "reason_sha": self._reason_sha(f"typed as {merged.get('kind')}")},
+                            at)
             for a, rel, b, l in pending:
                 self._insert_edge(con, s, a, rel, b, l.get("data") or {}, l.get("why") or "", author, at)
         self._transaction(write)
@@ -1071,7 +1080,8 @@ class Graph:
                 def write(con):
                     v = con.execute("SELECT MAX(v) FROM versions WHERE node=?", (node,)).fetchone()[0] + 1
                     sha = self._version_row(con, node, v, at, author, reason, body)
-                    self._event(con, author, "revise", node, {"v": v, "reason": str(reason)[:300], "body_sha": sha}, at)
+                    self._event(con, author, "revise", node, {"v": v, "reason": str(reason)[:300], "body_sha": sha,
+                                                              "reason_sha": self._reason_sha(reason)}, at)
                     for dst in extra:
                         self._insert_edge(con, s, dst, "supports", node, {},
                                           "bound by the record: the claim's numbers are this result's", author, at)
@@ -1146,7 +1156,8 @@ class Graph:
                 def write(con):
                     con.execute("INSERT INTO retractions (edge, at, by, why) VALUES (?,?,?,?)",
                                 (int(edge), at, author, why[:1000]))
-                    self._event(con, author, "retract", e["src"], {"edge": int(edge)}, at)
+                    self._event(con, author, "retract", e["src"], {"edge": int(edge),
+                                                                    "why_sha": store.sha(why[:1000])}, at)
                 self._transaction(write)
             finally:
                 self._after_write()
@@ -1168,9 +1179,11 @@ class Graph:
                 at = self._when(author, at)
 
                 def write(con):
+                    shown = self._attribution(author, attribute_to)
                     con.execute("INSERT INTO withdrawals (node, at, by, why) VALUES (?,?,?,?)",
-                                (node, at, self._attribution(author, attribute_to), why[:1000]))
-                    self._event(con, author, "withdraw", node, {"why": why[:300]}, at)
+                                (node, at, shown, why[:1000]))
+                    self._event(con, author, "withdraw", node, {"why": why[:300], "why_sha": store.sha(why[:1000]),
+                                                                **({"as": shown} if shown != author else {})}, at)
                 self._transaction(write)
             finally:
                 self._after_write()
@@ -1242,18 +1255,20 @@ class Graph:
 
                 def write(con):
                     c = self._code(con, "review", n["inv"])
+                    shown = self._attribution(author, attribute_to)
                     con.execute("INSERT INTO nodes (id, type, code, inv, created_at, created_by) VALUES (?,?,?,?,?,?)",
-                                (nid, "review", c, n["inv"], at, self._attribution(author, attribute_to)))
+                                (nid, "review", c, n["inv"], at, shown))
                     sha = self._version_row(con, nid, 1, at, author, "", body)
                     self._event(con, author, "review", target, {"review": nid, "verdict": body["verdict"],
                                                                 "on_v": n["v"], "official": official,
-                                                                "body_sha": sha}, at)
+                                                                "body_sha": sha, "code": c, "inv": n["inv"],
+                                                                **({"as": shown} if shown != author else {})}, at)
                     cur = con.execute("INSERT INTO edges (src, src_v, rel, dst, dst_v, data, at, by, why) "
                                       "VALUES (?,?,?,?,?,?,?,?,?)", (nid, 1, "reviews", target, n["v"], "{}", at,
                                                                      author, ""))
                     self._event(con, author, "link", nid, {"edge": cur.lastrowid, "rel": "reviews", "dst": target,
                                                            "src_v": 1, "dst_v": n["v"],
-                                                           "data_sha": store.sha("{}")}, at)
+                                                           "data_sha": store.sha("{}"), "why_sha": store.sha("")}, at)
                 self._transaction(write)
             finally:
                 self._after_write()
@@ -1288,7 +1303,8 @@ class Graph:
                 def write(con):
                     con.execute("INSERT INTO leases (node, agent, task, kind, at, expires, note) VALUES (?,?,?,?,?,?,?)",
                                 (node, author, str(task)[:80], kind, at, exp, str(note)[:300]))
-                    self._event(con, author, "lease_" + kind, node, {"task": str(task)[:80], "expires": exp}, at)
+                    self._event(con, author, "lease_" + kind, node, {"task": str(task)[:80], "expires": exp,
+                                                                     "note_sha": store.sha(str(note)[:300])}, at)
                 self._transaction(write)
             finally:
                 self._after_write()

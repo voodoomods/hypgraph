@@ -1,8 +1,9 @@
 {
- "version": "0.7.8",
+ "version": "0.7.12",
  "files": [
   "hypgraph/__init__.py",
   "hypgraph/__main__.py",
+  "hypgraph/blind.py",
   "hypgraph/bundle.py",
   "hypgraph/checks.py",
   "hypgraph/cli.py",

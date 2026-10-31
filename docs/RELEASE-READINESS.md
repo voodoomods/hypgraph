@@ -4,6 +4,14 @@
 #61 (docs and release engineering). Everything marked as tested was run; the commands are in each PR. Nothing here
 was taken from a changelog without being checked against the code.*
 
+> **Superseded in part (2026-10-31, later the same day).** A second audit found that verification checked rows
+> against events in one direction only: a bundle or graph file with a withdrawal, a version, an edge or a whole
+> table removed still verified, as did changed authors, times, link ends and reasons, and edited derived views. That
+> was a confirmed integrity defect, so the GO below didn't hold for 0.7.12. The fix (exhaustive row checks in the
+> Python, SQLite and browser verifiers, events that hash every row field, derived views checked against the rows,
+> standing reported as not covered) is in the pull request that adds `tests/test_verify_complete.py`, and ships as
+> 0.7.13. The recommendation stands again once that is merged with green CI and released.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one

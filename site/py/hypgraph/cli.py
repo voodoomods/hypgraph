@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .bundle import verify_bundle
+from .bundle import anchored, verify_bundle
 from .graph import Graph, GraphError
 from .schema import TYPES, describe
 from .store import verify_file
@@ -276,12 +276,24 @@ def cmd_report(args) -> int:
 def cmd_verify(args) -> int:
     target = args.target or args.db
     if str(target).endswith(".json"):
-        res = verify_bundle(json.loads(Path(target).read_text(encoding="utf-8")))
+        res = verify_bundle(json.loads(Path(target).read_text(encoding="utf-8")), head=args.head,
+                            standing=args.standing)
     else:
-        res = verify_file(target)
+        res = anchored(verify_file(target), args.head)
     ok = res.get("ok")
     text = (f"✓ {target}: {res.get('checked')} events verified — chain intact, every row matches the event that "
-            f"wrote it. Head {str(res.get('head', ''))[:16]}…" if ok else f"✗ {target}: {res.get('problem')}")
+            f"wrote it, and none is missing.\n  head {res.get('head', '')}" if ok else f"✗ {target}: {res.get('problem')}")
+    if ok:
+        text += ("\n  matches the anchored head: not rewritten or cut short since it was published" if res.get("anchored")
+                 else "\n  consistent with itself; to rule out a rewrite, check it against a published head (--head)")
+    if ok and res.get("unchecked"):
+        text += ("\n  not covered (written before events hashed these fields): "
+                 + ", ".join(f"{f} ×{n}" for f, n in sorted(res["unchecked"].items())))
+    st = res.get("standing") or {}
+    if ok and st.get("checked"):
+        text += "\n  standing re-derived from the verified rows: it matches what the bundle carries"
+    elif ok and st:
+        text += "\n  standing not checked: " + str(st.get("note") or "")
     if res.get("warning"):
         text += "\n  note: " + res["warning"]
     _out(args, res, text)
@@ -505,6 +517,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-o", "--output", default="")
     s = cmd("verify", cmd_verify, "check a graph file or a bundle")
     s.add_argument("target", nargs="?", default="")
+    s.add_argument("--head", default="", help="the head published for this record (or its first 16+ hex characters): "
+                                              "fail unless the chain ends there")
+    s.add_argument("--standing", action="store_true", help="bundles: re-derive the standing from the verified rows and "
+                                                           "fail if it differs from what the bundle carries")
     s = cmd("export", cmd_export, "write a verifiable bundle")
     s.add_argument("--inv", default="", help="one investigation (events outside it are redacted)")
     s.add_argument("-o", "--output", default="")
@@ -546,7 +562,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="a swarm's telemetry sidecar to stream (default: <db>.telemetry.jsonl, picked up when it appears)")
     s.add_argument("--no-telemetry", action="store_true", help="don't serve or stream telemetry")
     s.add_argument("--token", action="append", metavar="SECRET[=AUTHORS]",
-                   help="bind writes to a bearer token: SECRET=a,b (those authors) or SECRET=* (any non-reserved); "
+                   help="bind writes to a bearer token: SECRET=a,b (those authors) or SECRET=* (any name not reserved and not on a review board); "
                         "repeatable; $HYPGRAPH_TOKEN adds one. With tokens, unauthenticated writes are 401.")
     s.add_argument("--token-file", default="", help="a file with one SECRET[=AUTHORS] per line")
     s = cmd("mcp", cmd_mcp, "an MCP server for agents (needs hypgraph[mcp])")
