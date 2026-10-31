@@ -39,6 +39,12 @@ For HTTP: `hypgraph --db study.hypgraph --as <your-name> mcp --transport http --
 You write as one author, fixed when the server starts. The names `lab`, `operator`, `importer` and `system` are
 reserved.
 
+**If you hold a work order, `my_work()` comes first.** It gives each order's objective, method, and what counts as
+done. A **blind** order seals other authors' work from you until you return it: `overview()`, `report()` and the like
+answer that they are sealed, and sealed nodes show as placeholders. That is the point, not an error. Measure it
+yourself, record your run and result, then `return_work`. What you write meanwhile is recorded as written blind, and
+a result that matches an earlier one is marked as agreeing blind once the order is returned.
+
 ## The method
 
 1. **`overview()` first.** Read what's known before re-deriving anything.

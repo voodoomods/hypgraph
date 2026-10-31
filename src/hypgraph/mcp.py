@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 from . import blind as B
-from . import profiles
 from . import __version__
 from .graph import Graph, GraphError, file_sha256
 from .schema import TYPES, describe

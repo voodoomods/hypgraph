@@ -42,3 +42,20 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    # the GitHub Release for the tag: the changelog's section, install and provenance notes, and the same files PyPI got
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - run: python dev/release_notes.py "${GITHUB_REF_NAME#v}" -o notes.md
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "HypGraph ${GITHUB_REF_NAME#v}" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -22,9 +22,9 @@ import sqlite3
 import sys
 import threading
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from . import profiles
 from . import derive as D
