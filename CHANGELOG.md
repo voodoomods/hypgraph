@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **A superseded node can't verify as active.** A pre-launch audit of 0.7.16 found that the verifier accepted a node's
+  lifecycle under either the current rule or 0.3's, which counted only an active replacement: in a chain RS3
+  supersedes RS2 supersedes RS1, 0.3 calls RS1 active, so a bundle edited to show RS1 active verified with
+  `views: "checked"`, its chain, rows and head untouched; setting the bundle's `generator` (which the chain doesn't
+  cover) to 0.3 also turned `--standing` from a problem into "not checked". Now, in the Python and browser verifiers
+  alike, a lifecycle is checked against the current rule only. One that matches only 0.3's rule still verifies (a 0.3
+  export shows it so) but the result says `views: "historical"`, not `"checked"`, and the warning names each such node
+  and what the current rule makes it; `hypgraph verify` prints `views: NOT CHECKED`. The generator is never consulted.
+  Covered for `supersedes` and `corrects`, chains of three, withdrawn replacements, scoped bundles and a forged or
+  deleted generator, with the browser verifier held to the same verdict, warning and coverage
+  (`tests/test_verify_lifecycle.py`).
 - **The Explorer and the website speak Spanish, French, German and Simplified Chinese.** The UI's strings are in a
   table (English, the source, in `hypgraph.js`; translations in `hypgraph.i18n.js`, loaded on demand or registered
   with `HypGraph.addStrings`). The language comes from `?lang=`, the host page's `lang`, a saved choice, then the

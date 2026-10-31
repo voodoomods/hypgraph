@@ -297,6 +297,8 @@ def cmd_verify(args) -> int:
         text += "\n  coverage: PARTIAL — not every row field is vouched for by its event (see below)"
     if ok and res.get("views") == "none":
         text += "\n  no derived views: exported without them, so a viewer has nothing to show beyond the rows"
+    if ok and res.get("views") == "historical":
+        text += "\n  views: NOT CHECKED — some lifecycles follow hypgraph 0.3's rule, not the current one (see the note)"
     if ok and res.get("unchecked"):
         text += ("\n  not covered (written before events hashed these fields): "
                  + ", ".join(f"{f} ×{n}" for f, n in sorted(res["unchecked"].items())))

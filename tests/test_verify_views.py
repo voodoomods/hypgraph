@@ -86,7 +86,8 @@ def _cases(rec) -> dict:
     add("live node shown withdrawn", False, lambda m: _shown(m, hc)["state"].update(lifecycle="withdrawn"))
     add("replaced node shown active", False, lambda m: _shown(m, hb)["state"].update(lifecycle="active"))
     add("replacement shown superseded", False, lambda m: _shown(m, hc)["state"].update(lifecycle="superseded"))
-    # 0.3 counted only an active replacement: H_b is superseded, so H_a stayed active under it
+    # 0.3 counted only an active replacement: H_b is superseded, so H_a stayed active under it. It verifies, but the
+    # views are reported historical, not checked (tests/test_verify_lifecycle.py)
     add("end of a chain, as 0.3 derived it", True, lambda m: _shown(m, ha)["state"].update(lifecycle="active"))
     add("investigation list emptied", False, lambda m: m["derived"].update(investigations=[]))
     add("investigation list deleted", False, lambda m: m["derived"].pop("investigations"))

@@ -202,8 +202,10 @@
     return '';
   }
 
-  /** The derived views are presentation; every fact in them the rows fix must agree with the verified rows. */
-  function derivedProblem(b, tables) {
+  /** The derived views are presentation; every fact in them the rows fix must agree with the verified rows. A
+   *  lifecycle is checked against the current rule only; one that matches only 0.3's rule goes on `historical` as
+   *  [name, shown, current] (bundle.py _derived_problem): not a problem, not checked either. */
+  function derivedProblem(b, tables, historical = null) {
     const d = b.derived;
     if (d == null) return '';
     if (typeof d !== 'object') return 'derived is not an object';
@@ -237,10 +239,14 @@
       }
       const st = x.state;
       if (!st || typeof st !== 'object' || !('lifecycle' in st)) return `${where} shows ${name} without its lifecycle`;
-      const w = lifecycle(n.id, true), allowed = new Set([w, lifecycle(n.id, false)]);
-      if (scope && !withdrawn.has(n.id)) allowed.add('superseded');   // a scoped bundle leaves out links to other investigations
-      if (!allowed.has(st.lifecycle)) return `${where} shows ${name} as ${JSON.stringify(st.lifecycle)}; the record makes it ${JSON.stringify(w)}`;
-      return '';
+      const w = lifecycle(n.id, true), shown = st.lifecycle;
+      if (shown === w) return '';
+      if (scope && !withdrawn.has(n.id) && shown === 'superseded') return '';   // a scoped bundle leaves out links to other investigations
+      if (shown === lifecycle(n.id, false)) {
+        if (historical && !historical.some(([a, s, c]) => a === name && s === shown && c === w)) historical.push([name, shown, w]);
+        return '';
+      }
+      return `${where} shows ${name} as ${JSON.stringify(shown)}; the record makes it ${JSON.stringify(w)}`;
     };
     const byInv = d.by_inv;
     const keys = byInv && typeof byInv === 'object' && !Array.isArray(byInv) ? Object.keys(byInv) : null;
@@ -336,16 +342,22 @@
     if (rows.problem) return { ok: false, problem: rows.problem + (stated !== importer ? ` (the bundle names ${stated} as its importer, which the chain doesn't cover; if you trust that, verify with --importer ${stated})` : '') };
     const sp = scopeProblem(b, tables, red);
     if (sp) return { ok: false, problem: sp };
-    const dp = derivedProblem(b, tables);
+    const historical = [];
+    const dp = derivedProblem(b, tables, historical);
     if (dp) return { ok: false, problem: `the derived views contradict the verified record: ${dp}` };
     const partial = Object.keys(rows.unchecked).length > 0 || red > 0;
     const out = { ok: true, checked, head: prev, complete: red === 0, redacted: red, nodes: tables.nodes.length,
       edges: tables.edges.length, unchecked: rows.unchecked, coverage: partial ? 'partial' : 'complete',
-      views: b.derived == null ? 'none' : 'checked',
+      views: b.derived == null ? 'none' : historical.length ? 'historical' : 'checked',
       policy: { trusted: Object.keys(policy || {}).sort(), importer }, standing: { checked: false, note: STANDING_NOTE } };
     const notes = [];
     if (red) notes.push(`${red} event(s) are redacted. The bundle says they lie outside this investigation, but a redacted event keeps only its hash, so that can't be checked: a change hidden among them (a withdrawal, say) would not show. Only the full record, verified against the published head, rules that out.`);
     if (stated !== importer) notes.push(`The bundle names ${stated} as its importer; the chain doesn't cover that, so ${importer} was used.`);
+    if (historical.length) {
+      const shown = historical.slice(0, 8).map(([a, s, c]) => `${a} shown ${s}, the current rule makes it ${c}`).join('; ');
+      const more = historical.length > 8 ? `; and ${historical.length - 8} more` : '';
+      notes.push(`The views are not checked: ${historical.length} lifecycle(s) follow hypgraph 0.3's rule, not the current one (${shown}${more}). A bundle exported by 0.3 shows them so, but the chain doesn't record which version exported a bundle, so this can't be told from an edited view. Go by the current rule.`);
+    }
     if (notes.length) out.warning = notes.join(' ');
     return anchored(out, head);
   }
