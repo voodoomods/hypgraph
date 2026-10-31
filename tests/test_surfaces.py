@@ -63,7 +63,7 @@ def test_bundle_round_trip_and_tampering(demo):
     i = next(k for k, x in enumerate(bad["versions"]) if "Golden Square outbreak was spread" in x["body"])
     bad["versions"][i]["body"] = bad["versions"][i]["body"].replace("5 of the 535", "none of the 535")
     assert verify_bundle(bad) == {"ok": False, "problem": f"version {bad['versions'][i]['node']} "
-                                                          f"v{bad['versions'][i]['v']} differs from its event"}
+                                                          f"v{bad['versions'][i]['v']} differs from its event (body)"}
     bad = copy.deepcopy(b)                                          # hide a withdrawal / drop an event
     bad["events"].pop(10)
     assert not verify_bundle(bad)["ok"]

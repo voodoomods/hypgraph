@@ -615,6 +615,11 @@
      "kind": "text",
      "max": 1500,
      "required": false
+    },
+    "blind": {
+     "kind": "bool",
+     "max": 2000,
+     "required": false
     }
    }
   }

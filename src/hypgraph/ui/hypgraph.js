@@ -70,11 +70,175 @@
   }
 
   /** Verify a hypgraph/1-bundle string-for-string — the same checks as hypgraph.verify_bundle in Python. */
-  async function verifyBundle(b) {
+  // ── verifying a bundle: the same checks as hypgraph.bundle.verify_bundle / store.check_rows (keep them in step) ──
+  const ROW_TABLES = ['nodes', 'versions', 'edges', 'withdrawals', 'retractions', 'leases'];
+  const STANDING_NOTE = 'standing (review state, support, at-risk, the sentence) is what the exporting engine derived: the '
+    + 'chain doesn\'t cover it. Re-derive it from the verified rows with `hypgraph verify --standing`.';
+  const cp = (s, n) => Array.from(String(s)).slice(0, n).join('');            // Python's s[:n]: code points, not UTF-16
+  const same = (a, b) => {                                                     // JSON values, as Python's ==
+    if (a === b) return true;
+    if (a == null || b == null) return (a ?? null) === (b ?? null);
+    if (typeof a !== 'object' || typeof b !== 'object') return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    const ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && same(a[k], b[k]));
+  };
+
+  const label = (t, k) => t === 'versions' ? `version ${String(k).replace(/#(\d+)$/, ' v$1')}`   // as store._label names rows
+    : ({ nodes: 'node ', edges: 'link ', withdrawals: 'withdrawal of ', retractions: 'retraction of link ' })[t] + k;
+
+  /** What the tables must hold, read from the events alone; then both directions against the rows. */
+  async function checkRows(events, tables, importer) {
+    const want = Object.fromEntries(ROW_TABLES.map((t) => [t, new Map()])), leases = [], unchecked = {};
+    const put = (t, key, checks) => {
+      if (want[t].has(key)) return `two events write ${label(t, key)}`;
+      want[t].set(key, checks); return '';
+    };
+    const who = (actor, p, strict) => {
+      if ('as' in p) return actor === importer ? ['eq', p.as] : ['bad', `only the ${importer} credits another author`];
+      if (strict || actor !== importer) return ['eq', actor];
+      return ['any', 'nodes.created_by'];
+    };
+    for (const ev of events) {
+      const k = ev.kind, ref = ev.ref, p = ev.payload || {}, at = ev.at, actor = ev.actor;
+      let problem = '';
+      if (k === 'create') {
+        const strict = 'reason_sha' in p;
+        problem = put('nodes', ref, [['type', 'eq', p.type], ['code', 'eq', p.code], ['inv', 'eq', p.inv],
+          ['created_at', 'eq', at], ['created_by', ...who(actor, p, strict)]])
+          || put('versions', `${ref}#${Number(p.v ?? 1)}`, [['at', 'eq', at], ['by', 'eq', actor], ['body', 'sha', p.body_sha],
+            strict ? ['reason', 'sha', p.reason_sha] : ['reason', 'unchecked', 'versions.reason']]);
+      } else if (k === 'revise') {
+        problem = put('versions', `${ref}#${Number(p.v)}`, [['at', 'eq', at], ['by', 'eq', actor], ['body', 'sha', p.body_sha],
+          'reason_sha' in p ? ['reason', 'sha', p.reason_sha] : ['reason', 'head', String(p.reason ?? '')]]);
+      } else if (k === 'review') {
+        const strict = 'code' in p;
+        problem = put('nodes', p.review, [['type', 'eq', 'review'], ['created_at', 'eq', at],
+          strict ? ['code', 'eq', p.code] : ['code', 'unchecked', 'nodes.code'],
+          strict ? ['inv', 'eq', p.inv] : ['inv', 'inv_of', ref], ['created_by', ...who(actor, p, strict)]])
+          || put('versions', `${p.review}#1`, [['at', 'eq', at], ['by', 'eq', actor], ['reason', 'eq', ''], ['body', 'sha', p.body_sha]]);
+      } else if (k === 'link') {
+        problem = put('edges', Number(p.edge), [['src', 'eq', ref], ['rel', 'eq', p.rel], ['dst', 'eq', p.dst],
+          ['dst_v', 'eq', p.dst_v], ['data', 'sha', p.data_sha], ['at', 'eq', at], ['by', 'eq', actor],
+          'src_v' in p ? ['src_v', 'eq', p.src_v] : ['src_v', 'unchecked', 'edges.src_v'],
+          'why_sha' in p ? ['why', 'sha', p.why_sha] : ['why', 'unchecked', 'edges.why']]);
+      } else if (k === 'withdraw') {
+        const strict = 'why_sha' in p;
+        problem = put('withdrawals', ref, [['at', 'eq', at], ['by', ...who(actor, p, strict)],
+          strict ? ['why', 'sha', p.why_sha] : ['why', 'head', String(p.why ?? '')]]);
+      } else if (k === 'retract') {
+        problem = put('retractions', Number(p.edge), [['at', 'eq', at], ['by', 'eq', actor],
+          'why_sha' in p ? ['why', 'sha', p.why_sha] : ['why', 'unchecked', 'retractions.why']]);
+      } else if (k === 'lease_take' || k === 'lease_release') {
+        const note = 'note_sha' in p ? ['note', 'sha', p.note_sha] : 'note' in p ? ['note', 'eq', cp(p.note, 300)]
+          : ['note', 'unchecked', 'leases.note'];
+        leases.push([['node', 'eq', ref], ['agent', 'eq', p.for || actor], ['task', 'eq', p.task], ['kind', 'eq', k.slice(6)],
+          ['at', 'eq', at], ['expires', 'eq', p.expires ?? ''], note]);
+      }
+      if (problem) return { problem };
+    }
+    const invOf = new Map();
+    want.nodes.forEach((checks, id) => checks.forEach(([f, how, v]) => { if (f === 'inv' && how === 'eq') invOf.set(id, v); }));
+    const mismatch = async (row, checks) => {
+      for (const [field, how, v] of checks) {
+        const got = row[field];
+        let ok;
+        if (how === 'eq') ok = same(got, v);
+        else if (how === 'sha') ok = typeof got === 'string' && await sha256(got) === v;
+        else if (how === 'head') ok = typeof got === 'string' && cp(got, 300) === v;
+        else if (how === 'inv_of') ok = same(got, invOf.get(v));
+        else if (how === 'bad') return v;
+        else { if (got != null && got !== '') unchecked[v] = (unchecked[v] || 0) + 1; ok = true; }
+        if (!ok) return field;
+      }
+      return '';
+    };
+    const keys = { nodes: (r) => r.id, versions: (r) => `${r.node}#${Number(r.v)}`, edges: (r) => Number(r.id),
+      withdrawals: (r) => r.node, retractions: (r) => Number(r.edge) };
+    for (const [t, key] of Object.entries(keys)) {
+      const have = new Map();
+      for (const r of tables[t] || []) {
+        const k = key(r);
+        if (have.has(k)) return { problem: `${label(t, k)} appears twice` };
+        have.set(k, r);
+      }
+      for (const [k, r] of have) {
+        if (!want[t].has(k)) return { problem: `${label(t, k)} has no event` };
+        const bad = await mismatch(r, want[t].get(k));
+        if (bad) return { problem: `${label(t, k)} differs from its event (${bad})` };
+      }
+      for (const k of want[t].keys()) if (!have.has(k)) return { problem: `${label(t, k)} is missing: its event says it was written` };
+    }
+    const rows = [...(tables.leases || [])].sort((a, b) => Number(a.id) - Number(b.id));
+    if (new Set(rows.map((r) => Number(r.id))).size !== rows.length) return { problem: 'a lease id appears twice' };
+    if (rows.length !== leases.length) return { problem: `${rows.length} lease rows for ${leases.length} lease events` };
+    for (let i = 0; i < rows.length; i++) {
+      const bad = await mismatch(rows[i], leases[i]);
+      if (bad) return { problem: `lease ${rows[i].id} differs from its event (${bad})` };
+    }
+    return { unchecked };
+  }
+
+  const titleOf = (b) => cp(b.statement || b.title || b.text || b.aim || b.summary || b.choice || b.citation || b.name
+    || b.path || b.verdict || '', 300);
+
+  /** The derived views are presentation; every fact in them the rows fix must agree with the verified rows. */
+  function derivedProblem(b, tables) {
+    const d = b.derived;
+    if (d == null) return '';
+    if (typeof d !== 'object') return 'derived is not an object';
+    const nodes = new Map(tables.nodes.map((n) => [n.id, n])), latest = new Map();
+    tables.versions.forEach((v) => { if (v.v > ((latest.get(v.node) || [0])[0])) latest.set(v.node, [v.v, JSON.parse(v.body)]); });
+    const withdrawn = new Set(tables.withdrawals.map((w) => w.node)), retracted = new Set(tables.retractions.map((r) => Number(r.edge)));
+    const live = new Map(tables.edges.filter((e) => !retracted.has(Number(e.id))).map((e) => [Number(e.id), e]));
+    const scope = String((b.scope || {}).inv || '');
+    const invs = new Set(scope ? [scope] : [...nodes.values()].filter((n) => n.type === 'investigation').map((n) => n.id));
+    const facts = (x, where) => {
+      const n = x && typeof x === 'object' ? nodes.get(x.id) : null;
+      if (!n) return `${where} shows ${x && typeof x === 'object' ? x.id : JSON.stringify(x)}, which the record doesn't hold`;
+      const [v, body] = latest.get(n.id) || [0, {}];
+      const want = { type: n.type, code: n.code, inv: n.inv, by: n.created_by, at: n.created_at, v, title: titleOf(body),
+        kind: body.kind || body.verdict || '' };
+      for (const [k, w] of Object.entries(want)) if (k in x && !same(x[k], w)) return `${where} shows ${n.code || n.id} with ${k} ${JSON.stringify(x[k])}; the record has ${JSON.stringify(w)}`;
+      const life = (x.state || {}).lifecycle;
+      if (life != null && (life === 'withdrawn') !== withdrawn.has(n.id)) return `${where} shows ${n.code || n.id} as ${life}; the record ${withdrawn.has(n.id) ? 'withdrew it' : 'has no withdrawal of it'}`;
+      return '';
+    };
+    const byInv = d.by_inv || {};
+    const keys = Object.keys(byInv);
+    if (keys.length !== invs.size || !keys.every((k) => invs.has(k))) return "the views don't cover the record's investigations";
+    for (const x of d.investigations || []) {
+      if (!invs.has(x.id)) return `the investigation list shows ${x.id}, which isn't in the bundle's scope`;
+      const p = facts(x, 'the investigation list'); if (p) return p;
+    }
+    for (const [inv, v] of Object.entries(byInv)) {
+      const sg = (v || {}).subgraph || {}, shown = sg.nodes || [], name = (nodes.get(inv) || {}).code || inv;
+      for (const x of shown) { const p = facts(x, `the graph of ${name}`); if (p) return p; }
+      const mine = new Set([...nodes.values()].filter((n) => n.inv === inv || n.id === inv).map((n) => n.id));
+      const ids = shown.map((x) => x.id), idset = new Set(ids);
+      const covers = idset.size === mine.size && [...mine].every((i) => idset.has(i));
+      if (ids.length !== idset.size || (!covers && !(mine.size > ids.length && ids.length >= 5000))) return `the graph of ${name} doesn't show the nodes the record holds`;
+      const want = new Map([...live].filter(([, e]) => idset.has(e.src) && idset.has(e.dst)));
+      const got = sg.edges || [];
+      if (got.length !== want.size || !got.every((e) => want.has(Number(e.id)))) return `the graph of ${name} doesn't show the live links the record holds`;
+      for (const e of got) {
+        const r = want.get(Number(e.id));
+        for (const k of ['src', 'src_v', 'rel', 'dst', 'dst_v', 'at', 'by', 'why']) if (k in e && !same(e[k], r[k])) return `the graph shows link ${e.id} with ${k} ${JSON.stringify(e[k])}; the record has ${JSON.stringify(r[k])}`;
+        if ('data' in e && !same(e.data, JSON.parse(r.data))) return `the graph shows link ${e.id} with other data than the record`;
+      }
+    }
+    return '';
+  }
+
+  /** Check a bundle in the browser: the chain, then the rows against the events both ways, then the derived views
+   *  against the rows. Standing isn't covered (see STANDING_NOTE). With `head`, also that the chain ends at it. */
+  async function verifyBundle(b, head = '') {
     if (!b || b.format !== 'hypgraph/1-bundle') return { ok: false, problem: 'not a hypgraph/1-bundle' };
     let prev = '0'.repeat(64), checked = 0, red = 0;
-    const creates = new Map(), revs = new Map(), reviews = new Map(), links = new Map(), withdraws = new Set(), retracts = new Set();
+    const events = [], seqs = new Set();
     for (const ev of [...(b.events || [])].sort((x, y) => x.seq - y.seq)) {
+      if (seqs.has(ev.seq)) return { ok: false, broken_at: ev.seq, problem: 'two events share a sequence number' };
+      seqs.add(ev.seq);
       if (ev.redacted) {
         if (ev.prev !== prev) return { ok: false, broken_at: ev.seq, problem: 'chain broken (redacted event)' };
         prev = ev.hash; red += 1; continue;
@@ -83,36 +247,27 @@
       const body = JSON.parse(ev.body);
       if (body.prev !== prev) return { ok: false, broken_at: ev.seq, problem: 'chain broken (prev does not match)' };
       prev = ev.hash; checked += 1;
-      const p = body.payload || {};
-      if (body.kind === 'create') { creates.set(body.ref, p); revs.set(`${body.ref}#${p.v || 1}`, p.body_sha); }
-      else if (body.kind === 'revise') revs.set(`${body.ref}#${p.v}`, p.body_sha);
-      else if (body.kind === 'review') { reviews.set(p.review, p); revs.set(`${p.review}#1`, p.body_sha); }
-      else if (body.kind === 'link') links.set(Number(p.edge), p);
-      else if (body.kind === 'withdraw') withdraws.add(body.ref);
-      else if (body.kind === 'retract') retracts.add(Number(p.edge));
+      events.push(body);
     }
     if (b.head && b.head !== prev) return { ok: false, problem: "the chain does not end at the bundle's head" };
-    for (const n of b.nodes || []) {
-      const c = creates.get(n.id);
-      if (n.type === 'review') { if (!reviews.has(n.id)) return { ok: false, problem: `review ${n.id} has no event` }; }
-      else if (!c || c.type !== n.type || c.code !== n.code || c.inv !== n.inv) return { ok: false, problem: `node ${n.id} differs from its create event` };
-    }
-    for (const v of b.versions || []) {
-      const want = revs.get(`${v.node}#${v.v}`);
-      if (want === undefined) return { ok: false, problem: `version ${v.node} v${v.v} has no event` };
-      if (await sha256(v.body) !== want) return { ok: false, problem: `version ${v.node} v${v.v} differs from its event` };
-    }
-    for (const e of b.edges || []) {
-      const want = links.get(Number(e.id));
-      if (!want) return { ok: false, problem: `edge ${e.id} has no event` };
-      if (want.rel !== e.rel || want.dst !== e.dst || (want.dst_v ?? null) !== (e.dst_v ?? null) || await sha256(e.data) !== want.data_sha)
-        return { ok: false, problem: `edge ${e.id} differs from its event` };
-    }
-    for (const w of b.withdrawals || []) if (!withdraws.has(w.node)) return { ok: false, problem: `withdrawal of ${w.node} has no event` };
-    for (const r of b.retractions || []) if (!retracts.has(Number(r.edge))) return { ok: false, problem: `retraction of edge ${r.edge} has no event` };
-    const out = { ok: true, checked, head: prev, complete: red === 0, redacted: red, nodes: (b.nodes || []).length, edges: (b.edges || []).length };
+    const tables = Object.fromEntries(ROW_TABLES.map((t) => [t, b[t] || []]));
+    const rows = await checkRows(events, tables, String((b.policy || {}).importer || 'importer'));
+    if (rows.problem) return { ok: false, problem: rows.problem };
+    const dp = derivedProblem(b, tables);
+    if (dp) return { ok: false, problem: `the derived views contradict the verified record: ${dp}` };
+    const out = { ok: true, checked, head: prev, complete: red === 0, redacted: red, nodes: tables.nodes.length,
+      edges: tables.edges.length, unchecked: rows.unchecked, standing: { checked: false, note: STANDING_NOTE } };
     if (red) out.warning = `${red} event(s) outside this investigation are redacted: their content can't be checked.`;
-    return out;
+    return anchored(out, head);
+  }
+
+  /** A verification held against a head published elsewhere: the full hash or its first 16+ hex characters. */
+  function anchored(res, head) {
+    const want = String(head || '').trim().toLowerCase();
+    if (!want || !res.ok) return res;
+    if (want.length < 16 || !/^[0-9a-f]+$/.test(want)) return { ...res, ok: false, problem: "the anchor must be the head's hash, or at least its first 16 hex characters" };
+    if (!String(res.head || '').startsWith(want)) return { ...res, ok: false, anchored: false, problem: `the chain ends at ${String(res.head).slice(0, 16)}…, not at the anchored head ${want.slice(0, 16)}…: this is not the record that was published (rewritten, cut short, or another record)` };
+    return { ...res, anchored: true };
   }
 
   // ── data sources ──────────────────────────────────────────────────
@@ -415,8 +570,9 @@
       $('#hg-crumb').innerHTML = `<span class="t">${esc(m.code)} · ${esc(m.title)}</span>` +
         (m.pid ? `<span class="pill accent" title="${esc(m.profile.about || '')}">${esc(m.pid)}</span>` : '<span class="pill neutral">no profile</span>');
       const v = m.verify;
-      $('#hg-chain').innerHTML = !v ? '' : v.ok ? `<span class="pill ok" title="hash chain re-verified: ${v.checked} events, head ${esc(String(v.head || '').slice(0, 12))}…">⛓ chain verified · ${v.checked}</span>`
-        : `<span class="pill bad" title="${esc(v.problem || '')}">⛓ chain broken${v.broken_at ? ' at #' + v.broken_at : ''}</span>`;
+      $('#hg-chain').innerHTML = !v ? '' : v.ok ? `<span class="pill ok" title="hash chain and every row re-verified: ${v.checked} events, head ${esc(String(v.head || '').slice(0, 12))}…">⛓ verified · ${v.checked}</span>` +
+          (v.standing && !v.standing.checked ? ` <span class="pill neutral" title="${esc(v.standing.note || '')}">standing as exported</span>` : '')
+        : `<span class="pill bad" title="${esc(v.problem || '')}">⛓ does not verify${v.broken_at ? ' at #' + v.broken_at : ''}</span>`;
       const s = !live ? '' : S.stream === 'live' ? '<span class="pill ok"><span class="d"></span>live</span>'
         : S.stream === 'polling' ? '<span class="pill neutral" title="this host has no event stream; checking every 5 s">polling</span>'
         : S.stream === 'reconnecting' ? '<span class="pill warn">reconnecting</span>' : S.stream === 'offline' ? '<span class="pill bad">offline</span>' : '';
@@ -440,7 +596,7 @@
       const m = S.m, out = [];
       const claims = m.nodes.filter((n) => n.type === 'claim');
       const stale = m.nodes.filter((n) => ['claim', 'result', 'source', 'decision'].includes(n.type) && staleOf(n).length && st(n).lifecycle === 'active');
-      if (m.verify && !m.verify.ok) out.push(['bad', `The hash chain does not verify${m.verify.broken_at ? ' at event #' + m.verify.broken_at : ''}: ${m.verify.problem || ''}`]);
+      if (m.verify && !m.verify.ok) out.push(['bad', `The record does not verify${m.verify.broken_at ? ' at event #' + m.verify.broken_at : ''}: ${m.verify.problem || ''}`]);
       if (stale.length) out.push(['warn', `${stale.length} node(s) rest on evidence that changed: ${stale.slice(0, 6).map((n) => n.code).join(', ')}`, stale[0].code]);
       const contested = claims.filter((c) => reviewOf(c) === 'contested');
       if (contested.length) out.push(['bad', `${contested.length} ${m.L('claim').toLowerCase()}(s) contested: ${contested.map((n) => n.code).join(', ')}`, contested[0].code]);
@@ -715,7 +871,7 @@
       const m = S.m, rows = auditRows(), v = m.verify;
       const actors = [...new Set(m.events.map((e) => e.actor))].sort(), kinds = [...new Set(m.events.map((e) => e.kind))].sort();
       return head('Audit log', 'The record\'s append-only event log. Every write is hash-chained, and the chain is re-verified when the record is read.', '<button class="btn" type="button" data-act="csv-audit">Export CSV</button>') +
-        (v ? `<div class="note ${v.ok ? '' : 'warn'}">${v.ok ? `⛓ Chain verified: ${v.checked} events, head <code>${esc(String(v.head || '').slice(0, 16))}…</code>${v.warning ? ' · ' + esc(v.warning) : ''}` : `⛓ The chain does not verify: ${esc(v.problem || '')}`}</div>` : '') +
+        (v ? `<div class="note ${v.ok ? '' : 'warn'}">${v.ok ? `⛓ Verified: ${v.checked} events, head <code>${esc(String(v.head || '').slice(0, 16))}…</code>, and every row against its event${v.warning ? ' · ' + esc(v.warning) : ''}${v.standing && !v.standing.checked ? ' · ' + esc(v.standing.note) : ''}` : `⛓ The record does not verify: ${esc(v.problem || '')}`}</div>` : '') +
         `<div class="toolbar"><select class="select" id="hg-au-actor" aria-label="Actor"><option value="">every actor</option>${actors.map((a) => `<option ${S.audit.actor === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
           <select class="select" id="hg-au-kind" aria-label="Event"><option value="">every event</option>${kinds.map((k) => `<option ${S.audit.kind === k ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select><span class="dim">${rows.length} events</span></div>
         <div class="card"><table><thead><tr><th scope="col" style="width:60px">Seq</th><th scope="col" style="width:170px">Time (UTC)</th><th scope="col" style="width:120px">Actor</th><th scope="col" style="width:120px">Event</th><th scope="col">What happened</th></tr></thead><tbody>
@@ -976,7 +1132,8 @@
       try {
         status(); nav();
         const main = $('#hg-main'), y = main.scrollTop;
-        main.innerHTML = V[S.view]();
+        const v = S.m.verify;               // a record that doesn't verify is shown as it arrived, and says so
+        main.innerHTML = (v && !v.ok ? `<div class="note warn" role="alert">This record does not verify: ${esc(v.problem || '')}. What follows is shown as it arrived, unverified.</div>` : '') + V[S.view]();
         if (S.view === 'live') main.scrollTop = y;
         root.dataset.hgView = S.view; root.dataset.hgReady = '1';
         if (S.cy) { try { S.cy.destroy(); } catch { /* gone */ } S.cy = null; }
@@ -1124,7 +1281,7 @@
       destroy: () => { if (S.follow) S.follow(); stopPlay(); if (S.cy) S.cy.destroy(); root.innerHTML = ''; } };
   }
 
-  const API = { mount, HttpSource, BundleSource, verifyBundle, sha256, version: VERSION, TYPE_COLOR };
+  const API = { mount, HttpSource, BundleSource, verifyBundle, anchored, sha256, version: VERSION, TYPE_COLOR };
   global.HypGraph = API;
   global.HypAtlas = global.HypAtlas || API;        // the Atlas's name, kept for one release
 })(typeof window !== 'undefined' ? window : globalThis);

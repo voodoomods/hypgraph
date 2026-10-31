@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 from . import profiles
 from . import derive as D
 from . import plan
+from . import store
 
 if TYPE_CHECKING:
     from .graph import Graph
@@ -459,7 +460,8 @@ def _lease_for(g: "Graph", *, author: str, node: str, agent: str, task: str, min
             def write(con):
                 con.execute("INSERT INTO leases (node, agent, task, kind, at, expires, note) VALUES (?,?,?,?,?,?,?)",
                             (node, agent, task, "take", at, exp, "work order"))
-                g._event(con, author, "lease_take", node, {"task": task, "expires": exp, "for": agent}, at)
+                g._event(con, author, "lease_take", node, {"task": task, "expires": exp, "for": agent,
+                                                           "note_sha": store.sha("work order")}, at)
             g._transaction(write)
         finally:
             g._after_write()
@@ -482,8 +484,8 @@ def return_work(g: "Graph", *, author: str, order: str, note: str = "") -> dict:
             def write(con):
                 con.execute("INSERT INTO leases (node, agent, task, kind, at, expires, note) VALUES (?,?,?,?,?,?,?)",
                             (t, author, order, "release", at, "", str(note)[:300]))
-                g._event(con, author, "lease_release", t, {"task": order, "note": str(note)[:1000], "returned": True},
-                         at)
+                g._event(con, author, "lease_release", t, {"task": order, "note": str(note)[:1000], "returned": True,
+                                                            "note_sha": store.sha(str(note)[:300])}, at)
             g._transaction(write)
         finally:
             g._after_write()
@@ -590,7 +592,8 @@ def cancel_work(g: "Graph", *, author: str, order: str, why: str) -> dict:
                 def write(con):
                     con.execute("INSERT INTO leases (node, agent, task, kind, at, expires, note) VALUES (?,?,?,?,?,?,?)",
                                 (t, assignee, order, "release", at, "", "order cancelled"))
-                    g._event(con, author, "lease_release", t, {"task": order, "cancelled": True, "for": assignee}, at)
+                    g._event(con, author, "lease_release", t, {"task": order, "cancelled": True, "for": assignee,
+                                                               "note_sha": store.sha("order cancelled")}, at)
                 g._transaction(write)
             finally:
                 g._after_write()

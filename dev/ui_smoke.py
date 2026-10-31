@@ -128,7 +128,7 @@ def main() -> int:
                 why = (check(dom, view, "app" if page == "" else "[data-hypgraph]", telemetry=page.startswith("examples/"))
                        if view else "")
                 why = why or next((f"missing {x!r}" for x in extra if x not in dom), "")
-                if view and not why and "chain verified" not in dom:
+                if view and not why and "⛓ verified" not in dom:
                     why = "the hash chain wasn't verified in the browser"
                 bad += bool(why)
                 site += 1
