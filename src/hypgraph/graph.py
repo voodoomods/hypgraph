@@ -170,6 +170,25 @@ def clean_body(ntype: str, body: dict, *, partial_ok: bool = False) -> dict:
 
 class _Writer(threading.local):
     task = ""
+    hide: Optional[dict] = None
+
+
+class sealed_from:
+    """``with g.sealed_from(hide):`` — the writes inside come from a reader these nodes are sealed from (a host's blind
+    view: node id → the order that seals it, ``blind.view_for(...).hide``). They may not rest on those nodes, and no
+    check reads them on the writer's behalf: a check that did would answer a right guess differently from a wrong one.
+    An author holding a blind order is sealed this way without it; a host passes its reader's view so that writing
+    under another name doesn't escape the seal."""
+    def __init__(self, graph: "Graph", hide: dict | None):
+        self.graph = graph
+        self.hide = dict(hide or {})
+
+    def __enter__(self):
+        self.prev, self.graph._writer.hide = self.graph._writer.hide, self.hide
+        return self
+
+    def __exit__(self, *exc):
+        self.graph._writer.hide = self.prev
 
 
 class writing_for:
@@ -258,6 +277,42 @@ class Graph:
 
     def writing_for(self, task: str | None) -> writing_for:
         return writing_for(self, task)
+
+    def sealed_from(self, hide: dict | None) -> sealed_from:
+        return sealed_from(self, hide)
+
+    def _hidden(self, s: D.Snap, author: str) -> dict:
+        """What is sealed from this write's author: its own open blind orders' scope, and the host's view if given."""
+        from . import blind
+        out = dict(self._writer.hide or {})
+        for i, c in blind.view_for_author(s, author).hide.items():
+            out.setdefault(i, c)
+        return out
+
+    @staticmethod
+    def _sealed(hidden: dict, what: str) -> GraphError:
+        """The one refusal a sealed writer gets, the same whatever it guessed."""
+        codes = ", ".join(sorted({c for c in hidden.values() if c})) or "a blind work order"
+        return GraphError(f"{what}: that work is sealed from you while {codes} is open, so nothing you write may rest on "
+                          "it or be checked against it. Record your own measurement, return the order (return_work), "
+                          "and build on the rest once it opens.",
+                          [{"code": "SEALED", "message": what}])
+
+    def _sealed_measurements(self, s: D.Snap, hidden: dict, body: dict, inv: str) -> None:
+        for m in body.get("measurements") or []:
+            ref = str(m.get("result") or "") if isinstance(m, dict) else ""
+            hits = [ref] if ref in s.nodes else [i for i, n in s.nodes.items()
+                                                 if ref and n["code"].lower() == ref.lower() and n["inv"] == inv]
+            if any(h in hidden for h in hits):
+                raise self._sealed(hidden, f"a measurement bound to {ref}")
+
+    def _sealed_links(self, s: D.Snap, hidden: dict, links: list[tuple[str, str, str]]) -> None:
+        """A sealed writer's links may reach a sealed node only to say its own work supports, challenges or tests a
+        hypothesis — what a blind order targets; a claim, result or anything else would be read on its behalf."""
+        for a, rel, b in links:
+            for x in (a, b):
+                if x in hidden and not (s.nodes[x]["type"] == "hypothesis" and rel in ("supports", "challenges", "tests")):
+                    raise self._sealed(hidden, f"a {rel} link to {s.nodes[x]['code'] or x}")
 
     def author(self, name: str) -> "Author":
         """A handle that writes as ``name`` — convenient in notebooks and scripts."""
@@ -707,12 +762,17 @@ class Graph:
                 pending = [(a, rel, b) for a, rel, b, _f in oriented]
                 flipped = [f"{s.nodes[a].get('code') or a} -{rel}-> {s.nodes[b].get('code') or b}"
                            for a, rel, b, f in oriented if f]
+                hidden = self._hidden(s, author)
+                if hidden:
+                    self._sealed_links(s, hidden, pending)
                 for a, rel, b in pending:
                     self._check_link(s, a, rel, b)
                 auto_notes: list[str] = []
                 if type == "claim":
                     body = self._bind_measurements(s, body, inv)
                     staged["body"] = body
+                    if hidden:
+                        self._sealed_measurements(s, hidden, body, inv)
                     # a measurement names the result its number comes from: that result supports the claim, so the
                     # standing counts it as a line of support without a separate link from the writer
                     for m in body.get("measurements") or []:
@@ -729,7 +789,9 @@ class Graph:
                 if type == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, nid, pending), inv)
                     loose = [w for p in problems if p.code == "UNBOUND_NUMBER" for w in p.words]
-                    if loose:                               # repair before refusing: bind what the record holds
+                    # repair before refusing: bind what the record holds — not for a sealed writer, whose numbers
+                    # would be looked up in what is sealed from it
+                    if loose and not hidden:
                         body, extra, auto_notes = self._auto_bind(s, body, inv, who,
                                                                   self._support_ids(s, nid, pending), loose)
                         if auto_notes:
@@ -976,15 +1038,22 @@ class Graph:
                     raise
                 extra: list[str] = []
                 auto_notes: list[str] = []
+                hidden = self._hidden(s, author)
+                if hidden and node in hidden:
+                    raise self._sealed(hidden, f"a revision of {n['code'] or node}")
                 if n["type"] == "claim":
                     body = self._bind_measurements(s, body, n["inv"])
+                    if hidden:
+                        self._sealed_measurements(s, hidden, body, n["inv"])
+                        if set(self._support_ids(s, node, [])) & set(hidden):
+                            raise self._sealed(hidden, f"a revision of {n['code'] or node}, which rests on sealed work")
                 if n["type"] == "run" and body.get("kind") != n["body"].get("kind") and author != P.operator:
                     raise GraphError("a run's kind (lab / agent / external) is where its record came from; it doesn't "
                                      "change")
                 if n["type"] == "claim" and author not in P.curators:
                     problems = claim_issues(s, body, self._support_ids(s, node, []), n["inv"])
                     loose = [w for p in problems if p.code == "UNBOUND_NUMBER" for w in p.words]
-                    if loose:
+                    if loose and not hidden:
                         body, extra, auto_notes = self._auto_bind(s, body, n["inv"], n["created_by"],
                                                                   self._support_ids(s, node, []), loose)
                         if auto_notes:
@@ -1032,6 +1101,13 @@ class Graph:
                 if translated:
                     data = {**(data or {}), "read_as": given}                       # what the author wrote
                 src, rel, dst, flipped = self._orient(s, src, rel, dst)
+                hidden = self._hidden(s, author)
+                if hidden:
+                    self._sealed_links(s, hidden, [(src, rel, dst)])
+                    for x in (src, dst):                     # a claim of its own may not come to rest on sealed work
+                        if x in s.nodes and s.nodes[x]["type"] == "claim" and \
+                                set(self._support_ids(s, x, [(src, rel, dst)])) & set(hidden):
+                            raise self._sealed(hidden, f"a link that rests {s.nodes[x]['code'] or x} on sealed work")
                 if src in s.nodes:
                     self._fixed_guard(s, author, src)
                 eid = self._transaction(lambda con: self._insert_edge(con, s, src, rel, dst, data or {}, why, author,
@@ -1146,6 +1222,9 @@ class Graph:
                     raise GraphError(f"no node {target}")
                 if n["type"] not in RELS["reviews"][1]:
                     raise GraphError(f"a {n['type']} isn't reviewed")
+                hidden = self._hidden(s, author)
+                if hidden and target in hidden:
+                    raise self._sealed(hidden, f"a review of {n['code'] or target}")
                 official = author in D.board(s, target) and verdict != "comment"
                 if official and author == n["created_by"] and author not in P.curators:
                     who = ", ".join(sorted(D.board(s, target) - P.curators - {author})[:6]) or "another reviewer"

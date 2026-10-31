@@ -162,6 +162,11 @@ Implementations must derive these, never store them:
 - Nobody officially reviews their own node.
 - Writes into an `archived` or `published` investigation are refused (reserved authors excepted).
 - Only the importer may set a write's time. Everyone else's comes from the writer's clock.
+- A writer sealed from nodes (it holds an open blind work order, or a host passes its reader's view with
+  `Graph.sealed_from`) may link to a sealed node only to say its own work `supports`, `challenges` or `tests` a
+  hypothesis. It may not bind a measurement to a sealed result, rest a claim on sealed work, review or revise a sealed
+  node, or issue a work order on sealed work, and a seat holding a blind order issues no orders. These are refused
+  with one message, before any check reads the sealed material, so that no answer depends on what is sealed.
 
 ## 7. Claim checks
 
