@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Für Agenten — HypGraph</title>
+<meta name="description" content="Verbinden Sie einen KI-Agenten mit HypGraph: eine Agent Skill und ein MCP-Server, deren Prüfungen und Ablehnungen von Behauptungen dem Agenten genau sagen, was zu korrigieren ist.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="../../llms.txt" title="Für Sprachmodelle">
+<link rel="alternate" type="text/markdown" href="../../SKILL.md" title="Skill für Agenten">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.de.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/agents/" data-rel="../../agents/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/agents/" data-rel="../../es/agents/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/agents/" data-rel="../../fr/agents/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/agents/" data-rel="../../de/agents/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/agents/" data-rel="../../zh-Hans/agents/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/agents/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Website"><a href="../agents/" aria-current="page">Agenten</a><a href="../engineers/">Ingenieure</a><a href="../examples/">Beispiele</a><a href="../never/" class="hide-sm">Nie</a><a href="../#workflows" class="hide-sm">Workflows</a>
+    <a href="../play/" class="hide-sm">Spielwiese</a><a href="../verify/" class="hide-sm">Verifizieren</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Sprache" title="Sprache">DE</summary><div class="langs-menu"><a href="../../agents/" hreflang="en" lang="en">English</a><a href="../../es/agents/" hreflang="es" lang="es">Español</a><a href="../../fr/agents/" hreflang="fr" lang="fr">Français</a><a href="../../de/agents/" hreflang="de" lang="de" aria-current="page">Deutsch</a><a href="../../zh-Hans/agents/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Zwischen hell und dunkel wechseln">◐</button></nav>
+</div></header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Diese Seite ist eine Übersetzung. Maßgeblich ist die englische Fassung: <a href="../../agents/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker" style="color:var(--violet)">Für Agenten</div>
+  <h1>Forschung, für die Sie geradestehen können.</h1>
+  <p>Geben Sie Ihrem Agenten ein Protokoll, das seine Behauptungen beim Schreiben prüft, ihn seine eigene Arbeit nicht prüfen lässt und jede Ablehnung erklärt — damit seine Forschung besser wird und nicht nur länger.</p></div></div>
+
+<div class="wrap doc">
+<nav class="toc" aria-label="Auf dieser Seite">
+  <a href="#you">Wenn Sie ein Agent sind</a><a href="#skill">Die Skill installieren</a><a href="#mcp">Über MCP verbinden</a>
+  <a href="#method">Die Methode</a><a href="#tools">Werkzeuge</a><a href="#refusals">Ablehnungen</a><a href="#standing">Den Stand lesen</a>
+  <a href="#hosts">Für Entwickler von Hosts</a><a href="#machine">Maschinenlesbar</a></nav>
+<article class="prose">
+
+<h2 id="you">Wenn Sie ein Agent sind und dies lesen</h2>
+<div class="callout"><b>Klare Anweisungen.</b> HypGraph ist ein Forschungsprotokoll. Verwenden Sie es immer, wenn Sie eine Frage mit Belegen untersuchen und sagen müssen, was feststeht. Lesen Sie vor dem Schreiben (<code>overview</code>). Schreiben Sie Hypothesen mit Vorhersagen. Schreiben Sie das erwartete Ergebnis jedes Experiments pro Hypothese <i>bevor</i> Sie es ausführen. Zeichnen Sie Läufe mit gehashten Dateien auf. Binden Sie jede Zahl in einer Behauptung an ein Ergebnisfeld. Schreiben Sie nie „immer/nie/beweist“ ohne k von n mit k = 0 oder n. Erklären Sie nie etwas für ausgeschlossen ohne eine Prüfung der Teststärke. Geben Sie den Stand genau so wieder, wie das Protokoll ihn angibt. Wird ein Schreibvorgang abgelehnt, korrigieren Sie, was die Meldung sagt. Kurzfassung: <a href="../../llms.txt">/llms.txt</a> · vollständige Skill: <a href="../../SKILL.md">/SKILL.md</a>.</div>
+
+<h2 id="skill">Die Skill installieren</h2>
+<p>Für Claude Code und andere Hosts, die <a href="../../SKILL.md">Agent Skills</a> laden. Die Skill enthält die Methode, die Ablehnungen und ihre Korrekturen und arbeitet über die CLI — ohne Server.</p>
+<div class="code"><pre>pip install hypgraph
+hypgraph skill --install            # .claude/skills/hypgraph/SKILL.md in this project
+hypgraph skill --install --user     # or under your home directory, for every project</pre></div>
+
+<h2 id="mcp">Über MCP verbinden</h2>
+<div class="code"><span class="lbl">Claude Code</span><pre>pip install "hypgraph[mcp]"
+claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></div>
+<div class="code" style="margin-top:18px"><span class="lbl">Claude Desktop · Cursor · jeder MCP-Client</span><pre>{
+  "mcpServers": {
+    "hypgraph": {
+      "command": "hypgraph",
+      "args": ["--db", "/absolute/path/study.hypgraph", "--as", "claude", "mcp"]
+    }
+  }
+}</pre></div>
+<div class="code" style="margin-top:18px"><span class="lbl">Streaming-HTTP</span><pre>hypgraph --db study.hypgraph --as claude mcp --transport http --port 8766
+# → http://127.0.0.1:8766/mcp</pre></div>
+<p>Der Server schreibt als <b>ein einziger</b> Autor, beim Start festgelegt. Der Agent kann keinen anderen Namen übergeben, nicht als das Instrument (<code>lab</code>) oder als <code>operator</code> schreiben, und seine Urteile zählen nur, wenn die Untersuchung ihn als Prüfer nennt. Dateien für <code>register_run</code> müssen in dem Verzeichnis liegen, in dem der Server gestartet wurde.</p>
+
+<h2 id="method">Die Methode</h2>
+<ol>
+  <li><b>Zuerst <code>overview()</code>.</b> Was feststeht, was angefochten ist, was aussteht, was als Nächstes laufen soll.</li>
+  <li><b>Hypothesen mit Vorhersagen</b> — und Rivalen, verknüpft <code>alternative_to</code>.</li>
+  <li><b>Experimente, die scheitern können</b> — <code>tests</code>-Verknüpfungen mit <code>data.expected</code> pro Hypothese, vor dem Lauf geschrieben. Fügen Sie einen <code>power_check</code> hinzu: Pflanzen Sie eine bekannte Antwort ein und zeigen Sie, dass die Methode sie findet.</li>
+  <li><b><code>register_run</code></b> — hasht Code, Eingaben und Ausgaben und fügt das Ergebnis mit <code>{name: {value} | {k, n}}</code>-Werten hinzu.</li>
+  <li><b>Behauptungen mit Messungen</b> — jede Zahl gebunden; eine <code>supports</code>-Verknüpfung mit einer Begründung; ein Geltungsbereich.</li>
+  <li><b>Prüfung</b> — nur benannte Prüfer zählen, nie über ihre eigene Arbeit.</li>
+  <li><b><code>report()</code></b> an den Anfang jeder Zusammenfassung; die Interpretation darunter — dann <b><code>check_report(text)</code></b> auf den Bericht, bevor Sie ihn abgeben. Korrigieren Sie jeden Fehler.</li>
+</ol>
+<h3>Unter einem Workflow-Profil</h3>
+<p>Eine Untersuchung, die auf <code>scientific@2</code>, <code>software@2</code>, <code>trading@2</code>, <code>knowledge@2</code> oder <code>optimization@2</code> gesetzt ist, trägt den <a href="../#workflows">Workflow</a> ihrer Disziplin. Rufen Sie <code>stage(question)</code> auf: Es nennt die Phase, in der die Frage steht — aus dem Protokoll abgeleitet, nie gesetzt — und jede Schranke ERFÜLLT oder NICHT ERFÜLLT mit dem, was sie erfüllen würde. Schreiben Sie die nächste Schranke der Reihe nach (eine Hypothese mit Vorhersagen; ein Experiment mit seinem erwarteten Ergebnis <i>vor</i> dem Lauf; den Diff oder die Instanz als Artefakt mit seinem <code>kind</code>; den Lauf, der es <code>uses</code>). Eine korrigierte Datei, ein neuerer Commit, eine geänderte Instanz oder eine zurückgezogene Quelle machen frühere Belege <b>veraltet</b>; die Antwort sagt es, und eine Prüfung auf veralteten Belegen zählt nicht. Lautet die ehrliche Antwort „nicht entscheidbar“, zeichnen Sie auf, was Sie gefunden haben, und schreiben Sie daraus eine Behauptung der Art <code>inconclusive</code> — sobald sie geprüft ist, beantwortet sie die Frage.</p>
+
+<h2 id="tools">Werkzeuge</h2>
+<table>
+  <thead><tr><th>Werkzeug</th><th>was es tut</th></tr></thead>
+  <tbody>
+    <tr><td><code>overview(investigation?)</code></td><td>Ziel, Prüfer, lebende Hypothesen, geprüfte Behauptungen und woher man das weiß, angefochtene / gefährdete Arbeit, Reservierungen, Warteschlangen, nächste Experimente.</td></tr>
+    <tr><td><code>find(text, type?, investigation?)</code></td><td>Nach Wörtern oder Code suchen (H1, CL3).</td></tr>
+    <tr><td><code>show(node, view)</code></td><td><code>summary</code> · <code>why</code> (worauf es beruht) · <code>impact</code> (was bricht, wenn es falsch ist) · <code>history</code>.</td></tr>
+    <tr><td><code>start_investigation(title, objective, reviewers)</code></td><td>Eine Studie mit ihren Prüfern eröffnen.</td></tr>
+    <tr><td><code>add(type, fields, investigation?, links?)</code></td><td>Frage, Hypothese, Experiment, Lauf, Ergebnis, Behauptung, Quelle, Entscheidung. Verknüpfungen nehmen IDs oder Codes.</td></tr>
+    <tr><td><code>link(src, rel, dst, why, data?)</code></td><td>Typisierte Verknüpfungen; eine verkehrt herum gesetzte Verknüpfung wird umgedreht, wenn nur die Umkehrung erlaubt ist.</td></tr>
+    <tr><td><code>revise</code> · <code>withdraw</code> · <code>retract_link</code></td><td>Korrekturen als neue Zeilen; nichts wird gelöscht.</td></tr>
+    <tr><td><code>review(node, verdict, method, notes)</code></td><td>Ein Urteil zur aktuellen Version.</td></tr>
+    <tr><td><code>check_report(text)</code></td><td>Einen Bericht gegen das Protokoll prüfen: Zahlen ohne Quelle, als geklärt dargestellte Behauptungen, die es nicht sind, zurückgezogene oder unbekannte Codes, nie / kein Effekt / signifikant ohne etwas dahinter.</td></tr>
+    <tr><td><code>refusal_log(author?)</code></td><td>Die Überbehauptungen, die das Protokoll abgelehnt hat — Ihre oder die des Teams — und ob jede in ehrlicher Fassung zurückkam.</td></tr>
+    <tr><td><code>bound(k, n, exposure)</code></td><td>Was eine Zählung trägt: die 95-%-Schranken hinter jedem „nie“, die nötigen Versuche, die im großen Maßstab nicht ausgeschlossenen Fehler.</td></tr>
+    <tr><td><code>stage(question?)</code> · <code>completion()</code></td><td>Unter einem Workflow-Profil: die Phase jeder Frage und der Zustand jeder Schranke; was das Profil für die ganze Untersuchung unter erledigt versteht.</td></tr>
+    <tr><td><code>next_experiments</code> · <code>work_queue</code> · <code>claim_work</code></td><td>Was als Nächstes laufen soll; was aussteht; einen Knoten reservieren, damit andere sehen, wer daran arbeitet.</td></tr>
+    <tr><td><code>register_run(name, code_paths, input_paths, output_paths, result_summary, result_values)</code></td><td>Eine Berechnung mit gehashten Dateien aufzeichnen.</td></tr>
+    <tr><td><code>report</code> · <code>verify</code> · <code>schema</code></td><td>Die erzeugten Fakten; die Prüfung der Kette; das Vokabular.</td></tr>
+  </tbody>
+</table>
+<p>Ressourcen: <code>hypgraph://skill</code>, <code>hypgraph://schema</code>, <code>hypgraph://investigations</code>, <code>hypgraph://investigation/{inv}/report</code>. Prompt: <code>method</code>.</p>
+
+<h2 id="refusals">Ablehnungen sind Anweisungen</h2>
+<p>Jede abgelehnte Behauptung führt eine Zeile pro Problem auf, die mit einem stabilen Code endet. Die Meldung hat die Arithmetik schon erledigt und enthält oft den ehrlichen Satz — verwenden Sie ihn. In Python liefert <code>GraphError.problems</code> <code>code</code>, <code>message</code>, <code>fix</code> und <code>words</code>.</p>
+<table>
+  <thead><tr><th>Code</th><th>tun Sie Folgendes</th></tr></thead>
+  <tbody>
+    <tr><td><code>ABSOLUTE_UNDERPOWERED</code></td><td>„nie“ bei 0 von n mit zu wenigen Versuchen. Schreiben Sie den ehrlichen Satz, den es Ihnen gibt („kein Vorkommen in n Versuchen (95-%-Obergrenze X)“), oder führen Sie die Versuche aus, die es für nötig hält.</td></tr>
+    <tr><td><code>ABSOLUTE_HIDES_DENOMINATOR</code></td><td>Nehmen Sie n in die Aussage auf: „nie, in 3.000 Proben“.</td></tr>
+    <tr><td><code>ABSOLUTE_WITHOUT_COUNT</code> · <code>ABSOLUTE_UNRELATED_COUNT</code></td><td>Sagen Sie, was beobachtet wurde („in k von n“); benennen Sie die Zählung nach dem, was sie zählt.</td></tr>
+    <tr><td><code>UNBOUND_NUMBER</code></td><td>Binden Sie sie an ein Ergebnisfeld. Differenzen, Prozente, Quotienten und Intervalle, die aus gebundenen Zählungen berechnet sind, gehen durch — entfernen Sie die Zahl nie, um durchzukommen.</td></tr>
+    <tr><td><code>EXCLUSION_WITHOUT_POWER</code></td><td>„Kein Effekt“ braucht eine Suche, die nachweislich einen eingepflanzten Effekt findet (<code>power: demonstrated</code>). Sonst zeichnen Sie <code>kind: inconclusive</code> auf und sagen „kein nachweisbarer Effekt“ — die Ablehnung nennt, welche Effektgröße sich verborgen haben könnte.</td></tr>
+    <tr><td><code>COMPARATIVE_WITHOUT_COMPARISON</code></td><td>Binden Sie beide Seiten.</td></tr>
+    <tr><td><code>SIGNIFICANCE_WITHOUT_TEST</code> · <code>SIGNIFICANCE_NOT_SHOWN</code></td><td>Binden Sie beide Seiten als k/n (das Protokoll testet sie) oder einen p-Wert; ist es nicht signifikant, sagen Sie es.</td></tr>
+    <tr><td><code>UNCORRECTED_EFFECT</code></td><td>Das Protokoll hat für dieses Ergebnis ein korrigiertes p, und es ist nicht signifikant. Schreiben Sie „unkorrigiert“ in den Satz, oder binden Sie es und schreiben Sie „nach Korrektur nicht signifikant“, oder zeichnen Sie <code>kind: lead</code> auf.</td></tr>
+    <tr><td><code>CAUSAL_WITHOUT_INTERVENTION</code></td><td>Sagen Sie „hängt zusammen mit“, oder stützen Sie es mit einem Experiment, das eingegriffen hat.</td></tr>
+  </tbody>
+</table>
+<p><b>Bevor Sie nie oder immer schreiben,</b> rufen Sie <code>bound(k, n, exposure)</code> auf: was die Zählung trägt und wie viele Fehler sie in dem Maßstab nicht ausschließt, in dem die Behauptung genutzt wird. Setzen Sie <code>exposure</code> auf die Behauptung, damit ihr Stand diese Zahl trägt. <b>Wenn Sie einen Knoten zurückziehen oder anfechten,</b> listet die Antwort auf, was nun auf etwas Gefallenem beruht — sagen Sie den Verantwortlichen Bescheid. Die ganze Geschichte: <a href="../never/">die Arithmetik von nie</a>.</p>
+
+<h2 id="standing">Den Stand lesen</h2>
+<blockquote>aktive Behauptung · geprüft (fisher:pass, v2) · 2 unabhängige Stützlinien · auf neuen Daten repliziert · keine externe Replikation</blockquote>
+<p>Geben Sie es wörtlich wieder. „Ungeprüft“ ist nicht „gezeigt“; eine von einem Agenten gemeldete Linie ist nicht „gesichert“. <b>GEFÄHRDET</b>: eine Prämisse ist gefallen. <b>ÜBERPRÜFEN</b>: die Grundlage einer Entscheidung hat sich geändert. <b>OHNE STÜTZE</b>: alle Stützung ist gefallen.</p>
+
+<h2 id="hosts">Für den Ingenieur, der es einbindet</h2>
+<p>Sie betreiben viele Agenten? Binden Sie die Bibliothek ein und legen Sie das Vertrauen selbst fest: <code>Graph(path, policy=Policy(reviewers=…,
+  instrument="lab", operator="operator"))</code>. Setzen Sie den <code>author</code> jedes Aufrufers auf Ihrer Seite fest und lehnen Sie reservierte Namen ab. Geben Sie Ihrem Job-Ausführer die Identität des Instruments, damit seine Läufe als laboraufgezeichnet zählen. Übergeben Sie <code>spend=</code>, um die Arbeit jeder Untersuchung zu bepreisen. Der <a href="../engineers/">Leitfaden für Ingenieure</a> enthält die Muster. Die HTTP-API (<code>hypgraph.server.dispatch</code>) und die HypGraph-Oberfläche (<code>hypgraph.ui.static_dir()</code>) passen in jedes Web-Framework.</p>
+
+<h2 id="machine">Maschinenlesbar</h2>
+<ul>
+  <li><a href="../../llms.txt">/llms.txt</a> — die Kurzfassung</li>
+  <li><a href="../../SKILL.md">/SKILL.md</a> — die Skill für Agenten</li>
+  <li><a href="../../agents.md">/agents.md</a> — diese Seite als Markdown</li>
+  <li><a href="../../schema/hypgraph-1.json">/schema/hypgraph-1.json</a> — Knotentypen, Felder, Relationen, Urteile</li>
+  <li><a href="../spec/">/spec/</a> — die Formate von Protokoll und Bundle</li>
+  <li><a href="../../data/broad-street.bundle.json">/data/broad-street.bundle.json</a> — ein vollständiges Beispiel-Bundle</li>
+</ul>
+</article>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Glauben Sie dem Hype nicht. Prüfen Sie die Hypothese.</span>
+<span>Erstellt von <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · Format und Dokumentation CC BY 4.0 · <a href="../disclaimer/">Haftungsausschluss</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>

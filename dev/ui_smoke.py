@@ -9,12 +9,15 @@ data-hg-ready="1" and data-hg-view="<v>") with no script error (data-hg-error un
 Then the website's pages that run the app (site/, built by dev/build_site.py): each profile's live example must open
 replaying, with its hash chain verified in the browser and its telemetry shown as not hash-chained; the home page's
 embed, the explorer, the /atlas/ forward and the examples gallery must render.
+Then the same in each translation (?lang=es|fr|de|zh-Hans, and site/<lang>/): the app must render in that language,
+headings and markers taken from its string table (src/hypgraph/ui/hypgraph.i18n.js).
 Serves the repo root on a free local port; reads nothing from the network."""
 from __future__ import annotations
 
 import argparse
 import functools
 import http.server
+import json
 import os
 import re
 import shutil
@@ -28,6 +31,26 @@ FIXTURES = sorted(p.name.split(".")[0] for p in (ROOT / "dev" / "ui-fixtures").g
 VIEWS = ["overview", "live", "pipeline", "graph", "evidence", "orders", "audit", "report"]
 HEADINGS = {"overview": None, "live": "Live", "pipeline": "Pipeline", "graph": "Graph", "evidence": "Evidence",
             "orders": "Work orders", "audit": "Audit log", "report": None}
+LANGS = ["es", "fr", "de", "zh-Hans"]
+
+
+def _table(path: Path, marker: str) -> dict:
+    s = path.read_text(encoding="utf-8")
+    return json.JSONDecoder().raw_decode(s, s.index(marker) + len(marker))[0]
+
+
+def strings(lang: str) -> dict:
+    """What a page in that language must show: each view's heading, the chain pill, the replay and telemetry markers."""
+    ui = ROOT / "src" / "hypgraph" / "ui"
+    t = _table(ui / "hypgraph.js", "/* strings:en */")
+    if lang != "en":
+        t = {**t, **_table(ui / "hypgraph.i18n.js", "/* strings */")[lang]}
+    return {"headings": {v: (t[f"view.{v}"] if HEADINGS[v] else None) for v in VIEWS},
+            "verified": t["chain.ok"].split("{n}")[0].rstrip(" ·"), "replaying": t["lv.replaying"],
+            "telemetry": t["lv.tel.carried"].split("{n}")[0]}
+
+
+EN = strings("en")
 
 
 def chrome_path(given: str = "") -> str:
@@ -70,7 +93,7 @@ def run(chrome: str, url: str, *, shot: Path | None = None) -> str:
     return out.stdout
 
 
-def check(dom: str, view: str, el: str = "app", telemetry: bool = False) -> str:
+def check(dom: str, view: str, el: str = "app", telemetry: bool = False, s: dict = EN) -> str:
     m = (re.search(r'<div data-hypgraph(?:="")?([^>]*)>', dom) if el == "[data-hypgraph]"
          else re.search(rf'<div id="{el}"([^>]*)>', dom))
     if not m:
@@ -83,15 +106,15 @@ def check(dom: str, view: str, el: str = "app", telemetry: bool = False) -> str:
         return "never finished rendering"
     if f'data-hg-view="{view}"' not in attrs:
         return f"rendered {re.search(r'data-hg-view=\"([^\"]*)\"', attrs).group(1) if 'data-hg-view' in attrs else 'nothing'}, not {view}"
-    want = HEADINGS[view]
+    want = s["headings"][view]
     h1 = re.compile(r"<h1>(.*?)</h1>", re.S).search(dom, m.end())        # the app's own heading, not the page's
     if not h1 or (want and want not in h1.group(1)):
         return f"heading {h1.group(1) if h1 else 'missing'!r}, wanted {want!r}"
     if view == "graph" and "<canvas" not in dom:
         return "the graph drew nothing"
-    if view == "live" and telemetry and ('class="trace"' not in dom or "telemetry · " not in dom):
+    if view == "live" and telemetry and ('class="trace"' not in dom or s["telemetry"] not in dom):
         return "the run's telemetry isn't shown (no trace or telemetry pill)"
-    if view in EXPORTED and "⛓ verified" in dom and "data-exported" not in dom and 'class="note warn"' not in dom             and "has no workflow profile" not in dom:                # nothing derived on the page
+    if view in EXPORTED and s["verified"] in dom and "data-exported" not in dom and 'class="note warn"' not in dom             and "has no workflow profile" not in dom:                # nothing derived on the page
         return "a bundle's derived view is shown without saying it is as exported, not verified"
     return ""
 
@@ -112,7 +135,7 @@ def main() -> int:
         for fx in FIXTURES:
             for theme in args.themes.split(","):
                 for v in VIEWS:
-                    url = f"http://127.0.0.1:{port}/dev/ui-fixtures/view.html?bundle={fx}&theme={theme}#view={v}"
+                    url = f"http://127.0.0.1:{port}/dev/ui-fixtures/view.html?lang=en&bundle={fx}&theme={theme}#view={v}"
                     shot = (shots / f"{fx}-{theme}-{v}.png") if shots else None
                     has_tel = (ROOT / "dev" / "ui-fixtures" / f"{fx}.telemetry.jsonl").exists()
                     why = check(run(chrome, url, shot=shot), v, telemetry=has_tel)
@@ -132,11 +155,32 @@ def main() -> int:
                 why = (check(dom, view, "app" if page == "" else "[data-hypgraph]", telemetry=page.startswith("examples/"))
                        if view else "")
                 why = why or next((f"missing {x!r}" for x in extra if x not in dom), "")
-                if view and not why and "⛓ verified" not in dom:
+                if view and not why and EN["verified"] not in dom:
                     why = "the hash chain wasn't verified in the browser"
                 bad += bool(why)
                 site += 1
                 print(f"{'FAIL' if why else 'ok  '} site/{page:24} {view or 'page':9} {why}", flush=True)
+        # each translation: every view of one fixture, then the translated home page and one live example
+        fx = FIXTURES[0]
+        for lang in LANGS:
+            s = strings(lang)
+            for v in VIEWS:
+                url = f"http://127.0.0.1:{port}/dev/ui-fixtures/view.html?lang={lang}&bundle={fx}&theme=light#view={v}"
+                why = check(run(chrome, url), v, s=s)
+                bad += bool(why)
+                site += 1
+                print(f"{'FAIL' if why else 'ok  '} {lang:7} {fx:13} {v:9} {why}", flush=True)
+            if (ROOT / "site" / lang / "index.html").exists():
+                for page, view, el in (("", "live", "app"), ("examples/scientific/", "live", "[data-hypgraph]")):
+                    url = f"http://127.0.0.1:{port}/site/{lang}/{page}"
+                    shot = (shots / f"site-{lang}-{page.strip('/').replace('/', '-') or 'home'}.png") if shots else None
+                    dom = run(chrome, url, shot=shot)
+                    why = check(dom, view, el, telemetry=bool(page), s=s)
+                    why = why or next((f"missing {x!r}" for x in (s["verified"], s["replaying"], f'lang="{lang}"')
+                                       if x not in dom), "")
+                    bad += bool(why)
+                    site += 1
+                    print(f"{'FAIL' if why else 'ok  '} site/{lang}/{page:21} {view:9} {why}", flush=True)
     finally:
         srv.shutdown()
     n = len(FIXTURES) * len(args.themes.split(",")) * len(VIEWS) + 1 + site

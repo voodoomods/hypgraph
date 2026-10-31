@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Para agentes — HypGraph</title>
+<meta name="description" content="Conecta un agente de IA a HypGraph: una Agent Skill y un servidor MCP cuyas comprobaciones y rechazos de afirmaciones le dicen al agente exactamente qué corregir.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="../../llms.txt" title="Para modelos de lenguaje">
+<link rel="alternate" type="text/markdown" href="../../SKILL.md" title="Skill para agentes">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.es.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/agents/" data-rel="../../agents/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/agents/" data-rel="../../es/agents/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/agents/" data-rel="../../fr/agents/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/agents/" data-rel="../../de/agents/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/agents/" data-rel="../../zh-Hans/agents/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/agents/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Sitio"><a href="../agents/" aria-current="page">Agentes</a><a href="../engineers/">Ingenieros</a><a href="../examples/">Ejemplos</a><a href="../never/" class="hide-sm">Nunca</a><a href="../#workflows" class="hide-sm">Flujos de trabajo</a>
+    <a href="../play/" class="hide-sm">Zona de pruebas</a><a href="../verify/" class="hide-sm">Verificar</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Idioma" title="Idioma">ES</summary><div class="langs-menu"><a href="../../agents/" hreflang="en" lang="en">English</a><a href="../../es/agents/" hreflang="es" lang="es" aria-current="page">Español</a><a href="../../fr/agents/" hreflang="fr" lang="fr">Français</a><a href="../../de/agents/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/agents/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Cambiar entre claro y oscuro">◐</button></nav>
+</div></header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Esta página es una traducción. La versión en inglés es la de referencia: <a href="../../agents/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker" style="color:var(--violet)">Para agentes</div>
+  <h1>Investigación que puedes respaldar.</h1>
+  <p>Dale a tu agente un registro que compruebe sus afirmaciones al escribirse, que no le deje revisar su propio trabajo y que explique cada rechazo — para que su investigación mejore, no solo se alargue.</p></div></div>
+
+<div class="wrap doc">
+<nav class="toc" aria-label="En esta página">
+  <a href="#you">Si eres un agente</a><a href="#skill">Instala la skill</a><a href="#mcp">Conéctate por MCP</a>
+  <a href="#method">El método</a><a href="#tools">Herramientas</a><a href="#refusals">Rechazos</a><a href="#standing">Cómo leer la situación</a>
+  <a href="#hosts">Para quien construye hosts</a><a href="#machine">Legible por máquinas</a></nav>
+<article class="prose">
+
+<h2 id="you">Si eres un agente y estás leyendo esto</h2>
+<div class="callout"><b>Instrucciones claras.</b> HypGraph es un registro de investigación. Úsalo siempre que investigues una pregunta con evidencia y necesites decir qué está establecido. Lee antes de escribir (<code>overview</code>). Escribe hipótesis con predicciones. Escribe el resultado esperado de cada experimento por hipótesis <i>antes</i> de ejecutarlo. Registra las ejecuciones con archivos hasheados. Liga cada número de una afirmación a un campo de resultado. Nunca escribas «siempre/nunca/demuestra» sin k de n con k = 0 o n. Nunca des algo por descartado sin una comprobación de potencia. Informa de la situación exactamente como la indica el registro. Cuando una escritura se rechace, corrige lo que diga el mensaje. Versión corta: <a href="../../llms.txt">/llms.txt</a> · skill completa: <a href="../../SKILL.md">/SKILL.md</a>.</div>
+
+<h2 id="skill">Instala la skill</h2>
+<p>Para Claude Code y otros hosts que cargan <a href="../../SKILL.md">Agent Skills</a>. La skill lleva el método, los rechazos y sus correcciones, y funciona a través de la CLI — sin servidor.</p>
+<div class="code"><pre>pip install hypgraph
+hypgraph skill --install            # .claude/skills/hypgraph/SKILL.md in this project
+hypgraph skill --install --user     # or under your home directory, for every project</pre></div>
+
+<h2 id="mcp">Conéctate por MCP</h2>
+<div class="code"><span class="lbl">Claude Code</span><pre>pip install "hypgraph[mcp]"
+claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></div>
+<div class="code" style="margin-top:18px"><span class="lbl">Claude Desktop · Cursor · cualquier cliente MCP</span><pre>{
+  "mcpServers": {
+    "hypgraph": {
+      "command": "hypgraph",
+      "args": ["--db", "/absolute/path/study.hypgraph", "--as", "claude", "mcp"]
+    }
+  }
+}</pre></div>
+<div class="code" style="margin-top:18px"><span class="lbl">HTTP con streaming</span><pre>hypgraph --db study.hypgraph --as claude mcp --transport http --port 8766
+# → http://127.0.0.1:8766/mcp</pre></div>
+<p>El servidor escribe como <b>un único</b> autor, fijado al arrancar. El agente no puede pasar otro nombre, no puede escribir como el instrumento (<code>lab</code>) ni como el <code>operator</code>, y sus veredictos solo cuentan si la investigación lo nombra como revisor. Los archivos para <code>register_run</code> deben estar dentro del directorio en el que se arrancó el servidor.</p>
+
+<h2 id="method">El método</h2>
+<ol>
+  <li><b><code>overview()</code> primero.</b> Qué está establecido, qué está impugnado, qué está pendiente, qué ejecutar a continuación.</li>
+  <li><b>Hipótesis con predicciones</b> — y rivales, enlazadas <code>alternative_to</code>.</li>
+  <li><b>Experimentos que pueden fallar</b> — enlaces <code>tests</code> con <code>data.expected</code> por hipótesis, escritos antes de ejecutar. Añade un <code>power_check</code>: siembra una respuesta conocida y demuestra que el método la encuentra.</li>
+  <li><b><code>register_run</code></b> — hashea el código, las entradas y las salidas, y añade el resultado con valores <code>{name: {value} | {k, n}}</code>.</li>
+  <li><b>Afirmaciones con mediciones</b> — cada número ligado; un enlace <code>supports</code> con un motivo; un alcance.</li>
+  <li><b>Revisión</b> — solo cuentan los revisores designados, nunca sobre su propio trabajo.</li>
+  <li><b><code>report()</code></b> al principio de cada resumen; la interpretación debajo — y luego <b><code>check_report(text)</code></b> sobre el informe antes de entregarlo. Corrige todos los errores.</li>
+</ol>
+<h3>Bajo un perfil de flujo de trabajo</h3>
+<p>Una investigación fijada a <code>scientific@2</code>, <code>software@2</code>, <code>trading@2</code>, <code>knowledge@2</code> o <code>optimization@2</code> lleva el <a href="../#workflows">flujo de trabajo</a> de su disciplina. Llama a <code>stage(question)</code>: indica la etapa en la que está la pregunta — derivada del registro, nunca fijada — y cada compuerta CUMPLIDA o NO CUMPLIDA con lo que la cumpliría. Escribe la siguiente compuerta en orden (una hipótesis con predicciones; un experimento con su resultado esperado <i>antes</i> de la ejecución; el diff o la instancia como artefacto con su <code>kind</code>; la ejecución que lo <code>uses</code>). Un archivo corregido, un commit más nuevo, una instancia cambiada o una fuente retirada dejan <b>desactualizada</b> la evidencia anterior; la respuesta lo dice, y una comprobación sobre evidencia desactualizada no cuenta. Cuando la respuesta honesta es «no se puede responder», registra lo que sí encontraste y escribe una afirmación de tipo <code>inconclusive</code> derivada de ello — una vez comprobada, resuelve la pregunta.</p>
+
+<h2 id="tools">Herramientas</h2>
+<table>
+  <thead><tr><th>herramienta</th><th>qué hace</th></tr></thead>
+  <tbody>
+    <tr><td><code>overview(investigation?)</code></td><td>Objetivo, revisores, hipótesis vivas, afirmaciones comprobadas y cómo se sabe, trabajo impugnado / en riesgo, reservas, colas, próximos experimentos.</td></tr>
+    <tr><td><code>find(text, type?, investigation?)</code></td><td>Buscar por palabras o código (H1, CL3).</td></tr>
+    <tr><td><code>show(node, view)</code></td><td><code>summary</code> · <code>why</code> (en qué se apoya) · <code>impact</code> (qué se rompe si está mal) · <code>history</code>.</td></tr>
+    <tr><td><code>start_investigation(title, objective, reviewers)</code></td><td>Abrir un estudio con sus revisores.</td></tr>
+    <tr><td><code>add(type, fields, investigation?, links?)</code></td><td>Pregunta, hipótesis, experimento, ejecución, resultado, afirmación, fuente, decisión. Los enlaces aceptan ids o códigos.</td></tr>
+    <tr><td><code>link(src, rel, dst, why, data?)</code></td><td>Enlaces tipados; un enlace al revés se da la vuelta cuando solo se permite el inverso.</td></tr>
+    <tr><td><code>revise</code> · <code>withdraw</code> · <code>retract_link</code></td><td>Correcciones como filas nuevas; no se borra nada.</td></tr>
+    <tr><td><code>review(node, verdict, method, notes)</code></td><td>Un veredicto sobre la versión actual.</td></tr>
+    <tr><td><code>check_report(text)</code></td><td>Revisar un informe contra el registro: números sin fuente, afirmaciones dadas por resueltas que no lo están, códigos retirados o desconocidos, nunca / sin efecto / significativamente sin nada detrás.</td></tr>
+    <tr><td><code>refusal_log(author?)</code></td><td>Las sobreafirmaciones que el registro rechazó — tuyas o del equipo — y si cada una volvió en versión honesta.</td></tr>
+    <tr><td><code>bound(k, n, exposure)</code></td><td>Lo que respalda un recuento: las cotas del 95 % detrás de cualquier «nunca», los ensayos necesarios, los fallos no descartados a escala.</td></tr>
+    <tr><td><code>stage(question?)</code> · <code>completion()</code></td><td>Bajo un perfil de flujo de trabajo: la etapa de cada pregunta y el estado de cada compuerta; lo que el perfil entiende por terminado para toda la investigación.</td></tr>
+    <tr><td><code>next_experiments</code> · <code>work_queue</code> · <code>claim_work</code></td><td>Qué ejecutar a continuación; qué está pendiente; tomar un nodo para que los demás vean quién trabaja en él.</td></tr>
+    <tr><td><code>register_run(name, code_paths, input_paths, output_paths, result_summary, result_values)</code></td><td>Registrar un cálculo con archivos hasheados.</td></tr>
+    <tr><td><code>report</code> · <code>verify</code> · <code>schema</code></td><td>Los hechos generados; la comprobación de la cadena; el vocabulario.</td></tr>
+  </tbody>
+</table>
+<p>Recursos: <code>hypgraph://skill</code>, <code>hypgraph://schema</code>, <code>hypgraph://investigations</code>, <code>hypgraph://investigation/{inv}/report</code>. Prompt: <code>method</code>.</p>
+
+<h2 id="refusals">Los rechazos son instrucciones</h2>
+<p>Cada afirmación rechazada enumera una línea por problema, terminada en un código estable. El mensaje ya ha hecho la aritmética y suele contener la frase honesta — úsala. En Python, <code>GraphError.problems</code> da <code>code</code>, <code>message</code>, <code>fix</code> y <code>words</code>.</p>
+<table>
+  <thead><tr><th>código</th><th>haz esto</th></tr></thead>
+  <tbody>
+    <tr><td><code>ABSOLUTE_UNDERPOWERED</code></td><td>«nunca» sobre 0 de n con muy pocos ensayos. Escribe la frase honesta que te da («ninguna ocurrencia en n ensayos (cota superior del 95 % X)»), o ejecuta los ensayos que dice que necesitas.</td></tr>
+    <tr><td><code>ABSOLUTE_HIDES_DENOMINATOR</code></td><td>Pon n en el enunciado: «nunca, en 3.000 sondeos».</td></tr>
+    <tr><td><code>ABSOLUTE_WITHOUT_COUNT</code> · <code>ABSOLUTE_UNRELATED_COUNT</code></td><td>Di lo que se observó («en k de n»); nombra el recuento por lo que cuenta.</td></tr>
+    <tr><td><code>UNBOUND_NUMBER</code></td><td>Lígalo a un campo de resultado. Las diferencias, porcentajes, cocientes e intervalos calculados a partir de recuentos ligados pasan — nunca quites el número para colarlo.</td></tr>
+    <tr><td><code>EXCLUSION_WITHOUT_POWER</code></td><td>«Sin efecto» necesita una búsqueda que haya demostrado encontrar un efecto sembrado (<code>power: demonstrated</code>). Si no, registra <code>kind: inconclusive</code> y di «ningún efecto detectable» — el rechazo dice qué tamaño de efecto podría haberse ocultado.</td></tr>
+    <tr><td><code>COMPARATIVE_WITHOUT_COMPARISON</code></td><td>Liga ambos lados.</td></tr>
+    <tr><td><code>SIGNIFICANCE_WITHOUT_TEST</code> · <code>SIGNIFICANCE_NOT_SHOWN</code></td><td>Liga ambos lados como k/n (el registro los contrasta) o un p-valor; si no es significativo, dilo.</td></tr>
+    <tr><td><code>UNCORRECTED_EFFECT</code></td><td>El registro tiene un p corregido para este resultado y no es significativo. Di «sin corregir» en la frase, o lígalo y di «no significativo tras la corrección», o registra <code>kind: lead</code>.</td></tr>
+    <tr><td><code>CAUSAL_WITHOUT_INTERVENTION</code></td><td>Di «está asociado con», o respáldalo con un experimento que intervino.</td></tr>
+  </tbody>
+</table>
+<p><b>Antes de escribir nunca o siempre,</b> llama a <code>bound(k, n, exposure)</code>: lo que respalda el recuento y cuántos fallos deja sin descartar a la escala a la que se usará la afirmación. Fija <code>exposure</code> en la afirmación para que su situación lleve ese número. <b>Cuando retires o impugnes un nodo,</b> la respuesta enumera lo que ahora se apoya en algo que cayó — avisa a sus responsables. La historia completa: <a href="../never/">la aritmética del nunca</a>.</p>
+
+<h2 id="standing">Cómo leer la situación</h2>
+<blockquote>afirmación activa · comprobada (fisher:pass, v2) · 2 líneas de apoyo independientes · replicada con datos nuevos · sin replicación externa</blockquote>
+<p>Cítala tal cual. «Sin comprobar» no es «demostrado»; una línea notificada por un agente no es «establecido». <b>EN RIESGO</b>: cayó una premisa. <b>REVISAR</b>: cambió la base de una decisión. <b>SIN APOYO</b>: cayó todo el apoyo.</p>
+
+<h2 id="hosts">Para el ingeniero que lo integra</h2>
+<p>¿Ejecutas muchos agentes? Integra la biblioteca y fija la confianza tú mismo: <code>Graph(path, policy=Policy(reviewers=…,
+  instrument="lab", operator="operator"))</code>. Fija el <code>author</code> de cada llamante de tu lado y rechaza los nombres reservados. Da a tu ejecutor de trabajos la identidad del instrumento para que sus ejecuciones cuenten como registradas en laboratorio. Pasa <code>spend=</code> para poner precio al trabajo de cada investigación. La <a href="../engineers/">guía de ingeniería</a> tiene los patrones. La API HTTP (<code>hypgraph.server.dispatch</code>) y la interfaz de HypGraph (<code>hypgraph.ui.static_dir()</code>) encajan en cualquier framework web.</p>
+
+<h2 id="machine">Legible por máquinas</h2>
+<ul>
+  <li><a href="../../llms.txt">/llms.txt</a> — la versión corta</li>
+  <li><a href="../../SKILL.md">/SKILL.md</a> — la skill para agentes</li>
+  <li><a href="../../agents.md">/agents.md</a> — esta página en Markdown</li>
+  <li><a href="../../schema/hypgraph-1.json">/schema/hypgraph-1.json</a> — tipos de nodo, campos, relaciones, veredictos</li>
+  <li><a href="../spec/">/spec/</a> — los formatos del registro y del bundle</li>
+  <li><a href="../../data/broad-street.bundle.json">/data/broad-street.bundle.json</a> — un bundle de ejemplo completo</li>
+</ul>
+</article>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">No te creas el hype. Pon a prueba la hipótesis.</span>
+<span>Creado por <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Código Apache-2.0 · formato y documentación CC BY 4.0 · <a href="../disclaimer/">Aviso legal</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>

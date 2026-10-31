@@ -6,6 +6,7 @@
 // The site root, from this script's own URL (assets/embed.js): the site works at / and under a prefix (/hypgraph/).
 const HG_ROOT = new URL('..', document.currentScript ? document.currentScript.src : location.href);
 (() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
   const els = document.querySelectorAll('[data-hypgraph]');
   if (!els.length || !window.HypGraph) return;
   const params = new URLSearchParams(location.search);
@@ -29,13 +30,15 @@ const HG_ROOT = new URL('..', document.currentScript ? document.currentScript.sr
       }
     } catch (e) {
       el.dataset.hgError = 'bundle: ' + e.message;
-      el.innerHTML = `<div style="padding:24px;font:14px system-ui">Couldn't load the bundle: ${String(e.message).replace(/</g, '&lt;')}</div>`;
+      el.innerHTML = `<div style="padding:24px;font:14px system-ui">${t('Couldn\'t load the bundle: {e}', { e: String(e.message).replace(/</g, '&lt;') })}</div>`;
       return;
     }
     const theme = document.documentElement.dataset.theme || (window.HG ? window.HG.theme() : 'light');
     const view = HypGraph.mount(el, {
       source: HypGraph.BundleSource(bundle), theme, hash: el.dataset.hash === 'on', play: el.dataset.play === 'on',
       onTheme: syncTheme,
+      // the app speaks the page's language; choosing another in the app opens the page in that language
+      lang: document.documentElement.lang || 'en', onLang: (code) => { if (window.HG && window.HG.toLang) window.HG.toLang(code); },
     });
     if (window.HG) window.HG.onTheme.push((t) => view.setTheme(t));     // the site's toggle drives the app too
   });

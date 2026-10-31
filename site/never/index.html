@@ -42,6 +42,7 @@
   .cascade .node, .cascade .edge, .cascade .tag { transition: opacity .4s; }
   .hide { opacity: 0; }
 </style>
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/never/" data-rel="../never/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/never/" data-rel="../es/never/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/never/" data-rel="../fr/never/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/never/" data-rel="../de/never/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/never/" data-rel="../zh-Hans/never/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/never/"><!--/i18n:alt-->
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -51,7 +52,7 @@
     <a href="../examples/">Examples</a><a href="../never/" aria-current="page" class="hide-sm">Never</a><a href="../#workflows" class="hide-sm">Workflows</a><a href="../play/" class="hide-sm">Playground</a>
     <a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a>
     <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
-    <button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Language" title="Language">EN</summary><div class="langs-menu"><a href="../never/" hreflang="en" lang="en" aria-current="page">English</a><a href="../es/never/" hreflang="es" lang="es">Español</a><a href="../fr/never/" hreflang="fr" lang="fr">Français</a><a href="../de/never/" hreflang="de" lang="de">Deutsch</a><a href="../zh-Hans/never/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
 
 <main id="main">
@@ -191,6 +192,7 @@
 <script src="../assets/site.js" defer></script>
 <script>
 (() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
   const $ = (id) => document.getElementById(id);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // ── the same arithmetic as hypgraph.stats ──
@@ -206,11 +208,12 @@
   const trialsFor = (b) => Math.ceil(Math.log(0.05) / Math.log(1 - b));
   const pct = (x) => x >= 0.1 ? `${(x * 100).toFixed(0)}%` : x >= 0.01 ? `${(x * 100).toFixed(1)}%` : x > 0 ? `${Number((x * 100).toPrecision(2))}%` : '0%';
   const fmt = (x) => Math.round(x).toLocaleString('en-US');
+  const loc = (x) => x.toLocaleString('en-US');
   function oneIn(x) {
     if (x <= 0) return '0';
     const n = 1 / x;
-    for (const step of [1, 10, 100, 1000, 10000, 100000]) if (n < step * 10) return `1 in ${fmt(step > 1 ? Math.round(n / step) * step : Math.round(n))}`;
-    return `1 in ${fmt(Math.round(n / 1e5) * 1e5)}`;
+    for (const step of [1, 10, 100, 1000, 10000, 100000]) if (n < step * 10) return t('1 in {n}', { n: fmt(step > 1 ? Math.round(n / step) * step : Math.round(n)) });
+    return t('1 in {n}', { n: fmt(Math.round(n / 1e5) * 1e5) });
   }
 
   const n = $('n'), k = $('k'), x = $('x'), nr = $('nr'), kr = $('kr'), xr = $('xr');
@@ -226,13 +229,13 @@
     const [lo, hi] = bounds(K, N), worst = K === 0 ? hi : hi;
     $('bound').textContent = pct(worst);
     $('bound').className = 'big ' + (worst > 0.05 ? 'red' : worst > 0.001 ? 'amber' : 'green');
-    $('bound-d').textContent = K === 0 ? `at most ${oneIn(worst)}, at 95% confidence — not zero` :
-      `observed ${pct(K / N)} (${K.toLocaleString()} of ${N.toLocaleString()}); 95% interval ${pct(lo)} to ${pct(hi)}`;
+    $('bound-d').textContent = K === 0 ? t('at most {r}, at 95% confidence — not zero', { r: oneIn(worst) }) :
+      t('observed {p} ({k} of {n}); 95% interval {lo} to {hi}', { p: pct(K / N), k: loc(K), n: loc(N), lo: pct(lo), hi: pct(hi) });
     $('unruled').textContent = fmt(worst * X);
-    $('unruled-d').textContent = `across ${fmt(X)} — the number your evidence can't rule out`;
-    $('need').textContent = K > 0 ? `it has happened (${K.toLocaleString()} times), so no number of trials makes "never" true — report the rate and its interval` :
-      worst > 0.001 ? `about ${fmt(trialsFor(0.001))} trials with none (you ran ${N.toLocaleString()})` :
-      `you have it: ${N.toLocaleString()} trials bound the rate below 1 in 1,000`;
+    $('unruled-d').textContent = t('across {x} — the number your evidence can\'t rule out', { x: fmt(X) });
+    $('need').textContent = K > 0 ? t('it has happened ({k} times), so no number of trials makes "never" true — report the rate and its interval', { k: loc(K) }) :
+      worst > 0.001 ? t('about {m} trials with none (you ran {n})', { m: fmt(trialsFor(0.001)), n: loc(N) }) :
+      t('you have it: {n} trials bound the rate below 1 in 1,000', { n: loc(N) });
     if (TG) TG.update();
     const v = $('verdict');
     if (K > 0) {
@@ -285,7 +288,7 @@
           const x = 20 + (W - 40) * (i + 0.5) / n - w / 2, y = top + l * gapY;
           const g = mk('g', { class: 'node' });
           mk('rect', { x, y, width: w, height: h, rx: 10 }, g);
-          const label = l === 0 ? 'orchestrator' : l === levels - 1 ? `agent ${i + 1}` : `lead ${i + 1}`;
+          const label = l === 0 ? t('orchestrator') : l === levels - 1 ? t('agent {i}', { i: i + 1 }) : t('lead {i}', { i: i + 1 });
           mk('text', { x: x + w / 2, y: y + 19, class: 'lbl', 'text-anchor': 'middle', style: `font-size:${w < 90 ? 10 : 12}px` }, g).textContent = w < 60 ? (l === 0 ? 'orch' : `${l === levels - 1 ? 'a' : 'L'}${i + 1}`) : label;
           const sub = mk('text', { x: x + w / 2, y: y + 35, class: 'sub', 'text-anchor': 'middle', style: `font-size:${w < 90 ? 9 : 11}px` }, g);
           const node = { l, i, x, y, w, h, g, sub, parent: l ? nodes.find((p) => p.l === l - 1 && p.i === Math.floor(i / f)) : null, kids: [] };
@@ -315,24 +318,24 @@
       const rate = 1 / r, seen = Math.pow(1 - rate, N);
       $('tg-seen').textContent = pct(seen);
       $('tg-seen').className = 'big ' + (seen > 0.5 ? 'amber' : 'green');
-      $('tg-seen-d').textContent = seen > 0.5 ? `0 of ${fmt(N)} is what an honest agent usually sees at this rate — the word is wrong, the observation isn't`
-        : `at ${fmt(N)} trials the agent would usually have seen it — "never" would already be contradicted`;
+      $('tg-seen-d').textContent = seen > 0.5 ? t('0 of {n} is what an honest agent usually sees at this rate — the word is wrong, the observation isn\'t', { n: fmt(N) })
+        : t('at {n} trials the agent would usually have seen it — "never" would already be contradicted', { n: fmt(N) });
       const resting = descendantsOfDecision();
       $('tg-sunk').textContent = money(resting * c);
-      $('tg-sunk-d').textContent = `${resting} tasks built on or merged with the word (${nodes.length} agents, ${d} level${d > 1 ? 's' : ''}, fan-out ${f})`;
+      $('tg-sunk-d').textContent = d > 1 ? t('{r} tasks built on or merged with the word ({a} agents, {d} levels, fan-out {f})', { r: resting, a: nodes.length, d, f }) : t('{r} tasks built on or merged with the word ({a} agents, {d} level, fan-out {f})', { r: resting, a: nodes.length, d, f });
       const reread = nodes.length, redo = chain(badLeaf).length - 1 + nodes.filter((n) => n.l === 0).length;
       const [, hi] = bounds(0, N), live = Math.round(hi * X);
       const fix = (reread + resting) * c;
       $('tg-fix').textContent = money(fix);
-      $('tg-fix-d').textContent = `re-read all ${reread} agents' work to find which word did it, redo the ${resting} tasks that rested on it — and ${fmt(live)} of ${fmt(X)} uses were never ruled out`;
+      $('tg-fix-d').textContent = t('re-read all {a} agents\' work to find which word did it, redo the {r} tasks that rested on it — and {live} of {x} uses were never ruled out', { a: reread, r: resting, live: fmt(live), x: fmt(X) });
       const withRec = 1 * c;
       $('tg-with').textContent = money(withRec);
-      $('tg-with-d').textContent = `the leaf's "never" is refused as it's written and rewritten as "0 of ${fmt(N)} (≤ ${pct(hi)})"; every node above carries that number; if the case still turns up, the record names exactly which ${redo} nodes rest on it`;
+      $('tg-with-d').textContent = t('the leaf\'s "never" is refused as it\'s written and rewritten as "0 of {n} (≤ {hi})"; every node above carries that number; if the case still turns up, the record names exactly which {redo} nodes rest on it', { n: fmt(N), hi: pct(hi), redo });
     }
     function reset() {
       timers.forEach(clearTimeout); timers = [];
       nodes.forEach((n) => { n.g.setAttribute('class', 'node'); n.sub.textContent = ''; if (n.edge) n.edge.setAttribute('class', 'edge'); });
-      strip.innerHTML = ''; cap.textContent = 'Press play to run the game.';
+      strip.innerHTML = ''; cap.textContent = t('Press play to run the game.');
     }
     function say(n, text, cls) { n.sub.textContent = text; if (cls) n.g.setAttribute('class', 'node ' + cls); }
     function card(step, text, cls) {
@@ -342,27 +345,27 @@
     async function play() {
       reset(); const { N, X, f } = params(); const [, hi] = bounds(0, N);
       const up = chain(badLeaf);   // leaf → … → orchestrator
-      say(badLeaf, `0 of ${fmt(N)}`, ''); card('the trials', `${fmt(N)} tried, none happened.`, 'ok'); cap.textContent = 'The agent runs the trials and sees nothing. True, so far.'; await wait(900);
+      say(badLeaf, t('0 of {n}', { n: fmt(N) }), ''); card(t('the trials'), t('{n} tried, none happened.', { n: fmt(N) }), 'ok'); cap.textContent = t('The agent runs the trials and sees nothing. True, so far.'); await wait(900);
       if (mode === 'with') {
-        say(badLeaf, 'refused: "never"', 'refused'); card('the write', `"never" → refused [ABSOLUTE_UNDERPOWERED]`, ''); cap.textContent = '"Never" is refused at the write. The honest sentence replaces it.'; await wait(1400);
-        say(badLeaf, `≤ ${pct(hi)} (0/${fmt(N)})`, 'ok'); card('the honest sentence', `"no occurrences in ${fmt(N)} trials (95% upper bound ${pct(hi)})"`, 'ok'); await wait(900);
+        say(badLeaf, t('refused: "never"'), 'refused'); card(t('the write'), t('"never" → refused [ABSOLUTE_UNDERPOWERED]'), ''); cap.textContent = t('"Never" is refused at the write. The honest sentence replaces it.'); await wait(1400);
+        say(badLeaf, `≤ ${pct(hi)} (0/${fmt(N)})`, 'ok'); card(t('the honest sentence'), t('"no occurrences in {n} trials (95% upper bound {hi})"', { n: fmt(N), hi: pct(hi) }), 'ok'); await wait(900);
         for (let k = 1; k < up.length; k++) {
           const n = up[k]; if (up[k - 1].edge) up[k - 1].edge.setAttribute('class', 'edge');
-          say(n, `carries ≤ ${pct(hi)}`, 'ok'); card(k === up.length - 1 ? 'the decision' : `lead ${n.i + 1}`, k === up.length - 1 ? `decided with "up to ${fmt(Math.round(hi * X))} of ${fmt(X)} not ruled out" in view` : `restates the bound, not the word — the record checks the number against the result`, 'ok'); await wait(800);
+          say(n, t('carries ≤ {hi}', { hi: pct(hi) }), 'ok'); card(k === up.length - 1 ? t('the decision') : t('lead {i}', { i: n.i + 1 }), k === up.length - 1 ? t('decided with "up to {live} of {x} not ruled out" in view', { live: fmt(Math.round(hi * X)), x: fmt(X) }) : t('restates the bound, not the word — the record checks the number against the result'), 'ok'); await wait(800);
         }
-        cap.textContent = 'The number never degrades: every hop is checked against the result it came from. Whoever decides, decides on arithmetic.';
+        cap.textContent = t('The number never degrades: every hop is checked against the result it came from. Whoever decides, decides on arithmetic.');
         return;
       }
-      say(badLeaf, '"never"', 'fall'); card('the write', '"the model never leaks" — nothing checks it.'); cap.textContent = 'The agent writes the word. Nobody asks for the number.'; await wait(1100);
-      const words = ['"never leaks"', '"safe"', '"no risk — ship"', '"done"'];
+      say(badLeaf, t('"never"'), 'fall'); card(t('the write'), t('"the model never leaks" — nothing checks it.')); cap.textContent = t('The agent writes the word. Nobody asks for the number.'); await wait(1100);
+      const words = [t('"never leaks"'), t('"safe"'), t('"no risk — ship"'), t('"done"')];
       for (let k = 1; k < up.length; k++) {
         const n = up[k]; if (up[k - 1].edge) up[k - 1].edge.setAttribute('class', 'edge fall');
         say(n, words[Math.min(k - 1, words.length - 1)], 'fall');
-        card(k === up.length - 1 ? 'the decision' : `lead ${n.i + 1}`, k === up.length - 1 ? `${words[Math.min(k - 1, 3)]} — ${nodes.length - 1} tasks merged behind it` : `repeats ${words[Math.min(k - 1, 3)]}; the ${fmt(N)} is gone`); await wait(900);
+        card(k === up.length - 1 ? t('the decision') : t('lead {i}', { i: n.i + 1 }), k === up.length - 1 ? t('{w} — {m} tasks merged behind it', { w: words[Math.min(k - 1, 3)], m: nodes.length - 1 }) : t('repeats {w}; the {n} is gone', { w: words[Math.min(k - 1, 3)], n: fmt(N) })); await wait(900);
       }
-      cap.textContent = `Every branch merges at the top. The 1-in-${fmt(params().r)} case arrives with ${fmt(Math.round(hi * X))} of ${fmt(X)} never ruled out — and nobody can say which sentence it was.`; await wait(1200);
-      nodes.forEach((n) => { if (!up.includes(n)) n.g.setAttribute('class', 'node fall'); say(n, n.l === 0 ? 'REVISIT' : 'AT RISK?', 'fall'); });
-      card('course-correcting', `re-read ${nodes.length} agents' work; redo ${nodes.length - 1} tasks; the exposure already happened.`);
+      cap.textContent = t('Every branch merges at the top. The 1-in-{r} case arrives with {live} of {x} never ruled out — and nobody can say which sentence it was.', { r: fmt(params().r), live: fmt(Math.round(hi * X)), x: fmt(X) }); await wait(1200);
+      nodes.forEach((n) => { if (!up.includes(n)) n.g.setAttribute('class', 'node fall'); say(n, n.l === 0 ? t('REVISIT') : t('AT RISK?'), 'fall'); });
+      card(t('course-correcting'), t('re-read {a} agents\' work; redo {m} tasks; the exposure already happened.', { a: nodes.length, m: nodes.length - 1 }));
     }
     [F, D, C, R].forEach((el) => el.addEventListener('input', () => { if (el === F || el === D) build(); else update(); }));
     FR.addEventListener('input', () => { F.value = FR.value; build(); });
@@ -380,11 +383,11 @@
   // ── the cascade ──
   const S = 'http://www.w3.org/2000/svg';
   const nodes = [
-    { id: 'r', x: 60, y: 360, w: 230, t: 'RESULT', l: '0 leaks in 50 prompts', s: 'red-team run, temperature 0' },
-    { id: 'c1', x: 330, y: 360, w: 240, t: 'CLAIM', l: '"The model never leaks"', s: 'written by the agent' },
-    { id: 'c2', x: 330, y: 220, w: 240, t: 'CLAIM', l: '"Safe for all customers"', s: 'requires the claim below' },
-    { id: 'd', x: 610, y: 220, w: 240, t: 'DECISION', l: 'Ship to 1,000,000 users', s: 'based on "safe for all customers"' },
-    { id: 'inc', x: 610, y: 70, w: 240, t: 'IN PRODUCTION', l: 'The 1-in-1,000 case', s: 'up to 58,155 not ruled out' },
+    { id: 'r', x: 60, y: 360, w: 230, t: t('RESULT'), l: t('0 leaks in 50 prompts'), s: t('red-team run, temperature 0') },
+    { id: 'c1', x: 330, y: 360, w: 240, t: t('CLAIM'), l: t('"The model never leaks"'), s: t('written by the agent') },
+    { id: 'c2', x: 330, y: 220, w: 240, t: t('CLAIM'), l: t('"Safe for all customers"'), s: t('requires the claim below') },
+    { id: 'd', x: 610, y: 220, w: 240, t: t('DECISION'), l: t('Ship to 1,000,000 users'), s: t('based on "safe for all customers"') },
+    { id: 'inc', x: 610, y: 70, w: 240, t: t('IN PRODUCTION'), l: t('The 1-in-1,000 case'), s: t('up to 58,155 not ruled out') },
   ];
   const edges = [['r', 'c1'], ['c1', 'c2'], ['c2', 'd'], ['d', 'inc']];
   const layer = $('layer'); const el = {};
@@ -411,39 +414,39 @@
     timers.forEach(clearTimeout); timers = [];
     nodes.forEach((n) => { el[n.id].setAttribute('class', 'node hide'); n.flag.textContent = ''; });
     edges.forEach(([a, b]) => el['e' + a + b].setAttribute('class', 'edge hide'));
-    nodes.find((n) => n.id === 'c1').sub.textContent = 'written by the agent';
-    nodes.find((n) => n.id === 'c1').l && (el.c1.querySelector('.lbl').textContent = '"The model never leaks"');
-    el.inc.querySelector('.sub').textContent = 'up to 58,155 not ruled out';
+    nodes.find((n) => n.id === 'c1').sub.textContent = t('written by the agent');
+    nodes.find((n) => n.id === 'c1').l && (el.c1.querySelector('.lbl').textContent = t('"The model never leaks"'));
+    el.inc.querySelector('.sub').textContent = t('up to 58,155 not ruled out');
   }
   const show = (id) => el[id].setAttribute('class', 'node');
   const showE = (a, b) => el['e' + a + b].setAttribute('class', 'edge');
   async function play() {
     reset(); const cap = $('caption');
-    show('r'); cap.textContent = 'The red-team run: 50 extraction prompts, no leaks.'; await wait(900);
+    show('r'); cap.textContent = t('The red-team run: 50 extraction prompts, no leaks.'); await wait(900);
     if (mode === 'with') {
       showE('r', 'c1'); show('c1'); el.c1.setAttribute('class', 'node refused');
-      el.c1.querySelector('.sub').textContent = 'refused — ABSOLUTE_UNDERPOWERED';
-      cap.textContent = '"Never leaks" is refused: 0 of 50 only rules out rates above 5.8%. The honest sentence goes in instead.'; await wait(1800);
-      el.c1.querySelector('.lbl').textContent = '"No leaks in 50 prompts"';
-      el.c1.querySelector('.sub').textContent = '≤ 5.8% · up to 58,155 of 1M not ruled out';
+      el.c1.querySelector('.sub').textContent = t('refused — ABSOLUTE_UNDERPOWERED');
+      cap.textContent = t('"Never leaks" is refused: 0 of 50 only rules out rates above 5.8%. The honest sentence goes in instead.'); await wait(1800);
+      el.c1.querySelector('.lbl').textContent = t('"No leaks in 50 prompts"');
+      el.c1.querySelector('.sub').textContent = t('≤ 5.8% · up to 58,155 of 1M not ruled out');
       el.c1.setAttribute('class', 'node ok'); await wait(1300);
-      showE('c1', 'c2'); show('c2'); el.c2.querySelector('.sub').textContent = 'inherits "up to 58,155 not ruled out"'; await wait(1100);
-      showE('c2', 'd'); show('d'); el.d.querySelector('.sub').textContent = 'decided with the bound in view';
-      cap.textContent = 'Whoever decides sees the number: ship with monitoring, or run the ~3,000 prompts that bound it below 1 in 1,000.'; await wait(1600);
-      cap.textContent = 'The record didn’t stop the decision. It stopped the decision from being made on a word.';
+      showE('c1', 'c2'); show('c2'); el.c2.querySelector('.sub').textContent = t('inherits "up to 58,155 not ruled out"'); await wait(1100);
+      showE('c2', 'd'); show('d'); el.d.querySelector('.sub').textContent = t('decided with the bound in view');
+      cap.textContent = t('Whoever decides sees the number: ship with monitoring, or run the ~3,000 prompts that bound it below 1 in 1,000.'); await wait(1600);
+      cap.textContent = t('The record didn’t stop the decision. It stopped the decision from being made on a word.');
       return;
     }
-    showE('r', 'c1'); show('c1'); cap.textContent = 'The agent writes "never leaks". Nothing checks it.'; await wait(1100);
-    showE('c1', 'c2'); show('c2'); cap.textContent = 'Another claim builds on it.'; await wait(1000);
-    showE('c2', 'd'); show('d'); cap.textContent = 'A decision is based on that claim.'; await wait(1000);
-    showE('d', 'inc'); show('inc'); cap.textContent = 'A million people use the result. The rare case was always possible.'; await wait(1300);
-    el.inc.setAttribute('class', 'node fall'); el.inc.querySelector('.sub').textContent = 'it happens'; await wait(700);
-    for (const [id, edge, flag] of [['d', ['d', 'inc'], 'REVISIT'], ['c2', ['c2', 'd'], 'AT RISK'], ['c1', ['c1', 'c2'], 'FALSE'], ['r', ['r', 'c1'], '']]) {
+    showE('r', 'c1'); show('c1'); cap.textContent = t('The agent writes "never leaks". Nothing checks it.'); await wait(1100);
+    showE('c1', 'c2'); show('c2'); cap.textContent = t('Another claim builds on it.'); await wait(1000);
+    showE('c2', 'd'); show('d'); cap.textContent = t('A decision is based on that claim.'); await wait(1000);
+    showE('d', 'inc'); show('inc'); cap.textContent = t('A million people use the result. The rare case was always possible.'); await wait(1300);
+    el.inc.setAttribute('class', 'node fall'); el.inc.querySelector('.sub').textContent = t('it happens'); await wait(700);
+    for (const [id, edge, flag] of [['d', ['d', 'inc'], t('REVISIT')], ['c2', ['c2', 'd'], t('AT RISK')], ['c1', ['c1', 'c2'], t('FALSE')], ['r', ['r', 'c1'], '']]) {
       el['e' + edge[0] + edge[1]].setAttribute('class', 'edge fall');
       el[id].setAttribute('class', id === 'r' ? 'node' : 'node fall');
       nodes.find((n) => n.id === id).flag.textContent = flag; await wait(650);
     }
-    cap.textContent = 'Every node above the "never" falls with it — and nobody can say which other decisions rested on it.';
+    cap.textContent = t('Every node above the "never" falls with it — and nobody can say which other decisions rested on it.');
   }
   document.querySelectorAll('.tabs [data-mode]').forEach((b) => b.addEventListener('click', () => {
     mode = b.dataset.mode;

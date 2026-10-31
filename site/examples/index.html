@@ -8,12 +8,13 @@
 <link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
 <script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/examples/" data-rel="../examples/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/examples/" data-rel="../es/examples/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/examples/" data-rel="../fr/examples/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/examples/" data-rel="../de/examples/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/examples/" data-rel="../zh-Hans/examples/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/examples/"><!--/i18n:alt-->
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav"><div class="wrap">
   <a class="brand" href="../"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
-  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Engineers</a><a href="../examples/" aria-current="page">Examples</a><a href="../never/" class="hide-sm">Never</a><a href="../#workflows" class="hide-sm">Workflows</a><a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a><a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a><button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
+  <nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Engineers</a><a href="../examples/" aria-current="page">Examples</a><a href="../never/" class="hide-sm">Never</a><a href="../#workflows" class="hide-sm">Workflows</a><a href="../play/" class="hide-sm">Playground</a><a href="../verify/" class="hide-sm">Verify</a><a href="../spec/" class="hide-sm">Spec</a><a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a><!--i18n:menu--><details class="langs"><summary aria-label="Language" title="Language">EN</summary><div class="langs-menu"><a href="../examples/" hreflang="en" lang="en" aria-current="page">English</a><a href="../es/examples/" hreflang="es" lang="es">Español</a><a href="../fr/examples/" hreflang="fr" lang="fr">Français</a><a href="../de/examples/" hreflang="de" lang="de">Deutsch</a><a href="../zh-Hans/examples/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Toggle light and dark">◐</button></nav>
 </div></header>
 <main id="main">
 <div class="phead"><div class="wrap"><div class="kicker">Live examples</div><h1>Watch a swarm work, in each profile</h1>
@@ -23,48 +24,48 @@
   its pipeline, graph, evidence and report.</p></div></div>
 <div class="wrap"><div class="exgrid">
 <a class="excard" href="scientific/">
-  <div class="who">Scientific · Facts from the record</div>
-  <h2>Does A beat B</h2>
+  <div class="who">Scientific · <span translate="no">Facts from the record</span></div>
+  <h2 translate="no">Does A beat B</h2>
   <p>Two analysts and a critic test an evaluation claim. The instrument re-runs every value before any review, and the report is checked against the record.</p>
-  <dl><dt>seats</dt><dd>analyst, stats, critic, lead</dd>
-    <dt>run</dt><dd>14 model calls · 14 tool calls · 12 s · settled</dd>
-    <dt>record</dt><dd>80 events · 29 nodes · no refusals</dd></dl>
+  <dl><dt>seats</dt><dd translate="no">analyst, stats, critic, lead</dd>
+    <dt>run</dt><dd><span data-v>14</span> model calls · <span data-v>14</span> tool calls · <span data-v>12</span> s · settled</dd>
+    <dt>record</dt><dd><span data-v>80</span> events · <span data-v>29</span> nodes · no refusals</dd></dl>
   <span class="go">Watch it run</span>
 </a>
 <a class="excard" href="software/">
-  <div class="who">Software · Change report</div>
-  <h2>Importer keeps quoted commas</h2>
+  <div class="who">Software · <span translate="no">Change report</span></div>
+  <h2 translate="no">Importer keeps quoted commas</h2>
   <p>The tests count only when the instrument runs them. A tester&#x27;s “passes” written before that run is refused, reworked and accepted once the lab run lands.</p>
-  <dl><dt>seats</dt><dd>implementer, tester, reviewer, lead</dd>
-    <dt>run</dt><dd>16 model calls · 14 tool calls · 16 s · settled</dd>
-    <dt>record</dt><dd>81 events · 28 nodes · 1 write refused, then rewritten</dd></dl>
+  <dl><dt>seats</dt><dd translate="no">implementer, tester, reviewer, lead</dd>
+    <dt>run</dt><dd><span data-v>16</span> model calls · <span data-v>14</span> tool calls · <span data-v>16</span> s · settled</dd>
+    <dt>record</dt><dd><span data-v>81</span> events · <span data-v>28</span> nodes · <span data-v>1</span> write refused, then rewritten</dd></dl>
   <span class="go">Watch it run</span>
 </a>
 <a class="excard" href="trading/">
-  <div class="who">Trading · Desk note</div>
-  <h2>Mean reversion after a 3 % five-day drop</h2>
+  <div class="who">Trading · <span translate="no">Desk note</span></div>
+  <h2 translate="no">Mean reversion after a 3 % five-day drop</h2>
   <p>A backtest on a held-out window, with fees and slippage. A result without costs is refused before it can become a thesis.</p>
-  <dl><dt>seats</dt><dd>quant, risk, lead</dd>
-    <dt>run</dt><dd>14 model calls · 13 tool calls · 16 s · settled</dd>
-    <dt>record</dt><dd>56 events · 21 nodes · 1 write refused, then rewritten</dd></dl><div class="codes"><code>BACKTEST_WITHOUT_COSTS</code></div>
+  <dl><dt>seats</dt><dd translate="no">quant, risk, lead</dd>
+    <dt>run</dt><dd><span data-v>14</span> model calls · <span data-v>13</span> tool calls · <span data-v>16</span> s · settled</dd>
+    <dt>record</dt><dd><span data-v>56</span> events · <span data-v>21</span> nodes · <span data-v>1</span> write refused, then rewritten</dd></dl><div class="codes"><code>BACKTEST_WITHOUT_COSTS</code></div>
   <span class="go">Watch it run</span>
 </a>
 <a class="excard" href="knowledge/">
-  <div class="who">Knowledge · Sourced brief</div>
-  <h2>Three facts, sourced</h2>
+  <div class="who">Knowledge · <span translate="no">Sourced brief</span></div>
+  <h2 translate="no">Three facts, sourced</h2>
   <p>Three facts, each a source node and a claim that cites it. A claim with nothing behind it is refused.</p>
-  <dl><dt>seats</dt><dd>researcher, fact_checker, lead</dd>
-    <dt>run</dt><dd>26 model calls · 23 tool calls · 27 s · settled</dd>
-    <dt>record</dt><dd>84 events · 29 nodes · 3 writes refused, then rewritten</dd></dl><div class="codes"><code>EVIDENCE_MISSING</code></div>
+  <dl><dt>seats</dt><dd translate="no">researcher, fact_checker, lead</dd>
+    <dt>run</dt><dd><span data-v>26</span> model calls · <span data-v>23</span> tool calls · <span data-v>27</span> s · settled</dd>
+    <dt>record</dt><dd><span data-v>84</span> events · <span data-v>29</span> nodes · <span data-v>3</span> writes refused, then rewritten</dd></dl><div class="codes"><code>EVIDENCE_MISSING</code></div>
   <span class="go">Watch it run</span>
 </a>
 <a class="excard" href="optimization/">
-  <div class="who">Optimization · Solution report</div>
-  <h2>Assign six customers to three depots at minimum cost</h2>
+  <div class="who">Optimization · <span translate="no">Solution report</span></div>
+  <h2 translate="no">Assign six customers to three depots at minimum cost</h2>
   <p>Objective, feasibility and a gap. An objective with no feasibility check is refused, and “optimal” needs a bound that meets it.</p>
-  <dl><dt>seats</dt><dd>modeller, solver, verifier, lead</dd>
-    <dt>run</dt><dd>14 model calls · 13 tool calls · 19 s · settled</dd>
-    <dt>record</dt><dd>59 events · 21 nodes · 1 write refused, then rewritten</dd></dl><div class="codes"><code>OBJECTIVE_WITHOUT_FEASIBILITY</code></div>
+  <dl><dt>seats</dt><dd translate="no">modeller, solver, verifier, lead</dd>
+    <dt>run</dt><dd><span data-v>14</span> model calls · <span data-v>13</span> tool calls · <span data-v>19</span> s · settled</dd>
+    <dt>record</dt><dd><span data-v>59</span> events · <span data-v>21</span> nodes · <span data-v>1</span> write refused, then rewritten</dd></dl><div class="codes"><code>OBJECTIVE_WITHOUT_FEASIBILITY</code></div>
   <span class="go">Watch it run</span>
 </a>
 </div>

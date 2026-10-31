@@ -1,6 +1,7 @@
 /* hypgraph.com — theme and copy buttons (and, on pages that still have them, the hero graph and the terminal). */
 'use strict';
 (() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
   const root = document.documentElement;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -19,15 +20,34 @@
   // ── copy buttons on .code blocks ──────────────────────────────────
   document.querySelectorAll('.code').forEach((box) => {
     const pre = box.querySelector('pre'); if (!pre) return;
-    const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'copy';
-    b.setAttribute('aria-label', 'Copy to clipboard');
+    const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = t('copy');
+    b.setAttribute('aria-label', t('Copy to clipboard'));
     b.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(pre.innerText.trim()); b.textContent = 'copied'; }
-      catch { b.textContent = 'select + copy'; }
-      setTimeout(() => { b.textContent = 'copy'; }, 1400);
+      try { await navigator.clipboard.writeText(pre.innerText.trim()); b.textContent = t('copied'); }
+      catch { b.textContent = t('select + copy'); }
+      setTimeout(() => { b.textContent = t('copy'); }, 1400);
     });
     box.appendChild(b);
   });
+
+  // ── the language menu: keep the place on the page, remember the choice for the app ──
+  window.HG.lang = root.lang || 'en';
+  window.HG.toLang = (code) => {                                       // the page in another language, if it has one
+    const a = document.querySelector(`link[rel="alternate"][hreflang="${code}"]`);
+    if (!a || code === window.HG.lang) return false;
+    try { localStorage.setItem('hypgraph-lang', code); } catch { /* private mode */ }
+    location.href = new URL(a.dataset.rel || a.href, location.href).href.split('#')[0] + location.search + location.hash;
+    return true;
+  };
+  document.querySelectorAll('.langs a[hreflang]').forEach((a) => a.addEventListener('click', (e) => {
+    if (window.HG.toLang(a.hreflang)) e.preventDefault();
+  }));
+  // close the menu on a click elsewhere or Escape
+  const shut = (e) => document.querySelectorAll('.langs[open]').forEach((d) => {
+    if (e.type === 'keydown' ? e.key === 'Escape' : !d.contains(e.target)) d.open = false;
+  });
+  document.addEventListener('click', shut);
+  document.addEventListener('keydown', shut);
 
   // ── hero: a living research graph ─────────────────────────────────
   // Nodes drift; now and then a claim is checked (green ring), or a premise falls (red) and what rests on it dims.

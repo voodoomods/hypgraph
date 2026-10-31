@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verificar un bundle — HypGraph</title>
+<meta name="description" content="Comprueba un bundle de HypGraph en tu navegador: la cadena de hashes, cada fila frente al evento que la escribió y la fila de cada evento presente. No se sube nada.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.es.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/verify/" data-rel="../../verify/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/verify/" data-rel="../../es/verify/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/verify/" data-rel="../../fr/verify/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/verify/" data-rel="../../de/verify/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/verify/" data-rel="../../zh-Hans/verify/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/verify/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Sitio"><a href="../agents/">Agentes</a><a href="../engineers/">Ingenieros</a><a href="../examples/">Ejemplos</a><a href="../never/" class="hide-sm">Nunca</a><a href="../#workflows" class="hide-sm">Flujos de trabajo</a>
+    <a href="../play/" class="hide-sm">Zona de pruebas</a><a href="../verify/" aria-current="page" class="hide-sm">Verificar</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Idioma" title="Idioma">ES</summary><div class="langs-menu"><a href="../../verify/" hreflang="en" lang="en">English</a><a href="../../es/verify/" hreflang="es" lang="es" aria-current="page">Español</a><a href="../../fr/verify/" hreflang="fr" lang="fr">Français</a><a href="../../de/verify/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/verify/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Cambiar entre claro y oscuro">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Esta página es una traducción. La versión en inglés es la de referencia: <a href="../../verify/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">Confía, pero verifica</div>
+  <h1>Verifica un bundle.</h1>
+  <p>Suelta un <code>.bundle.json</code> de <code>hypgraph export</code>. Tu navegador vuelve a calcular cada SHA-256 de la cadena y comprueba las filas frente a los eventos en ambos sentidos: cada fila la escribió un evento y coincide con él campo por campo, y la fila de cada evento está ahí. Nada sale de tu máquina.</p></div></div>
+<div class="wrap" style="padding:32px 16px 80px;max-width:860px">
+  <label class="drop" id="drop" for="file">
+    <div style="font-size:20px;font-weight:700">Suelta un bundle aquí</div>
+    <div class="note">o pulsa para elegir un archivo · o <button class="btn" type="button" id="demo" style="padding:4px 10px;font-size:14px">prueba el bundle de Broad Street</button></div>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </label>
+  <p style="margin-top:16px"><label for="anchor"><b>Cabeza publicada</b> (opcional) — el hash de la cabeza citado en un artículo, un prerregistro o una etiqueta, o sus primeros 16+ caracteres:</label><br>
+    <input id="anchor" type="text" spellcheck="false" autocomplete="off" placeholder="p. ej. 3f9a0c…" style="width:100%;font-family:var(--mono, monospace);padding:6px 8px;margin-top:6px"></p>
+  <div class="vres" id="res" aria-live="polite"></div>
+  <div class="prose" style="margin-top:40px">
+    <h2>Lo que esto demuestra — y lo que no</h2>
+    <ul>
+      <li><b>Demuestra:</b> que el hash de cada evento es el SHA-256 de la cadena exacta mostrada y que cada uno enlaza con el anterior; que cada nodo, versión, enlace, retirada, retractación y reserva del bundle lo escribió un evento y coincide con él campo por campo; y que no falta ninguna fila que escribiera un evento. Nada se editó, añadió ni quitó después de escribirse. Los hechos que el explorador muestra a su lado (qué nodos y enlaces, sus títulos, autores, horas, si están retirados) también se comprueban frente a esas filas.</li>
+      <li><b>No cubre:</b> la <b>situación</b> (estado de revisión, apoyo, riesgo, el resumen de una línea). Eso es lo que derivó el motor que lo exportó; vuelve a derivarlo a partir de las filas verificadas con <code>hypgraph verify --standing</code>. Los registros escritos antes de la 0.7.13 no hasheaban algunos campos de fila en sus eventos (el motivo de un enlace, por ejemplo); el resultado los enumera como <i>sin cobertura</i>.</li>
+      <li><b>No se fía de la política propia del bundle</b> (quiénes son el importador y los revisores): la cadena no la cubre, así que esta página usa el importador por defecto y avisa cuando el bundle nombra otro. Para comprobar bajo la política que declara quien lo publica, usa <code>hypgraph verify --policy policy.json</code> (o <code>--importer NAME</code>).</li>
+      <li><b>No demuestra por sí solo:</b> que el registro entero no se reconstruyera desde cero. Para eso, pega arriba el hash de la <b>cabeza</b> publicado en su momento (en un artículo, un prerregistro, una etiqueta del repositorio).</li>
+      <li><b>Los bundles con alcance</b> (una investigación sacada de un registro compartido) ocultan los eventos de fuera. Esos no se pueden comprobar, y el resultado lo dice: que queden fuera es palabra del bundle, y solo el registro completo frente a la cabeza publicada descarta un cambio escondido entre ellos. El propio alcance debe nombrar una investigación y el bundle contener solo sus nodos, para que ninguna afirmación se haga pasar por la investigación ni ningún registro entero por una de sus partes.</li>
+    </ul>
+  </div>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">No te creas el hype. Pon a prueba la hipótesis.</span>
+<span>Creado por <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Código Apache-2.0 · formato y documentación CC BY 4.0 · <a href="../disclaimer/">Aviso legal</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../app/hypgraph.js"></script>
+<script src="../../assets/site.js" defer></script>
+<script>
+(() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
+  const res = document.getElementById('res');
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  async function check(text, name) {
+    let b;
+    try { b = JSON.parse(text); } catch (e) { res.innerHTML = `<div class="big bad">${esc(t('✗ Not JSON'))}</div><p>${esc(e.message)}</p>`; return; }
+    res.innerHTML = `<div class="note">${esc(t('Hashing…'))}</div>`;
+    const t0 = performance.now();
+    const v = await HypGraph.verifyBundle(b, document.getElementById('anchor').value);
+    const ms = Math.round(performance.now() - t0);
+    if (!v.ok) {
+      res.innerHTML = `<div class="big bad">${esc(t('✗ {name} does not verify', { name }))}</div><p>${esc(v.problem)}${v.broken_at ? esc(t(' (event {n})', { n: v.broken_at })) : ''}</p>`;
+      return;
+    }
+    const invs = (b.derived && b.derived.investigations) || [];
+    // the scope's own title isn't hashed: name it from the verified investigation instead
+    const scope = b.scope && typeof b.scope === 'object' ? String(b.scope.inv || '') : '';
+    const scopeName = scope ? ((invs.find((i) => i.id === scope) || {}).title || scope) : t('the whole record');
+    const gaps = Object.entries(v.unchecked || {});
+    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">${esc(t('✓ {name}: {n} events verified', { name, n: v.checked }))}${v.complete ? '' : esc(t(' (scoped)'))}${v.anchored ? esc(t(' · anchored')) : ''}${v.coverage === 'partial' ? esc(t(' · partial coverage')) : ''}</div>
+      <p>${esc(t('The chain is intact, every row matches the event that wrote it, and every event\'s row is present.'))}${v.anchored ? esc(t(' It ends at the head you pasted.')) : ''} ${esc(t('Checked in your browser in {ms} ms.', { ms }))}</p>
+      ${v.warning ? `<p class="warn">${esc(v.warning)}</p>` : ''}
+      ${gaps.length ? `<p class="warn">${esc(t('Not covered (written before events hashed these fields): {list}.', { list: gaps.map(([f, n]) => `${f} ×${n}`).join(' · ') }))}</p>` : ''}
+      <dl class="kv"><dt>${esc(t('head'))}</dt><dd>${esc(v.head)}</dd><dt>${esc(t('nodes'))}</dt><dd>${v.nodes}</dd><dt>${esc(t('links'))}</dt><dd>${v.edges}</dd>
+        <dt>${esc(t('scope'))}</dt><dd>${esc(scopeName)}</dd>
+        <dt>${esc(t('derived views'))}</dt><dd>${esc(v.views === 'none' ? t('none: exported without them, so there is nothing to show beyond the rows') : t('checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)'))}</dd><dt>${esc(t('exported'))}</dt><dd>${esc(t('{at} by {who}', { at: b.exported_at || '—', who: b.generator || '—' }))}</dd>
+        <dt>${esc(t('investigations'))}</dt><dd>${invs.map((i) => esc(i.title)).join(' · ') || '—'}</dd>
+        ${b.telemetry ? `<dt>${esc(t('telemetry'))}</dt><dd>${esc(t('{n} events from the run, carried for replay — outside the hash chain, so not verified', { n: (b.telemetry.events || []).length }))}</dd>` : ''}</dl>
+      <div class="row" style="margin-top:16px"><button class="btn primary" id="open" type="button">${esc(t('Open in HypGraph'))}</button></div>
+      <p class="note">${t('Not checked here: the standing (review state, support, at-risk) HypGraph shows is what the bundle was exported with. Re-derive it with <code>hypgraph verify --standing</code>.')}</p>`;
+    document.getElementById('open').addEventListener('click', () => {
+      try { sessionStorage.setItem('hg-bundle', text); location.href = '../explore/?from=verify'; }
+      catch { res.insertAdjacentHTML('beforeend', `<p class="bad">${t('This bundle is too large to hand over in this browser — open it with <code>hypgraph import</code> and <code>hypgraph serve</code>.')}</p>`); }
+    });
+  }
+  const file = document.getElementById('file'), drop = document.getElementById('drop');
+  file.addEventListener('change', async () => { const f = file.files[0]; if (f) check(await f.text(), f.name); });
+  ['dragenter', 'dragover'].forEach((k) => drop.addEventListener(k, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((k) => drop.addEventListener(k, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', async (e) => { const f = e.dataTransfer.files[0]; if (f) check(await f.text(), f.name); });
+  document.getElementById('demo').addEventListener('click', async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = await fetch('../../data/broad-street.bundle.json'); check(await r.text(), 'broad-street.bundle.json');
+  });
+})();
+</script>
+</body>
+</html>

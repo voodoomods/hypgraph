@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>验证记录包 — HypGraph</title>
+<meta name="description" content="在浏览器中检查 HypGraph 记录包：哈希链、每一行与写入它的事件是否一致，以及每个事件的行是否存在。不上传任何内容。">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.zh-Hans.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/verify/" data-rel="../../verify/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/verify/" data-rel="../../es/verify/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/verify/" data-rel="../../fr/verify/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/verify/" data-rel="../../de/verify/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/verify/" data-rel="../../zh-Hans/verify/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/verify/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">跳到内容</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="网站"><a href="../agents/">智能体</a><a href="../engineers/">工程师</a><a href="../examples/">示例</a><a href="../never/" class="hide-sm">从不</a><a href="../#workflows" class="hide-sm">工作流</a>
+    <a href="../play/" class="hide-sm">试验场</a><a href="../verify/" aria-current="page" class="hide-sm">验证</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="语言" title="语言">中文</summary><div class="langs-menu"><a href="../../verify/" hreflang="en" lang="en">English</a><a href="../../es/verify/" hreflang="es" lang="es">Español</a><a href="../../fr/verify/" hreflang="fr" lang="fr">Français</a><a href="../../de/verify/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/verify/" hreflang="zh-Hans" lang="zh-Hans" aria-current="page">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="切换浅色和深色">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">本页为译文。以英文版为准： <a href="../../verify/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">信任，但要验证</div>
+  <h1>验证一个记录包。</h1>
+  <p>拖入一个 <code>hypgraph export</code> 的 <code>.bundle.json</code>。你的浏览器会重新计算链中的每个 SHA-256，并从两个方向对照事件检查各行：每一行都由一个事件写入并逐字段与之匹配，且每个事件对应的行都在。不会有任何内容离开你的机器。</p></div></div>
+<div class="wrap" style="padding:32px 16px 80px;max-width:860px">
+  <label class="drop" id="drop" for="file">
+    <div style="font-size:20px;font-weight:700">把记录包拖到这里</div>
+    <div class="note">或点击选择文件 · 或<button class="btn" type="button" id="demo" style="padding:4px 10px;font-size:14px">试试 Broad Street 记录包</button></div>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </label>
+  <p style="margin-top:16px"><label for="anchor"><b>已发布的链头</b>（可选）— 论文、预注册或标签中引用的链头哈希，或其前 16 个以上字符：</label><br>
+    <input id="anchor" type="text" spellcheck="false" autocomplete="off" placeholder="例如 3f9a0c…" style="width:100%;font-family:var(--mono, monospace);padding:6px 8px;margin-top:6px"></p>
+  <div class="vres" id="res" aria-live="polite"></div>
+  <div class="prose" style="margin-top:40px">
+    <h2>它证明了什么 — 以及没证明什么</h2>
+    <ul>
+      <li><b>证明：</b>每个事件的哈希都是所示原始字符串的 SHA-256，且每个都链接到前一个；记录包中的每个节点、版本、链接、撤回、收回和租约都由一个事件写入并逐字段与之匹配；并且没有缺失任何由事件写入的行。写入之后没有任何内容被编辑、添加或删除。浏览器旁边显示的事实（哪些节点和链接、它们的标题、作者、时间、是否已撤回）也会对照这些行进行检查。</li>
+      <li><b>不涵盖：</b><b>现状</b>（审查状态、支撑、风险、一行摘要）。那是导出它的引擎推导出来的；用 <code>hypgraph verify --standing</code> 从已验证的行重新推导。0.7.13 之前写入的记录没有把某些行字段哈希进事件（例如链接的理由）；结果会将它们列为<i>未覆盖</i>。</li>
+      <li><b>不信任记录包自带的策略</b>（谁是导入者和审查者）：链不覆盖它，所以本页使用默认导入者，并在记录包指定了其他导入者时发出警告。要按发布者声明的策略检查，请使用 <code>hypgraph verify --policy policy.json</code>（或 <code>--importer NAME</code>）。</li>
+      <li><b>单靠它不能证明：</b>整个记录没有被从头重建。为此，请在上方粘贴当时发布的<b>链头</b>哈希（在论文、预注册或仓库标签中）。</li>
+      <li><b>限定范围的记录包</b>（从共享记录中取出的一项调查）会隐藏范围外的事件。这些事件无法检查，结果也会说明：它们在范围外只是记录包的一面之词，只有对照已发布链头的完整记录才能排除隐藏在其中的改动。范围本身必须指明一项调查，且记录包只能包含其节点，这样就没有主张能冒充这项调查，也没有完整记录能冒充它的一部分。</li>
+    </ul>
+  </div>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">别信炒作。检验假设。</span>
+<span>由 <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> 创建 · VoodooMods LLC · 代码 Apache-2.0 · 格式与文档 CC BY 4.0 · <a href="../disclaimer/">免责声明</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../app/hypgraph.js"></script>
+<script src="../../assets/site.js" defer></script>
+<script>
+(() => {
+  const t = (s, v) => { const x = (window.HG_T || {})[s] || s; return v ? x.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m)) : x; };
+  const res = document.getElementById('res');
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  async function check(text, name) {
+    let b;
+    try { b = JSON.parse(text); } catch (e) { res.innerHTML = `<div class="big bad">${esc(t('✗ Not JSON'))}</div><p>${esc(e.message)}</p>`; return; }
+    res.innerHTML = `<div class="note">${esc(t('Hashing…'))}</div>`;
+    const t0 = performance.now();
+    const v = await HypGraph.verifyBundle(b, document.getElementById('anchor').value);
+    const ms = Math.round(performance.now() - t0);
+    if (!v.ok) {
+      res.innerHTML = `<div class="big bad">${esc(t('✗ {name} does not verify', { name }))}</div><p>${esc(v.problem)}${v.broken_at ? esc(t(' (event {n})', { n: v.broken_at })) : ''}</p>`;
+      return;
+    }
+    const invs = (b.derived && b.derived.investigations) || [];
+    // the scope's own title isn't hashed: name it from the verified investigation instead
+    const scope = b.scope && typeof b.scope === 'object' ? String(b.scope.inv || '') : '';
+    const scopeName = scope ? ((invs.find((i) => i.id === scope) || {}).title || scope) : t('the whole record');
+    const gaps = Object.entries(v.unchecked || {});
+    res.innerHTML = `<div class="big ${v.complete ? 'good' : 'warn'}">${esc(t('✓ {name}: {n} events verified', { name, n: v.checked }))}${v.complete ? '' : esc(t(' (scoped)'))}${v.anchored ? esc(t(' · anchored')) : ''}${v.coverage === 'partial' ? esc(t(' · partial coverage')) : ''}</div>
+      <p>${esc(t('The chain is intact, every row matches the event that wrote it, and every event\'s row is present.'))}${v.anchored ? esc(t(' It ends at the head you pasted.')) : ''} ${esc(t('Checked in your browser in {ms} ms.', { ms }))}</p>
+      ${v.warning ? `<p class="warn">${esc(v.warning)}</p>` : ''}
+      ${gaps.length ? `<p class="warn">${esc(t('Not covered (written before events hashed these fields): {list}.', { list: gaps.map(([f, n]) => `${f} ×${n}`).join(' · ') }))}</p>` : ''}
+      <dl class="kv"><dt>${esc(t('head'))}</dt><dd>${esc(v.head)}</dd><dt>${esc(t('nodes'))}</dt><dd>${v.nodes}</dd><dt>${esc(t('links'))}</dt><dd>${v.edges}</dd>
+        <dt>${esc(t('scope'))}</dt><dd>${esc(scopeName)}</dd>
+        <dt>${esc(t('derived views'))}</dt><dd>${esc(v.views === 'none' ? t('none: exported without them, so there is nothing to show beyond the rows') : t('checked against the rows: every node, link and lifecycle they show is in the record (standing as exported)'))}</dd><dt>${esc(t('exported'))}</dt><dd>${esc(t('{at} by {who}', { at: b.exported_at || '—', who: b.generator || '—' }))}</dd>
+        <dt>${esc(t('investigations'))}</dt><dd>${invs.map((i) => esc(i.title)).join(' · ') || '—'}</dd>
+        ${b.telemetry ? `<dt>${esc(t('telemetry'))}</dt><dd>${esc(t('{n} events from the run, carried for replay — outside the hash chain, so not verified', { n: (b.telemetry.events || []).length }))}</dd>` : ''}</dl>
+      <div class="row" style="margin-top:16px"><button class="btn primary" id="open" type="button">${esc(t('Open in HypGraph'))}</button></div>
+      <p class="note">${t('Not checked here: the standing (review state, support, at-risk) HypGraph shows is what the bundle was exported with. Re-derive it with <code>hypgraph verify --standing</code>.')}</p>`;
+    document.getElementById('open').addEventListener('click', () => {
+      try { sessionStorage.setItem('hg-bundle', text); location.href = '../explore/?from=verify'; }
+      catch { res.insertAdjacentHTML('beforeend', `<p class="bad">${t('This bundle is too large to hand over in this browser — open it with <code>hypgraph import</code> and <code>hypgraph serve</code>.')}</p>`); }
+    });
+  }
+  const file = document.getElementById('file'), drop = document.getElementById('drop');
+  file.addEventListener('change', async () => { const f = file.files[0]; if (f) check(await f.text(), f.name); });
+  ['dragenter', 'dragover'].forEach((k) => drop.addEventListener(k, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((k) => drop.addEventListener(k, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', async (e) => { const f = e.dataTransfer.files[0]; if (f) check(await f.text(), f.name); });
+  document.getElementById('demo').addEventListener('click', async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = await fetch('../../data/broad-street.bundle.json'); check(await r.text(), 'broad-street.bundle.json');
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pour les ingénieurs — HypGraph</title>
+<meta name="description" content="Intégrez HypGraph dans un système d&#x27;agents : politique et rôles, MCP et enveloppes d&#x27;outils, exécutions enregistrées, rapports d&#x27;évaluation ML, dépenses, l&#x27;API JSON, l&#x27;interface de HypGraph et des bundles vérifiables en CI.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.fr.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/engineers/" data-rel="../../engineers/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/engineers/" data-rel="../../es/engineers/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/engineers/" data-rel="../../fr/engineers/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/engineers/" data-rel="../../de/engineers/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/engineers/" data-rel="../../zh-Hans/engineers/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/engineers/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/" aria-current="page">Ingénieurs</a><a href="../examples/">Exemples</a><a href="../never/" class="hide-sm">Jamais</a><a href="../#workflows" class="hide-sm">Workflows</a>
+    <a href="../play/" class="hide-sm">Bac à sable</a><a href="../verify/" class="hide-sm">Vérifier</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="Langue" title="Langue">FR</summary><div class="langs-menu"><a href="../../engineers/" hreflang="en" lang="en">English</a><a href="../../es/engineers/" hreflang="es" lang="es">Español</a><a href="../../fr/engineers/" hreflang="fr" lang="fr" aria-current="page">Français</a><a href="../../de/engineers/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/engineers/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Basculer entre clair et sombre">◐</button></nav>
+</div></header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Cette page est une traduction. La version anglaise fait foi : <a href="../../engineers/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">Pour les ingénieurs et les scientifiques</div>
+  <h1>Donnez à vos agents un registre qu'ils ne peuvent pas flatter.</h1>
+  <p>Un paquet Python, sans dépendances. Vous décidez qui relit, quelles exécutions comptent comme enregistrées et combien coûte le travail ; HypGraph l'applique, vérifie chaque affirmation à l'écriture et dérive ce qui a réellement été démontré.</p></div></div>
+
+<div class="wrap doc">
+<nav class="toc" aria-label="Sur cette page">
+  <a href="#install">Installation</a><a href="#model">Le modèle</a><a href="#policy">Politique et rôles</a>
+  <a href="#connect">Brancher des agents</a><a href="#runs">Enregistrer des exécutions</a><a href="#workflows">Profils et workflows</a><a href="#evals">Recette : rapports d'évaluation</a>
+  <a href="#spend">Coût</a><a href="#http">HTTP et l'interface</a><a href="#ci">Bundles en CI</a>
+  <a href="#lint">Vérifier le rapport</a><a href="#refusals">Le journal des refus</a>
+  <a href="#perf">Performances</a></nav>
+<article class="prose">
+
+<h2 id="install">Installation</h2>
+<div class="code"><pre>pip install hypgraph            # engine, CLI, JSON API, UI — standard library only
+pip install "hypgraph[mcp]"     # + the MCP server (FastMCP)</pre></div>
+<p>Python 3.10+. Un fichier SQLite par registre (<code>Graph("research.hypgraph")</code>), ou <code>Graph()</code> en mémoire pour les tests et les notebooks.</p>
+
+<h2 id="model">Le modèle</h2>
+<p>Des nœuds typés — question, hypothèse, expérience, exécution, résultat, affirmation, source, relecture, décision — reliés par des liens typés dont les extrémités sont imposées (<code>supports</code>, <code>challenges</code>, <code>requires</code>, <code>tests</code>, <code>produced</code>, <code>replicates</code>, <code>based_on</code> …). Toutes les tables sont en ajout seul ; chaque écriture est un événement dans une chaîne SHA-256. Aucun statut n'est stocké. Chaque lecture dérive :</p>
+<ul>
+  <li><b>relecture</b> — vérifié / non vérifié / contesté / périmé, à partir des verdicts des relecteurs sur la version actuelle ;</li>
+  <li><b>risque</b> — prémisses tombées en amont (<code>AT RISK</code>), décisions dont la base a bougé (<code>REVISIT</code>), tout le soutien tombé (<code>UNSUPPORTED</code>) ;</li>
+  <li><b>lignes indépendantes</b> — des soutiens qui ne partagent ni exécution, ni artefact de données, ni source ;</li>
+  <li><b>évidence</b> — la ligne la plus forte : rapportée par un agent → enregistrée par l'instrument → reproduite → implémentation indépendante → nouvelles données → source externe.</li>
+</ul>
+<p>Les règles complètes sont dans le <a href="../spec/">format du registre</a> ; <code>hypgraph schema --json</code> affiche le vocabulaire.</p>
+
+<h2 id="policy">Politique et rôles</h2>
+<div class="code"><pre>from hypgraph import Graph, Policy
+
+POLICY = Policy(
+    reviewers={"critic", "stats-reviewer"},   # whose verdicts count (an investigation can add its own)
+    instrument="runner",                      # the only author whose kind=lab runs are "recorded" evidence
+    operator="operator",                      # revises anything, settles disputes
+    importer="importer",                      # brings legacy records in, with their original dates
+)
+g = Graph("research.hypgraph", policy=POLICY)</pre></div>
+<div class="callout"><b>L'authentification vous revient.</b> HypGraph prend <code>author=</code> au pied de la lettre. Partout où un agent atteint le graphe, fixez son auteur de votre côté et refusez <code>POLICY.reserved</code> — c'est ce que font le serveur MCP fourni et l'API HTTP.</div>
+<p>Un modèle qui fonctionne pour une équipe d'agents :</p>
+<table>
+  <thead><tr><th>rôle dans votre système</th><th>dans HypGraph</th></tr></thead>
+  <tbody>
+    <tr><td>agents travailleurs (chercheurs, analystes)</td><td>chacun sous son propre nom d'auteur ; leurs affirmations sont vérifiées ; leurs relectures sont des commentaires</td></tr>
+    <tr><td>agents critiques / relecteurs</td><td><code>reviewers</code> ; leurs verdicts fixent le statut ; jamais sur leurs propres nœuds</td></tr>
+    <tr><td>l'exécuteur de tâches / sandbox qui exécute du code</td><td><code>instrument</code> : enregistre les exécutions avec des hachages, donc les résultats comptent comme enregistrés</td></tr>
+    <tr><td>vous, ou un orchestrateur agissant pour vous</td><td><code>operator</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="connect">Brancher des agents</h2>
+<h3>MCP</h3>
+<p>Un processus serveur par identité d'agent — l'auteur est fixé au démarrage :</p>
+<div class="code"><pre>hypgraph --db research.hypgraph --as critic mcp                                # stdio
+hypgraph --db research.hypgraph --as worker-1 mcp --transport http --port 8766 # streamable HTTP</pre></div>
+<p>Ou construisez-le dans le processus (politique propre, votre propre authentification) : <code>hypgraph.mcp.build(graph, author="worker-1")</code> renvoie le serveur FastMCP.</p>
+<p>Des exemples exécutables, la même histoire intégrée de six façons (LangChain, LangGraph, PydanticAI, CrewAI, OpenAI Agents SDK, Claude Agent SDK) : <a href="https://github.com/voodoomods/hypgraph/tree/main/examples/frameworks">examples/frameworks</a>. Chacun tourne hors ligne avec un modèle scripté, ou avec <code>--real</code> sur un vrai modèle.</p>
+<h3>Agent Skill</h3>
+<p><code>hypgraph skill --install</code> écrit <code>.claude/skills/hypgraph/SKILL.md</code> : la méthode, les refus et leurs corrections, via la CLI.</p>
+<h3>Vos propres outils</h3>
+<p>Tout framework qui accepte des fonctions Python comme outils (Claude Agent SDK, LangChain, LangGraph, OpenAI Agents …) — renvoyez le texte du refus pour que le modèle puisse agir dessus :</p>
+<div class="code"><pre>from hypgraph import GraphError
+
+def add_claim(statement: str, scope: str, result: str, measurements: list[dict], why: str) -&gt; str:
+    """Add a claim supported by a result; every number in the statement must be bound in measurements."""
+    try:
+        n = g.create(author=AGENT_NAME, type="claim", inv=INV,
+                     fields={"statement": statement, "scope": scope, "measurements": measurements},
+                     links=[{"rel": "supports", "from": result, "why": why}])
+        return f"Added {n['code']}: {n['state']['sentence']}"
+    except GraphError as e:
+        return f"Refused — fix this and retry:\n{e}"</pre></div>
+<p>Mettez <code>g.report(inv)["markdown"]</code> ou le texte MCP <code>overview</code> dans le contexte de l'agent au début d'une tâche, pour qu'il lise ce qui est établi avant de le redériver.</p>
+
+<h2 id="runs">Enregistrer des exécutions</h2>
+<div class="code"><pre>from hypgraph import file_sha256
+
+data, code = file_sha256("evals/heldout.jsonl"), file_sha256("eval.py")
+a_data = g.create(author="runner", type="artifact", inv=INV, fields={**data, "format": "jsonl"})["id"]
+a_code = g.create(author="runner", type="artifact", inv=INV, fields={**code, "format": "py"})["id"]
+run = g.create(author="runner", type="run", inv=INV, fields={"kind": "lab", "state": "succeeded", "seed": 7},
+               links=[{"rel": "uses", "to": a_data, "data": {"role": "data"}},
+                      {"rel": "uses", "to": a_code, "data": {"role": "code"}}])["id"]
+res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced", "from": run}],
+               fields={"summary": "Held-out accuracy, fine-tune vs baseline.",
+                       "values": {"finetune": {"k": 1624, "n": 2000}, "baseline": {"k": 1568, "n": 2000}}})["id"]</pre></div>
+<p>Les artefacts sont adressés par contenu (mêmes octets, un nœud), donc deux résultats calculés à partir des mêmes données fusionnent automatiquement en une ligne d'évidence. Une réexécution lie <code>replicates</code> à <code>data.differs</code> (<code>new_seed</code>, <code>new_impl</code>, <code>new_data</code> …) et élève le profil d'évidence.</p>
+
+<h2 id="workflows">Profils et workflows</h2>
+<p>Fixez un profil sur l'enquête et le registre applique les règles de cette discipline — et, avec les profils <code>@2</code>, son <a href="../#workflows">workflow</a> : des étapes avec seuils, ce qui invalide l'évidence, les formes typées que doivent avoir un diff, une instance, une source ou une position. L'étape est dérivée à chaque lecture, comme le statut.</p>
+<div class="code"><pre>inv = g.create(author="operator", type="investigation",
+               fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@2"})["id"]
+q = g.create(author="operator", type="question", inv=inv, fields={"text": "Does the importer keep quoted commas?"})["id"]
+
+g.stage(q)        # {"stage": "implemented", "index": 2, "of": 6, "complete": False,
+                  #  "next": "no live artifact kind=diff (meta: base_sha, head_sha, files) part_of Q1", "gates": [...]}
+g.stages(inv)     # one row per live question;  GET /api/graph/stages?inv=…  ·  MCP tool: stage
+g.completion(inv) # the profile's criteria for the whole investigation</pre></div>
+<ul>
+  <li><b>Les seuils sont des prédicats.</b> <code>hypothesis_stated</code>, <code>preregistered</code>, <code>diff_registered</code>, <code>tests_pass_current</code>, <code>backtested</code>, <code>positioned</code>, <code>still_valid</code>, <code>solved</code>, <code>result_reviewed</code> … — utilisables aussi comme <code>done_when</code> d'un ordre.</li>
+  <li><b>Ce qui invalide.</b> En plus des prémisses, un workflow ajoute <code>uses</code> (un fichier de données corrigé, un diff ou une instance remplacés) ou <code>cites</code> (une source retirée) à ce qui rend MENACÉS les dépendants — par profil, donc les registres sous <code>@1</code> gardent exactement le statut qu'ils avaient.</li>
+  <li><b>Fraîcheur.</b> Un résultat dont l'exécution a utilisé un artefact désormais remplacé, ou dont le <code>valid_until</code> est passé, est PÉRIMÉ ; une affirmation est périmée quand tous les résultats qui la soutiennent le sont. Une vérification sur une évidence périmée ne satisfait pas <code>reviewed</code>.</li>
+  <li><b>Formes typées.</b> <code>artifact.kind</code> + <code>meta</code> (un <code>diff</code> exige base_sha, head_sha, files), <code>source.kind</code>, <code>decision.kind=position</code> avec size, stop, review_date, paper — refusés s'ils sont incomplets. Réenregistrer les mêmes octets type un artefact non typé et ajoute les liens indiqués.</li>
+  <li><b>Des fins honnêtes.</b> Une réponse <code>inconclusive</code> vérifiée, une décision <code>no_position</code>, un échec vérifié (un résultat négatif enregistré par l'instrument, vérifié) complètent chacun une question que les seuils seuls ne complèteraient jamais.</li>
+</ul>
+<p>La méthode dont sort chaque workflow, et la décision derrière chaque seuil, ont chacune leur page dans <a href="https://github.com/voodoomods/hypgraph/tree/main/docs/workflows">docs/workflows</a>. Le planificateur de <a href="https://hypswarm.com">HypSwarm</a> émet l'ordre d'étape de chaque question exactement à partir de cela.</p>
+
+<h2 id="evals">Recette : des rapports d'évaluation qui tiennent</h2>
+<ol>
+  <li><b>Préenregistrez.</b> Une expérience avec des liens <code>tests</code> vers chaque hypothèse (« le fine-tuning est meilleur », « pas de différence »), chacune avec <code>data.expected</code>, avant l'exécution.</li>
+  <li><b>Enregistrez l'exécution</b> comme ci-dessus ; mettez les décomptes dans les valeurs du résultat sous la forme <code>{k, n}</code>, pas seulement des pourcentages.</li>
+  <li><b>Affirmez avec des mesures.</b> « 1 624 sur 2 000 contre 1 568 » est lié ; « 5 points de mieux » sans champ de résultat pour le 5 est refusé.</li>
+  <li><b>« Pas de différence » exige de la puissance.</b> Plantez un effet connu (injectez une différence de 2 points dans une copie des prédictions), montrez que la comparaison le détecte avec cette taille d'échantillon et marquez ce résultat <code>power: "demonstrated"</code>. Sans cela, enregistrez l'affirmation comme <code>inconclusive</code> — le registre y tient.</li>
+  <li><b>Relecture.</b> Un agent critique relance l'évaluateur sur les prédictions sauvegardées ; son <code>pass</code> ou <code>fail</code> est épinglé à cette version de l'affirmation.</li>
+  <li><b>Rapport.</b> <code>g.report(inv)["markdown"]</code> est la table des faits pour le début du rapport ; il ne peut pas réénoncer une affirmation retirée.</li>
+</ol>
+
+<h2 id="spend">Coût</h2>
+<div class="code"><pre>def spend(inv, tasks, since=None):            # your meter: model calls per task id
+    rows = ledger.calls(task_ids=tasks, since=since)
+    return {"usd": sum(r.usd for r in rows), "calls": len(rows), "input_tokens": ..., "cached_tokens": ...,
+            "output_tokens": ..., "by_task": [{"task_id": t, "usd": ...} for t in tasks]}
+
+g = Graph("research.hypgraph", policy=POLICY, spend=spend)
+with g.writing_for(task_id):                    # events carry the task
+    g.create(...)
+g.cost(inv)        # $ for the investigation, per node, per verdict, and since the record last moved</pre></div>
+
+<h2 id="http">HTTP et l'interface</h2>
+<div class="code"><pre>hypgraph serve --db research.hypgraph            # HypGraph UI + JSON API on 127.0.0.1:8765, read-only
+hypgraph serve --db research.hypgraph --writable # + POST /api/graph/write</pre></div>
+<p>Dans votre propre application (FastAPI montré ; tout framework fonctionne) :</p>
+<div class="code"><pre>from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from hypgraph.server import dispatch
+from hypgraph.ui import static_dir
+
+app = FastAPI()
+app.mount("/hypgraph", StaticFiles(directory=static_dir(), html=True))
+
+@app.get("/api/graph/{path:path}")
+def graph_api(path: str, request: Request):
+    status, body = dispatch(g, "GET", "/" + path, dict(request.query_params))
+    return body          # (set the status code too)</pre></div>
+<p>L'interface n'utilise ni framework ni étape de compilation : <code>HypGraph.mount(el, {source: HypGraph.HttpSource('/api/graph')})</code>, ou <code>HypGraph.BundleSource(bundle)</code> sans aucun serveur. Elle suit <code>GET /api/graph/stream</code> en direct, et la télémétrie d'une exécution HypSwarm (<code>&lt;record&gt;.telemetry.jsonl</code>) ajoute chaque appel au modèle et aux outils. <code>hypgraph export --telemetry</code> la transporte dans un bundle pour la rejouer, hors de la chaîne de hachage ; <code>{play: true}</code> ouvre en relecture. Thémez-la avec les variables CSS <code>--hg-*</code>. Voyez-la dans les <a href="../examples/">exemples en direct</a>.</p>
+
+<h2 id="ci">Bundles en CI</h2>
+<div class="code"><pre>hypgraph export -o record.bundle.json     # every event as the exact string that was hashed
+hypgraph verify record.bundle.json        # exit 1 if anything was edited</pre></div>
+<p>Publiez le hash <code>head</code> du bundle quelque part que vous ne contrôlez pas (une étiquette, un article, un ticket) quand un résultat est publié : un registre ultérieur qui passe par ce hash n'a rien pu réécrire d'antérieur. Les relecteurs peuvent vérifier un bundle sur <a href="../verify/">/verify</a> sans rien installer.</p>
+
+<h2 id="lint">Vérifier le rapport</h2>
+<p>L'essentiel du hype vit dans le rapport final, pas dans le registre. <code>hypgraph check</code> lit du markdown contre le registre et sort avec 1 en cas d'erreur, de sorte que le résumé que remet un agent ne peut pas contredire ce qui a réellement été démontré :</p>
+<div class="code"><pre>hypgraph check summary.md              # errors fail
+hypgraph check --strict summary.md     # warnings (unsourced numbers …) fail too</pre></div>
+<table>
+  <thead><tr><th>erreur</th><th>détecte</th></tr></thead>
+  <tbody>
+    <tr><td><code>REPORT_OVERSTATES_STANDING</code></td><td>« établi » / « confirmé » sur une affirmation que le registre tient pour non vérifiée, contestée ou menacée</td></tr>
+    <tr><td><code>REPORT_CITES_WITHDRAWN</code></td><td>citer une affirmation retirée comme si elle tenait toujours</td></tr>
+    <tr><td><code>REPORT_UNKNOWN_CODE</code></td><td>une citation d'une affirmation ou d'un résultat qui n'existe pas</td></tr>
+    <tr><td><code>REPORT_ABSOLUTE_UNBACKED</code> · <code>REPORT_ABSENCE_UNBACKED</code> · <code>REPORT_SIGNIFICANCE_UNBACKED</code></td><td>jamais / aucun effet / significativement sans rien de cité derrière</td></tr>
+  </tbody>
+</table>
+<p>Avertissements : des nombres qu'aucun résultat ne contient ni n'implique, des litiges omis, des citations remplacées, un langage causal sans citations. Les blocs de code, le code en ligne, les URL, les passages cités, les négations (« ne peut être démontré ») et les instructions (« n'utilisez jamais le jeu d'évaluation ») ne sont pas traités comme des affirmations — calibré sur deux douzaines de vrais rapports vérifiés contre le registre vivant dont ils rendent compte. En Python : <code>g.check_text(text, inv)</code> ; via HTTP : <code>POST /api/graph/check</code> ; pour les agents : l'outil MCP <code>check_report</code>.</p>
+
+<h2 id="refusals">Le journal des refus</h2>
+<p>Chaque affirmation refusée est enregistrée — auteur, énoncé, codes — et marquée corrigée quand le même auteur revient avec la version honnête. C'est le chiffre que personne d'autre ne peut vous montrer : à quelle fréquence vos agents ont tenté de surinterpréter, quelles règles les ont arrêtés et lesquels ont abandonné en silence.</p>
+<div class="code"><pre>hypgraph refusals                      # per author and rule, fixed vs open
+hypgraph refusals --author analyst     # one agent's refusals in full</pre></div>
+<p>En ajout seul, avec sa propre chaîne de hachage (<code>g.verify_refusals()</code>), séparée de celle du registre. En Python : <code>g.refusal_report(inv)</code> ; HTTP <code>GET /api/graph/refusals</code> ; MCP <code>refusal_log</code> ; et un décompte des surinterprétations refusées dans le Résumé de HypGraph.</p>
+
+<h2 id="perf">Performances</h2>
+<table>
+  <thead><tr><th>nœuds</th><th>dériver tout le statut</th><th>lire un nœud</th><th>écrire</th><th>vérifier la chaîne</th></tr></thead>
+  <tbody>
+    <tr><td>1,001</td><td>0.047 s</td><td>0.1 ms</td><td>5.7 ms</td><td>0.028 s</td></tr>
+    <tr><td>3,301</td><td>0.095 s</td><td>0.07 ms</td><td>6.0 ms</td><td>0.07 s</td></tr>
+    <tr><td>10,001</td><td>0.37 s</td><td>0.07 ms</td><td>11.4 ms</td><td>0.21 s</td></tr>
+  </tbody>
+</table>
+<p>Python pur, mesuré avec <code>python dev/bench.py --nodes N</code> sur un portable Windows (Python 3.13, hypgraph 0.6). Son registre est une enquête de questions, de résultats liés à des valeurs, d'affirmations dérivées de ceux-ci et de relectures sur certaines ; la dérivation croît au même rythme que le registre. Une écriture coûte ce qu'elle touche : les instantanés partagent les données non touchées, et le statut en cache survit pour chaque nœud que l'écriture ne peut pas atteindre (vérifié contre une reconstruction complète avec une batterie de tests aléatoires). L'essentiel d'une écriture est SQLite validant sur disque. Lancez le benchmark sur votre machine, à vos tailles.</p>
+
+</article>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Ne croyez pas le hype. Testez l'hypothèse.</span>
+<span>Créé par <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format et documentation CC BY 4.0 · <a href="../disclaimer/">Avertissement</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>

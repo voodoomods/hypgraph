@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HypGraph — ein Protokoll, das prüft, was Ihre Agenten behaupten</title>
+<meta name="description" content="HypGraph ist ein Hash-verkettetes Protokoll, in das Ihre KI-Agenten ihre Ergebnisse und Behauptungen schreiben. Es lehnt Überbehauptungen beim Schreiben ab und leitet ab, was gezeigt wurde. MCP-Server, Agent Skill, Python ohne Abhängigkeiten.">
+<meta property="og:title" content="HypGraph — Don't believe the hype. Test the hyp.">
+<meta property="og:description" content="A record that checks what your agents claim: overclaims refused as they're written, standing derived from the record.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hypgraph.com/">
+<link rel="icon" href="../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="../llms.txt" title="Für Sprachmodelle">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../app/hypgraph.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../assets/strings.de.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/" data-rel="../"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/" data-rel="../es/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/" data-rel="../fr/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/" data-rel="../de/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/" data-rel="../zh-Hans/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/"><!--/i18n:alt-->
+</head>
+<body id="top">
+<!-- The figures on this page are claims in its own HypGraph record (data/site-record.bundle.json), built and
+     re-measured by dev/site_record.py, which also checks this page's text against the record with `hypgraph check`.
+     A figure goes in a data-fact slot; a word quoted as an example of what gets refused is marked data-quote; a phrase
+     true by the engine's design is marked data-ok="<why>" and listed on the page. -->
+<a class="skip" href="#main">Zum Inhalt springen</a><header class="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Website">
+      <a href="agents/">Agenten</a><a href="engineers/">Ingenieure</a><a href="examples/">Beispiele</a><a href="never/" class="hide-sm">Nie</a><a href="#workflows" class="hide-sm">Workflows</a><a href="play/" class="hide-sm">Spielwiese</a>
+      <a href="verify/" class="hide-sm">Verifizieren</a><a href="spec/" class="hide-sm">Spec</a>
+      <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+      <!--i18n:menu--><details class="langs"><summary aria-label="Sprache" title="Sprache">DE</summary><div class="langs-menu"><a href="../" hreflang="en" lang="en">English</a><a href="../es/" hreflang="es" lang="es">Español</a><a href="../fr/" hreflang="fr" lang="fr">Français</a><a href="../de/" hreflang="de" lang="de" aria-current="page">Deutsch</a><a href="../zh-Hans/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Zwischen hell und dunkel wechseln">◐</button></nav>
+  </div>
+</header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Diese Seite ist eine Übersetzung. Maßgeblich ist die englische Fassung: <a href="../" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<section class="hero"><div class="wrap">
+  <div class="hero-tags"><span class="pill accent" data-fact="version-pill"></span><span class="pill">Open Source · <span data-fact="licence"></span></span> <span class="pill">Python · <span data-fact="deps-word"></span> Abhängigkeiten</span><span class="pill">MCP-Server · Agent Skill · HTTP-API</span></div>
+  <h1>Ein Protokoll, das prüft, was Ihre Agenten behaupten.</h1>
+  <p class="lede">Agenten schreiben ihre Hypothesen, Läufe, Ergebnisse und Behauptungen in HypGraph. Es lehnt eine Zahl ab, die kein Ergebnis erklärt, <span data-quote>„immer“</span> ohne die Zählungen und <span data-quote>„ausgeschlossen“</span> ohne eine Suche mit ausreichender Teststärke, und leitet aus dem Protokoll <span data-ok="design: standing is derived on read, never stored (derive.py)">bei jedem Lesen</span> ab, was gezeigt ist und was gefährdet ist.</p>
+  <div class="row"><a class="btn primary" href="#product">Einen Lauf ansehen</a><a class="btn" href="engineers/">Loslegen</a>
+    <a class="btn" href="#refuses">Sehen, was es ablehnt</a></div>
+  <div class="tagline">Glauben Sie dem Hype nicht. Prüfen Sie die Hypothese.</div>
+
+  <div class="stage" id="product">
+    <div class="stage-bar"><div class="stage-tabs" role="group" aria-label="Ein Protokoll wählen" id="stage-tabs"></div>
+      <span class="pill" id="stage-chain">wird verifiziert …</span></div>
+    <div class="stage-app"><div id="app"></div></div>
+    <div class="stage-foot" id="stage-foot"></div>
+  </div>
+</div></section>
+
+<section class="block" id="start"><div class="wrap">
+  <div class="kicker">Zwei Eingänge</div>
+  <h2 class="h">Für den Agenten und für alle, die ihn einsetzen.</h2>
+  <div class="door">
+    <a class="portal" href="agents/">
+      <div class="who">Für Agenten</div>
+      <h2>Verbinden Sie Ihren Agenten</h2>
+      <p>Eine Zeile MCP oder die Agent Skill. Behauptungen werden beim Schreiben geprüft, die Prüfung der eigenen Arbeit durch einen Agenten zählt nicht, und jede Ablehnung sagt, was zu korrigieren ist. Maschinenlesbar: <code>/llms.txt</code>, <code>/SKILL.md</code>.</p>
+      <pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph mcp
+hypgraph skill --install</pre>
+      <span class="go">Der Leitfaden für Agenten</span>
+    </a>
+    <a class="portal" href="engineers/">
+      <div class="who">Für Ingenieure und Wissenschaftler</div>
+      <h2>Bauen Sie es in Ihren Stack ein</h2>
+      <p>Ein Paket mit <span data-fact="deps-word"></span> Laufzeitabhängigkeiten. Sie legen fest, wer prüft, welche Aufzeichnungen welches Ausführers als Instrument zählen und was die Arbeit kostet. Dazu die JSON-API, die Oberfläche und verifizierbare Bundles für CI.</p>
+      <pre>pip install hypgraph
+Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
+      <span class="go">Der Leitfaden für Ingenieure</span>
+    </a>
+  </div>
+</div></section>
+
+<section class="block" id="facts"><div class="wrap">
+  <div class="kicker">Was Sie prüfen können</div>
+  <h2 class="h">Fakten, jeweils mit Quelle.</h2>
+  <p class="sub">Jede Zahl auf dieser Seite ist eine Behauptung im eigenen HypGraph-Protokoll der Seite, gebunden an die Messung, aus der sie stammt, und von einem Prüfer vor dem Erstellen der Seite auf anderem Weg erneut gemessen. Klicken Sie auf eine Behauptung, um sie im Protokoll zu öffnen.</p>
+  <div class="grid3">
+    <div class="card fact"><div class="k">Tests</div><div class="v" data-fact="tests"></div><div class="s">bestanden in diesem Build; die CI läuft unter Linux, macOS und Windows</div>
+      <div class="src" data-claim="tests"></div></div>
+    <div class="card fact"><div class="k">Laufzeitabhängigkeiten</div><div class="v" data-fact="deps"></div><div class="s">Engine, CLI, HTTP-Server und Oberfläche nutzen die Standardbibliothek</div>
+      <div class="src" data-claim="deps"></div></div>
+    <div class="card fact"><div class="k">Die Beispielprotokolle verifizieren sich</div><div class="v" data-fact="verify-v"></div>
+      <div class="s"><code>SHA-256</code> über die exakten Zeichenketten, die gehasht wurden — führen Sie es hier aus, in Ihrem Browser</div>
+      <div class="row" style="margin-top:10px"><span data-claim="bundles"></span><button class="btn" id="verify" type="button">Prüfung ausführen</button></div>
+      <div class="verify-out" id="verify-out" aria-live="polite"></div></div>
+  </div>
+</div></section>
+
+<section class="block" id="refuses"><div class="wrap">
+  <div class="kicker">Was es ablehnt</div>
+  <h2 class="h">Überbehauptungen kommen nicht ins Protokoll.</h2>
+  <p class="sub">Sie wurden beim Erstellen dieser Seite in ein Testprotokoll geschrieben. Die Engine lehnte jede mit einem Code und dem ab, was zu korrigieren war; die Neufassung darunter, mit denselben Belegen, wurde angenommen.</p>
+  <div class="grid3" id="refusals"></div>
+  <div style="margin-top:14px" data-claim="refusals"></div>
+</div></section>
+
+<section class="block" id="rules"><div class="wrap">
+  <div class="kicker">Acht Regeln</div>
+  <h2 class="h">Jede Regel ist ein Fehler, der tatsächlich gemacht wurde.</h2>
+  <p class="sub">HypGraph entstand aus einem Team von KI-Agenten, das lange Untersuchungen durchführte, und aus den Fehlern, die sie trotz gegenteiliger Anweisungen machten. Jeder wurde zu einer Regel, die das Protokoll beim Schreiben der Arbeit durchsetzt — nicht zu einem Ratschlag, der hofft, befolgt zu werden.</p>
+  <div class="grid4">
+    <div class="card rule"><h3>Der Stand wird abgeleitet</h3><p>Kein Feld sagt <span data-quote>„bestätigt“</span>. Prüfung, Risiko, Stützung und Belegstärke werden beim Lesen aus dem Protokoll berechnet.</p></div>
+    <div class="card rule"><h3>Nur Anhängen</h3><p>Verkettet mit <code>SHA-256</code>. Korrekturen sind neue Versionen; Rückzüge bleiben im Protokoll. <code>verify()</code> erkennt eine Änderung.</p></div>
+    <div class="card rule"><h3>Prüfungen fixieren Versionen</h3><p>Korrigieren Sie eine geprüfte Behauptung, wird ihre Prüfung veraltet. Eine Entscheidung, die auf der alten Version beruht, wird zur Überprüfung markiert.</p></div>
+    <div class="card rule"><h3>Behauptungen tragen Zahlen</h3><p>Die Zahlen einer Behauptung sind an Ergebnisfelder gebunden. Eine Zahl ohne Quelle wird abgelehnt — der häufigste Weg, auf dem Zusammenfassungen danebenliegen.</p></div>
+    <div class="card rule"><h3>Unabhängigkeit wird gezählt</h3><p>Drei Ergebnisse aus einem Lauf sind eine Beleglinie, nicht drei. Linien, die Daten oder eine Quelle teilen, verschmelzen.</p></div>
+    <div class="card rule"><h3>Ausschlüsse brauchen Teststärke</h3><p><span data-quote>„Schließt aus“</span> erst, nachdem gezeigt wurde, dass eine Suche eine eingepflanzte Antwort findet. Sonst ist das Ergebnis nicht schlüssig.</p></div>
+    <div class="card rule"><h3>Autoren prüfen sich nicht selbst</h3><p>Nur Urteile benannter Prüfer zählen, und nie über ihre eigene Arbeit. Die aller anderen werden als Kommentare aufbewahrt.</p></div>
+    <div class="card rule"><h3>Instrumente sprechen für sich</h3><p>Nur der Laborausführer zeichnet einen Laborlauf auf. Ein Lauf, den Sie beschreiben, wird als Ihr Bericht markiert.</p></div>
+  </div>
+</div></section>
+
+<section class="block never-band" id="never"><div class="wrap grid2" style="align-items:center">
+  <div>
+    <div class="kicker" style="color:var(--bad)">Die Arithmetik von <span data-quote>nie</span></div>
+    <h2 class="h"><span data-fact="never-k"></span> Fehler in <span data-fact="never-n"></span> Tests lassen immer noch <span data-fact="never-upto"></span> pro Million Nutzungen zu.</h2>
+    <p class="sub">Ein Agent, der in seinen Tests keinen sieht, schreibt <span data-quote>„das passiert nie“</span>. Das Protokoll lehnt diesen Satz ab und verlangt die Zählungen, dann nennt es, was sie in dem Maßstab offenlassen, in dem Sie einsetzen.</p>
+    <a class="btn" href="never/">Die Arithmetik, Schritt für Schritt</a></div>
+  <div class="card"><div class="never-num" data-fact="never-upto"></div>
+    <p>Fehler nicht ausgeschlossen bei <span data-fact="never-exposure"></span> Nutzungen, mit 95 % Konfidenz, aus <span data-fact="never-k"></span> in <span data-fact="never-n"></span> Tests.</p>
+    <div style="margin-top:10px" data-claim="never"></div></div>
+</div></section>
+
+<section class="block" id="workflows"><div class="wrap">
+  <div class="kicker">Ein Protokoll, fünf Workflows</div>
+  <h2 class="h">Die Methode jeder Disziplin, vom Protokoll durchgesetzt.</h2>
+  <p class="sub">Ein Profil trägt die Phasen seiner Disziplin, die Ausgangsschranke jeder Phase und was als erledigt gilt. Die Phase wird aus dem Protokoll abgeleitet, <span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">nie von einem Agenten gesetzt</span>. Jede Zeile hat ein Live-Beispiel.</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Profil</th><th>der Weg einer Frage</th><th>das Protokoll lehnt ab</th><th>erledigt, wenn</th><th></th></tr></thead>
+    <tbody>
+      <tr><td><code>scientific@2</code></td><td>gestellt → vermutet → vor dem Lauf präregistriert → ausgeführt → belegt → behauptet → geprüft</td>
+        <td>Zahlen, die kein Ergebnis erklärt; <span data-quote>„nie“</span> ohne die Zählung; <span data-quote>„signifikant“</span> ohne den Test; eine Prüfung auf veralteten Belegen</td><td>jede Frage beantwortet</td><td><a href="examples/scientific/">Ansehen</a></td></tr>
+      <tr><td><code>software@2</code></td><td>spezifiziert → implementiert (ein Diff per Hash) → vom Instrument auf diesem Head verifiziert → behauptet → geprüft</td>
+        <td><span data-quote>„es besteht“</span> ohne einen Lauf des Instruments oder auf einem ersetzten Head; der Autor des Diffs als sein Prüfer</td><td>die Behauptung jeder Anforderung stützt sich auf einen bestandenen Lauf auf dem aktuellen Head</td><td><a href="examples/software/">Ansehen</a></td></tr>
+      <tr><td><code>trading@2</code></td><td>gestellt → mit These → präregistriert → Out-of-Sample-Backtest nach Kosten → behauptet → Risikoprüfung → Position eingegangen → überwacht</td>
+        <td>ein Backtest ohne seine Kosten; <span data-quote>„Vorteil“</span> ohne beides oder ohne die getesteten Konfigurationen; eine Position ohne Größe, Stop und Prüfdatum; eine echte Order</td><td>Fragen beantwortet; eine Position eingegangen oder verworfen</td><td><a href="examples/trading/">Ansehen</a></td></tr>
+      <tr><td><code>knowledge@2</code></td><td>gestellt → belegt (die Passage, abgerufen, ihre Art) → behauptet → geprüft</td>
+        <td>eine Behauptung ohne Quelle; eine Quelle ohne ihre Passage</td><td>jede Behauptung zitiert eine Quelle und ist geprüft</td><td><a href="examples/knowledge/">Ansehen</a></td></tr>
+      <tr><td><code>optimization@2</code></td><td>gestellt (die Instanz per Hash) → modelliert → konfiguriert → gelöst → verifiziert → behauptet → geprüft</td>
+        <td>ein Zielwert ohne Zulässigkeit; <span data-quote>„optimal“</span> ohne Schranke oder auf einer geänderten Instanz</td><td>eine zulässige, beschränkte beste Lösung, verifiziert auf der aktuellen Instanz</td><td><a href="examples/optimization/">Ansehen</a></td></tr>
+    </tbody></table></div>
+</div></section>
+
+<section class="block" id="deploy"><div class="wrap">
+  <div class="kicker">Für alle, die Agenten einsetzen</div>
+  <h2 class="h">Binden Sie es dort ein, wo Ihre Agenten schon laufen.</h2>
+  <div class="grid3 uses">
+    <div class="card"><h3>Agenten, über MCP</h3><p>Ihr Agent erhält die Werkzeuge des Protokolls und die Methode als Agent Skill.</p>
+      <div class="code"><pre>claude mcp add hypgraph -- hypgraph --db study.hypgraph mcp
+hypgraph skill --install</pre></div></div>
+    <div class="card"><h3>Python</h3><p>Rollen als Richtlinie: Prüfer, das Instrument, reservierte Autoren.</p>
+      <div class="code"><pre>from hypgraph import Graph, Policy
+g = Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre></div></div>
+    <div class="card"><h3>Die Oberfläche und die JSON-API</h3><p>Standardmäßig nur lesend; verfolgt einen laufenden Schwarm live.</p>
+      <div class="code"><pre>hypgraph serve --db study.hypgraph</pre></div></div>
+    <div class="card"><h3>Machen Sie die CI vom Bericht abhängig</h3><p>Prüft einen Bericht gegen das Protokoll; endet bei Fehlern mit einem Code ungleich null.</p>
+      <div class="code"><pre>hypgraph check summary.md</pre></div></div>
+    <div class="card"><h3>Liefern Sie ein verifizierbares Bundle aus</h3><p>Jeder kann es prüfen, in jeder Sprache oder im Browser.</p>
+      <div class="code"><pre>hypgraph export --telemetry -o study.bundle.json
+hypgraph verify study.bundle.json</pre></div></div>
+    <div class="card"><h3>Lassen Sie einen Schwarm darauf laufen</h3><p>HypSwarm plant die Agenten aus dem eigenen Arbeitsboard des Protokolls.</p>
+      <div class="code"><pre>pip install --pre hypswarm</pre></div></div>
+  </div>
+</div></section>
+
+<section class="block" id="record"><div class="wrap">
+  <div class="kicker">Diese Seite hat ein Protokoll</div>
+  <h2 class="h">Wir unterwerfen diese Seite den Regeln, die sie beschreibt.</h2>
+  <p class="sub">Die Zahlen oben sind Behauptungen in einem HypGraph-Protokoll, das mit der Seite erstellt wird. Das Instrument des Builds misst sie, ein Prüfer misst jede auf anderem Weg erneut, und der Text der Seite wird mit <code>hypgraph check</code> gegen das Protokoll geprüft — eine Zahl, die das Protokoll nicht enthält, schafft es nicht auf die Seite. Öffnen Sie es in der App oben unter <a href="#product" data-show="page">Das Protokoll dieser Seite</a>, oder laden Sie <a href="../data/site-record.bundle.json">das Bundle</a> herunter und <a href="verify/">verifizieren Sie es</a> selbst.</p>
+  <div id="record-claims"></div>
+</div></section>
+
+<section class="block" id="trust"><div class="wrap">
+  <div class="kicker">Vertrauen</div>
+  <h2 class="h">Was das Protokoll zeigt und was es nicht behauptet.</h2>
+  <div class="grid2 claims">
+    <div class="card yes"><h3>✓ Es zeigt</h3><ul>
+      <li>dass kein Ereignis nach dem Schreiben geändert wurde: Jeder Schreibvorgang wird in eine Kette gehasht, die jeder erneut prüfen kann;</li>
+      <li>welche Zahlen einer Behauptung an welches Ergebnis gebunden sind und welcher Lauf es erzeugt hat;</li>
+      <li>wer was gegen welche Version geprüft hat und ob diese Version noch gilt;</li>
+      <li>was fällt, wenn eine Prämisse zurückgezogen wird.</li></ul></div>
+    <div class="card"><h3>— Es behauptet nicht</h3><ul>
+      <li>dass eine Behauptung wahr ist. Es prüft das Geschriebene gegen das Aufgezeichnete;</li>
+      <li>ein Modell besser denken zu lassen. Es hält die Überbehauptungen eines Modells aus dem Protokoll heraus;</li>
+      <li>irgendetwas über die Telemetrie, die in einem Bundle mitreist: Sie liegt außerhalb der Hash-Kette;</li>
+      <li>die Ereignisse zu prüfen, die ein Bundle mit Geltungsbereich verbirgt. Die Verifikation meldet, wenn ein Bundle einen Geltungsbereich hat.</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:20px">Es läuft dort, wo Sie es ausführen: eine lokale Datei, kein Konto, keine eigenen Netzwerkaufrufe. Releases werden per Trusted Publishing aus GitHub Actions auf PyPI veröffentlicht.</p>
+</div></section>
+<section class="block" id="family"><div class="wrap">
+  <div class="kicker">Die Familie</div>
+  <div class="family">
+    <a href="#top" aria-current="page"><img src="../assets/family/hypgraph.svg" alt="" width="40" height="40"><span><b>HypGraph<span class="here">Sie sind hier</span></b><span class="what">Das Protokoll: nur anhängend, Hash-verkettet, prüft Behauptungen gegen Messungen und lehnt Überbehauptungen ab. Die Engine und die Oberfläche.</span></span></a>
+    <a href="https://hypswarm.com"><img src="../assets/family/hypswarm.svg" alt="" width="40" height="40"><span><b>HypSwarm</b><span class="what">Viele Agenten, ein Protokoll. Der Planer ist Code, das Instrument führt erneut aus, was die Autoren berechnet haben, und das Protokoll entscheidet, was erledigt ist.</span></span></a>
+    <a href="https://hypdmz.com"><img src="../assets/family/hypdmz.svg" alt="" width="40" height="40"><span><b>HypDMZ</b><span class="what">Der Pod, in dem ein Schwarm läuft: ein einziger Ausgang, jedes Byte geprüft, bei jedem Start von innen getestet.</span></span></a>
+    <a href="https://hypmesh.com"><img src="../assets/family/hypmesh.svg" alt="" width="40" height="40"><span><b>HypMesh</b><span class="what">Offene Fragen, ein Protokoll pro Frage. Die Agenten aller nehmen unter eigenem Namen einen Platz ein; das Protokoll entscheidet, was Bestand hat. Demnächst.</span></span></a></div>
+</div></section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="slogan">Glauben Sie dem Hype nicht. Prüfen Sie die Hypothese.</span>
+    <span>Erstellt von <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · Format und Dokumentation CC BY 4.0 · <a href="disclaimer/">Haftungsausschluss</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a> · <a href="../llms.txt">llms.txt</a> · <a href="spec/">Spezifikation</a> · <a href="https://hypswarm.com">HypSwarm</a></span></div>
+</footer>
+
+<script src="../app/vendor/cytoscape.min.js" defer></script>
+<script src="../app/vendor/layout-base.js" defer></script>
+<script src="../app/vendor/cose-base.js" defer></script>
+<script src="../app/vendor/cytoscape-fcose.js" defer></script>
+<script src="../app/hypgraph.js" defer></script>
+<script src="../assets/site.js" defer></script>
+<script src="../assets/site-data.js" defer></script>
+<script src="../assets/home.js" defer></script>
+</body>
+</html>

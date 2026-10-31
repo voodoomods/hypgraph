@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **The Explorer and the website speak Spanish, French, German and Simplified Chinese.** The UI's strings are in a
+  table (English, the source, in `hypgraph.js`; translations in `hypgraph.i18n.js`, loaded on demand or registered
+  with `HypGraph.addStrings`). The language comes from `?lang=`, the host page's `lang`, a saved choice, then the
+  browser's, else English; a switcher in the header changes it (`langSwitch: false` hides it in an embed). The main
+  site pages are built in each language under `site/<lang>/` by `dev/build_site.py` from `i18n/site/<lang>.json`,
+  with `hreflang` alternates, a language menu and a note that the English is authoritative. `i18n/glossary.json`
+  fixes how claim, standing, supersedes, withdrawn, head, bundle, scope … are rendered, and the tests hold every
+  table to it (`tests/test_i18n.py`). What the verifier, the engine and the CLI say stays English and byte-identical
+  in Python and JS: agents and audits parse it.
+
 ## 0.7.16 — 2026-10-31: a bundle's scope must be a real one
 
 - **A bundle's scope must be a real one.** A re-audit of 0.7.15 found that `scope.inv`, which the chain doesn't

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>面向智能体 — HypGraph</title>
+<meta name="description" content="把 AI 智能体接入 HypGraph：一个 Agent Skill 和一个 MCP 服务器，它们对主张的核查与拒绝会准确告诉智能体该修正什么。">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="../../llms.txt" title="面向语言模型">
+<link rel="alternate" type="text/markdown" href="../../SKILL.md" title="智能体 skill">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.zh-Hans.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/agents/" data-rel="../../agents/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/agents/" data-rel="../../es/agents/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/agents/" data-rel="../../fr/agents/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/agents/" data-rel="../../de/agents/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/agents/" data-rel="../../zh-Hans/agents/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/agents/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">跳到内容</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="网站"><a href="../agents/" aria-current="page">智能体</a><a href="../engineers/">工程师</a><a href="../examples/">示例</a><a href="../never/" class="hide-sm">从不</a><a href="../#workflows" class="hide-sm">工作流</a>
+    <a href="../play/" class="hide-sm">试验场</a><a href="../verify/" class="hide-sm">验证</a><a href="../spec/" class="hide-sm">Spec</a>
+    <a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a>
+    <!--i18n:menu--><details class="langs"><summary aria-label="语言" title="语言">中文</summary><div class="langs-menu"><a href="../../agents/" hreflang="en" lang="en">English</a><a href="../../es/agents/" hreflang="es" lang="es">Español</a><a href="../../fr/agents/" hreflang="fr" lang="fr">Français</a><a href="../../de/agents/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/agents/" hreflang="zh-Hans" lang="zh-Hans" aria-current="page">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="切换浅色和深色">◐</button></nav>
+</div></header>
+
+<main id="main">
+<!--i18n:note--><p class="i18n-note">本页为译文。以英文版为准： <a href="../../agents/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker" style="color:var(--violet)">面向智能体</div>
+  <h1>你能为之担保的研究。</h1>
+  <p>给你的智能体一份记录：在写入时核查它的主张，不让它审查自己的工作，并解释每一次拒绝 — 让它的研究变得更好，而不只是更长。</p></div></div>
+
+<div class="wrap doc">
+<nav class="toc" aria-label="本页内容">
+  <a href="#you">如果你是智能体</a><a href="#skill">安装 skill</a><a href="#mcp">通过 MCP 连接</a>
+  <a href="#method">方法</a><a href="#tools">工具</a><a href="#refusals">拒绝</a><a href="#standing">解读现状</a>
+  <a href="#hosts">面向宿主开发者</a><a href="#machine">机器可读</a></nav>
+<article class="prose">
+
+<h2 id="you">如果你是智能体并且正在读这段</h2>
+<div class="callout"><b>明确的指令。</b>HypGraph 是一份研究记录。每当你用证据研究一个问题、并需要说明什么已经确立时，就使用它。先读后写（<code>overview</code>）。写下带预测的假设。在运行每个实验<i>之前</i>，按假设写下预期结果。用哈希过的文件记录运行。把主张中的每个数字绑定到结果字段。在没有 k/n 且 k = 0 或 n 的情况下，绝不写“总是/从不/证明”。没有检验力检查，绝不宣称某事已被排除。严格按照记录给出的现状进行报告。写入被拒绝时，按消息所说的去修正。简版：<a href="../../llms.txt">/llms.txt</a> · 完整 skill：<a href="../../SKILL.md">/SKILL.md</a>。</div>
+
+<h2 id="skill">安装 skill</h2>
+<p>适用于 Claude Code 及其他加载 <a href="../../SKILL.md">Agent Skills</a> 的宿主。该 skill 包含方法、各类拒绝及其修正方式，通过 CLI 工作 — 无需服务器。</p>
+<div class="code"><pre>pip install hypgraph
+hypgraph skill --install            # .claude/skills/hypgraph/SKILL.md in this project
+hypgraph skill --install --user     # or under your home directory, for every project</pre></div>
+
+<h2 id="mcp">通过 MCP 连接</h2>
+<div class="code"><span class="lbl">Claude Code</span><pre>pip install "hypgraph[mcp]"
+claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></div>
+<div class="code" style="margin-top:18px"><span class="lbl">Claude Desktop · Cursor · 任何 MCP 客户端</span><pre>{
+  "mcpServers": {
+    "hypgraph": {
+      "command": "hypgraph",
+      "args": ["--db", "/absolute/path/study.hypgraph", "--as", "claude", "mcp"]
+    }
+  }
+}</pre></div>
+<div class="code" style="margin-top:18px"><span class="lbl">流式 HTTP</span><pre>hypgraph --db study.hypgraph --as claude mcp --transport http --port 8766
+# → http://127.0.0.1:8766/mcp</pre></div>
+<p>服务器以<b>唯一一个</b>作者身份写入，在启动时固定。智能体不能传入其他名字，不能以仪器（<code>lab</code>）或 <code>operator</code> 的身份写入，而且只有当调查把它列为审查者时，它的裁定才算数。供 <code>register_run</code> 使用的文件必须位于服务器启动时所在的目录中。</p>
+
+<h2 id="method">方法</h2>
+<ol>
+  <li><b>先 <code>overview()</code>。</b>什么已确立、什么有争议、什么待处理、接下来运行什么。</li>
+  <li><b>带预测的假设</b> — 以及竞争假设，用 <code>alternative_to</code> 链接。</li>
+  <li><b>可能失败的实验</b> — 每个假设一条带 <code>data.expected</code> 的 <code>tests</code> 链接，在运行前写好。加入一个 <code>power_check</code>：预埋一个已知答案，证明该方法能找到它。</li>
+  <li><b><code>register_run</code></b> — 哈希代码、输入和输出，并附上带 <code>{name: {value} | {k, n}}</code> 值的结果。</li>
+  <li><b>带测量的主张</b> — 每个数字都绑定；一条带理由的 <code>supports</code> 链接；一个范围。</li>
+  <li><b>审查</b> — 只有指定审查者才算数，且不能针对自己的工作。</li>
+  <li><b><code>report()</code></b> 放在每份摘要的开头；解释写在下面 — 然后在交付前对报告运行 <b><code>check_report(text)</code></b>。修正每一个错误。</li>
+</ol>
+<h3>在工作流配置下</h3>
+<p>设为 <code>scientific@2</code>、<code>software@2</code>、<code>trading@2</code>、<code>knowledge@2</code> 或 <code>optimization@2</code> 的调查会带上其学科的<a href="../#workflows">工作流</a>。调用 <code>stage(question)</code>：它会给出问题所处的阶段 — 由记录推导，从不设定 — 以及每个关卡已满足或未满足，附带满足它所需的内容。按顺序写下下一个关卡（带预测的假设；运行<i>之前</i>写好预期结果的实验；作为工件的 diff 或实例及其 <code>kind</code>；<code>uses</code> 它的那次运行）。修正后的文件、更新的提交、改变的实例或被撤回的来源会使先前的证据<b>过时</b>；回复会指出这一点，基于过时证据的核查不算数。如果诚实的答案是“无法回答”，就记录你确实发现的内容，并据此写一条类型为 <code>inconclusive</code> 的主张 — 核查通过后，它就解决了这个问题。</p>
+
+<h2 id="tools">工具</h2>
+<table>
+  <thead><tr><th>工具</th><th>作用</th></tr></thead>
+  <tbody>
+    <tr><td><code>overview(investigation?)</code></td><td>目标、审查者、存活的假设、已核查的主张及其依据、有争议/有风险的工作、租约、队列、下一步实验。</td></tr>
+    <tr><td><code>find(text, type?, investigation?)</code></td><td>按词或代码查找（H1、CL3）。</td></tr>
+    <tr><td><code>show(node, view)</code></td><td><code>summary</code> · <code>why</code>（它依赖什么）· <code>impact</code>（如果它错了会破坏什么）· <code>history</code>。</td></tr>
+    <tr><td><code>start_investigation(title, objective, reviewers)</code></td><td>开启一项研究并指定其审查者。</td></tr>
+    <tr><td><code>add(type, fields, investigation?, links?)</code></td><td>问题、假设、实验、运行、结果、主张、来源、决策。链接接受 id 或代码。</td></tr>
+    <tr><td><code>link(src, rel, dst, why, data?)</code></td><td>有类型的链接；当只允许反向时，方向写反的链接会被翻转。</td></tr>
+    <tr><td><code>revise</code> · <code>withdraw</code> · <code>retract_link</code></td><td>更正以新行写入；不删除任何内容。</td></tr>
+    <tr><td><code>review(node, verdict, method, notes)</code></td><td>针对当前版本的裁定。</td></tr>
+    <tr><td><code>check_report(text)</code></td><td>对照记录审查报告：无来源的数字、被说成已解决但其实没有的主张、已撤回或未知的代码、背后没有任何依据的从不 / 无效应 / 显著。</td></tr>
+    <tr><td><code>refusal_log(author?)</code></td><td>记录拒绝过的过度主张 — 你的或团队的 — 以及每一条是否以诚实版本回来了。</td></tr>
+    <tr><td><code>bound(k, n, exposure)</code></td><td>一个计数能支撑什么：任何“从不”背后的 95% 界、所需的试验次数、在规模下未被排除的失败。</td></tr>
+    <tr><td><code>stage(question?)</code> · <code>completion()</code></td><td>在工作流配置下：每个问题的阶段和每个关卡的状态；该配置对整个调查而言什么算完成。</td></tr>
+    <tr><td><code>next_experiments</code> · <code>work_queue</code> · <code>claim_work</code></td><td>下一步运行什么；什么待处理；为某个节点取得租约，让其他人看到谁在处理它。</td></tr>
+    <tr><td><code>register_run(name, code_paths, input_paths, output_paths, result_summary, result_values)</code></td><td>用哈希过的文件记录一次计算。</td></tr>
+    <tr><td><code>report</code> · <code>verify</code> · <code>schema</code></td><td>生成的事实；链的检查；词汇表。</td></tr>
+  </tbody>
+</table>
+<p>资源：<code>hypgraph://skill</code>、<code>hypgraph://schema</code>、<code>hypgraph://investigations</code>、<code>hypgraph://investigation/{inv}/report</code>。提示词：<code>method</code>。</p>
+
+<h2 id="refusals">拒绝就是指令</h2>
+<p>每条被拒绝的主张都按问题逐行列出，每行以一个稳定的代码结尾。消息已经算好了，通常还包含诚实的说法 — 直接用它。在 Python 中，<code>GraphError.problems</code> 会给出 <code>code</code>、<code>message</code>、<code>fix</code> 和 <code>words</code>。</p>
+<table>
+  <thead><tr><th>代码</th><th>这样做</th></tr></thead>
+  <tbody>
+    <tr><td><code>ABSOLUTE_UNDERPOWERED</code></td><td>试验太少时，基于 0/n 的“从不”。写下它给你的诚实说法（“在 n 次试验中未出现（95% 上界 X）”），或运行它说你需要的试验次数。</td></tr>
+    <tr><td><code>ABSOLUTE_HIDES_DENOMINATOR</code></td><td>把 n 写进陈述：“从不，在 3,000 次探测中”。</td></tr>
+    <tr><td><code>ABSOLUTE_WITHOUT_COUNT</code> · <code>ABSOLUTE_UNRELATED_COUNT</code></td><td>说出观察到了什么（“在 n 次中有 k 次”）；按计数实际计的东西给它命名。</td></tr>
+    <tr><td><code>UNBOUND_NUMBER</code></td><td>把它绑定到结果字段。由已绑定计数算出的差值、百分比、比率和区间都能通过 — 绝不要为了通过而删掉数字。</td></tr>
+    <tr><td><code>EXCLUSION_WITHOUT_POWER</code></td><td>“无效应”需要一次已证明能找到预埋效应的搜索（<code>power: demonstrated</code>）。否则，记录 <code>kind: inconclusive</code> 并说“未检测到效应” — 拒绝信息会告诉你可能隐藏了多大的效应。</td></tr>
+    <tr><td><code>COMPARATIVE_WITHOUT_COMPARISON</code></td><td>两边都要绑定。</td></tr>
+    <tr><td><code>SIGNIFICANCE_WITHOUT_TEST</code> · <code>SIGNIFICANCE_NOT_SHOWN</code></td><td>把两边都绑定为 k/n（记录会检验它们）或绑定一个 p 值；如果不显著，就照实说。</td></tr>
+    <tr><td><code>UNCORRECTED_EFFECT</code></td><td>记录中有该结果校正后的 p 值，并且不显著。在句子里写明“未校正”，或绑定它并写“校正后不显著”，或记录 <code>kind: lead</code>。</td></tr>
+    <tr><td><code>CAUSAL_WITHOUT_INTERVENTION</code></td><td>说“与之相关”，或用一个进行了干预的实验来支撑它。</td></tr>
+  </tbody>
+</table>
+<p><b>在写下从不或总是之前，</b>调用 <code>bound(k, n, exposure)</code>：计数能支撑什么，以及在主张将被使用的规模下它留下多少未被排除的失败。在主张上设置 <code>exposure</code>，让它的现状带着这个数字。<b>当你撤回或质疑一个节点时，</b>回复会列出现在依赖于已倒下内容的一切 — 告诉它们的负责人。完整故事：<a href="../never/">从不的算术</a>。</p>
+
+<h2 id="standing">解读现状</h2>
+<blockquote>有效主张 · 已核查（fisher:pass, v2）· 2 条独立支撑线 · 在新数据上复现 · 无外部复现</blockquote>
+<p>原样引用。“未核查”不是“已证明”；智能体报告的一条证据线不是“已确立”。<b>有风险</b>：某个前提倒下了。<b>需重审</b>：某项决策的依据变了。<b>无支撑</b>：所有支撑都倒下了。</p>
+
+<h2 id="hosts">面向集成它的工程师</h2>
+<p>运行很多智能体？嵌入这个库并自己设定信任：<code>Graph(path, policy=Policy(reviewers=…,
+  instrument="lab", operator="operator"))</code>。在你这一侧固定每个调用者的 <code>author</code>，并拒绝保留名称。把仪器身份交给你的作业执行器，使它的运行算作实验室记录。传入 <code>spend=</code> 来为每项调查的工作定价。<a href="../engineers/">工程指南</a>里有这些模式。HTTP API（<code>hypgraph.server.dispatch</code>）和 HypGraph 界面（<code>hypgraph.ui.static_dir()</code>）可以放进任何 Web 框架。</p>
+
+<h2 id="machine">机器可读</h2>
+<ul>
+  <li><a href="../../llms.txt">/llms.txt</a> — 简版</li>
+  <li><a href="../../SKILL.md">/SKILL.md</a> — 智能体 skill</li>
+  <li><a href="../../agents.md">/agents.md</a> — 本页的 Markdown 版</li>
+  <li><a href="../../schema/hypgraph-1.json">/schema/hypgraph-1.json</a> — 节点类型、字段、关系、裁定</li>
+  <li><a href="../spec/">/spec/</a> — 记录和记录包的格式</li>
+  <li><a href="../../data/broad-street.bundle.json">/data/broad-street.bundle.json</a> — 一个完整的示例记录包</li>
+</ul>
+</article>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">别信炒作。检验假设。</span>
+<span>由 <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> 创建 · VoodooMods LLC · 代码 Apache-2.0 · 格式与文档 CC BY 4.0 · <a href="../disclaimer/">免责声明</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>

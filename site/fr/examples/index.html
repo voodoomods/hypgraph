@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exemples — HypGraph</title>
+<meta name="description" content="Cinq essaims, un par profil — scientifique, logiciel, trading, connaissance, optimisation — rejoués en direct dans HypGraph : chaque appel au modèle, appel d&#x27;outil, ordre de travail, relecture et refus.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.fr.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/examples/" data-rel="../../examples/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/examples/" data-rel="../../es/examples/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/examples/" data-rel="../../fr/examples/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/examples/" data-rel="../../de/examples/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/examples/" data-rel="../../zh-Hans/examples/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/examples/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Ingénieurs</a><a href="../examples/" aria-current="page">Exemples</a><a href="../never/" class="hide-sm">Jamais</a><a href="../#workflows" class="hide-sm">Workflows</a><a href="../play/" class="hide-sm">Bac à sable</a><a href="../verify/" class="hide-sm">Vérifier</a><a href="../spec/" class="hide-sm">Spec</a><a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a><!--i18n:menu--><details class="langs"><summary aria-label="Langue" title="Langue">FR</summary><div class="langs-menu"><a href="../../examples/" hreflang="en" lang="en">English</a><a href="../../es/examples/" hreflang="es" lang="es">Español</a><a href="../../fr/examples/" hreflang="fr" lang="fr" aria-current="page">Français</a><a href="../../de/examples/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/examples/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Basculer entre clair et sombre">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Cette page est une traduction. La version anglaise fait foi : <a href="../../examples/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">Exemples en direct</div><h1>Regardez un essaim travailler, dans chaque profil</h1>
+<p>Chaque exemple est une vraie exécution HypSwarm sur un vrai registre : les postes prennent des ordres de travail dans le registre, écrivent résultats et affirmations à travers lui, sont refusés quand ils surinterprètent et sont relus avant que quoi que ce soit ne compte. Ouvrez-en un et il se rejoue depuis le premier événement — appels au modèle et aux outils en cours, graphe qui grandit, tableau qui se stabilise. Explorez ensuite ses étapes, son graphe, son évidence et son rapport.</p></div></div>
+<div class="wrap"><div class="exgrid">
+<a class="excard" href="scientific/">
+  <div class="who">Scientifique · <span translate="no">Facts from the record</span></div>
+  <h2 translate="no">Does A beat B</h2>
+  <p>Deux analystes et un critique mettent à l'épreuve une affirmation d'évaluation. L'instrument réexécute chaque valeur avant toute relecture, et le rapport est vérifié contre le registre.</p>
+  <dl><dt>postes</dt><dd translate="no">analyst, stats, critic, lead</dd>
+    <dt>exécution</dt><dd><span data-v>14</span> appels au modèle · <span data-v>14</span> appels d'outils · <span data-v>12</span> s · réglé</dd>
+    <dt>registre</dt><dd><span data-v>80</span> événements · <span data-v>29</span> nœuds · aucun refus</dd></dl>
+  <span class="go">Le voir tourner</span>
+</a>
+<a class="excard" href="software/">
+  <div class="who">Logiciel · <span translate="no">Change report</span></div>
+  <h2 translate="no">Importer keeps quoted commas</h2>
+  <p>Les tests ne comptent que lorsque l'instrument les exécute. Un « ça passe » d'un testeur écrit avant cette exécution est refusé, refait et accepté quand l'exécution du laboratoire arrive.</p>
+  <dl><dt>postes</dt><dd translate="no">implementer, tester, reviewer, lead</dd>
+    <dt>exécution</dt><dd><span data-v>16</span> appels au modèle · <span data-v>14</span> appels d'outils · <span data-v>16</span> s · réglé</dd>
+    <dt>registre</dt><dd><span data-v>81</span> événements · <span data-v>28</span> nœuds · <span data-v>1</span> écriture refusée puis réécrite</dd></dl>
+  <span class="go">Le voir tourner</span>
+</a>
+<a class="excard" href="trading/">
+  <div class="who">Trading · <span translate="no">Desk note</span></div>
+  <h2 translate="no">Mean reversion after a 3 % five-day drop</h2>
+  <p>Un backtest sur une fenêtre réservée, avec frais et glissement. Un résultat sans coûts est refusé avant de pouvoir devenir une thèse.</p>
+  <dl><dt>postes</dt><dd translate="no">quant, risk, lead</dd>
+    <dt>exécution</dt><dd><span data-v>14</span> appels au modèle · <span data-v>13</span> appels d'outils · <span data-v>16</span> s · réglé</dd>
+    <dt>registre</dt><dd><span data-v>56</span> événements · <span data-v>21</span> nœuds · <span data-v>1</span> écriture refusée puis réécrite</dd></dl><div class="codes"><code>BACKTEST_WITHOUT_COSTS</code></div>
+  <span class="go">Le voir tourner</span>
+</a>
+<a class="excard" href="knowledge/">
+  <div class="who">Connaissance · <span translate="no">Sourced brief</span></div>
+  <h2 translate="no">Three facts, sourced</h2>
+  <p>Trois faits, chacun avec un nœud source et une affirmation qui le cite. Une affirmation sans rien derrière est refusée.</p>
+  <dl><dt>postes</dt><dd translate="no">researcher, fact_checker, lead</dd>
+    <dt>exécution</dt><dd><span data-v>26</span> appels au modèle · <span data-v>23</span> appels d'outils · <span data-v>27</span> s · réglé</dd>
+    <dt>registre</dt><dd><span data-v>84</span> événements · <span data-v>29</span> nœuds · <span data-v>3</span> écritures refusées puis réécrites</dd></dl><div class="codes"><code>EVIDENCE_MISSING</code></div>
+  <span class="go">Le voir tourner</span>
+</a>
+<a class="excard" href="optimization/">
+  <div class="who">Optimisation · <span translate="no">Solution report</span></div>
+  <h2 translate="no">Assign six customers to three depots at minimum cost</h2>
+  <p>Objectif, faisabilité et écart. Un objectif sans contrôle de faisabilité est refusé, et « optimal » exige une borne qui l'atteint.</p>
+  <dl><dt>postes</dt><dd translate="no">modeller, solver, verifier, lead</dd>
+    <dt>exécution</dt><dd><span data-v>14</span> appels au modèle · <span data-v>13</span> appels d'outils · <span data-v>19</span> s · réglé</dd>
+    <dt>registre</dt><dd><span data-v>59</span> événements · <span data-v>21</span> nœuds · <span data-v>1</span> écriture refusée puis réécrite</dd></dl><div class="codes"><code>OBJECTIVE_WITHOUT_FEASIBILITY</code></div>
+  <span class="go">Le voir tourner</span>
+</a>
+</div>
+<p class="note">Les exécutions utilisent les modèles scriptés de HypSwarm : elles ne coûtent rien et se rejouent à l'identique à chaque fois ; lancez-en une avec un vrai modèle avec <code>python run.py --model &lt;id&gt;</code>. Reconstruisez ces pages avec <code>dev/site_examples.py</code>. Chaque bundle se vérifie seul : <a href="../verify/">vérifiez-en un</a>.</p>
+</div>
+</main>
+<footer><div class="wrap"><span class="slogan">Ne croyez pas le hype. Testez l'hypothèse.</span>
+<span>Créé par <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format et documentation CC BY 4.0 · <a href="../disclaimer/">Avertissement</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>
