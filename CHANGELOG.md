@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.15 — 2026-10-31: derived views must carry every fact the rows fix
 
 - **Derived views must carry every fact the rows fix.** A re-audit of 0.7.14 found that a derived field was compared
   with the verified rows only when it was there: deleting a withdrawn claim's `state.lifecycle`, or its whole `state`,

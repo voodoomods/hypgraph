@@ -109,7 +109,7 @@ claim's derived standing.
 Multi-writer sync between graphs (bundles cover sharing), authentication (the host's job; the HTTP server binds to
 loopback and is read-only unless started with `--writable`), and a hosted service.
 
-## Status at 0.7.14 (2026-10-31)
+## Status at 0.7.15 (2026-10-31)
 
 All seven phases are done: the library, bundles, the server and UI, the MCP server, the website, Pegasus running on
 the package, and releases to PyPI from tags with trusted publishing. What came after the plan, by release, is in
