@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: the trust boundary, verification and docs, reviewed before launch
+## 0.7.12 — 2026-10-31: the trust boundary, verification and docs, reviewed before launch
 
 A pre-launch review of who may write as whom, through every interface. Each fix has a test that failed first
 (`tests/test_trust_boundary.py`).
