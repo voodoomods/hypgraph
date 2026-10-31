@@ -135,8 +135,31 @@ def derive_views(g: "Graph", invs: list[str]) -> dict:
     return views
 
 
-def verify_bundle(b: dict) -> dict:
-    """Check a bundle string-for-string: the chain, then every row against the event that wrote it."""
+def anchored(res: dict, head: str) -> dict:
+    """A verification held against a head published elsewhere (a paper, a signed tag, a release asset, a timestamp).
+    A chain only shows it is consistent with itself: whoever can write the record can rewrite it and recompute every
+    hash, or cut it short. Matching a head its holder can't change since rules both out. ``head`` is the full hash or a
+    prefix of at least 16 hex characters."""
+    want = str(head or "").strip().lower()
+    if not want or not res.get("ok"):
+        return res
+    if len(want) < 16 or any(c not in "0123456789abcdef" for c in want):
+        return {**res, "ok": False, "problem": "the anchor must be the head's hash, or at least its first 16 hex characters"}
+    got = str(res.get("head") or "")
+    if not got.startswith(want):
+        return {**res, "ok": False, "anchored": False,
+                "problem": f"the chain ends at {got[:16]}…, not at the anchored head {want[:16]}…: this is not the "
+                           "record that was published (rewritten, cut short, or another record)"}
+    return {**res, "anchored": True}
+
+
+def verify_bundle(b: dict, head: str = "") -> dict:
+    """Check a bundle string-for-string: the chain, then every row against the event that wrote it. With ``head``,
+    also that the chain ends at that published head (see ``anchored``)."""
+    return anchored(_verify_bundle(b), head)
+
+
+def _verify_bundle(b: dict) -> dict:
     if not isinstance(b, dict) or b.get("format") != BUNDLE_FORMAT:
         return {"ok": False, "problem": f"not a {BUNDLE_FORMAT} bundle"}
     prev, checked, red = GENESIS, 0, 0

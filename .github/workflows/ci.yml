@@ -39,3 +39,25 @@ jobs:
           python-version: "3.12"
       - name: Every view renders with no script error
         run: python dev/ui_smoke.py --chrome google-chrome
+
+  install:
+    # a clean install of what would be published, used only as the docs say (dev/e2e_install.py): the wheel with the
+    # MCP extra, and the sdist on its own, each in a fresh venv with no checkout on the path
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build
+      - run: python -m build
+      - name: The wheel, with the MCP extra
+        shell: bash
+        run: python dev/e2e_install.py dist/*.whl --mcp
+      - name: The sdist, on its own
+        shell: bash
+        run: python dev/e2e_install.py dist/*.tar.gz
