@@ -29,10 +29,12 @@
     A swarm's workers (hypswarm) talk to a server started with --writable instead of sharing one process.
 
 It binds to 127.0.0.1 by default and refuses requests whose Host isn't the address it serves (DNS rebinding) and
-cross-origin writes. Writes can be bound to bearer tokens (``--token SECRET=author1,author2`` or ``=*`` for any
-non-reserved author): with tokens configured, a write without a known token is 401, and a write as an author the
-token isn't bound to is 403 — a reserved name (the orchestrator, the operator) can be written only by a token that
-names it. Without tokens it authenticates nobody, as before: keep it on localhost or behind your own auth.
+writes from any other origin (host and port). Writes can be bound to bearer tokens (``--token SECRET=author1,author2``
+or ``=*`` for any author that is neither reserved nor on a review board): with tokens configured, a write without a
+known token is 401, and a write as an author the token isn't bound to is 403 — a reserved name (the orchestrator, the
+operator) or a reviewer's name can be written only by a token that names it. Tokens authenticate writes only: reads
+stay open to anyone who reaches the port. Without tokens it authenticates nobody: keep it on localhost or behind your
+own auth. SECURITY.md has the whole trust model.
 ``dispatch()`` is the routing on its own, for hosts that bring their own web framework.
 """
 
@@ -99,6 +101,15 @@ def parse_tokens(specs: list[str] | None, path: str = "") -> dict[str, frozenset
     return out
 
 
+def board_names(g: Graph) -> set[str]:
+    """Every name whose verdicts count somewhere in the record: the policy's reviewers and the reviewers each
+    investigation names."""
+    names = set(g.policy.reviewers)
+    for i in g.investigations():
+        names |= {str(r).strip().lower() for r in (i.get("body") or {}).get("reviewers") or []}
+    return names
+
+
 def _author_allowed(g: Graph, author: str, allowed: frozenset | None) -> str:
     """'' when the write may proceed as ``author``, else the refusal."""
     if allowed is None:                                  # no token layer: reserved names are refused, the rest taken at word
@@ -107,6 +118,10 @@ def _author_allowed(g: Graph, author: str, allowed: frozenset | None) -> str:
     if author in allowed:
         return ""                                        # named on the token — reserved or not, the operator chose it
     if "*" in allowed and author and author not in g.policy.reserved:
+        # a name on a review board must be named on a token: under "*" an agent could review its own work as one
+        if author in board_names(g):
+            return (f"{author!r} is on a review board, so a token has to name it (--token SECRET={author}); "
+                    "a * token writes as names that don't review")
         return ""
     return f"this token may not write as {author!r}"
 
@@ -306,6 +321,14 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
             host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]").lower()
             return host in hosts
 
+        def _same_origin(self, origin: str) -> bool:
+            """A browser's write comes from this server's own page: its Origin names the authority the request was
+            sent to (host and port, as the Host header carries them). Comparing host names alone let a page on another
+            port of the same machine write; "null" (a sandboxed frame, a file) is never this server."""
+            o = urlparse(origin)
+            return bool(o.scheme in ("http", "https") and (o.hostname or "") in hosts
+                        and o.netloc.lower() == (self.headers.get("Host") or "").strip().lower())
+
         def do_GET(self):  # noqa: N802
             if not self._host_ok():
                 return self._json(421, {"detail": "unexpected Host header"})
@@ -396,14 +419,20 @@ def make_handler(g: Graph, *, writable: bool, hosts: set[str], root: Path,
         def do_POST(self):  # noqa: N802
             if not self._host_ok():
                 return self._json(421, {"detail": "unexpected Host header"})
-            origin = self.headers.get("Origin")
-            if origin and urlparse(origin).hostname not in hosts:
-                return self._json(403, {"detail": "cross-origin write refused"})
-            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return self._json(400, {"detail": "Content-Length must be a number"})
+            if n < 0:                   # read(-1) would wait for the client to close, holding the thread
+                return self._json(400, {"detail": "Content-Length must not be negative"})
             if n > 2_000_000:
                 return self._json(413, {"detail": "request too large"})
+            raw = self.rfile.read(n)    # read before any refusal: closing on an unread body resets the connection
+            origin = self.headers.get("Origin")
+            if origin is not None and not self._same_origin(origin):
+                return self._json(403, {"detail": "cross-origin write refused"})
             try:
-                body = json.loads(self.rfile.read(n) or b"{}")
+                body = json.loads(raw or b"{}")
             except json.JSONDecodeError:
                 return self._json(400, {"detail": "body must be JSON"})
             u = urlparse(self.path)

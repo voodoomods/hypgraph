@@ -118,7 +118,10 @@ keep it in a record of its own.
 
 **Anchoring.** A bundle proves only its own consistency. To prove it wasn't rebuilt from scratch, publish its `head`
 hash somewhere independent at the time (a paper, a preregistration, a repository tag). A later bundle whose chain
-passes through that hash can't have rewritten anything before it.
+passes through that hash can't have rewritten anything before it. A verifier given a published head (the full hash,
+or a prefix of at least 16 hex characters) fails unless the chain ends there: `hypgraph verify FILE --head HEX`,
+`verify_bundle(b, head=HEX)`. A bundle without a `head` field is checked for consistency only. How a head is
+published and signed, and what each check does and doesn't show: [verification.md](verification.md).
 
 ## 5. Derived standing (normative)
 

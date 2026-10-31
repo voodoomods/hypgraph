@@ -18,12 +18,12 @@ their numbers; reviews pin versions; independence is counted, not assumed. See h
 
 __version__ = "0.7.11"
 
-from .bundle import verify_bundle  # noqa: E402
+from .bundle import anchored, verify_bundle  # noqa: E402
 from .graph import Author, Graph, GraphError, file_sha256  # noqa: E402
 from .policy import Policy  # noqa: E402
 from .references import verify_reference  # noqa: E402
 from .schema import FORMAT, describe  # noqa: E402
 from .store import verify_file  # noqa: E402
 
-__all__ = ["Graph", "GraphError", "Policy", "Author", "verify_bundle", "verify_file", "file_sha256", "describe", "verify_reference",
+__all__ = ["Graph", "GraphError", "Policy", "Author", "verify_bundle", "anchored", "verify_file", "file_sha256", "describe", "verify_reference",
            "FORMAT", "__version__"]
