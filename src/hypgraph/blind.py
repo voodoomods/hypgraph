@@ -420,6 +420,8 @@ def dispatch(g, method: str, path: str, *, query: dict | None = None, body: dict
     status, out = plain(g, method, path, query=query, body=body, **kw)
     if head == "search" and status == 200 and isinstance(out, dict) and isinstance(out.get("results"), list):
         out = out | {"results": v.search(out["results"])}
+    if head == "verify" and status == 200 and isinstance(out, dict) and "head" in out:
+        out = out | {"head": SEALED}            # a hash over sealed bodies: no use to a sealed reader, so not shown
     return status, v.answer(status, out)
 
 

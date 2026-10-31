@@ -546,7 +546,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="a swarm's telemetry sidecar to stream (default: <db>.telemetry.jsonl, picked up when it appears)")
     s.add_argument("--no-telemetry", action="store_true", help="don't serve or stream telemetry")
     s.add_argument("--token", action="append", metavar="SECRET[=AUTHORS]",
-                   help="bind writes to a bearer token: SECRET=a,b (those authors) or SECRET=* (any non-reserved); "
+                   help="bind writes to a bearer token: SECRET=a,b (those authors) or SECRET=* (any name not reserved and not on a review board); "
                         "repeatable; $HYPGRAPH_TOKEN adds one. With tokens, unauthenticated writes are 401.")
     s.add_argument("--token-file", default="", help="a file with one SECRET[=AUTHORS] per line")
     s = cmd("mcp", cmd_mcp, "an MCP server for agents (needs hypgraph[mcp])")

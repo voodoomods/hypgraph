@@ -44,7 +44,8 @@ def fixture():
     o = g.issue_work(author="lead", inv=inv, target="H1", assignee="checker", blind=True,
                      objective="Take your own reading of the instrument and record it as a result named reading.")
     mine = g.author("checker").add("run", inv, kind="agent", name="my own reading", state="succeeded")["id"]
-    return g, {"inv": inv, "h1": h1, "rs1": rs1, "run": run, "order": o["order"], "mine": mine}
+    edge = next(e["id"] for e in g.snapshot().edges.values() if e["src"] == rs1 and e["dst"] == h1)
+    return g, {"inv": inv, "h1": h1, "rs1": rs1, "run": run, "order": o["order"], "mine": mine, "edge": edge}
 
 
 def own(g):
@@ -108,7 +109,31 @@ CASES = {
     "order on the target": lambda g, i, x: write(g, {
         "op": "issue_work", "inv": i["inv"], "target": i["h1"], "assignee": "third",
         "objective": f"Check that the instrument reads {x}, with a reading of your own."}),
+    # graph operations on sealed nodes (pre-launch review, 2026-10-31)
+    "link own result to the sealed one": lambda g, i, x: (write(g, {
+        "op": "create", "type": "result", "inv": i["inv"], "fields": {"summary": f"My reading is {x}.", "outcome": "positive",
+                                                                      "values": {"reading": x}},
+        "links": [{"rel": "produced", "from": i["mine"]}]}), write(g, {
+        "op": "link", "src": "RS2", "rel": "replicates", "dst": i["rs1"], "why": f"same reading, {x}"}))[1],
+    "retract the lead's link": lambda g, i, x: write(g, {"op": "retract", "edge": i["edge"], "why": f"it reads {x}, not that"}),
+    "withdraw the sealed result": lambda g, i, x: write(g, {"op": "withdraw", "node": i["rs1"], "why": f"it should read {x}"}),
+    "revise the sealed result": lambda g, i, x: write(g, {"op": "revise", "node": i["rs1"], "fields": {"values": {"reading": x}},
+                                                          "reason": "a different reading"}),
+    "lease the sealed result": lambda g, i, x: write(g, {"op": "lease", "node": i["rs1"], "note": f"checking {x}"}),
+    # the work-order lifecycle, by the checker
+    "return with the guess in the note": lambda g, i, x: write(g, {"op": "return_work", "order": i["order"], "note": f"I read {x}."}),
+    "accept own order": lambda g, i, x: write(g, {"op": "accept_work", "order": i["order"], "reason": f"it reads {x}"}),
+    "rework own order": lambda g, i, x: write(g, {"op": "rework", "order": i["order"], "missing": f"a reading of {x}"}),
+    "cancel own order": lambda g, i, x: write(g, {"op": "cancel_work", "order": i["order"], "why": f"it reads {x} anyway"}),
+    "settle": lambda g, i, x: write(g, {"op": "settle", "inv": i["inv"]}),
 }
+
+
+ENUMERATION = [("GET", "/investigations", None), ("GET", "/orders", None), ("GET", "/events", {"limit": "5000"}),
+               ("GET", "/subgraph", None), ("GET", "/search", {"text": "instrument"}), ("GET", "/search", {"type": "result"}),
+               ("GET", "/references", None), ("GET", "/verify", None), ("GET", "/profiles", None),
+               ("GET", "/neighborhood/H1", {"depth": "4"}), ("GET", "/why/RS1", None), ("GET", "/impact/RS1", None),
+               ("GET", "/node/CL1", {"history": "1"}), ("GET", "/order/T1", None), ("GET", "/resolve", {"ref": "RS1"})]
 
 
 def run_case(fn, x):
@@ -189,3 +214,75 @@ def test_the_mcp_seat_answers_a_right_guess_like_a_wrong_one(tmp_path):
         asyncio.run(go())
         return out
     assert norm(seat(R), R) == norm(seat(WRONG), WRONG)
+
+
+def test_enumeration_routes_carry_nothing_sealed():
+    """Every read a sealed checker may make, with the record's ids and codes: no sealed number or word comes back,
+    and the same request gives the same answer whatever the sealed reading is."""
+    def reads(r):
+        global R
+        old, R = R, r
+        try:
+            g, i = fixture()
+        finally:
+            R = old
+        return [ask(g, m, p.replace("RS1", i["rs1"]), query=q) for m, p, q in ENUMERATION]
+    a, b = reads(R), reads(WRONG)
+    for (m, p, q), x, y in zip(ENUMERATION, a, b):
+        assert WORD not in repr(x) and str(R) not in repr(x), f"{p} leaks"
+        assert unordered(x, R) == unordered(y, WRONG), f"{p} answers differently with another sealed reading"
+
+
+def unordered(x, guess):
+    """norm(), with every list compared as a multiset: listing order follows the random node ids."""
+    if isinstance(x, dict):
+        return tuple(sorted((k, unordered(v, guess)) for k, v in x.items()))
+    if isinstance(x, (list, tuple)):
+        return tuple(sorted(repr(unordered(v, guess)) for v in x))
+    return norm(x, guess)
+
+
+def test_adaptive_guessing_on_one_record():
+    """Many guesses against the same record, in sequence, the right one somewhere in the middle: every answer is the
+    same once the guess is blanked, so trying candidates one after another teaches nothing either."""
+    g, i = fixture()
+    guesses = [R - 500 + 37 * k for k in range(25)]
+    guesses[13] = R
+    seen = set()
+    for x in guesses:
+        out = [ask(g, "GET", "/resolve", query={"ref": str(x)}), ask(g, "GET", f"/node/{x}"),
+               write(g, {"op": "create", "type": f"t {x}", "inv": i["inv"], "fields": {}}),
+               write(g, {"op": "create", "type": "claim", "inv": i["inv"], "fields": {
+                   "statement": f"The instrument reads {x}.", "scope": "My reading of the instrument, taken once.",
+                   "kind": "finding", "measurements": [{"result": i["rs1"], "key": "reading"}]}}),
+               ask(g, "POST", "/check_work", {"order": i["order"], "text": f"I read {x}."})]
+        seen.add(norm(out, x))
+    assert len(seen) == 1, "an answer changed with the guess"
+
+
+def test_the_mcp_seat_tools_answer_a_right_guess_like_a_wrong_one():
+    import asyncio
+    fastmcp = pytest.importorskip("fastmcp")
+    from hypgraph.mcp import build
+
+    def seat(x):
+        g, i = fixture()
+        out = []
+
+        async def go():
+            async with fastmcp.Client(build(g, author="checker")) as c:
+                for name, args in (("find", {"text": str(x)}), ("find", {"text": "instrument"}),
+                                   ("show", {"node": "RS1"}), ("show", {"node": "H1", "view": "why"}),
+                                   ("my_work", {}),
+                                   ("link", {"src": "RS1", "rel": "replicates", "dst": "H1", "why": f"reads {x}"}),
+                                   ("review", {"node": "RS1", "verdict": "pass", "method": "re-read it", "notes": f"I read {x}."}),
+                                   ("register_run", {"name": f"reading {x}", "investigation": i["inv"],
+                                                     "result_summary": f"My reading is {x}.", "values": {"reading": x}})):
+                    r = await c.call_tool(name, args, raise_on_error=False)
+                    out.append((name, r.is_error, r.content[0].text if r.content else ""))
+        asyncio.run(go())
+        return out
+    right, wrong = seat(R), seat(WRONG)
+    for a, b in zip(right, wrong):
+        assert WORD not in a[2], f"{a[0]} quotes sealed text"
+        assert norm(a, R) == norm(b, WRONG), f"{a[0]}: the answer tells a right guess from a wrong one"

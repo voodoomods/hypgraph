@@ -490,10 +490,28 @@ def return_work(g: "Graph", *, author: str, order: str, note: str = "") -> dict:
     return check_work(g, order)
 
 
+def directs(s: D.Snap, author: str, order: str) -> bool:
+    """Who may accept, rework or settle an order: the author who issued it, or a curator (operator, importer). An
+    assignee reworking its own order could rewrite what counts as done, meet that and accept it."""
+    return author == s.nodes[order]["created_by"] or author in s.policy.curators
+
+
+def _must_direct(s: D.Snap, author: str, order: str, what: str) -> None:
+    from .graph import GraphError
+    if not directs(s, author, order):
+        raise GraphError(f"only {s.nodes[order]['created_by']}, who issued {_code(s, order)}, or the "
+                         f"{s.policy.operator} {what} it")
+
+
 def accept_work(g: "Graph", *, author: str, order: str, reason: str = "", text: str = "") -> dict:
     """Accept an order whose predicates are all met: a decision settling it, based_on the claims and results that
-    met them (pinned to their versions, so the decision is flagged REVISIT if they change)."""
+    met them (pinned to their versions, so the decision is flagged REVISIT if they change). Only its issuer (or a
+    curator) accepts it."""
     from .graph import GraphError
+    s0 = g.snapshot()
+    if not _is_order(s0, order):
+        raise GraphError(f"{order} is not a work order")
+    _must_direct(s0, author, order, "accepts")
     chk = check_work(g, order, text)
     if not chk["all_met"]:
         missing = "; ".join(c["why"] or c["p"] for c in chk["predicates"] if not c["met"])
@@ -520,6 +538,7 @@ def rework(g: "Graph", *, author: str, order: str, missing: str, done_when: list
     s = g.snapshot()
     if not _is_order(s, order):
         raise GraphError(f"{order} is not a work order")
+    _must_direct(s, author, order, "reworks")
     if len(missing.strip()) < 10:
         raise GraphError("missing: say what the return lacked")
     b = s.nodes[order]["body"]
@@ -843,10 +862,11 @@ def question_board(g: "Graph", inv: str) -> list[dict]:
 
 def settle(g: "Graph", *, author: str, inv: str) -> list[dict]:
     """Accept every returned order whose predicates are all met — the mechanical half of the lead's job, done by
-    the record. Returns what it accepted."""
+    the record. Only the orders this author issued (every order, for a curator). Returns what it accepted."""
     out = []
+    s = g.snapshot()
     for o in orders(g, inv, status="returned"):
-        if check_work(g, o["id"])["all_met"]:
+        if directs(s, author, o["id"]) and check_work(g, o["id"])["all_met"]:
             a = accept_work(g, author=author, order=o["id"], reason="settled by the record: every predicate met")
             out.append({"order": o["code"], "assignee": o["assignee"], "decision": a["decision"]})
     return out
