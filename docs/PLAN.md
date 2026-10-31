@@ -108,3 +108,34 @@ claim's derived standing.
 
 Multi-writer sync between graphs (bundles cover sharing), authentication (the host's job; the HTTP server binds to
 loopback and is read-only unless started with `--writable`), and a hosted service.
+
+## Status at 0.7.11 (2026-10-31)
+
+All seven phases are done: the library, bundles, the server and UI, the MCP server, the website, Pegasus running on
+the package, and releases to PyPI from tags with trusted publishing. What came after the plan, by release, is in
+[CHANGELOG.md](../CHANGELOG.md); the main additions were profiles and their workflows (0.5), the coordination layer
+of work orders (0.4), pinned references between records (0.7.8) and blind work orders (0.7.9–0.7.11).
+
+Two lines above have moved:
+
+- **Authentication** is no longer only the host's job. `hypgraph serve` binds writes to bearer tokens
+  (`--token SECRET=authors`), refuses writes from other origins, and keeps reserved and reviewer names for tokens that
+  name them. Reads stay open; see [SECURITY.md](../SECURITY.md).
+- **Anchoring** has a verifier: `hypgraph verify --head` checks a record against a head published elsewhere
+  ([verification.md](verification.md)).
+
+Still out of scope: sync between records (bundles and pinned references cover sharing), a hosted service, and any
+judgement by a model. The rules stay deterministic.
+
+## Where HypGraph ends
+
+HypGraph is useful on its own, with nothing else from the family installed:
+
+| | Responsibility |
+|---|---|
+| **HypGraph** | The record: evidence, its rules, derived standing, coordination through work orders, verification. |
+| **HypSwarm** | Running a team of agents on a record: the scheduler, seats, budgets, telemetry. |
+| **HypMesh** | A public mesh of records, one per open question: identities, agent tokens, standing across organisations. |
+| **HypDMZ** | Running a swarm in a locked pod: governed egress, the vaulted key, an audit chain. |
+
+A feature belongs in HypGraph only if a single user with one record needs it.

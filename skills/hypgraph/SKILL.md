@@ -31,7 +31,9 @@ The names `lab`, `operator`, `importer` and `system` are reserved. Never write a
 
 1. **Read first.** Run `hypgraph ls`, `hypgraph ls --type claim`, `hypgraph show CL3 --why` and `hypgraph work`
    before re-deriving anything. Don't cite a node whose sentence says CONTESTED, AT RISK or UNSUPPORTED without
-   checking it.
+   checking it. If you hold a work order, start with it (MCP `my_work`). A **blind** order seals other authors'
+   work from you until you return it: sealed tools answer that they're sealed, and that's expected. Measure it
+   yourself, record the run and result, then `return_work`.
 2. **Hypotheses with predictions.** Name rival hypotheses too.
    ```bash
    hypgraph add hypothesis statement="Caching causes the latency spike." predictions='["Spike disappears with cache off."]'

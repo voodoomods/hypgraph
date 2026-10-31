@@ -296,7 +296,7 @@ def test_reads_after_writes_load_only_new_rows_and_match_a_full_rebuild(g, inv, 
     same_as_rebuild()
     h = g.create(author="turing", type="hypothesis", inv=inv,
                  fields={"statement": "A turning grille over a balanced table.", "predictions": ["no lag order"]})["id"]
-    e = g.link(author="turing", src=r, rel="supports", dst=h, why="the kept rate is what the grille predicts")
+    g.link(author="turing", src=r, rel="supports", dst=h, why="the kept rate is what the grille predicts")
     same_as_rebuild()
     g.revise(author="friedman", node=c, fields={"limitations": "Only the six-symbol score was tested."},
              reason="state the limit")

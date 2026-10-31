@@ -13,6 +13,7 @@ Use HypGraph whenever you investigate a question with evidence and need to say w
 - `tests` links need `data.expected`, written before running. `supports` / `challenges` need a `why`.
 - Only named reviewers set standing, never on their own work. Revising a node makes its reviews stale.
 - Report standing as the record states it. When a write is refused, fix what the message says.
+- Holding a work order? Call `my_work()` first. A blind order seals other authors' work from you until you `return_work`: sealed tools say so, and that's expected. Measure it yourself and record the result.
 
 Connect: `pip install "hypgraph[mcp]"` then `claude mcp add hypgraph -- hypgraph --db study.hypgraph --as <you> mcp`. Skill: `pip install hypgraph && hypgraph skill --install`. CLI: `hypgraph --json <command>`.
 

@@ -55,3 +55,7 @@ pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+# pyflakes: undefined names, unused imports and variables, shadowed definitions. CI runs it on src and tests.
+select = ["F"]

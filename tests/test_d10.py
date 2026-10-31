@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from hypgraph import Graph, GraphError, Policy, coord, language as L
+from hypgraph import Graph, GraphError, Policy, coord
 from hypgraph.checks import _enumerated
 
 

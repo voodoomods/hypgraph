@@ -141,8 +141,12 @@ hypgraph skill --install                                                     # +
 The server writes as one author, fixed when it starts. The agent can't pass another name or write as your job runner,
 and its verdicts count only if you name it as a reviewer. Tools: `overview`, `find`, `show`, `start_investigation`,
 `add`, `link`, `revise`, `withdraw`, `retract_link`, `review`, `next_experiments`, `work_queue`, `claim_work`,
-`register_run`, `bound`, `check_report`, `refusal_log`, `report`, `verify`, `schema`. The method is in [AGENTS.md](https://github.com/voodoomods/hypgraph/blob/main/AGENTS.md); the short version is
-[llms.txt](https://hypgraph.com/llms.txt).
+`register_run`, `bound`, `check_report`, `refusal_log`, `report`, `verify`, `schema`; and for a team working through
+work orders, `my_work`, `issue_work`, `return_work`, `check_work`, `accept_work`, `rework`, `cancel_work`,
+`settle_work`, `cancel_moot`, `briefing`, `completion`, `stage`. A blind order (`issue_work(..., blind=true)`) seals
+the record from its checker until it is returned. The method is in [AGENTS.md](https://github.com/voodoomods/hypgraph/blob/main/AGENTS.md); the short version is
+[llms.txt](https://hypgraph.com/llms.txt). What the server enforces, and what it leaves to you, is in
+[SECURITY.md](https://github.com/voodoomods/hypgraph/blob/main/SECURITY.md).
 
 ## Wire it into your system
 

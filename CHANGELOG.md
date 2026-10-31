@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased: docs reconciled before launch, GitHub Releases, a linter in CI
+
+- **Docs match the code.** `docs/review-2026-10-24.md` gets a status table: each finding checked against 0.7.11 by
+  running it, with the evidence (eight resolved, one in part). `docs/PLAN.md` says what is done, what moved
+  (authentication, anchoring) and where HypGraph ends and HypSwarm, HypMesh and HypDMZ begin. The README lists the
+  work-order tools and points to SECURITY.md. AGENTS.md, the Agent Skill and llms.txt tell an agent holding a work
+  order to start with `my_work()`, and that a blind order's sealed tools are expected, not an error.
+- **GitHub Releases.** The release job creates one for each tag after PyPI has the files: the changelog's section,
+  how to install, and where to check provenance (`dev/release_notes.py`, which you can run to preview).
+- **pyflakes in CI** (`ruff check`, rules `F` only): undefined names and dead imports, not style. Five unused imports
+  and one unused variable removed.
+
 ## 0.7.11 — 2026-10-30: a sealed checker can't learn the answer by asking
 
 An adversarial test on a local HypMesh planted a 5-digit reading and 12-digit tags in a lead's sealed nodes and
