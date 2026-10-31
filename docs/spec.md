@@ -152,9 +152,16 @@ published and signed, and what each check does and doesn't show: [verification.m
 
 **Derived views.** `derived` is a convenience for viewers, and a viewer shows it beside a verified chain, so a
 verifier must check every fact in it that the rows fix: which investigations it covers (the scope's, or every
-investigation node), which nodes each investigation's graph shows (all of them, unless capped at 5,000) and which
-live (unretracted) links among them, each node's `type`, `code`, `inv`, `by`, `at`, `v`, `title` and `kind`, whether
-it is shown as withdrawn, and each link's fields. **Standing** (review state, support, at-risk, the sentence) can't
+investigation node), which investigations the list shows (each once), which nodes each investigation's graph shows
+(all of them, unless capped at 5,000) and which live (unretracted) links among them, each node's `type`, `code`, `inv`,
+`by`, `at`, `v`, `title`, `kind` and `state.lifecycle`, and each link's `id`, ends, versions, `rel`, `data`, `at`,
+`by` and `why`. Every one of these must be **present**, not only equal where present: a viewer fills a missing fact
+with a default, and a withdrawn claim without its lifecycle would read as active. The lifecycle is derived from the
+verified rows (withdrawn when a withdrawal exists; superseded when a live `supersedes` or `corrects` replacement is
+active or, since 0.4, itself superseded; an investigation's own `state` otherwise), and a verifier accepts the value
+either rule gives. A scoped bundle leaves out links to other investigations, so it may also call a node superseded
+(never a withdrawn node anything but withdrawn). A bundle exported without derived views verifies, and a verifier says
+it has none (`views: none`). **Standing** (review state, support, at-risk, the sentence) can't
 be checked from the rows alone: it is what the exporting engine derived, and so are the report, the workflow stages,
 completion, the question board and work-order status. A verifier reports them as not checked, or re-derives them with
 the same engine version (`hypgraph verify FILE --standing`, under the caller's policy with `--policy`) and compares.

@@ -279,8 +279,12 @@ def cmd_verify(args) -> int:
         trusted = json.loads(Path(args.policy).read_text(encoding="utf-8")) if args.policy else {}
         if args.importer:
             trusted["importer"] = args.importer
-        res = verify_bundle(json.loads(Path(target).read_text(encoding="utf-8")), head=args.head,
-                            standing=args.standing, policy=trusted or None)
+        try:
+            b = json.loads(Path(target).read_text(encoding="utf-8"))
+        except ValueError:
+            b = None
+        res = (verify_bundle(b, head=args.head, standing=args.standing, policy=trusted or None) if b is not None
+               else {"ok": False, "problem": "the file isn't JSON"})
     else:
         res = anchored(verify_file(target, importer=args.importer or "importer"), args.head)
     ok = res.get("ok")
@@ -291,6 +295,8 @@ def cmd_verify(args) -> int:
                  else "\n  consistent with itself; to rule out a rewrite, check it against a published head (--head)")
     if ok and res.get("coverage") == "partial":
         text += "\n  coverage: PARTIAL — not every row field is vouched for by its event (see below)"
+    if ok and res.get("views") == "none":
+        text += "\n  no derived views: exported without them, so a viewer has nothing to show beyond the rows"
     if ok and res.get("unchecked"):
         text += ("\n  not covered (written before events hashed these fields): "
                  + ", ".join(f"{f} ×{n}" for f, n in sorted(res["unchecked"].items())))

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Derived views must carry every fact the rows fix.** A re-audit of 0.7.14 found that a derived field was compared
+  with the verified rows only when it was there: deleting a withdrawn claim's `state.lifecycle`, or its whole `state`,
+  still verified as complete, and the explorer then showed the claim as active. An emptied investigation list, nodes
+  without a title, author or code, and links without an end verified too. Now every one of those facts must be present
+  and agree, in the Python and browser verifiers alike; the lifecycle is derived again from the verified rows
+  (withdrawals and live replacements, under the 0.3 rule or the current one, as the exporter may have used either)
+  instead of only checked for "withdrawn"; the investigation list must show each investigation once. A bundle exported
+  without derived views still verifies and says so (`views: none`) (`tests/test_verify_views.py`).
+- **A malformed bundle fails instead of raising.** An event body that isn't a JSON object fails with that problem; a
+  field missing or of the wrong kind fails as malformed; `hypgraph verify` on a file that isn't JSON says so.
+- **The explorer never defaults a missing lifecycle to active.** It shows *unknown*.
+
 ## 0.7.14 — 2026-10-31: the verifier trusts its caller's policy, and derived screens say they are as exported
 
 - **The verifier trusts its caller's policy, not the bundle's.** A re-audit of 0.7.13 found that the bundle and

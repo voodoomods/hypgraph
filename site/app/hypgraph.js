@@ -28,6 +28,7 @@
   const VERSION = '0.6.0';
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const RISKY = ['requires', 'derived_from', 'based_on'];
+  const SAME_TYPE = ['supersedes', 'corrects'];      // schema.SAME_TYPE: a replacement of the same type
   const cap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : '');
 
   // ── hashing (WebCrypto, with a small fallback for insecure contexts) ─────
@@ -193,24 +194,46 @@
     const live = new Map(tables.edges.filter((e) => !retracted.has(Number(e.id))).map((e) => [Number(e.id), e]));
     const scope = String((b.scope || {}).inv || '');
     const invs = new Set(scope ? [scope] : [...nodes.values()].filter((n) => n.type === 'investigation').map((n) => n.id));
+    const replaced = new Map();
+    live.forEach((e) => { if (SAME_TYPE.includes(e.rel)) (replaced.get(e.dst) || replaced.set(e.dst, []).get(e.dst)).push(e.src); });
+    // derive.lifecycle on the verified rows; since 0.4 a superseded replacement still replaces (chains), 0.3 counted an active one
+    const lifecycle = (nid, chains, seen = new Set()) => {
+      if (withdrawn.has(nid)) return 'withdrawn';
+      const counts = chains ? ['active', 'superseded'] : ['active'];
+      for (const s of replaced.get(nid) || []) if (!seen.has(s) && counts.includes(lifecycle(s, chains, new Set([...seen, nid])))) return 'superseded';
+      if (nodes.get(nid).type === 'investigation') return ((latest.get(nid) || [0, {}])[1]).state || 'active';
+      return 'active';
+    };
     const facts = (x, where) => {
-      const n = x && typeof x === 'object' ? nodes.get(x.id) : null;
-      if (!n) return `${where} shows ${x && typeof x === 'object' ? x.id : JSON.stringify(x)}, which the record doesn't hold`;
+      if (!x || typeof x !== 'object' || typeof x.id !== 'string') return `${where} shows a node without its id`;
+      const n = nodes.get(x.id);
+      if (!n) return `${where} shows ${x.id}, which the record doesn't hold`;
+      const name = n.code || n.id;
       const [v, body] = latest.get(n.id) || [0, {}];
       const want = { type: n.type, code: n.code, inv: n.inv, by: n.created_by, at: n.created_at, v, title: titleOf(body),
         kind: body.kind || body.verdict || '' };
-      for (const [k, w] of Object.entries(want)) if (k in x && !same(x[k], w)) return `${where} shows ${n.code || n.id} with ${k} ${JSON.stringify(x[k])}; the record has ${JSON.stringify(w)}`;
-      const life = (x.state || {}).lifecycle;
-      if (life != null && (life === 'withdrawn') !== withdrawn.has(n.id)) return `${where} shows ${n.code || n.id} as ${life}; the record ${withdrawn.has(n.id) ? 'withdrew it' : 'has no withdrawal of it'}`;
+      for (const [k, w] of Object.entries(want)) {
+        if (!(k in x)) return `${where} shows ${name} without its ${k}`;
+        if (!same(x[k], w)) return `${where} shows ${name} with ${k} ${JSON.stringify(x[k])}; the record has ${JSON.stringify(w)}`;
+      }
+      const st = x.state;
+      if (!st || typeof st !== 'object' || !('lifecycle' in st)) return `${where} shows ${name} without its lifecycle`;
+      const w = lifecycle(n.id, true), allowed = new Set([w, lifecycle(n.id, false)]);
+      if (scope && !withdrawn.has(n.id)) allowed.add('superseded');   // a scoped bundle leaves out links to other investigations
+      if (!allowed.has(st.lifecycle)) return `${where} shows ${name} as ${JSON.stringify(st.lifecycle)}; the record makes it ${JSON.stringify(w)}`;
       return '';
     };
-    const byInv = d.by_inv || {};
-    const keys = Object.keys(byInv);
-    if (keys.length !== invs.size || !keys.every((k) => invs.has(k))) return "the views don't cover the record's investigations";
-    for (const x of d.investigations || []) {
-      if (!invs.has(x.id)) return `the investigation list shows ${x.id}, which isn't in the bundle's scope`;
+    const byInv = d.by_inv;
+    const keys = byInv && typeof byInv === 'object' && !Array.isArray(byInv) ? Object.keys(byInv) : null;
+    if (!keys || keys.length !== invs.size || !keys.every((k) => invs.has(k))) return "the views don't cover the record's investigations";
+    const listed = d.investigations;
+    if (!Array.isArray(listed)) return 'the investigation list is missing';
+    for (const x of listed) {
+      if (x && typeof x === 'object' && typeof x.id === 'string' && !invs.has(x.id)) return `the investigation list shows ${x.id}, which isn't in the bundle's scope`;
       const p = facts(x, 'the investigation list'); if (p) return p;
     }
+    const listedIds = listed.map((x) => x.id), listedSet = new Set(listedIds);
+    if (listedIds.length !== listedSet.size || listedSet.size !== invs.size || ![...invs].every((i) => listedSet.has(i))) return "the investigation list doesn't show the record's investigations";
     for (const [inv, v] of Object.entries(byInv)) {
       const sg = (v || {}).subgraph || {}, shown = sg.nodes || [], name = (nodes.get(inv) || {}).code || inv;
       for (const x of shown) { const p = facts(x, `the graph of ${name}`); if (p) return p; }
@@ -220,11 +243,15 @@
       if (ids.length !== idset.size || (!covers && !(mine.size > ids.length && ids.length >= 5000))) return `the graph of ${name} doesn't show the nodes the record holds`;
       const want = new Map([...live].filter(([, e]) => idset.has(e.src) && idset.has(e.dst)));
       const got = sg.edges || [];
-      if (got.length !== want.size || !got.every((e) => want.has(Number(e.id)))) return `the graph of ${name} doesn't show the live links the record holds`;
+      if (!got.every((e) => e && typeof e === 'object' && Number.isInteger(e.id))) return `the graph of ${name} shows a link without its id`;
+      if (got.length !== want.size || new Set(got.map((e) => e.id)).size !== got.length || !got.every((e) => want.has(e.id))) return `the graph of ${name} doesn't show the live links the record holds`;
       for (const e of got) {
-        const r = want.get(Number(e.id));
-        for (const k of ['src', 'src_v', 'rel', 'dst', 'dst_v', 'at', 'by', 'why']) if (k in e && !same(e[k], r[k])) return `the graph shows link ${e.id} with ${k} ${JSON.stringify(e[k])}; the record has ${JSON.stringify(r[k])}`;
-        if ('data' in e && !same(e.data, JSON.parse(r.data))) return `the graph shows link ${e.id} with other data than the record`;
+        const r = want.get(e.id);
+        for (const k of ['src', 'src_v', 'rel', 'dst', 'dst_v', 'at', 'by', 'why', 'data']) {
+          if (!(k in e)) return `the graph shows link ${e.id} without its ${k}`;
+          if (k !== 'data' && !same(e[k], r[k])) return `the graph shows link ${e.id} with ${k} ${JSON.stringify(e[k])}; the record has ${JSON.stringify(r[k])}`;
+        }
+        if (!same(e.data, JSON.parse(r.data))) return `the graph shows link ${e.id} with other data than the record`;
       }
     }
     return '';
@@ -251,7 +278,15 @@
     return '';
   }
 
+  const MALFORMED = 'the bundle is malformed: a field is missing or of the wrong kind';
   async function verifyBundle(b, head = '', opts = {}) {
+    try { return await verifyBundleRaw(b, head, opts); } catch (e) {
+      if (e instanceof TypeError || e instanceof SyntaxError || e instanceof RangeError) return { ok: false, problem: MALFORMED };
+      throw e;
+    }
+  }
+
+  async function verifyBundleRaw(b, head = '', opts = {}) {
     if (!b || b.format !== 'hypgraph/1-bundle') return { ok: false, problem: 'not a hypgraph/1-bundle' };
     const policy = opts.policy || null;
     const pp = policyProblem(b, policy);
@@ -266,7 +301,9 @@
         prev = ev.hash; red += 1; continue;
       }
       if (await sha256(ev.body) !== ev.hash) return { ok: false, broken_at: ev.seq, problem: 'event body does not match its hash' };
-      const body = JSON.parse(ev.body);
+      let body = null;
+      try { body = JSON.parse(ev.body); } catch { /* not JSON */ }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return { ok: false, broken_at: ev.seq, problem: "event body isn't a JSON object" };
       if (body.prev !== prev) return { ok: false, broken_at: ev.seq, problem: 'chain broken (prev does not match)' };
       prev = ev.hash; checked += 1;
       events.push(body);
@@ -283,6 +320,7 @@
     const partial = Object.keys(rows.unchecked).length > 0 || red > 0;
     const out = { ok: true, checked, head: prev, complete: red === 0, redacted: red, nodes: tables.nodes.length,
       edges: tables.edges.length, unchecked: rows.unchecked, coverage: partial ? 'partial' : 'complete',
+      views: b.derived == null ? 'none' : 'checked',
       policy: { trusted: Object.keys(policy || {}).sort(), importer }, standing: { checked: false, note: STANDING_NOTE } };
     const notes = [];
     if (red) notes.push(`${red} event(s) outside this investigation are redacted: their content can't be checked, so a change hidden among them (a withdrawal, say) would not show. The full record rules that out.`);
@@ -465,6 +503,8 @@
   function standingPill(n) {
     if (!n) return '';
     const s = st(n), rv = reviewOf(n), stale = staleOf(n);
+    // no lifecycle: say so rather than default it (a withdrawn claim must never read as active)
+    if (s.lifecycle == null) return '<span class="pill warn" title="this view gives no lifecycle for it"><span class="d"></span>unknown</span>';
     if (s.lifecycle === 'withdrawn') return '<span class="pill bad"><span class="d"></span>withdrawn</span>';
     if (s.lifecycle === 'superseded') return '<span class="pill neutral">superseded</span>';
     if (stale.length) return `<span class="pill warn" title="${esc(stale[0])}"><span class="d"></span>stale</span>`;
@@ -473,10 +513,10 @@
     if (rv === 'checked') return '<span class="pill ok"><span class="d"></span>checked</span>';
     if (rv === 'unchecked') return '<span class="pill neutral">unchecked</span>';
     if (rv === 'needs_revalidation') return '<span class="pill warn">re-check</span>';
-    return `<span class="pill neutral">${esc(s.lifecycle || 'active')}</span>`;
+    return `<span class="pill neutral">${esc(s.lifecycle)}</span>`;
   }
-  const standingKey = (n) => { const s = st(n), rv = reviewOf(n); return s.lifecycle === 'withdrawn' ? 'withdrawn' : s.lifecycle === 'superseded' ? 'superseded'
-    : staleOf(n).length ? 'stale' : s.at_risk ? 'at risk' : rv || s.lifecycle || 'active'; };
+  const standingKey = (n) => { const s = st(n), rv = reviewOf(n); return s.lifecycle == null ? 'unknown' : s.lifecycle === 'withdrawn' ? 'withdrawn' : s.lifecycle === 'superseded' ? 'superseded'
+    : staleOf(n).length ? 'stale' : s.at_risk ? 'at risk' : rv || s.lifecycle; };
 
   function csv(rows) { return rows.map((r) => r.map((c) => { const s = String(c ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(',')).join('\n'); }
   function download(name, text, type = 'text/plain') {

@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from . import __version__
+from .schema import SAME_TYPE
 from .store import GENESIS, ROW_TABLES, check_rows, event_body, now
 
 if TYPE_CHECKING:
@@ -166,7 +167,10 @@ def verify_bundle(b: dict, head: str = "", *, standing: bool = False, policy: di
     (a dict of Policy fields, e.g. ``{"importer": "importer"}``, from the record's publisher or host). Every field
     given must equal the bundle's stated one; the importer defaults to the default policy's. ``coverage`` says whether
     every row field was vouched for by its event ("complete") or not ("partial": see ``unchecked``, ``redacted``)."""
-    res = anchored(_verify_bundle(b, policy), head)
+    try:
+        res = anchored(_verify_bundle(b, policy), head)
+    except (KeyError, TypeError, ValueError, AttributeError, IndexError):
+        return {"ok": False, "problem": MALFORMED}
     if standing and res.get("ok"):
         res = {**res, "standing": rederive(b, policy)}
         if res["standing"].get("problem"):
@@ -189,6 +193,9 @@ STANDING_NOTE = ("standing (review state, support, at-risk, the sentence) is wha
                  "chain doesn't cover it. Re-derive it from the verified rows with `hypgraph verify --standing`.")
 
 
+MALFORMED = "the bundle is malformed: a field is missing or of the wrong kind"
+
+
 def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
     if not isinstance(b, dict) or b.get("format") != BUNDLE_FORMAT:
         return {"ok": False, "problem": f"not a {BUNDLE_FORMAT} bundle"}
@@ -208,7 +215,12 @@ def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
             continue
         if _sha(ev["body"]) != ev["hash"]:
             return {"ok": False, "broken_at": ev["seq"], "problem": "event body does not match its hash"}
-        body = json.loads(ev["body"])
+        try:
+            body = json.loads(ev["body"])
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            return {"ok": False, "broken_at": ev["seq"], "problem": "event body isn't a JSON object"}
         if body.get("prev") != prev:
             return {"ok": False, "broken_at": ev["seq"], "problem": "chain broken (prev does not match)"}
         prev, checked = ev["hash"], checked + 1
@@ -232,6 +244,7 @@ def _verify_bundle(b: dict, policy: dict | None = None) -> dict:
     out = {"ok": True, "checked": checked, "head": prev, "complete": red == 0, "redacted": red,
            "nodes": len(tables["nodes"]), "edges": len(tables["edges"]), "unchecked": rows["unchecked"],
            "coverage": "complete" if not rows["unchecked"] and not red else "partial",
+           "views": "none" if b.get("derived") is None else "checked",
            "policy": {"trusted": sorted(policy or {}), "importer": importer},
            "standing": {"checked": False, "note": STANDING_NOTE}}
     notes = []
@@ -259,10 +272,19 @@ def _title(body: dict) -> str:
     return str(t)[:300]
 
 
+def _eid(v: Any) -> int | None:
+    """A link id as the browser's verifier reads one (Number.isInteger): 7 and 7.0, not true or "7"."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not float(v).is_integer():
+        return None
+    return int(v)
+
+
 def _derived_problem(b: dict, tables: dict) -> str:
     """The derived views are presentation, but a viewer shows them beside a verified chain: every fact in them that
-    the rows fix — which nodes and live links each investigation has, each node's type, code, author, time, version,
-    title and whether it is withdrawn — must agree with the verified rows. Standing can't be checked this way."""
+    the rows fix — which investigations there are, which nodes and live links each has, each node's type, code,
+    author, time, version, title and lifecycle, each link's ends and fields — must be present and agree with the
+    verified rows. A view that leaves a fact out fails: a viewer would fill the gap with a default (a withdrawn claim
+    shown as active). The rest of standing can't be checked this way."""
     d = b.get("derived")
     if d is None:
         return ""
@@ -278,31 +300,64 @@ def _derived_problem(b: dict, tables: dict) -> str:
     live = {int(e["id"]): e for e in tables["edges"] if int(e["id"]) not in retracted}
     scope = str((b.get("scope") or {}).get("inv") or "")
     invs = {scope} if scope else {i for i, n in nodes.items() if n["type"] == "investigation"}
+    replaced: dict[str, list] = {}
+    for e in live.values():
+        if e["rel"] in SAME_TYPE:
+            replaced.setdefault(e["dst"], []).append(e["src"])
+
+    def lifecycle(nid: str, chains: bool, seen: frozenset = frozenset()) -> str:
+        """derive.lifecycle on the verified rows. Since 0.4 a replacement that is itself superseded still replaces
+        (``chains``); 0.3 counted only an active one. Withdrawn is the same under both."""
+        if nid in withdrawn:
+            return "withdrawn"
+        counts = ("active", "superseded") if chains else ("active",)
+        for s in replaced.get(nid, []):
+            if s not in seen and lifecycle(s, chains, seen | {nid}) in counts:
+                return "superseded"
+        if nodes[nid]["type"] == "investigation":
+            return latest.get(nid, (0, {}))[1].get("state") or "active"
+        return "active"
 
     def facts(x: dict, where: str) -> str:
-        n = nodes.get(x.get("id")) if isinstance(x, dict) else None
+        if not isinstance(x, dict) or not isinstance(x.get("id"), str):
+            return f"{where} shows a node without its id"
+        n = nodes.get(x["id"])
         if not n:
-            return f"{where} shows {x.get('id') if isinstance(x, dict) else _j(x)}, which the record doesn't hold"
+            return f"{where} shows {x['id']}, which the record doesn't hold"
+        name = n["code"] or n["id"]
         v, body = latest.get(n["id"], (0, {}))
         want = {"type": n["type"], "code": n["code"], "inv": n["inv"], "by": n["created_by"], "at": n["created_at"],
                 "v": v, "title": _title(body), "kind": body.get("kind") or body.get("verdict") or ""}
         for k, w in want.items():
-            if k in x and x[k] != w:
-                return f"{where} shows {n['code'] or n['id']} with {k} {_j(x[k])}; the record has {_j(w)}"
-        life = (x.get("state") or {}).get("lifecycle")
-        if life is not None and (life == "withdrawn") != (n["id"] in withdrawn):
-            return (f"{where} shows {n['code'] or n['id']} as {life}; the record "
-                    f"{'withdrew it' if n['id'] in withdrawn else 'has no withdrawal of it'}")
+            if k not in x:
+                return f"{where} shows {name} without its {k}"
+            if x[k] != w:
+                return f"{where} shows {name} with {k} {_j(x[k])}; the record has {_j(w)}"
+        st = x.get("state")
+        if not isinstance(st, dict) or "lifecycle" not in st:
+            return f"{where} shows {name} without its lifecycle"
+        w = lifecycle(n["id"], True)
+        allowed = {w, lifecycle(n["id"], False)}
+        if scope and n["id"] not in withdrawn:
+            allowed.add("superseded")   # a scoped bundle leaves out links to other investigations: one may replace it
+        if st["lifecycle"] not in allowed:
+            return f"{where} shows {name} as {_j(st['lifecycle'])}; the record makes it {_j(w)}"
         return ""
-    by_inv = d.get("by_inv") or {}
-    if set(by_inv) != invs:
+    by_inv = d.get("by_inv")
+    if not isinstance(by_inv, dict) or set(by_inv) != invs:
         return "the views don't cover the record's investigations"
-    for x in d.get("investigations") or []:
-        if x.get("id") not in invs:
-            return f"the investigation list shows {x.get('id')}, which isn't in the bundle's scope"
+    listed = d.get("investigations")
+    if not isinstance(listed, list):
+        return "the investigation list is missing"
+    for x in listed:
+        if isinstance(x, dict) and isinstance(x.get("id"), str) and x["id"] not in invs:
+            return f"the investigation list shows {x['id']}, which isn't in the bundle's scope"
         p = facts(x, "the investigation list")
         if p:
             return p
+    ids = [x["id"] for x in listed]
+    if len(ids) != len(set(ids)) or set(ids) != invs:
+        return "the investigation list doesn't show the record's investigations"
     for inv, v in by_inv.items():
         sg = (v or {}).get("subgraph") or {}
         shown = sg.get("nodes") or []
@@ -316,14 +371,18 @@ def _derived_problem(b: dict, tables: dict) -> str:
             return f"the graph of {nodes[inv]['code'] or inv} doesn't show the nodes the record holds"
         want = {i: e for i, e in live.items() if e["src"] in set(ids) and e["dst"] in set(ids)}
         got = sg.get("edges") or []
-        if len(got) != len(want) or {int(e["id"]) for e in got} != set(want):
+        if not all(isinstance(e, dict) and _eid(e.get("id")) is not None for e in got):
+            return f"the graph of {nodes[inv]['code'] or inv} shows a link without its id"
+        if len(got) != len(want) or {_eid(e["id"]) for e in got} != set(want):
             return f"the graph of {nodes[inv]['code'] or inv} doesn't show the live links the record holds"
         for e in got:
-            r = want[int(e["id"])]
-            for k in ("src", "src_v", "rel", "dst", "dst_v", "at", "by", "why"):
-                if k in e and e[k] != r[k]:
+            r = want[_eid(e["id"])]
+            for k in ("src", "src_v", "rel", "dst", "dst_v", "at", "by", "why", "data"):
+                if k not in e:
+                    return f"the graph shows link {e['id']} without its {k}"
+                if k != "data" and e[k] != r[k]:
                     return f"the graph shows link {e['id']} with {k} {_j(e[k])}; the record has {_j(r[k])}"
-            if "data" in e and e["data"] != json.loads(r["data"]):      # as values: 1.0 and 1 are one number
+            if e["data"] != json.loads(r["data"]):      # as values: 1.0 and 1 are one number
                 return f"the graph shows link {e['id']} with other data than the record"
     return ""
 
