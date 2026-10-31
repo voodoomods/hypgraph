@@ -371,6 +371,11 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
         raise GraphError(str(e).strip("'\"") + " — a target is a code the record has (Q1, H2, X1, CL3; find lists "
                          "them) or the investigation's id; add a hypothesis or experiment first if you need a new "
                          "one") from None
+    from . import blind as B
+    own = B.view_for_author(s, author)
+    if own:                     # a seat holding a blind order measures; it issues orders once it has returned it
+        raise g._sealed(own.hide, "a work order")
+    hidden = g._hidden(s, author)
     if D.out_of_play(s, t):
         raise GraphError(f"{_code(s, t)} is {D.lifecycle(s, t)}{' and fallen' if D.fallen(s, t) else ''} — "
                          "nothing to work on")
@@ -386,9 +391,6 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
     preds = [norm_pred(p) for p in (done_when or profiles.default_done(s, inv, s.nodes[t]["type"])
                                      or DEFAULT_DONE.get(s.nodes[t]["type"], [{"p": "result_exists"}]))]
     _known_predicates(preds)
-    if blind:
-        _blind_ok(s, inv=inv, author=author, assignee=assignee, target=t, preds=preds, prediction=prediction,
-                  texts=[objective, method, note, role])
     if premises is None:
         prem = [a for a, _r, _d in D.ancestors(s, t, limit=40) if s.nodes[a]["type"] not in ("artifact", "task")]
         if s.nodes[t]["type"] == "experiment":
@@ -396,6 +398,11 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
     else:
         prem = prem_ids
     prem = [p for p in dict.fromkeys(prem) if p in s.nodes and p != t][:30]
+    if hidden and (t in hidden or any(p in hidden for p in prem)):     # its text would quote sealed work
+        raise g._sealed(hidden, "a work order on sealed work")
+    if blind:
+        _blind_ok(s, inv=inv, author=author, assignee=assignee, target=t, preds=preds, prediction=prediction,
+                  texts=[objective, method, note, role], skip=hidden)
     fields = {"objective": objective, "assignee": assignee, "role": role, "done_when": preds,
               "prediction": prediction, "method": method, "budget": budget or {}, "note": note,
               "title": objective[:300]}
@@ -410,8 +417,10 @@ def issue_work(g: "Graph", *, author: str, inv: str, target: str, assignee: str,
 
 
 def _blind_ok(s: D.Snap, *, inv: str, author: str, assignee: str, target: str, preds: list[dict], prediction: str,
-              texts: list[str]) -> None:
-    """A blind order's checks at issue: what the record can see of whether the assignee will really work blind."""
+              texts: list[str], skip: dict | None = None) -> None:
+    """A blind order's checks at issue: what the record can see of whether the assignee will really work blind.
+    ``skip``: what is sealed from the issuer itself, left out of the leak check (comparing against it would tell the
+    issuer whether a number it guessed is in there)."""
     from .graph import GraphError
     from . import blind as B
     if prediction.strip():
@@ -431,7 +440,7 @@ def _blind_ok(s: D.Snap, *, inv: str, author: str, assignee: str, target: str, p
         raise GraphError(f"{assignee} has already written in this record ({', '.join(wrote)}), so it has read what a "
                          "blind order would seal. Give the blind order to a seat that hasn't")
     w = B.Window("", [], assignee, inv, s.seq, None, sealing=True, fresh=True)
-    found = B.leaks(s, w, [x for x in texts if x])
+    found = B.leaks(s, w, [x for x in texts if x], skip=skip)
     if found:
         said = "; ".join(f"{k} (in {', '.join(v[:3])})" for k, v in sorted(found.items())[:6])
         raise GraphError(f"the order quotes what it would seal: {said}. Say what to measure and how, not what it "

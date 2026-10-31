@@ -21,6 +21,11 @@ The record enforces what it can see:
   wrote a node. ``hypgraph serve`` and the Python API read the whole record: a file is only as blind as whoever
   holds it.
 
+A sealed reader can't learn what is sealed by asking either: an error that echoes its request has every number
+blanked (not only the secret ones, which would mark a right guess), a write is answered with the view after it, and a
+sealed writer's writes may not rest on sealed nodes, so no check reads them on its behalf (``graph.sealed_from``).
+``tests/test_blind_oracles.py`` asks every request with a right and a wrong guess and requires the same answer.
+
 It cannot see reads. A seat that read the record before its order was issued has already seen what is now sealed;
 give a checker its order first.
 """
@@ -275,6 +280,26 @@ class View:
             return [self.scrub(v) for v in x]
         return x
 
+    def blank(self, x: Any) -> Any:
+        """Every significant number replaced, secret or not: for answers that may echo what the reader sent (errors,
+        refusals). Scrubbing only the secret ones there would mark a right guess as "[sealed]" and leave a wrong one
+        as written — an oracle (an adversarial run found six routes that did, 2026-10-30)."""
+        if not self:
+            return x
+        if isinstance(x, str):
+            return _NUM.sub(lambda m: "[number]" if _significant(canon(m.group(0))) else m.group(0), x)
+        if isinstance(x, dict):
+            return {k: self.blank(v) for k, v in x.items()}
+        if isinstance(x, list):
+            return [self.blank(v) for v in x]
+        return x
+
+    def answer(self, status: int, out: Any) -> Any:
+        """A response as this reader gets it: redacted, and with every number blanked when it is an error."""
+        if not self:
+            return out
+        return self.blank(self._walk(out)) if status >= 400 else self.apply(out)
+
     def node(self, d: dict) -> dict:
         """A sealed node as a reader sees it: what it is and where, not what it says."""
         code = self.hide.get(d.get("id"), "")
@@ -378,26 +403,30 @@ def dispatch(g, method: str, path: str, *, query: dict | None = None, body: dict
     parts = [p for p in path.strip("/").split("/") if p]
     head, arg = (parts[0] if parts else ""), (parts[1] if len(parts) > 1 else "")
     if method == "POST" and head == "write":
-        status, out = plain(g, method, path, query=query, body=body, **kw)
-        return status, v.apply(out)
+        # the write is checked as this reader: nothing it may not see is read on its behalf (graph.sealed_from); its
+        # answer is redacted with the view after the write, in which its own new numbers are no longer secret
+        with g.sealed_from(v.hide):
+            status, out = plain(g, method, path, query=query, body=body, **kw)
+        return status, (view_for(g.snapshot(), keep) or v).answer(status, out)
     if not v.allows(method, head):
-        return 409, {"detail": v.message(f"/{head}"), SEALED: v.because()}
+        return 409, v.blank({"detail": v.message(f"/{head}"), SEALED: v.because()})
     if head in ("order", "node", "why", "impact", "neighborhood") and arg:
         try:
             nid = g.resolve(arg)
         except Exception:
             nid = arg
         if head == "order" and nid in v.hide:
-            return 409, {"detail": v.message(f"order {arg}"), SEALED: v.because()}
+            return 409, v.blank({"detail": v.message(f"order {arg}"), SEALED: v.because()})
     status, out = plain(g, method, path, query=query, body=body, **kw)
     if head == "search" and status == 200 and isinstance(out, dict) and isinstance(out.get("results"), list):
         out = out | {"results": v.search(out["results"])}
-    return status, v.apply(out)
+    return status, v.answer(status, out)
 
 
-def leaks(s: D.Snap, w: Window, texts: list[str]) -> dict[str, list[str]]:
-    """Numbers an order's own text quotes that only the material it would seal carries: number → codes holding it."""
-    hide = scope(s, w)
+def leaks(s: D.Snap, w: Window, texts: list[str], skip: dict | set | None = None) -> dict[str, list[str]]:
+    """Numbers an order's own text quotes that only the material it would seal carries: number → codes holding it.
+    ``skip``: material sealed from the issuer, left out (comparing against it would answer the issuer's guesses)."""
+    hide = scope(s, w) - set(skip or ())
     visible: set[str] = set()
     for i, n in s.nodes.items():
         if i not in hide:

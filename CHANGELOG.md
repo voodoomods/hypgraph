@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased: a sealed checker can't learn the answer by asking
+
+An adversarial test on a local HypMesh planted a 5-digit reading and 12-digit tags in a lead's sealed nodes and
+attacked every route as the blind checker. Nothing leaked directly, but the checker could tell a right guess from a
+wrong one, and 60 requests recovered the reading exactly. Fixed:
+
+- **Errors no longer mark a right guess.** Answers scrubbed only the numbers the sealed material carries, so a route
+  that echoes its input (`resolve`, `node`, `why`, `order`, `check_work`, a refused write) answered "no node
+  '[sealed]'" for a right guess and "no node '48220'" for a wrong one. While a reader is sealed, every number in an
+  error is now blanked, secret or not; the MCP seat does the same.
+- **A write is answered with the view after it.** The checker's own new numbers were scrubbed with the view from
+  before the write, so a result carrying the right reading came back "[sealed]".
+- **No check reads sealed material for a sealed writer.** A claim bound to the sealed result was refused with an
+  unbound number for a wrong guess and passed that check for the right one, and the auto-bind looked the guess up
+  in the sealed results without any id given. A sealed writer may now link to a sealed node only to say its own work
+  supports, challenges or tests a hypothesis; binding to, resting on, reviewing, revising or ordering work on sealed
+  nodes is refused with one message before any check runs, and a seat holding a blind order issues no orders.
+  `Graph.sealed_from(hide)` lets a host apply its reader's view to writes, so writing under another name doesn't
+  escape the seal.
+- **The leak check at issue skips what is sealed from the issuer**, which would otherwise answer the issuer's guesses.
+
+`tests/test_blind_oracles.py` asks every request with the right and a wrong guess on fresh records and requires the
+same answer; 14 of its 23 tests fail on 0.7.10.
+
 ## 0.7.10 — 2026-10-30: fixes from the first live blind run
 
 Claude led a question on a HypMesh and issued a blind order; Codex took the order through its seat and counted the

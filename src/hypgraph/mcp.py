@@ -186,10 +186,12 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
             try:
                 out = fn(*a, **kw)
             except ToolError as e:
-                if v:
-                    raise ToolError(v.scrub(str(e))) from None
+                after = sealed() or v
+                if after:           # every number blanked: scrubbing only the secret ones would mark a right guess
+                    raise ToolError(after.blank(str(e))) from None
                 raise
-            return v.scrub(out) if v and isinstance(out, str) else out
+            after = sealed()        # after a write its own new numbers are no longer secret
+            return after.scrub(out) if after and isinstance(out, str) else out
         return mcp.tool(wrapped)
 
     def fail(e: Exception):
