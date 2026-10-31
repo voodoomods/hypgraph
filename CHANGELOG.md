@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.16 — 2026-10-31: a bundle's scope must be a real one
 
 - **A bundle's scope must be a real one.** A re-audit of 0.7.15 found that `scope.inv`, which the chain doesn't
   cover, was taken on trust: naming a claim, question, result or hypothesis as the scope showed that one node, hid the
