@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: the trust boundary, reviewed before launch
+## Unreleased: the trust boundary and verification, reviewed before launch
 
 A pre-launch review of who may write as whom, through every interface. Each fix has a test that failed first
 (`tests/test_trust_boundary.py`).
@@ -28,6 +28,22 @@ A pre-launch review of who may write as whom, through every interface. Each fix 
   MCP `verify` tool): it is a hash over sealed bodies, and a reader that is sealed has no use for it.
 - **SECURITY.md rewritten** for what the record enforces, which interface is trusted, what tokens do and don't
   protect (writes, not reads), what blind orders protect and where they don't apply, and what verification shows.
+
+Verification against a published head, and a clean-install walkthrough in CI:
+
+- **`hypgraph verify --head HEX`** (and `verify_bundle(b, head=...)`, `anchored(res, head)`) fails unless the chain
+  ends at a head published elsewhere. A chain only shows it is consistent with itself: whoever can write a record can
+  change a claim and recompute every hash, or cut the record short, and it still verifies. `tests/test_anchoring.py`
+  does both and shows each verifying on its own and failing against the published head. `verify` now prints the full
+  head, the thing to publish.
+- **[docs/verification.md](docs/verification.md)** separates the four guarantees (internal consistency, not
+  rewritten since published, provenance of the evidence, truth of a claim) and shows how to publish and sign a head
+  with tools readers already have (a paper, a signed tag, `ssh-keygen -Y sign`, a timestamp).
+- **`dev/e2e_install.py`** installs HypGraph into a fresh environment and does what the README and `--help` say, as
+  someone who has never seen the repository: a record, an experiment and its result, a claim accepted and one refused
+  with the honest version, a review, an export, and verification elsewhere with no graph file. CI runs it on the
+  built wheel (with the MCP extra) and on the sdist, on Ubuntu and Windows; the release job runs it before
+  publishing.
 
 ## 0.7.11 — 2026-10-30: a sealed checker can't learn the answer by asking
 

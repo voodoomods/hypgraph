@@ -21,6 +21,10 @@ jobs:
         run: |
           python -m venv /tmp/w && /tmp/w/bin/pip install dist/*.whl
           cd /tmp && /tmp/w/bin/hypgraph demo >/dev/null && /tmp/w/bin/hypgraph verify
+      - name: The wheel and the sdist do what the docs say, from a clean install (dev/e2e_install.py)
+        run: |
+          python dev/e2e_install.py dist/*.whl --mcp
+          python dev/e2e_install.py dist/*.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: dist

@@ -101,7 +101,9 @@ HypMesh for every reader, and by any host that answers through `blind.dispatch` 
   whole chain, and the result verifies. To rule that out, compare the bundle's `head` with a copy of the head
   published somewhere its holder doesn't control: a paper, a preregistration, a signed tag or release, a timestamping
   service. A bundle whose chain verifies **and** whose head matches the published one can't have been rewritten since.
-  The authenticity of that published copy is outside the record.
+  `hypgraph verify bundle.json --head HEX` (or `verify_bundle(b, head=...)`) does that comparison and fails on a
+  mismatch; [docs/verification.md](docs/verification.md) shows how to publish and sign a head. The authenticity of
+  that published copy is outside the record.
 - **Scoped bundles are partial.** Events outside the exported investigation are redacted and their content can't be
   checked. The verifier says how many.
 - **Pinned references** between records check that the cited node's body still hashes to the pinned version. They
@@ -115,5 +117,5 @@ HypMesh for every reader, and by any host that answers through `blind.dispatch` 
 - Give each agent its own token naming its author; give reviewers their own tokens; keep `*` tokens for tools that
   never review.
 - Run blind checkers through `hypgraph mcp` (or HypMesh), with the order issued before the seat starts.
-- Publish the head of every record you rely on, and verify bundles against it.
+- Publish the head of every record you rely on, and verify bundles against it with `--head`.
 - Keep the record file out of reach of the agents writing to it.
