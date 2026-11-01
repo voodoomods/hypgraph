@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.21 — 2026-11-01: counts at the claim's figure, scoped negation, conduct by kind
 
 Fixes from an independent audit of 0.7.20 (HG-020-01 to -04); each case below failed on 0.7.20 and is now a test.
 
