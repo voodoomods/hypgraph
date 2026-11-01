@@ -134,13 +134,16 @@ def carried(problems: list[dict], statement: str) -> bool:
     carried when one clause holds every figure it named (the '=…' words) again AND still asserts an extreme or an
     absolute about them ("the highest value is 93", "nothing beats 93"): mentioning the old figure in a correction
     ("1 of 82 routes is shorter than 26 km") is not saying it again. A source contradiction is carried when the
-    statement still denies or doubts the same word."""
+    statement still denies or doubts the same word, or still says the unit the source ruled out."""
     from . import checks
     denied = checks.denied_words(statement or "")
     clauses = [c for c in _CLAUSE.split(statement or "") if c.strip()]
     for p in problems:
         words = [str(w) for w in p.get("words") or []]
         if p.get("code") == "SOURCE_CONTRADICTS" and set(words) & (denied | checks.doubted_words(statement or "")):
+            return True
+        units = {w[5:] for w in words if w.startswith("unit:")}           # the unit a source ruled out
+        if p.get("code") == "SOURCE_CONTRADICTS" and units & checks.asserted_units(statement or ""):
             return True
         figs = [float(w[1:]) for w in words if w.startswith("=") and w[1:].replace(".", "", 1).isdigit()]
         if p.get("code") != "COUNT_CONTRADICTS" or not figs:
@@ -344,7 +347,8 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
     whose author's last word on them (its last fix, repeat or move away, in log order) says them again;
     ``moved_off``: claims it last moved away from without a fix; ``ends_false``: the author's last write was itself
     shown false or said a contradicted claim again (a fresh false claim at the end counts, which ``still_saying``,
-    being per claim, can't see)."""
+    being per claim, can't see). ``shown_false`` is not a rate of lying: it adds up two kinds of evidence, and a cited
+    source can itself be wrong. Read the parts, and what the author did next, not the total."""
     con = g._connect()
     q, args = "SELECT id, kind, author, ref, codes, detail FROM refusal_log WHERE 1=1", []
     for col, val in (("inv", inv), ("author", author)):

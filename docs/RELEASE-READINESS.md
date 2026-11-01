@@ -99,6 +99,21 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #83 is merged with green CI (17 of 17 checks); from the 0.7.21 wheel in a fresh venv the
 > suite is 466 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.21.
 
+> **Audit of 0.7.21 (2026-11-01), fixed for 0.7.22.** A second independent audit found three ways a false claim still
+> got in, each reproduced on the 0.7.21 wheel, and a design point: renaming the count of 2 beyond 93 "worth more than
+> 140" moved it off "the highest value is 93" (HG-021-01); a true "nothing worth more than 140 fits" beside that false
+> extreme ended the check (HG-021-02); and "the recorded weights are in pounds", citing the note that they are in
+> kilograms, was never compared with it because it denied nothing (HG-021-03). `shown_false` was open to being read as
+> a lying rate (HG-021-04). A result can now state a count's figure, and a label can only widen what a count refutes;
+> every absolute and extreme in a claim is checked; units of one kind rule each other out against a cited source; the
+> conduct docstring says `shown_false` is not a lying rate. Each case is a regression test written to fail on 0.7.21.
+> Replaying 360 recorded adversarial trials (1,900 entries): 5 entries change, all the units liar's; no honest or
+> mistaken party's entry changes; two more parties still saying the false unit are named and no one new is misnamed.
+>
+> **Where that stands.** #85 is merged with green CI (17 of 17 checks); from the 0.7.22 wheel in a fresh venv the
+> suite is 482 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. The audit asks for a fresh
+> independent audit before anyone claims 0.7.22 resists these attack classes. Released as 0.7.22.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
