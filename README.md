@@ -6,11 +6,11 @@ The evidence layer for AI research agents.<br>
 <a href="https://hypgraph.com">hypgraph.com</a> · <a href="https://hypgraph.com/agents/">for agents</a> ·
 <a href="https://hypgraph.com/engineers/">for engineers</a> · <a href="https://hypgraph.com/spec/">record format</a></p>
 
-<p align="center"><a href="https://hypgraph.com/explore/#view=graph&node=CL1"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://hypgraph.com/assets/readme/standing-dark.png">
-  <img src="https://hypgraph.com/assets/readme/standing-light.png" width="880" alt="The HypGraph UI on the Broad Street, 1854 record: the evidence graph, with claim CL1 open showing its derived standing — checked, 2 independent lines of support, replicated on new data">
-</picture></a></p>
-<p align="center"><sub>A record in the HypGraph UI: what rests on what, and how well each claim is known. <a href="https://hypgraph.com/explore/#view=graph&node=CL1">Open it live</a>.</sub></p>
+<p align="center"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://hypgraph.com/assets/readme/record-dark.png">
+  <img src="https://hypgraph.com/assets/readme/record-light.png" width="880" alt="The Graph view of a real research record: one question at the centre, 27 hypotheses around it, experiments and runs fanning out into 90 results, and 22 claims at the rim">
+</picture></p>
+<p align="center"><sub>A real research record in the HypGraph UI: one question, 27 hypotheses, 12 experiments and their runs, 90 results, 22 claims, 395 hash-chained events. <a href="https://hypgraph.com/examples/">Open an example live</a>.</sub></p>
 
 ---
 

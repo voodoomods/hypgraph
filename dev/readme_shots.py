@@ -1,20 +1,25 @@
 """Dev: photograph the website for the README, light and dark, into site/assets/readme/ (served at hypgraph.com).
 
     pip install playwright pillow && playwright install chromium     # dev only; the package never needs them
-    python dev/build_site.py && python dev/readme_shots.py
+    python dev/build_site.py && python dev/readme_shots.py [--record BUNDLE]
 
 The README is also the PyPI page, so it links the pictures by absolute hypgraph.com URL: they show there once the
 site is deployed. Serves site/ on a free local port; reads nothing from the network.
 
+    record-<theme>.png      the Graph view of a large real record (--record: a bundle exported with `hypgraph
+                            export`; only the graph's node codes are photographed, never its titles or text, and
+                            the bundle itself is not published). Without --record the existing pictures are kept.
     linked-<theme>.png      three records joined by pinned references (examples/linked/, Graph view)
     refusals-<theme>.png    overclaims the engine refused, each with its code and the accepted rewrite (home page)
-    standing-<theme>.png    the Broad Street record with a claim's standing open (explore/, Graph view, node CL1)
 """
 from __future__ import annotations
 
+import argparse
 import functools
 import http.server
 import io
+import shutil
+import tempfile
 import threading
 from pathlib import Path
 
@@ -28,15 +33,32 @@ PAD = 20                         # CSS px around an element shot
 
 # name, page, element to photograph, viewport
 SHOTS = [
+    ("record", "_record/#view=graph", "#hg-graph", (1500, 1250)),
     ("linked", "examples/linked/#view=graph", "#hg-graph", (1600, 1000)),
     ("refusals", "", "#refusals", (1400, 1000)),
-    ("standing", "explore/#view=graph&node=CL1", None, (1600, 1000)),
 ]
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
+    record_dir: Path | None = None       # served at /_record/: the explorer page opened on the --record bundle
+
+    def translate_path(self, path):
+        if self.record_dir and path.startswith("/_record/"):
+            return str(self.record_dir / path[len("/_record/"):].split("?")[0].split("#")[0] or "index.html")
+        return super().translate_path(path)
+
     def log_message(self, *a):
         pass
+
+
+def record_page(bundle: Path, into: Path) -> None:
+    """The explorer page (site/explore/) opened on a local bundle, so its paths still resolve against site/."""
+    page = (SITE / "explore" / "index.html").read_text(encoding="utf-8")
+    mount = '<div data-hypgraph data-main="on" data-hash="on"'
+    if page.count(mount) != 1:
+        raise SystemExit("site/explore/index.html: the app mount moved; update record_page")
+    (into / "index.html").write_text(page.replace(mount, mount + ' data-bundle="record.bundle.json"'), encoding="utf-8")
+    shutil.copyfile(bundle, into / "record.bundle.json")
 
 
 def save(png: bytes, path: Path) -> None:
@@ -48,21 +70,29 @@ def save(png: bytes, path: Path) -> None:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--record", type=Path, help="a bundle (.json) to photograph as record-<theme>.png")
+    args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
+    tmp = tempfile.TemporaryDirectory()
+    if args.record:
+        record_page(args.record, Path(tmp.name))
+        Quiet.record_dir = Path(tmp.name)
+    shots = [s for s in SHOTS if s[0] != "record" or args.record]
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(SITE)))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{srv.server_address[1]}/"
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            for name, page, sel, (w, h) in SHOTS:
+            for name, page, sel, (w, h) in shots:
                 for theme in ("light", "dark"):
                     path, _, frag = page.partition("#")
                     pg = browser.new_page(viewport={"width": w, "height": h}, device_scale_factor=2)
                     errors: list[str] = []
                     pg.on("pageerror", lambda e: errors.append(str(e)))
                     pg.goto(f"{base}{path}?theme={theme}" + (f"#{frag}" if frag else ""), wait_until="networkidle")
-                    pg.wait_for_timeout(6000)        # the graph layout settles and linked records load
+                    pg.wait_for_timeout(9000)        # the graph layout settles and linked records load
                     if errors:
                         raise SystemExit(f"{name} ({theme}): {errors[0]}")
                     clip = None
@@ -80,6 +110,7 @@ def main() -> None:
             browser.close()
     finally:
         srv.shutdown()
+        tmp.cleanup()
 
 
 if __name__ == "__main__":
