@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+Fixes from an independent audit of 0.7.24 (HG-024-01 to -04); each case below failed on 0.7.24 and is now a test
+(`tests/test_counts_that_bear.py`).
+
+- **A count with no comparison doesn't back one** (HG-024-01). With no comparison of its own, a count of none or all
+  was read the old way, so "3 of 3 routes processed" backed "nothing is longer than 26 km" and "every route is longer
+  than 26 km". A count that states no comparison now doesn't bear on a claim that rules one out
+  (`ABSOLUTE_WITHOUT_COUNT`). A claim with no comparison ("no route ever failed") reads a plain count as before.
+- **A count of one kind doesn't back a claim about another** (HG-024-02). A count and a claim were matched on any shared
+  word, so none of 3 cargo routes longer than 26 km backed "no passenger route is longer than 26 km" while the passenger
+  count was 1 of 3, and backed "no route is longer" too. A count names what it counts in the plural ("cargo routes");
+  where the statement uses that word, the words right before it say which kind. A count backs a claim only if every
+  kind it names is one the statement names; a count of one kind that finds some still refutes a claim about all, and
+  two kinds named apart (cargo, passenger) are left unresolved.
+- **Two comparisons joined in one clause** (HG-024-03). "And" ended the clause, so "no route is shorter than 20 km and
+  longer than 30 km" was refused by a route shorter than 20, and "every route is longer than 10 km and shorter than 30
+  km" went in with "shorter than 30" unread, even with the count that refutes it bound. An "and" or "or" before a
+  comparison with no subject of its own now keeps it in the clause. "No … A or B" and "every … A and B" are false if
+  either part fails; "no … A and B" and "every … A or B" rule out only what meets both, so none of one part backs them
+  and a count of each part on its own leaves them unresolved.
+- **A count's name must say its boundary** (HG-024-04). Only a name pointing the other way was caught: a `>=` count
+  named "routes longer than 26 km", or a `>` count named "26 km or longer", went in. A name that leaves the figure out
+  where the count took it in, or the other way round, is now `MEASUREMENT_MISMATCH`.
+
 ## 0.7.24 — 2026-11-01: what a quantifier needs, where a comparison's boundary falls, one check per extreme
 
 Fixes from an independent audit of 0.7.23 (HG-023-01 to -05); each case below failed on 0.7.23 and is now a test.
