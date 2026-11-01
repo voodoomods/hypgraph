@@ -253,6 +253,53 @@ def _enumerated(stmt: str, word: str) -> bool:
 _PROVEN = re.compile(r"^prov(?:es?|en|ed)$|^proof$", re.I)
 
 
+# the figure a count is about: "fitting selections worth more than 93", "routes shorter than 26 km" (or, matching a
+# figure the claim names, "worth_more_93"). A count of nothing beyond 140 says nothing about 93 (audit HG-020-01/02).
+_COUNT_FIGURE = re.compile(r"\b(?:(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
+                           r"slower|larger|smaller)\s+than|above|below|over|under|beyond|exceed\w*|beat\w*)\s+\$?"
+                           r"(-?\d[\d,]*(?:\.\d+)?)", re.I)
+_KEY_FIGURE = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
+                         r"slower|larger|smaller|above|below|over|under|beyond|exceed\w*|beat\w*)(?:\s+than)?\s+"
+                         r"(\d+(?:\.\d+)?)$", re.I)
+# the figure an absolute names in its own clause: "nothing worth more than 93 fits", "no route is shorter than 26 km"
+_CLAIM_FIGURE = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
+                           r"slower|larger|smaller)\s+than\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\b(?:above|below|beyond|"
+                           r"exceed(?:s|ing)?)\s+\$?(-?\d[\d,]*(?:\.\d+)?)", re.I)
+_SUBCLAUSE = re.compile(r",(?!\d)|[;:!?()]|\.(?!\d)|\b(?:and|but|while|whereas|although|so)\b", re.I)
+
+
+def _count_figure(m: dict, figs: set[float] = frozenset()) -> float | None:
+    """The figure a bound count is about, or None when it names none. Its name says it ("more than 93"). A key is an
+    identifier, and the number at its end may only tell repeated counts apart ("fitting_selections_worth_more_2" is
+    the second count, not one beyond 2), so a key's number is read as the figure only when it is one of ``figs``, the
+    figures the claim names ("worth_more_93" beside "the highest is 93")."""
+    hit = _COUNT_FIGURE.search(str(m.get("name") or ""))
+    if hit:
+        return float(hit.group(1).replace(",", ""))
+    hit = _KEY_FIGURE.search(str(m.get("key") or "").replace("_", " "))
+    if hit and float(hit.group(1).replace(",", "")) in figs:
+        return float(hit.group(1).replace(",", ""))
+    return None
+
+
+def _absolute_figures(stmt: str, w: str) -> set[float]:
+    """The figures an absolute is about: one its own clause compares against ("nothing worth more than 93 fits"),
+    else the figures the statement's extremes name ("the highest is 93; nothing worth more fits")."""
+    figs: set[float] = set()
+    for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
+        end = next((x.start() for x in _SUBCLAUSE.finditer(stmt, m.end())), len(stmt))
+        figs |= {float((h.group(1) or h.group(2)).replace(",", "")) for h in _CLAIM_FIGURE.finditer(stmt[m.end():end])}
+    return figs or _extreme_figures(stmt)
+
+
+def _bears(m: dict, figs: set[float]) -> bool:
+    """Does this count bear on a claim about ``figs``? One about another figure doesn't, whatever it finds: a zero
+    beyond 140 can't vouch for 93, and two beyond 93 can't refute 95. A count that names no figure, or a claim that
+    names none, is read as before."""
+    f = _count_figure(m, figs)
+    return f is None or not figs or f in figs
+
+
 def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     words = [w for w in L.asserted(L.ABSOLUTE, stmt) if not _enumerated(stmt, w)]
     if any(str(m.get("key") or "").lower() in ("gap", "bound") for m, _rv in bound):
@@ -261,10 +308,17 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     if not words:
         return _superlative_contradicted(stmt, bound)
     w = words[0]
-    arms = [(m, rv, _arm(rv)) for m, rv in bound if _arm(rv)]
+    figs = _absolute_figures(stmt, w)
+    arms = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, figs)]
+    about = L.content_words(stmt)
+    # a count at the claim's own figure that finds exceptions refutes it, whatever else is bound beside it
+    pinned = [(m, a) for m, _rv, a in arms if 0 < a[0] < a[1] and figs and _count_figure(m, figs) in figs
+              and L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about]
+    if pinned:
+        m, (k, n) = max(pinned, key=lambda x: x[1][1])
+        return [_count_contradicts(stmt, w, words, m, k, n)]
     exact = [(m, rv, a) for m, rv, a in arms if a[0] in (0, a[1])]
     if not exact:
-        about = L.content_words(stmt)
         against = [(m, a) for m, _rv, a in arms if 0 < a[0] < a[1]
                    and L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about]
         if against:
@@ -411,9 +465,16 @@ def _superlative_contradicted(stmt: str, bound: list) -> list[Problem]:
     if not sup:
         return []
     about = L.content_words(stmt)
-    rel = [(m, a) for m, rv in bound if (a := _arm(rv))
+    figs = _extreme_figures(stmt)
+    rel = [(m, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, figs)
            and (L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about
                 or _BEYOND.search(f"{m.get('name', '')} {m.get('key', '')}".replace("_", " ")))]
+    # a count beyond the extreme's own figure that finds some refutes it, whatever else is bound beside it
+    pinned = [(m, a) for m, a in rel if 0 < a[0] < a[1] and figs and _count_figure(m, figs) in figs
+              and not _qualified(stmt, *a)]
+    if pinned:
+        m, (k, n) = max(pinned, key=lambda x: x[1][1])
+        return [_count_contradicts(stmt, sup[0], sup, m, k, n)]
     if not rel or any(a[0] in (0, a[1]) for _m, a in rel):
         return []
     against = [(m, a) for m, a in rel if 0 < a[0] < a[1] and not _qualified(stmt, *a)]
@@ -487,6 +548,24 @@ def _subject_numbers(stmt: str, k: int, n: int) -> list[float]:
 _DENIAL = re.compile(r"(?:\bnot\b|\bnever\b|n't\b|\brather than\b|\binstead of\b)\s+((?:[A-Za-z]+\s+)?[A-Za-z]+)",
                      re.I)
 _PASSAGE_NEGATION = re.compile(r"\b(not|no|never|none|nor|neither|without)\b|n't\b", re.I)
+# where a negation's reach ends: "every weight is in kilograms, not pounds" negates pounds, not kilograms
+_NEGATION_ENDS = re.compile(r",(?!\d)|[;:()]|\b(?:but|while|whereas|although|though|yet|instead)\b", re.I)
+
+
+def _unnegated(sent: str) -> str:
+    """A source sentence less what its negations reach: from each "not" / "never" / "no" ... to the end of its clause.
+    "Every recorded weight is in kilograms, not pounds" still asserts kilograms; "the weights were not recorded in
+    kilograms" asserts nothing about kilograms. (0.7.20 dropped any sentence with a negation in it, so a source saying
+    "kilograms, not pounds" supported a claim of pounds; audit HG-020-03.)"""
+    out, i = [], 0
+    for m in _PASSAGE_NEGATION.finditer(sent):
+        if m.start() < i:
+            continue
+        out.append(sent[i:m.start()])
+        end = _NEGATION_ENDS.search(sent, m.end())
+        i = end.start() if end else len(sent)
+    out.append(sent[i:])
+    return "".join(out)
 
 
 def denied_words(stmt: str) -> set[str]:
@@ -548,23 +627,21 @@ def _asserted_words(sent: str) -> list[str]:
 
 
 def _affirmed_in(passage: str, stem: str) -> str:
-    """The sentence of ``passage`` that asserts a word with this stem without negating anything, or ''."""
+    """The sentence of ``passage`` that asserts a word with this stem outside the reach of any negation, or ''."""
     for sent in re.split(r"(?<=[.!?;])\s+", passage or ""):
-        if stem in L.content_words(sent) and not _PASSAGE_NEGATION.search(sent):
+        if stem in L.content_words(_unnegated(sent)):
             return sent.strip()
     return ""
 
 
 def _doubted_in(passage: str, doubted: set[str]) -> tuple[list[str], str] | None:
-    """The words a plain (un-negated) sentence of ``passage`` asserts ("every weight ... is in kilograms") that the
-    statement doubts, and the sentence. Doubting a source's subject ("whether the container is available") is not
-    doubting what it says of it ("the container takes at most 36 kg")."""
+    """The words a sentence of ``passage`` asserts outside the reach of any negation ("every weight ... is in
+    kilograms, not pounds" asserts kilograms) that the statement doubts, and the sentence. Doubting a source's subject
+    ("whether the container is available") is not doubting what it says of it ("the container takes at most 36 kg")."""
     if not doubted:
         return None
     for sent in re.split(r"(?<=[.!?;])\s+", passage or ""):
-        if _PASSAGE_NEGATION.search(sent):
-            continue
-        hit = list(dict.fromkeys(w for w in _asserted_words(sent) if w in doubted))
+        hit = list(dict.fromkeys(w for w in _asserted_words(_unnegated(sent)) if w in doubted))
         if hit:
             return hit, sent.strip()
     return None

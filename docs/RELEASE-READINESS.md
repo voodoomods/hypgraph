@@ -88,6 +88,17 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #81 is merged with green CI (17 of 17 checks); from the 0.7.20 wheel in a fresh venv the
 > suite is 450 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.20.
 
+> **Audit of 0.7.20 (2026-11-01), fixed for 0.7.21.** An independent audit found three false verdicts and a design
+> point, each reproduced on the 0.7.20 wheel: a zero count at another figure cancelled the count that refutes a claim
+> (HG-020-01), a count at another figure refuted a true extreme (HG-020-02), a "not" anywhere in a source sentence hid
+> what it asserts (HG-020-03), and conduct counted a claim that goes against its own citation as shown false and read
+> intent into it (HG-020-04). Counts now bear only at the figure the claim names, a negation reaches to the end of its
+> clause, and conduct reports `by_count` / `by_source` and describes behaviour, not intent. Each case is a regression
+> test written to fail on 0.7.20. Replaying 360 recorded adversarial trials gives the same standings as 0.7.20.
+>
+> **Where that stands.** #83 is merged with green CI (17 of 17 checks); from the 0.7.21 wheel in a fresh venv the
+> suite is 466 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.21.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
