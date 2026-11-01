@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased: a count points one way, "no route is longer", what a unit is said of
+
+Fixes from an independent audit of 0.7.22 (HG-022-01 to -05); each case below failed on 0.7.22 and is now a test.
+
+- **A count points one way** (HG-022-01, -02). A count of routes longer than 26 km matched "the shortest route is
+  26 km" on the figure, so the true claim was refused as `COUNT_CONTRADICTS`; and a count of none shorter than 26
+  backed "nothing is longer than 26 km". Comparisons now carry a direction on an axis ("longer" / "shorter",
+  "faster" / "slower"; "more", "above", "highest" meet any axis), and a count that points the other way from the
+  claim's exceptions neither refutes nor backs it. A result can state the comparison with the count
+  (`{"k": 2, "n": 3, "figure": 26, "op": ">"}`); that is the only direction, and a measurement whose name points the
+  other way is refused as `MEASUREMENT_MISMATCH`. Without one, a name and key that point opposite ways can widen what
+  a count refutes, never what it backs.
+- **"No route is longer than 26 km" is an absolute** (HG-022-02), like "nothing is longer": it needs a count of
+  exceptions. Only a "no" that opens its clause, followed within three words by a copula and a comparison, is read
+  this way ("routes that visit no town twice" is not one).
+- **A unit of record said with a verb** (HG-022-03). Only "is / are / was / were" stated a unit, so "recorded parcel
+  weights use pounds" went in beside the note that every recorded parcel weight is in kilograms. A short, fixed list
+  is read too: use, recorded / measured / expressed / given / listed / reported / denominated / kept / stated /
+  written / logged / entered / priced / quoted in. A hedge ("might be recorded in pounds") asserts nothing.
+- **Two things that share a word are two things** (HG-022-04). "Passenger weights are recorded in pounds" was refused
+  against a source saying shipping weights are in kilograms, on the word "weights". A unit is now compared only when
+  the two subjects have the same head and don't each carry modifiers the other lacks entirely; every clause of the
+  source is read, and one that says the claim's unit of that thing means no contradiction.
+- **A quantity is not a unit of record** (HG-022-05). "The parcel mass is about 2.2 pounds", citing "the parcel mass
+  is one kilogram", was refused: a unit after a number ("2.2 pounds", "one kilogram", "36 kg") is a quantity, and
+  isn't compared. The refusal no longer says a quantity can't be in two units; it says the source doesn't support the
+  statement.
+- Limits: which thing a subject names and which unit a record uses are read from words, not typed; conversions
+  aren't checked, so "2.2 pounds" against "50 kilograms" goes in; verbs outside the list aren't read; the "no X is
+  longer" pattern is narrow ("there is no route longer" isn't read); and a direction is read only from the comparison
+  words above.
+
 ## 0.7.22 — 2026-11-01: a label can't move a count, every part of a claim is checked, units rule each other out
 
 Fixes from an independent audit of 0.7.21 (HG-021-01 to -04); each case below failed on 0.7.21 and is now a test.
