@@ -80,6 +80,14 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #79 is merged with green CI (17 of 17 checks); from the 0.7.19 wheel in a fresh venv the
 > suite is 436 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.19.
 
+> **Claims the record can show false (2026-11-01), for 0.7.20.** A claim a bound count contradicts is refused as
+> `COUNT_CONTRADICTS` (including an extreme no answer reaches), a claim citing a source that asserts the opposite or
+> doubts it as `SOURCE_CONTRADICTS`, and `Graph.conduct()` tells an author who corrected from one who said it again.
+> Tests: `tests/test_contradictions.py`.
+>
+> **Where that stands.** #81 is merged with green CI (17 of 17 checks); from the 0.7.20 wheel in a fresh venv the
+> suite is 450 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.20.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
