@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.19 — 2026-10-31: linked records, drawn together
 
 - **The Explorer draws linked records together.** When an investigation pins nodes of other records (pinned
   references, 0.7.8), its graph now draws each of those records beside it, each in its own box, and follows their

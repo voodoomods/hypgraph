@@ -70,6 +70,16 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #77 is merged with green CI (17 of 17 checks); from the 0.7.18 wheel in a fresh venv the
 > suite is 431 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.18.
 
+> **Linked records (2026-10-31), for 0.7.19.** The Explorer now draws the records an investigation pins beside it,
+> and the records those pin in turn (three links, twelve records at most by default), each in its own box, with every
+> pin drawn to the node it names. Nothing is merged: each record is read as its own bundle with its chain re-verified,
+> and each pin is checked against the version it names by hashing the exact stored body; `checkPin` is held to
+> `verify_reference`'s verdicts. Another site is read only when the viewer asks. The site has a worked example of three
+> linked records in five languages. Tests: `tests/test_linked_records.py`; `dev/ui_smoke.py` 149 of 149 pages.
+>
+> **Where that stands.** #79 is merged with green CI (17 of 17 checks); from the 0.7.19 wheel in a fresh venv the
+> suite is 436 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.19.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
