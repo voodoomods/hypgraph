@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: a label can't move a count, every part of a claim is checked, units rule each other out
+## 0.7.22 — 2026-11-01: a label can't move a count, every part of a claim is checked, units rule each other out
 
 Fixes from an independent audit of 0.7.21 (HG-021-01 to -04); each case below failed on 0.7.21 and is now a test.
 
