@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.25 — 2026-11-01: which counts bear on a claim, joined comparisons, boundaries in names
 
 Fixes from an independent audit of 0.7.24 (HG-024-01 to -04); each case below failed on 0.7.24 and is now a test
 (`tests/test_counts_that_bear.py`).

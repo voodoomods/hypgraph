@@ -149,6 +149,23 @@ was taken from a changelog without being checked against the code.*
 > claim layer (subject, property, comparator, threshold, unit, quantifier) so that strong verdicts rest on typed fields
 > rather than prose; that is not built. Released as 0.7.24.
 
+> **Audit of 0.7.24 (2026-11-01), fixed for 0.7.25.** A fifth independent audit named four candidate defects; each
+> reproduced on the PyPI 0.7.24 wheel, plus four of the same kind. A count with no comparison of its own ("3 of 3
+> routes processed") backed "nothing is longer than 26 km" and "every route is longer" (HG-024-01). A count of cargo
+> routes backed a claim about passenger routes, and about every route, because they shared the word "route"
+> (HG-024-02). "And" ended a clause, so a true "no route is shorter than 20 km and longer than 30 km" was refused,
+> and "every route is longer than 10 km and shorter than 30 km" went in with its second half unread, even beside the
+> count that refutes it (HG-024-03). A `>=` count named "longer than 26 km" went in (HG-024-04). A count that states no
+> comparison no longer bears on one; a count backs only a claim whose kinds it names, and kinds named apart are
+> unresolved; a comparison joined by "and" / "or" stays in its clause and is read as both or either; a name must say
+> the boundary its count used. Each case is a regression test written to fail on 0.7.24. Replaying the 1,900 recorded
+> adversarial entries changes 7: one honest correction is no longer refused, and one correction that got in only
+> because an unrelated zero count backed it (the HG-024-01 case) is now refused; none of the entries tries these cases.
+>
+> **Where that stands.** #91 is merged with green CI (17 of 17 checks); from the 0.7.25 wheel in a fresh venv the
+> suite is 574 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Kinds are read from a plural noun
+> and the words before it, a heuristic; the typed claim layer the audits recommend is not built. Released as 0.7.25.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
