@@ -6,6 +6,12 @@ The evidence layer for AI research agents.<br>
 <a href="https://hypgraph.com">hypgraph.com</a> · <a href="https://hypgraph.com/agents/">for agents</a> ·
 <a href="https://hypgraph.com/engineers/">for engineers</a> · <a href="https://hypgraph.com/spec/">record format</a></p>
 
+<p align="center"><a href="https://hypgraph.com/explore/#view=graph&node=CL1"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://hypgraph.com/assets/readme/standing-dark.png">
+  <img src="https://hypgraph.com/assets/readme/standing-light.png" width="880" alt="The HypGraph UI on the Broad Street, 1854 record: the evidence graph, with claim CL1 open showing its derived standing — checked, 2 independent lines of support, replicated on new data">
+</picture></a></p>
+<p align="center"><sub>A record in the HypGraph UI: what rests on what, and how well each claim is known. <a href="https://hypgraph.com/explore/#view=graph&node=CL1">Open it live</a>.</sub></p>
+
 ---
 
 Agents doing research write fluent summaries. Some of the numbers in them match no result. A clean red-team run of
@@ -28,6 +34,15 @@ The honest version goes in, and it carries its consequence wherever it's read:
 ```text
 active claim · unchecked · 1 independent line of support · … · 0 of 50 = at most 5.8% at 95%, up to 58,155 of 1,000,000 not ruled out
 ```
+
+On the website, the same engine refused these as the page was built. Each gets a code and what to fix; the
+rewrite underneath, on the same evidence, got in:
+
+<p align="center"><a href="https://hypgraph.com/play/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://hypgraph.com/assets/readme/refusals-dark.png">
+  <img src="https://hypgraph.com/assets/readme/refusals-light.png" width="880" alt="Three overclaims struck through — 'always beats the baseline', '5 points better', 'never leaks training data' — each with its refusal code and what to fix, and the honest rewrite accepted as CL1, CL2, CL3">
+</picture></a></p>
+<p align="center"><sub>Try to get a claim past it yourself: <a href="https://hypgraph.com/play/">hypgraph.com/play</a>.</sub></p>
 
 ## The arithmetic of never
 
@@ -100,6 +115,15 @@ Nothing in the record is ever *set* as known. How well each claim is known is **
 
 Every write is an event in a **SHA-256 hash chain**. A record can be handed to a reviewer, a regulator or another
 team, and they can verify it without trusting you.
+
+Records can build on each other. A source in one record pins a node of another: the version it read and that
+version's hash. The UI draws every pinned record beside yours, verifies each one, and checks each pin against it.
+
+<p align="center"><a href="https://hypgraph.com/examples/linked/#view=graph"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://hypgraph.com/assets/readme/linked-dark.png">
+  <img src="https://hypgraph.com/assets/readme/linked-light.png" width="880" alt="Three hash-chained records drawn together — London's water 1854–1866, Broad Street 1854 and East London 1866 — joined by pinned references labelled with the version each one read, every pin checked">
+</picture></a></p>
+<p align="center"><sub>Three records, each its own hash chain, joined only by pinned references. <a href="https://hypgraph.com/examples/linked/#view=graph">Open it live</a>.</sub></p>
 
 ## One record, five disciplines
 
