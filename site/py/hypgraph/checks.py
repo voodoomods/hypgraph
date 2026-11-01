@@ -207,14 +207,14 @@ def _bound(s: Snap, meas: list) -> tuple[list[tuple[dict, dict]], list[Problem]]
                     problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name') or i + 1}: says "
                                             f"{k}={m[k]} but result {m['result']} has {rv[k]}"))
                     bad = True
-        said, f = _COUNT_FIGURE.search(str(m.get("name") or "")), stated_figure(rv)
-        if not bad and said and f is not None and float(said.group(1).replace(",", "")) != f:
+        said, f = _named_figure(str(m.get("name") or "")), stated_figure(rv)
+        if not bad and said and f is not None and said[0] != f:
             problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name')}: its name says "
-                                    f"{said.group(0).strip()}, but result {m['result']} counted '{m['key']}' against "
+                                    f"{said[1]}, but result {m['result']} counted '{m['key']}' against "
                                     f"{_fmt(f)}", fix=f"name the count after {_fmt(f)}, the figure it was made against"))
             bad = True
         op, named = stated_op(rv), _directions(str(m.get("name") or ""))
-        if not bad and op and any(_opposed(d, ("", _OPS[op])) for d in named):
+        if not bad and _OPS.get(op) and any(_opposed(d, ("", _OPS[op][0])) for d in named):
             problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name')}: its name points the other "
                                     f"way from what result {m['result']} counted for '{m['key']}' ({op})",
                                     fix=f"name the count after the comparison it made ({op})"))
@@ -270,6 +270,23 @@ _PROVEN = re.compile(r"^prov(?:es?|en|ed)$|^proof$", re.I)
 _COUNT_FIGURE = re.compile(r"\b(?:(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
                            r"slower|larger|smaller)\s+than|above|below|over|under|beyond|exceed\w*|beat\w*)\s+\$?"
                            r"(-?\d[\d,]*(?:\.\d+)?)", re.I)
+# the figure a name gives before its comparison or with "at least": "routes 26 km or longer", "routes at least 26 km"
+_COUNT_FIGURE_BOUNDARY = re.compile(r"\bat\s+(?:least|most)\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\$?(-?\d[\d,]*(?:\.\d+)?)"
+                                    r"(?:\s+[a-z%]+){0,2}\s+or\s+(?:more|less|fewer|greater|higher|lower|better|worse|"
+                                    r"shorter|longer|cheaper|faster|slower|larger|smaller)\b", re.I)
+
+
+def _named_figure(name: str) -> tuple[float, str] | None:
+    """The figure a count's name says it is about, and the words that say it."""
+    hit = _COUNT_FIGURE.search(name or "")
+    if hit:
+        return float(hit.group(1).replace(",", "")), hit.group(0).strip()
+    hit = _COUNT_FIGURE_BOUNDARY.search(name or "")
+    if hit:
+        return float((hit.group(1) or hit.group(2)).replace(",", "")), hit.group(0).strip()
+    return None
+
+
 _KEY_FIGURE = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
                          r"slower|larger|smaller|above|below|over|under|beyond|exceed\w*|beat\w*)(?:\s+than)?\s+"
                          r"(\d+(?:\.\d+)?)$", re.I)
@@ -277,6 +294,9 @@ _KEY_FIGURE = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|wors
 _CLAIM_FIGURE = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
                            r"slower|larger|smaller)\s+than\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\b(?:above|below|beyond|"
                            r"exceed(?:s|ing)?)\s+\$?(-?\d[\d,]*(?:\.\d+)?)", re.I)
+_CLAIM_BOUNDARY = re.compile(r"\bat\s+(?:least|most)\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\$?(-?\d[\d,]*(?:\.\d+)?)"
+                             r"(?:\s+[a-z%]+){0,2}\s+or\s+(?:more|less|fewer|greater|higher|lower|better|worse|"
+                             r"shorter|longer|cheaper|faster|slower|larger|smaller)\b", re.I)
 _SUBCLAUSE = re.compile(r",(?!\d)|[;:!?()]|\.(?!\d)|\b(?:and|but|while|whereas|although|so)\b", re.I)
 
 
@@ -298,9 +318,9 @@ def _count_figures(m: dict, rv: dict, figs: set[float] = frozenset()) -> set[flo
     if f is not None:
         return {f}
     out: set[float] = set()
-    hit = _COUNT_FIGURE.search(str(m.get("name") or ""))
-    if hit:
-        out.add(float(hit.group(1).replace(",", "")))
+    named = _named_figure(str(m.get("name") or ""))
+    if named:
+        out.add(named[0])
     hit = _KEY_FIGURE.search(str(m.get("key") or "").replace("_", " "))
     if hit and (float(hit.group(1)) in figs or out):
         out.add(float(hit.group(1)))
@@ -323,86 +343,153 @@ _DIRECTION_WORDS = {
 }
 _DIRECTION_OF = {w: (axis, sign) for axis, signs in _DIRECTION_WORDS.items() for sign, ws in signs.items()
                  for w in ws.split()}
-_OPS = {">": 1, ">=": 1, "<": -1, "<=": -1}
+# a comparison is (axis, sign, strict): "longer than 26" is (long, +1, strict), "at least 26" and "26 or longer" are
+# not strict, so a route of exactly 26 lies inside them and outside "longer than" (audit HG-023-02). Six operators;
+# "=" and "!=" point nowhere.
+_OPS = {">": (1, True), ">=": (1, False), "<": (-1, True), "<=": (-1, False), "=": None, "!=": None}
+_CMP = r"(more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|dearer|faster|slower|larger|" \
+       r"smaller|bigger|earlier|later)"
+_NOT_STRICT = re.compile(r"\bat\s+(least|most)\b|\b(?:not|no)\s+" + _CMP + r"\s+than\b|\bor\s+" + _CMP + r"\b", re.I)
+
+
+def _comparisons_in(text: str) -> set[tuple[str, int, bool]]:
+    """Every comparison ``text`` makes, with its boundary: "at least", "at most", "not / no shorter than", "or
+    longer" include the figure; any other comparison word excludes it."""
+    text = (text or "").lower()
+    out = set()
+    for h in _NOT_STRICT.finditer(text):
+        if h.group(1):
+            out.add(("", 1 if h.group(1) == "least" else -1, False))
+        elif h.group(2):
+            axis, sign = _DIRECTION_OF[h.group(2)]
+            out.add((axis, -sign, False))
+        else:
+            out.add((*_DIRECTION_OF[h.group(3)], False))
+    rest = _NOT_STRICT.sub(" ", text)
+    return out | {(*_DIRECTION_OF[w], True) for w in re.findall(r"[a-z]+", rest) if w in _DIRECTION_OF}
 
 
 def _directions(text: str) -> set[tuple[str, int]]:
-    return {_DIRECTION_OF[w] for w in re.findall(r"[a-z]+", (text or "").lower()) if w in _DIRECTION_OF}
+    return {(axis, sign) for axis, sign, _strict in _comparisons_in(text)}
 
 
-def _opposed(a: tuple[str, int], b: tuple[str, int]) -> bool:
+def _opposed(a: tuple, b: tuple) -> bool:
     """Do these point opposite ways on one axis? An axis-free word ("more") meets any axis; two different axes
     ("longer", "faster") can't be compared, so they aren't opposed."""
     return a[1] != b[1] and (a[0] == b[0] or not a[0] or not b[0])
 
 
+def _within(inner: tuple, outer: tuple) -> bool:
+    """Does every value ``inner`` takes lie in ``outer``? Same way on one axis, and the boundary inside ``outer`` if it
+    is inside ``inner``: "longer than 26" lies within "at least 26", not the other way round."""
+    return inner[1] == outer[1] and (inner[0] == outer[0] or not inner[0] or not outer[0]) and (
+        inner[2] or not outer[2])
+
+
+def _negated(c: tuple) -> tuple:
+    """What lies outside a comparison: outside "longer than 26" is "26 or shorter"."""
+    return c[0], -c[1], not c[2]
+
+
 def stated_op(rv: dict) -> str | None:
     """The comparison a count says it made, written by the instrument beside it: {"k": 2, "n": 3, "figure": 26,
-    "op": ">"} is two found above 26."""
+    "op": ">"} is two found above 26. One of < <= = != >= >."""
     op = rv.get("op")
-    return op if op in _OPS else None
+    return op if isinstance(op, str) and op in _OPS else None
+
+
+def _count_comparisons(m: dict, rv: dict) -> set[tuple[str, int, bool]] | None:
+    """Every comparison a bound count could have made; empty when nothing says, None when it says it compared for
+    (in)equality. A comparison the result states is the only one. Otherwise its name's and its key's: as with its
+    figure, the author writes the name, so a name that disagrees with the key adds a comparison, never replaces one."""
+    op = stated_op(rv)
+    if op:
+        return {("", *_OPS[op])} if _OPS[op] else None
+    return _comparisons_in(str(m.get("name") or "")) | _comparisons_in(str(m.get("key") or "").replace("_", " "))
 
 
 def _count_directions(m: dict, rv: dict) -> set[tuple[str, int]]:
-    """Every way a bound count could point; empty when nothing says. A comparison the result states is the only one.
-    Otherwise its name's and its key's: as with its figure, the author writes the name, so a name that points the
-    other way from the key adds a direction and never replaces one."""
-    op = stated_op(rv)
-    if op:
-        return {("", _OPS[op])}
-    return _directions(str(m.get("name") or "")) | _directions(str(m.get("key") or "").replace("_", " "))
+    return {(axis, sign) for axis, sign, _strict in _count_comparisons(m, rv) or ()}
+
+
+# absolutes that say everything is so; the rest ("never", "nothing", "no route", "zero") say nothing is
+_ALL = re.compile(r"^(?:always|all|every|universally|invariably|consistently|without exception|100\s*%)$", re.I)
+
+
+def _clause_comparisons(clause: str) -> list[tuple[float, tuple[str, int, bool] | None]]:
+    """(figure, comparison) for each comparison against a figure in a claim's clause: "longer than 26 km", "at least
+    26", "26 km or longer", "no more than 93", "above 93"; None for one that points nowhere ("beyond 93")."""
+    out = []
+    for h in _CLAIM_FIGURE.finditer(clause):
+        neg = re.search(r"\b(?:not|no)\s+$", clause[:h.start()], re.I)      # "no more than 93" is at most 93
+        num = (h.group(1) or h.group(2)).replace(",", "")
+        out += [(float(num), c) for c in _comparisons_in(clause[neg.start() if neg else h.start():h.end()]) or {None}]
+    for h in _CLAIM_BOUNDARY.finditer(clause):
+        num = (h.group(1) or h.group(2)).replace(",", "")
+        out += [(float(num), c) for c in _comparisons_in(h.group(0)) or {None}]
+    return out
+
+
+def _absolute_targets(stmt: str, w: str) -> list[tuple[frozenset, frozenset]]:
+    """What an absolute rules out, as (figures, comparisons of the exceptions), one per thing it is about. A comparison
+    in its own clause: "nothing longer than 26 km" rules out longer than 26, and "every route is longer than 26 km"
+    rules out 26 or shorter (audit HG-023-01). Not "every" in a clause that states its own count ("a count of every
+    route finds 1 of 76 shorter than 25 km"): that names the set counted, not a claim about all of it. Else each
+    extreme the statement claims, on its own (HG-023-03)."""
+    out: list[tuple[frozenset, frozenset]] = []
+    every = bool(_ALL.match(w)) and not _names_stated_count(stmt, w)
+    for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
+        end = next((x.start() for x in _SUBCLAUSE.finditer(stmt, m.end())), len(stmt))
+        for fig, c in _clause_comparisons(stmt[m.end():end]):
+            out.append((frozenset({fig}), frozenset() if c is None else frozenset({_negated(c) if every else c})))
+    return out or _extreme_targets(stmt) or [(frozenset(), frozenset())]
 
 
 def _claim_directions(stmt: str, w: str = "") -> set[tuple[str, int]]:
-    """Which way the exceptions to a claim point: those the absolute ``w``'s own clause compares against ("nothing
-    longer than 26 km" — longer), else those beyond its extremes ("the shortest route is 26 km" — shorter)."""
-    out: set[tuple[str, int]] = set()
-    for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I) if w else ():
-        end = next((x.start() for x in _SUBCLAUSE.finditer(stmt, m.end())), len(stmt))
-        out |= {d for h in _CLAIM_FIGURE.finditer(stmt[m.end():end]) for d in _directions(h.group(0))}
-    return out or {d for x in _extremes(stmt) for d in _directions(x)}
+    """Which way the exceptions to a claim point."""
+    targets = _absolute_targets(stmt, w) if w else _extreme_targets(stmt)
+    return {(axis, sign) for _f, comps in targets for axis, sign, _strict in comps}
 
 
-def _points(m: dict, rv: dict, a: tuple[int, int], dirs: set[tuple[str, int]]) -> bool:
-    """Does this count point the way the claim's exceptions do? One that points the other way can't refute the claim
-    or back it. When it could point either way (a name against its key), a count that finds some may still refute,
-    and a count of none or all backs the claim only if no way it could point is the other way. A count, or a claim,
-    whose direction can't be told is read as before."""
-    c = _count_directions(m, rv)
-    if not c or not dirs:
-        return True
-    against = {d for d in c if all(_opposed(d, x) for x in dirs)}
-    return against != c if 0 < a[0] < a[1] else not against
-
-
-def _absolute_figures(stmt: str, w: str) -> set[float]:
-    """The figures an absolute is about: one its own clause compares against ("nothing worth more than 93 fits"),
-    else the figures the statement's extremes name ("the highest is 93; nothing worth more fits")."""
-    figs: set[float] = set()
-    for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
-        end = next((x.start() for x in _SUBCLAUSE.finditer(stmt, m.end())), len(stmt))
-        figs |= {float((h.group(1) or h.group(2)).replace(",", "")) for h in _CLAIM_FIGURE.finditer(stmt[m.end():end])}
-    return figs or _extreme_figures(stmt)
-
-
-def _bears(m: dict, rv: dict, a: tuple[int, int], figs: set[float],
-           dirs: set[tuple[str, int]] = frozenset()) -> bool:
-    """Does this count bear on a claim about ``figs``? One about another figure doesn't, whatever it finds: a zero
-    beyond 140 can't vouch for 93, and two beyond 93 can't refute 95. When it could be about more than one figure (a
-    name that disagrees with its key), a count that finds some bears if any of them is the claim's, and a count of
-    none or all only if every one is: a label can widen what a count refutes, never what it vouches for. A count that
-    names no figure, or a claim that names none, is read as before."""
-    if not _points(m, rv, a, dirs):
-        return False
+def _role(m: dict, rv: dict, a: tuple[int, int], figs: set[float], comps: set) -> str | None:
+    """What a bound count does to a claim that rules out ``comps`` at ``figs``: 'back' it (none of the exceptions
+    found), 'refute' it (some found), or nothing. A count of what lies outside the exceptions is read as its
+    complement: none of 3 routes longer than 26 is 3 of 3 at 26 or shorter. A count backs only if what it counted
+    covers the exceptions, and refutes only if every one it found is one: two routes at least 26 km don't refute "no
+    route is longer than 26", nor does none longer than 26 back "no route is 26 or longer" (audit HG-023-02). Where the
+    name and key could say different comparisons, a label can widen what a count refutes, never what it backs. A
+    count, or a claim, whose comparison can't be told is read as before: none or all backs, some refutes."""
+    k, n = a
+    cs = _count_comparisons(m, rv)
+    if cs is None and comps:
+        return None
+    if not cs or not comps:
+        role = "back" if k in (0, n) else "refute"
+    else:
+        roles = set()
+        for d in cs:
+            for e in comps:
+                dd, kk = (d, k) if not _opposed(d, e) else (_negated(d), n - k)
+                if dd[1] != e[1] or not (dd[0] == e[0] or not dd[0] or not e[0]):
+                    roles.add(None)
+                elif kk == 0 and _within(e, dd):
+                    roles.add("back")
+                elif kk > 0 and _within(dd, e):
+                    roles.add("refute")
+                else:
+                    roles.add(None)
+        role = "refute" if "refute" in roles else "back" if roles == {"back"} else None
+    if role is None:
+        return None
     c = _count_figures(m, rv, figs)
-    if not c or not figs:
-        return True
-    return bool(c & figs) if 0 < a[0] < a[1] else c <= figs
+    if c and figs and not (c & figs if role == "refute" else c <= figs):
+        return None
+    return role
 
 
-def _pinned(m: dict, rv: dict, a: tuple[int, int], figs: set[float]) -> bool:
-    """A count at the claim's own figure that finds exceptions: it refutes the claim whatever else is bound beside it."""
-    return 0 < a[0] < a[1] and bool(figs) and bool(_count_figures(m, rv, figs) & figs)
+def _pinned(m: dict, rv: dict, figs: set[float]) -> bool:
+    """A count at the claim's own figure: when it refutes the claim, it does whatever else is bound beside it."""
+    return bool(figs) and bool(_count_figures(m, rv, figs) & figs)
 
 
 def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
@@ -413,36 +500,36 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
         words = [w for w in words if not _PROVEN.match(w)]      # an optimum with its bound (gap 0) is proven
     words = [w for w in words if not _names_counted_set(stmt, w, bound)]
     out: list[Problem] = []
-    seen: set[frozenset] = set()
-    for w in words:                                  # one check per figure the absolutes are about
-        figs = frozenset(_absolute_figures(stmt, w))
-        if figs not in seen:
-            seen.add(figs)
-            out += [p for p in _absolute(stmt, scope, body, bound, w, words, set(figs)) if p.text() not in
-                    {q.text() for q in out}]
+    seen: set[tuple] = set()
+    for w in words:                                  # one check per thing the absolutes rule out
+        for figs, comps in _absolute_targets(stmt, w):
+            if (figs, comps, _ALL.match(w) is None) not in seen:
+                seen.add((figs, comps, _ALL.match(w) is None))
+                out += [p for p in _absolute(stmt, scope, body, bound, w, words, set(figs), set(comps))
+                        if p.text() not in {q.text() for q in out}]
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _superlative_contradicted(stmt, bound)
     return out
 
 
-def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float]) -> list[Problem]:
-    dirs = _claim_directions(stmt, w)
-    arms = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, rv, a, figs, dirs)]
+def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float],
+              comps: set = frozenset()) -> list[Problem]:
+    arms = [(m, rv, a, role) for m, rv in bound if (a := _arm(rv)) and (role := _role(m, rv, a, figs, comps))]
     about = L.content_words(stmt)
     # a count at the claim's own figure that finds exceptions refutes it, whatever else is bound beside it
-    pinned = [(m, a) for m, rv, a in arms if _pinned(m, rv, a, figs)
+    pinned = [(m, a) for m, rv, a, role in arms if role == "refute" and _pinned(m, rv, figs)
               and L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about]
     if pinned:
         m, (k, n) = max(pinned, key=lambda x: x[1][1])
         return [_count_contradicts(stmt, w, words, m, k, n)]
-    exact = [(m, rv, a) for m, rv, a in arms if a[0] in (0, a[1])]
+    exact = [(m, rv, a) for m, rv, a, role in arms if role == "back"]
     if not exact:
-        against = [(m, a) for m, _rv, a in arms if 0 < a[0] < a[1]
+        against = [(m, a) for m, _rv, a, role in arms if role == "refute"
                    and L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about]
         if against:
             m, (k, n) = max(against, key=lambda x: x[1][1])
             return [_count_contradicts(stmt, w, words, m, k, n)]
-        seen = ", ".join(f"{a[0]} of {a[1]:,}" for _m, _rv, a in arms)
+        seen = ", ".join(f"{a[0]} of {a[1]:,}" for _m, _rv, a, _role in arms)
         return [Problem("ABSOLUTE_WITHOUT_COUNT",
                         f"'{w}' is absolute: back it with a k/n measurement of what it's about, where k is 0 or n, and "
                         "keep the scope to the trials actually run — or say 'rarely' / 'in k of n'"
@@ -561,7 +648,7 @@ def _count_contradicts(stmt: str, w: str, words: list, m: dict, k: int, n: int) 
             if int(b.replace(",", "")) == n and int(a.replace(",", "")) != k]
     sup = _extremes(stmt)
     head = (f"the statement says {said[0]:,} of {n:,}, but the record's own count is {k:,} of {n:,}" if said
-            else f"'{sup[0] if sup else w}' is contradicted by the record's own count: {k:,} of {n:,}")
+            else f"'{w if w in sup else sup[0] if sup else w}' is contradicted by the record's own count: {k:,} of {n:,}")
     return Problem("COUNT_CONTRADICTS",
                    f"{head} ({m.get('name') or m.get('key')}). The exceptions the statement rules out were "
                    f"counted, so it is false as written: correct it, or say '{k:,} of {n:,}'",
@@ -578,30 +665,29 @@ def _qualified(stmt: str, k: int, n: int) -> bool:
 
 def _superlative_contradicted(stmt: str, bound: list) -> list[Problem]:
     """An extreme ("the shortest route is 34 km") with no absolute word, where the record's own count of what lies
-    beyond it is neither 0 nor all and no exact count backs any figure: refused as false (COUNT_CONTRADICTS)."""
+    beyond it finds some and no count backs it: refused as false (COUNT_CONTRADICTS). Each extreme is checked on its
+    own, with its own figure and direction: "the shortest is 26; the longest is 35" is two claims (audit HG-023-03)."""
     sup = _extremes(stmt)
     if not sup:
         return []
     about = L.content_words(stmt)
-    figs = _extreme_figures(stmt)
-    dirs = _claim_directions(stmt)
-    rel = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, rv, a, figs, dirs)
-           and (L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about
-                or _BEYOND.search(f"{m.get('name', '')} {m.get('key', '')}".replace("_", " "))
-                or stated_figure(rv) in figs)]
-    # a count beyond the extreme's own figure that finds some refutes it, whatever else is bound beside it
-    pinned = [(m, a) for m, rv, a in rel if _pinned(m, rv, a, figs) and not _qualified(stmt, *a)]
-    rel = [(m, a) for m, _rv, a in rel]
-    if pinned:
-        m, (k, n) = max(pinned, key=lambda x: x[1][1])
-        return [_count_contradicts(stmt, sup[0], sup, m, k, n)]
-    if not rel or any(a[0] in (0, a[1]) for _m, a in rel):
-        return []
-    against = [(m, a) for m, a in rel if 0 < a[0] < a[1] and not _qualified(stmt, *a)]
-    if not against:
-        return []
-    m, (k, n) = max(against, key=lambda x: x[1][1])
-    return [_count_contradicts(stmt, sup[0], sup, m, k, n)]
+    for w, figs, comps in _extreme_targets(stmt, named=True):
+        rel = [(m, rv, a, role) for m, rv in bound if (a := _arm(rv))
+               and (role := _role(m, rv, a, set(figs), set(comps)))
+               and (L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about
+                    or _BEYOND.search(f"{m.get('name', '')} {m.get('key', '')}".replace("_", " "))
+                    or stated_figure(rv) in figs)
+               and not (role == "refute" and _qualified(stmt, *a))]
+        # a count beyond the extreme's own figure that finds some refutes it, whatever else is bound beside it
+        pinned = [(m, a) for m, rv, a, role in rel if role == "refute" and _pinned(m, rv, set(figs))]
+        if pinned:
+            m, (k, n) = max(pinned, key=lambda x: x[1][1])
+            return [_count_contradicts(stmt, w, sup, m, k, n)]
+        if not rel or any(x[-1] == "back" for x in rel):
+            continue
+        m, (k, n) = max(((m, a) for m, _rv, a, _role in rel), key=lambda x: x[1][1])
+        return [_count_contradicts(stmt, w, sup, m, k, n)]
+    return []
 
 
 # a count of what reaches a figure exactly: "fitting selections worth exactly 108", "routes exactly 33 km long"
@@ -609,11 +695,12 @@ _REACHES = re.compile(r"\bexactly\s+(-?\d[\d,]*(?:\.\d+)?)", re.I)
 _FIGURE = re.compile(r"\s*(?:[A-Za-z$]+\s+){0,2}?\$?(-?\d[\d,]*(?:\.\d+)?)(?![\d.,]?\d)(?!\s*of\s+\d)")
 
 
-def _extreme_figures(stmt: str) -> set[float]:
-    """The figures a statement's asserted extremes name: the number its own predicate gives ("the highest total value
-    that fits within 36 kg is 97" names 97, not 36), else every number in the extreme's clause. A figure elsewhere in
-    the sentence ("..., not 97") is not one, nor a stated count ("the shortest route is 1 of 63 routes shorter")."""
-    out = set()
+def _extreme_claims(stmt: str) -> list[tuple[str, frozenset]]:
+    """(extreme, the figures it names) for each extreme the statement asserts: the number its own predicate gives
+    ("the highest total value that fits within 36 kg is 97" names 97, not 36), else every number in its clause. A
+    figure elsewhere in the sentence ("..., not 97") is not one, nor a stated count ("the shortest route is 1 of 63
+    routes shorter")."""
+    out = []
     for w in _extremes(stmt):
         for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
             end = next((x.start() for x in _CLAUSE.finditer(stmt, m.end())), len(stmt))
@@ -624,9 +711,26 @@ def _extreme_figures(stmt: str) -> set[float]:
             cop = _COPULA.search(after)
             fig = _FIGURE.match(after, cop.end()) if cop else None
             if fig:
-                out.add(float(fig.group(1).replace(",", "")))
+                out.append((w, frozenset({float(fig.group(1).replace(",", ""))})))
             elif not (cop and re.match(r"\s*(?:\w+\s+){0,2}?-?\d[\d,]*\s+of\s+\d", after[cop.end():])):
-                out |= {v for v, *_ in numbers(stmt[start:end])}
+                out.append((w, frozenset(v for v, *_ in numbers(stmt[start:end]))))
+    return out
+
+
+def _extreme_figures(stmt: str) -> set[float]:
+    """The figures a statement's asserted extremes name."""
+    return {f for _w, figs in _extreme_claims(stmt) for f in figs}
+
+
+def _extreme_targets(stmt: str, named: bool = False) -> list[tuple]:
+    """(figures, comparisons of the exceptions) for each extreme on its own: "the shortest route is 26 km" rules out
+    shorter than 26, and "the longest is 35" beside it rules out longer than 35, not shorter (audit HG-023-03). With
+    ``named``, the extreme first."""
+    out = []
+    for w, figs in _extreme_claims(stmt):
+        target = (w, figs, frozenset(_comparisons_in(w)))
+        if target[1:] not in [x[-2:] for x in out]:
+            out.append(target if named else target[1:])
     return out
 
 
@@ -825,34 +929,66 @@ _PREPOSITIONS = set("of in for from on at by with to among across within under o
 
 def _subject(text: str) -> tuple[str, frozenset[str]]:
     """What a unit is said of, as (head, modifiers): "every recorded parcel weight in the register" is (weight,
-    {recorded, parcel}). Determiners go, and the subject ends at its first preposition."""
-    words = []
+    {recorded, parcel}), and "weights of cargo" is (weight, {cargo}) (audit HG-023-04). Determiners go; the head ends
+    at its first preposition, and only what "of" or "for" names after it says which one."""
+    words: list[str] = []
+    tail: list[str] = []
+    after = ""
     for w in re.findall(r"[a-z]+", (text or "").lower()):
         if w in _PREPOSITIONS and words:
-            break
-        if w not in _DETERMINERS:
-            words += sorted(L.content_words(w))
-    return (words[-1], frozenset(words[:-1])) if words else ("", frozenset())
+            if after or w not in ("of", "for"):
+                break
+            after = w
+        elif w not in _DETERMINERS:
+            (tail if after else words).extend(sorted(L.content_words(w)))
+    return (words[-1], frozenset(words[:-1] + tail)) if words else ("", frozenset())
 
 
 def _same_thing(a: tuple[str, frozenset[str]], b: tuple[str, frozenset[str]]) -> bool:
-    """Could these be one thing? Their heads must match, and two subjects each named for something the other isn't
-    ("passenger weights", "shipping weights") are two things (audit HG-022-04). A bare "weights" may be either."""
-    return bool(a[0]) and a[0] == b[0] and (not a[1] or not b[1] or bool(a[1] & b[1]))
+    """Could these be one thing? Their heads must match, and one must say no more than the other: "the recorded
+    shipping weights" are shipping weights, but "passenger weights" and "shipping weights" (HG-022-04), or "shipping
+    cargo weights" and "shipping passenger weights" (HG-023-04), each say something the other doesn't, so they are left
+    apart. A bare "weights" may be either. Left apart is unresolved, not a contradiction."""
+    return bool(a[0]) and a[0] == b[0] and (a[1] <= b[1] or b[1] <= a[1])
+
+
+# what follows "rather than" / "instead of", up to its unit, is set aside, not asserted (audit HG-023-05)
+_SET_ASIDE = re.compile(r"\b(?:rather\s+than|instead\s+of)\s+(?:[a-z]+\s+){0,2}?(?:"
+                        + "|".join(sorted(_UNIT_OF, key=len, reverse=True)) + r")\b", re.I)
+# words a clause may open with and still have no subject of its own: "but in kilograms", "but always in kilograms"
+_NO_SUBJECT = set("but yet and in as using always only also all still entirely instead rather then though however "
+                  "just simply".split())
+
+
+def _set_aside(text: str) -> str:
+    return _SET_ASIDE.sub(" ", text)
 
 
 def _unit_assertions(text: str) -> list[tuple[tuple[str, frozenset[str]], set[tuple[str, str]], str]]:
     """(subject, units of record asserted of it, clause) for each clause that states one, outside the reach of
     negation: "the recorded weights are in pounds" says pounds of the recorded weights. A condition ("if the weights
-    are pounds") or a hedge ("the weights might be recorded in pounds") asserts nothing."""
+    are pounds") or a hedge ("the weights might be recorded in pounds") asserts nothing. A clause with no subject or
+    verb of its own ("not in pounds but in kilograms") says its unit of the subject its sentence named last; one that
+    names its own ("and passenger weights in pounds") doesn't (audit HG-023-05)."""
     out = []
-    for c in _UNIT_CLAUSE.split(_unnegated(text or "")):
-        verb = _RECORDS.search(c)
-        if not verb or _CONDITIONAL.search(c[:verb.start()]) or _HEDGED.search(c[:verb.start()]):
-            continue
-        subj = _subject(c[:verb.start()])
-        if subj[0] and (units := _units_in(c[verb.end():])):
-            out.append((subj, units, c.strip()))
+    for sent in re.split(r"(?<=[.!?;])\s+", _set_aside(text or "")):
+        last = None
+        for c in _UNIT_CLAUSE.split(_unnegated(sent)):
+            verb = _RECORDS.search(c)
+            if not verb:
+                units = _units_in(c)
+                first = next((h for h in re.finditer(r"[a-z]+", c.lower()) if h.group(0) in _UNIT_OF), None)
+                if last and units and first and all(w in _NO_SUBJECT for w in re.findall(r"[a-z]+",
+                                                                                          c[:first.start()].lower())):
+                    out.append((last, units, c.strip()))
+                continue
+            if _CONDITIONAL.search(c[:verb.start()]) or _HEDGED.search(c[:verb.start()]):
+                last = None
+                continue
+            subj = _subject(c[:verb.start()])
+            last = subj if subj[0] else None
+            if subj[0] and (units := _units_in(c[verb.end():])):
+                out.append((subj, units, c.strip()))
     return out
 
 

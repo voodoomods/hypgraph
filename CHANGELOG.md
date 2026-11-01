@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: what a quantifier needs, where a comparison's boundary falls, one check per extreme
+## 0.7.24 — 2026-11-01: what a quantifier needs, where a comparison's boundary falls, one check per extreme
 
 Fixes from an independent audit of 0.7.23 (HG-023-01 to -05); each case below failed on 0.7.23 and is now a test.
 
