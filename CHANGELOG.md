@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased: what a quantifier needs, where a comparison's boundary falls, one check per extreme
+
+Fixes from an independent audit of 0.7.23 (HG-023-01 to -05); each case below failed on 0.7.23 and is now a test.
+
+- **"Nothing" needs none, "every" needs all** (HG-023-01). Any count of none or all backed an absolute, so "nothing
+  is longer than 26 km" went in with all 3 routes longer, and "every route is longer than 26 km" with none. When a
+  count's comparison is known, the claim now needs the extreme its quantifier names; the other extreme shows it false
+  (`COUNT_CONTRADICTS`). A count of what lies outside the claim's exceptions is read as its complement: none of 3
+  longer than 26 is 3 of 3 at 26 or shorter. "Every" in a clause that states its own count ("a count of every route
+  finds 1 of 76 shorter") names the set counted and is not read as a quantifier. A count whose comparison can't be
+  told ("failures") is read as before.
+- **"At least" is not "longer than"** (HG-023-02). Comparisons keep their boundary: `op` takes `<`, `<=`, `=`, `!=`,
+  `>=`, `>`, and names say "at least", "at most", "26 km or longer", "not / no shorter than", "no more than". A count
+  refutes a claim only if everything it found is an exception, and backs it only if it covers every exception: two
+  routes at least 26 km neither refute nor back "no route is longer than 26 km" (the routes of exactly 26 lie between),
+  and none longer than 26 doesn't back "no route is 26 km or longer". `=` and `!=` counts don't bear on a comparison.
+  "At least" used to be read as pointing down and "at most" up. "No route is 26 km or longer" and "no route is at
+  least 26 km" are absolutes too.
+- **Two extremes are two claims** (HG-023-03). "The shortest route is 26 km; the longest route is 35 km" pooled both
+  figures and both directions, and the count of 2 longer than 26 refused the true sentence. Each extreme, and each
+  thing an absolute rules out, is now checked with its own figure and direction; the refusal names the extreme it
+  found false.
+- **What "of" and "for" name says which thing** (HG-023-04). "Weights of cargo" and "weights of passengers" both read
+  as bare "weights", and "shipping cargo weights" met "shipping passenger weights" on one shared word. The object of
+  "of" / "for" now counts, and two subjects that each say something the other doesn't are left apart: unresolved, not
+  a contradiction. One that only adds to the other ("the recorded weights of cargo") is the same thing.
+- **A contrast keeps the unit it asserts** (HG-023-05). "Not in pounds but in kilograms" lost its kilograms, and
+  "kilograms rather than pounds" kept both, so a claim of pounds citing either went in. A clause with no subject or
+  verb of its own takes the subject its sentence named last ("… but always in kilograms"); one that names its own
+  ("and passenger weights in pounds") doesn't. What follows "rather than" / "instead of", up to its unit, is set aside.
+- Limits: subjects, units of record, quantifiers and comparisons are still read from words, not typed (only a count's
+  `figure` and `op` are); a missed contradiction is preferred to a false one, so subjects left apart are not
+  compared; conversions aren't checked; and the replay of earlier recorded entries changes nothing, which shows no
+  regression but none of those entries tries these cases.
+
 ## 0.7.23 — 2026-11-01: a count points one way, "no route is longer", what a unit is said of
 
 Fixes from an independent audit of 0.7.22 (HG-022-01 to -05); each case below failed on 0.7.22 and is now a test.

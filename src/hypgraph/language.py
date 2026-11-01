@@ -20,9 +20,12 @@ ABSOLUTE = re.compile(
     r"consistently|without exception|perfect(?:ly)?|solves?|solved|definitively|conclusively|undeniably|"
     r"zero(?!-)"
     # "no route is longer than 26 km": a universal negative comparison, the same claim as "nothing is longer"; only
-    # where "no" opens its clause ("routes that visit no town twice" is not one)
-    r"|(?<![a-z] )no(?=\s+(?:[a-z]+\s+){1,3}?(?:is|are|was|were)\s+(?:any\s+)?(?:longer|shorter|more|less|fewer|greater|higher|"
-    r"lower|larger|smaller|better|worse|faster|slower|cheaper|above|below|over|under)\b))\b|(?<![\d.])100\s*%", re.I)
+    # where "no" opens its clause ("routes that visit no town twice" is not one); "no route is 26 km or longer" and
+    # "no route is at least 26 km" too
+    r"|(?<![a-z] )no(?=\s+(?:[a-z]+\s+){1,3}?(?:is|are|was|were)\s+(?:any\s+)?(?:at\s+(?:least|most)\s|"
+    r"\$?\d[\d,.]*(?:\s+[a-z%]+){0,2}\s+or\s+(?:longer|shorter|more|less|fewer|greater|higher|lower|larger|smaller|"
+    r"better|worse|faster|slower|cheaper)\b|(?:longer|shorter|more|less|fewer|greater|higher|lower|larger|smaller|"
+    r"better|worse|faster|slower|cheaper|above|below|over|under)\b)))\b|(?<![\d.])100\s*%", re.I)
 # a superlative names an extreme ("the highest value is 93"): a count of anything beyond it contradicts it
 SUPERLATIVE = re.compile(
     r"\b(highest|lowest|largest|smallest|shortest|longest|greatest|fewest|best|worst|maximum|minimum|optimal|"
