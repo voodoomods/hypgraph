@@ -18,7 +18,11 @@ ABSOLUTE = re.compile(
     r"\b(never|always|all|every|none|nothing|no one|nobody|impossible|cannot|can't|proves?|proven|proof|certainly|"
     r"certain|guaranteed?|guarantees|eliminat(?:es|ed|ing)|entirely|completely|totally|universally|invariably|"
     r"consistently|without exception|perfect(?:ly)?|solves?|solved|definitively|conclusively|undeniably|"
-    r"zero(?!-))\b|(?<![\d.])100\s*%", re.I)
+    r"zero(?!-)"
+    # "no route is longer than 26 km": a universal negative comparison, the same claim as "nothing is longer"; only
+    # where "no" opens its clause ("routes that visit no town twice" is not one)
+    r"|(?<![a-z] )no(?=\s+(?:[a-z]+\s+){1,3}?(?:is|are|was|were)\s+(?:any\s+)?(?:longer|shorter|more|less|fewer|greater|higher|"
+    r"lower|larger|smaller|better|worse|faster|slower|cheaper|above|below|over|under)\b))\b|(?<![\d.])100\s*%", re.I)
 # a superlative names an extreme ("the highest value is 93"): a count of anything beyond it contradicts it
 SUPERLATIVE = re.compile(
     r"\b(highest|lowest|largest|smallest|shortest|longest|greatest|fewest|best|worst|maximum|minimum|optimal|"

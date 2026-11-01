@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: a count points one way, "no route is longer", what a unit is said of
+## 0.7.23 — 2026-11-01: a count points one way, "no route is longer", what a unit is said of
 
 Fixes from an independent audit of 0.7.22 (HG-022-01 to -05); each case below failed on 0.7.22 and is now a test.
 
