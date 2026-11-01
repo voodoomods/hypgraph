@@ -81,7 +81,7 @@
 .hg .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); min-width: 0; }
 .hg .card > h3 { margin: 0; padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--line); display: flex; gap: 8px;
   align-items: center; flex-wrap: wrap; }
-.hg .card > h3 .sub { font-weight: 400; color: var(--ink3); }
+.hg .card > h3 .sub { font-weight: 400; color: var(--ink3); font-size: inherit; margin: 0; max-width: none; }
 .hg .card > h3 .r { margin-left: auto; display: flex; gap: 6px; }
 .hg .card .body { padding: 12px 14px; }
 .hg .grid { display: grid; gap: 14px; }
@@ -253,6 +253,19 @@
   .hg .trace .tr { grid-template-columns: minmax(90px, 40%) minmax(0, 1fr) 48px; }
 }
 @media (prefers-reduced-motion: reduce) { .hg *, .hg *::before { animation: none !important; transition: none !important; } }
+/* linked records: other records this one pins, drawn beside it */
+.hg .legend i.lg-rec { width: 16px; border: 1.5px dashed var(--ink3); background: var(--surface2); border-radius: 4px; }
+.hg .legend i.lg-pin { width: 20px; height: 0; border-radius: 0; border-top: 2.5px dashed var(--ok); vertical-align: 3px; }
+.hg .lk-sep { width: 1px; align-self: stretch; background: var(--line); margin: 3px 4px; }
+.hg .chip.lk-chip { font-weight: 600; }
+.hg .lk-table td { vertical-align: top; padding-top: 10px; padding-bottom: 10px; }
+.hg .lk-table tr.click:hover td { background: var(--surface2); }
+.hg .lk-where { font-size: 11px; margin-top: 2px; overflow-wrap: anywhere; }
+.hg .lk-pin { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 0; }
+.hg .lk-from { font-size: 11px; color: var(--ink3); margin: 8px 0 2px; }
+.hg .lk-from:first-child { margin-top: 0; }
+.hg .lk-sec { border-left: 3px solid var(--accent); padding-left: 10px; }
+.hg .lk-sec .lk-pin + .lk-pin { margin-top: 8px; }
 @media print {
   .hg .hg-nav, .hg .hg-top, .hg .head .acts, .hg .hg-drawer, .hg .hg-pal { display: none !important; }
   .hg .hg-app { display: block; } .hg { overflow: visible; height: auto; } .hg .hg-main { overflow: visible; padding: 0; }

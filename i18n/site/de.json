@@ -464,7 +464,22 @@
 "d876374e52": "<1/> zeigt, dass sich ein Protokoll oder Bundle seit dem Schreiben nicht verändert hat. Es zeigt nicht, dass das Geschriebene stimmt.",
 "ef17265ba3": "Nichts in einem Protokoll, Bericht, Profil oder Beispiel ist Rechts-, Medizin-, Finanz- oder Anlageberatung. Das Trading-Profil und seine Beispiele arbeiten mit Papierpositionen und historischen Daten; vergangene Ergebnisse sagen künftige nicht voraus.",
 "158a6a96fe": "Sie entscheiden, was in ein Protokoll kommt und was Sie mit dem tun, was herauskommt, auch wenn Sie ein Bundle oder einen Bericht teilen. Protokolle sind nur anhängend: Ein Rückzug wird geschrieben, nicht gelöscht, also legen Sie nichts in ein Protokoll, das Sie womöglich löschen müssten.",
-"3d5bb4ddd2": "HypGraph wird von VoodooMods LLC gemacht. Fragen: Eröffnen Sie ein Issue unter https://github.com/voodoomods/hypgraph/issues."
+"3d5bb4ddd2": "HypGraph wird von VoodooMods LLC gemacht. Fragen: Eröffnen Sie ein Issue unter https://github.com/voodoomods/hypgraph/issues.",
+"7898c8e89d": "Verknüpfte Protokolle",
+"5c9830f3f5": "Drei Protokolle, jedes mit eigener Kette und eigenem Gremium, verbunden durch fixierte Referenzen. Eine Synthese fixiert Behauptungen aus zwei anderen Protokollen, und eines davon fixiert das dritte – so zeichnet der Graph alle drei zusammen, jedes für sich verifiziert.",
+"86761b63a7": "Protokolle",
+"468d1975c3": "<1/> Bundles · <2/> Ereignisse · <3/> Knoten",
+"740fda728d": "Referenzen",
+"224f0dd714": "<1/> fixierte Referenzen, jede gegen das Protokoll geprüft, das sie nennt",
+"0e1491f6eb": "<1>Zusammen ansehen</1>",
+"8b57abdc80": "Londons Wasser · verknüpfte Protokolle — HypGraph",
+"1c7488b268": "Londons Wasser",
+"4b343b4613": "East London, 1866",
+"f828920e4e": "<1>Verknüpfte Protokolle</1> · drei Protokolle, jedes mit eigener Hash-Kette und eigenem Gremium, nur durch fixierte Referenzen verbunden: Eine Quelle in einem Protokoll nennt einen Knoten eines anderen, die gelesene Version und den Hash dieser Version. Öffnen Sie den Graph, und jedes Protokoll, das es fixiert, wird neben diesem gezeichnet, jedes als eigenes Bundle gelesen, in Ihrem Browser verifiziert und jede Referenz dagegen geprüft. Eine Rekonstruktion für den Unterricht: keine Zahlen über das hinaus, was die Protokolle sagen.",
+"41986b30dc": "Eines von drei HypGraph-Protokollen, verbunden durch fixierte Referenzen, zusammen gezeichnet und jedes für sich verifiziert.",
+"e51c55255b": "Protokolle",
+"0e43422af9": "Broad Street, 1854 · verknüpfte Protokolle — HypGraph",
+"2b616fa2b8": "East London, 1866 · verknüpfte Protokolle — HypGraph"
 },
 "js": {
 "Couldn't load the bundle: {e}": "Das Bundle konnte nicht geladen werden: {e}",

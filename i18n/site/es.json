@@ -464,7 +464,22 @@
 "ab128e26e7": "números que ningún resultado explica; <1>«nunca»</1> sin el recuento; <2>«significativo»</2> sin la prueba; una comprobación sobre evidencia desactualizada",
 "1663165d49": "<1>«pasa»</1> sin una ejecución del instrumento, o sobre una cabeza sustituida; el autor del diff como su revisor",
 "e902230626": "un backtest sin sus costes; <1>«ventaja»</1> sin ambos, o sin las configuraciones probadas; una posición sin tamaño, stop y fecha de revisión; una orden real",
-"21348e0414": "un objetivo sin factibilidad; <1>«óptimo»</1> sin una cota, o sobre una instancia cambiada"
+"21348e0414": "un objetivo sin factibilidad; <1>«óptimo»</1> sin una cota, o sobre una instancia cambiada",
+"7898c8e89d": "Registros enlazados",
+"5c9830f3f5": "Tres registros, cada uno con su propia cadena y su propio comité, unidos por referencias fijadas. Una síntesis fija afirmaciones de otros dos registros, y uno de ellos fija el tercero, así que el grafo dibuja los tres juntos, cada uno verificado por separado.",
+"86761b63a7": "registros",
+"468d1975c3": "<1/> bundles · <2/> eventos · <3/> nodos",
+"740fda728d": "referencias",
+"224f0dd714": "<1/> referencias fijadas, cada una comprobada contra el registro que nombra",
+"0e1491f6eb": "<1>Verlos juntos</1>",
+"8b57abdc80": "El agua de Londres · registros enlazados — HypGraph",
+"1c7488b268": "El agua de Londres",
+"4b343b4613": "East London, 1866",
+"f828920e4e": "<1>Registros enlazados</1> · tres registros, cada uno con su propia cadena de hashes y su propio comité, unidos solo por referencias fijadas: una fuente de un registro nombra un nodo de otro, la versión que leyó y el hash de esa versión. Abra el grafo y cada registro que fija se dibuja junto a este, cada uno leído como su propio bundle, verificado en su navegador, y cada referencia comprobada contra él. Una reconstrucción didáctica: ninguna cifra más allá de lo que dicen los registros.",
+"41986b30dc": "Uno de tres registros de HypGraph unidos por referencias fijadas, dibujados juntos y cada uno verificado por separado.",
+"e51c55255b": "Registros",
+"0e43422af9": "Broad Street, 1854 · registros enlazados — HypGraph",
+"2b616fa2b8": "East London, 1866 · registros enlazados — HypGraph"
 },
 "js": {
 "Couldn't load the bundle: {e}": "No se pudo cargar el bundle: {e}",

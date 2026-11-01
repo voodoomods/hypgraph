@@ -392,8 +392,11 @@
       return body;
     };
     const q = encodeURIComponent;
+    let recordUrl = '';                                   // the record's own URL: what another record's pins name
+    try { recordUrl = normRecord(new URL(base, global.location ? global.location.href : undefined).href.replace(/\/api\/graph\/?$/, '')); } catch { /* no location */ }
     const src = {
-      kind: 'http', live: true, base,
+      kind: 'http', live: true, base, recordUrl,
+      references: async (inv) => { const r = await settle(get(`/references?inv=${q(inv || '')}`)); return (r && r.references) || []; },
       investigations: () => get('/investigations'),
       node: (id) => get(`/node/${q(id)}?history=1`),
       why: (id) => get(`/why/${q(id)}`),
@@ -495,6 +498,7 @@
     const evsOf = (inv) => evs.filter((e) => !inv || e.ref === inv || (nodes.get(e.ref) || {}).inv === inv);
     return {
       kind: 'bundle', live: false, bundle,
+      references: async (inv) => bundleReferences(bundle, inv),
       investigations: async () => ({ investigations: d.investigations || [], stats: d.stats || {} }),
       node, why: async (id) => why(id), impact: async (id) => impact(id),
       events: async (after, inv) => ({ head, events: evsOf(inv).filter((e) => e.seq > (after || 0)) }),
@@ -508,6 +512,136 @@
           events: { head, events: evsOf(inv) }, verify: verified, refusals: null, node: invNode,
           telemetry: v.telemetry || (bundle.telemetry ? { events: (bundle.telemetry.events || bundle.telemetry).filter((t) => !t.inv || t.inv === inv) } : null) };
       },
+    };
+  }
+
+  // ── linked records: the records this one pins (references.py), loaded as verified bundles ──
+  /** A record URL as references.normalize_record writes it: scheme and host lower-cased, no query, fragment or
+   *  trailing slash. '' for anything that isn't http(s). */
+  function normRecord(url) {
+    let u;
+    try { u = new URL(String(url || '').trim()); } catch { return ''; }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    return `${u.protocol}//${u.host.toLowerCase()}${u.pathname.replace(/\/+$/, '')}`;
+  }
+  const isPin = (b) => !!(b && b.record && b.hash && b.node && b.version);
+  /** The sources of `inv` in a bundle that pin a node of another record (Graph.references, from the bundle's rows). */
+  function bundleReferences(bundle, inv) {
+    const latest = new Map();
+    (bundle.versions || []).forEach((v) => { if (v.v > ((latest.get(v.node) || {}).v || 0)) latest.set(v.node, v); });
+    const out = [];
+    (bundle.nodes || []).forEach((n) => {
+      if (n.type !== 'source' || (inv && n.inv !== inv) || !latest.has(n.id)) return;
+      let b = null;
+      try { b = JSON.parse(latest.get(n.id).body); } catch { return; }
+      if (!isPin(b)) return;
+      out.push({ id: n.id, code: n.code, inv: n.inv, record: normRecord(b.record) || b.record, node: String(b.node),
+        version: Number(b.version), hash: String(b.hash).toLowerCase(), citation: b.citation || '', url: b.url || '' });
+    });
+    return out.sort((a, b) => (a.record + a.node + a.id).localeCompare(b.record + b.node + b.id));
+  }
+  /** A pin checked against the cited record's bundle, as references.verify_reference checks it against the record's
+   *  node route: the pinned version exists and its stored body hashes to the pinned hash. The bundle carries each
+   *  version as the exact string its chain hashed, so the hash is taken over the same bytes. revised / withdrawn are
+   *  reported beside it; the pin still stands as read. */
+  async function checkPin(pin, bundle) {
+    const out = { ok: false, record: pin.record, node: pin.node, version: pin.version };
+    const n = (bundle.nodes || []).find((x) => x.id === pin.node);
+    if (!n) return { ...out, problem: `${pin.node} is not in the cited record's bundle` };
+    const vs = (bundle.versions || []).filter((v) => v.node === pin.node);
+    const cur = vs.reduce((m, v) => Math.max(m, Number(v.v) || 0), 0);
+    const wd = (bundle.withdrawals || []).some((w) => w.node === pin.node);
+    let life = wd ? 'withdrawn' : '';
+    Object.values(((bundle.derived || {}).by_inv) || {}).forEach((x) => (((x.subgraph || {}).nodes) || []).forEach((y) => {
+      if (y.id === pin.node && y.state && y.state.lifecycle) life = y.state.lifecycle;
+    }));
+    Object.assign(out, { current_version: cur, revised: cur > pin.version, withdrawn: wd, lifecycle: life });
+    const ver = vs.find((v) => Number(v.v) === Number(pin.version));
+    if (!ver) return { ...out, problem: `version ${pin.version} does not exist there (it has ${cur})` };
+    const got = await sha256(String(ver.body));
+    if (got !== pin.hash) return { ...out, problem: `version ${pin.version} hashes to ${got.slice(0, 16)}…, not the pinned ${pin.hash.slice(0, 16)}…` };
+    return { ...out, ok: true };
+  }
+  /** Follow this record's pins into the records they cite, `depth` levels deep, at most `max` records.
+   *    refs     the open investigation's references (bundleReferences or GET /references)
+   *    self     this record's own URL ('' if unknown): a pin into it is drawn to the local node
+   *    fetchBundle(record, node) → a bundle holding that node (resolveWith builds one), or throws
+   *    allow(record) → whether to read it now (pages on another site wait until the viewer asks)
+   *  Returns {records: [{key, record, inv, code, title, depth, status, problem, bundle, verify, nodes, edges}],
+   *  pins: [{from, fromId, fromCode, to, node, version, hash, citation, url, check}]}; from / to are record keys,
+   *  'self' for the open one. Every record is a bundle verified on its own; nothing is merged into this record. */
+  async function linkRecords(refs, { self = '', fetchBundle, allow = () => true, depth = 3, max = 12 } = {}) {
+    const records = new Map(), pins = [], bundles = new Map(), verified = new Map();
+    const me = normRecord(self);
+    const getBundle = (record, node) => {                 // one fetch per record and node's investigation
+      const k = record + '\n' + node;
+      if (!bundles.has(k)) bundles.set(k, Promise.resolve().then(() => fetchBundle(record, node)));
+      return bundles.get(k);
+    };
+    let queue = [{ from: 'self', refs, level: 1 }];
+    while (queue.length) {
+      const next = [];
+      for (const { from, refs: rs, level } of queue) {
+        for (const r of rs || []) {
+          const rec = normRecord(r.record) || r.record;
+          const pin = { from, fromId: r.id, fromCode: r.code, node: r.node, version: r.version, hash: r.hash,
+            citation: r.citation || '', url: r.url || '', record: rec };
+          if (me && rec === me) { pins.push({ ...pin, to: 'self', check: { ok: null, local: true } }); continue; }
+          const stub = (status, problem = '', perNode = false) => {
+            const key = perNode ? `${rec}#?${r.node}` : `${rec}#?`;     // one box per record not read
+            if (!records.has(key)) records.set(key, { key, record: rec, inv: '', code: '', title: rec.replace(/^https?:\/\//, ''), depth: level,
+              status, problem, nodes: [], edges: [] });
+            pins.push({ ...pin, to: key, check: { ok: null, problem } });
+          };
+          if (!allow(rec)) { stub('blocked'); continue; }
+          // already read: check the pin against it, however far away it was found
+          const seen = [...records.values()].find((x) => x.record === rec && x.bundle && (x.bundle.nodes || []).some((y) => y.id === r.node));
+          if (!seen && (level > depth || records.size >= max)) { stub('limit'); continue; }
+          let bundle = seen ? seen.bundle : null;
+          if (!bundle) { try { bundle = await getBundle(rec, r.node); } catch (e) { stub('failed', String((e && e.message) || e)); continue; } }
+          const n = bundle && (bundle.nodes || []).find((x) => x.id === r.node);
+          if (!n) { stub('failed', `${r.node} is not in the cited record's bundle`, true); continue; }
+          const key = `${rec}#${n.inv}`;
+          if (!records.has(key)) {
+            if (!verified.has(bundle)) verified.set(bundle, await verifyBundle(bundle));
+            const v = verified.get(bundle), d = ((bundle.derived || {}).by_inv || {})[n.inv] || {};
+            const inv = (((bundle.derived || {}).investigations) || []).find((x) => x.id === n.inv) || {};
+            const sg = d.subgraph || { nodes: [], edges: [] };
+            records.set(key, { key, record: rec, inv: n.inv, code: inv.code || '', title: inv.title || rec, depth: level,
+              status: v.ok ? 'loaded' : 'unverified', problem: v.ok ? '' : v.problem, bundle, verify: v,
+              nodes: sg.nodes || [], edges: sg.edges || [] });
+            if (v.ok) next.push({ from: key, refs: bundleReferences(bundle, n.inv), level: level + 1 });
+          }
+          const R = records.get(key);
+          const check = R.status === 'loaded' ? await checkPin(pin, bundle) : { ok: false, problem: R.problem };
+          pins.push({ ...pin, to: key, toCode: n.code, check });
+        }
+      }
+      queue = next;
+    }
+    return { records: [...records.values()], pins };
+  }
+  /** fetchBundle for linkRecords. `records` maps a record URL to a bundle, a bundle's URL, or a function of
+   *  (record, node) returning either; any other record is read from its own HTTP API: the node (to learn its
+   *  investigation), then that investigation's export. */
+  function resolveWith(records = {}, fetchOpts = {}) {
+    const map = new Map(Object.entries(records || {}).map(([k, v]) => [normRecord(k) || k, v]));
+    const json = async (url) => {
+      const r = await fetch(url, fetchOpts);
+      if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+      return r.json();
+    };
+    const cache = new Map();
+    return async (record, node) => {
+      let v = map.get(record);
+      if (typeof v === 'function') v = await v(record, node);
+      if (v && typeof v === 'object') return v;
+      if (typeof v === 'string') { if (!cache.has(v)) cache.set(v, json(v)); return cache.get(v); }
+      const api = `${record}/api/graph`, q = encodeURIComponent;
+      const n = await json(`${api}/node/${q(node)}`);
+      const k = `${api}#${n.inv}`;
+      if (!cache.has(k)) cache.set(k, json(`${api}/export?inv=${q(n.inv)}`));
+      return cache.get(k);
     };
   }
 
@@ -669,6 +803,21 @@
     "gr.lede.plain": "The record as a graph: what rests on what. Select a node for its standing, history and provenance.",
     "gr.png": "Export PNG", "gr.json": "Export JSON", "gr.aria": "Graph of {n} nodes", "gr.lg.bad": "at risk · contested",
     "gr.lg.gone": "superseded · withdrawn", "gr.needs": "The graph needs vendor/cytoscape.min.js.",
+    "gr.linked": "Linked records · {n}", "gr.linked.tip": "Draw the records this investigation pins, each read as its own bundle and verified",
+    "gr.aria.linked": "Graph of {n} nodes and {r} linked records", "gr.lg.record": "a record", "gr.lg.pin": "pinned reference",
+    "lk.title": "Linked records", "lk.sub": "{n} pinned reference(s) into {r} record(s)", "lk.see": "See them in the graph",
+    "lk.lede": "This investigation cites these records by pinned reference: a source naming the node, the version read and that version's hash. Each record is read as its own bundle, its hash chain re-verified here, and each pin checked against the version it names. Nothing in them is merged into this record.",
+    "lk.note": "A bundle can't prove where it was served from: the pin ties the citation to the version's hash, not to the address.",
+    "lk.loading": "Reading the linked records…", "lk.in": "in {name}", "pin.there": "{state} there",
+    "pin.there.tip": "The pinned node's standing in its own record, derived there from its own reviews: this record doesn't change it.", "lk.this": "this record", "lk.via": "via {list}",
+    "lk.col.record": "Record", "lk.col.pins": "Pinned here", "lk.col.chain": "Its hash chain", "lk.col.nodes": "Nodes",
+    "lk.open": "Open in its record ↗", "lk.allow": "Read from {host}",
+    "lk.allow.tip": "This page reads other sites only when you ask: reading sends a request to {host}.",
+    "lk.st.blocked": "on {host}, not read", "lk.st.limit": "not followed: more than {n} links away", "lk.st.failed": "couldn't be read",
+    "lk.st.unverified": "doesn't verify", "lk.st.loaded": "read",
+    "pin.ok": "hash matches", "pin.revised": "matches · revised since (v{v} now)", "pin.withdrawn": "matches · withdrawn since",
+    "pin.bad": "doesn't match", "pin.unverified": "its record doesn't verify", "pin.local": "in this record",
+    "dr.pin": "Pinned reference", "dr.pin.node": "pins", "dr.in_record": "In a linked record", "dr.pinned_by": "Pinned by",
     "lv.replaying": "Replaying", "lv.running": "Running", "lv.paused": "Paused", "lv.ended": "Run ended · {how}", "lv.failed": "failed",
     "lv.done": "done", "lv.complete": "Complete", "lv.watching": "Watching", "lv.recorded": "Recorded",
     "lv.issued": "Work orders issued", "lv.picked": "Picked up", "lv.returned": "Returned", "lv.reviews": "Reviews",
@@ -816,6 +965,7 @@
       }
       if (S.m) render();
       if (S.drawer && S.drawer.q) openQuestion(S.drawer.q); else if (S.drawer && S.drawer.node) openNode(S.drawer.node);
+      else if (S.drawer && S.drawer.ln) openLinked(S.drawer.ln, S.drawer.lnode);
       return T.lang;
     }
     const nounOf = (t) => T.noun(S.m.L(t));                // a node type in the profile's words, in this language
@@ -823,7 +973,8 @@
     const live = opts.live ?? src.live;
     const S = { invs: [], inv: '', m: null, view: 'overview', cursor: null, playing: false, speed: 4, timer: null, stream: 'off',
       lastEventAt: 0, follow: null, cy: null, drawer: null, ev: { q: '', types: new Set(['claim', 'result', 'hypothesis', 'source', 'decision']), standing: '' },
-      sort: { k: 'code', asc: true }, audit: { actor: '', kind: '' }, graphTypes: null, palIdx: 0, profiles: new Map() };
+      sort: { k: 'code', asc: true }, audit: { actor: '', kind: '' }, graphTypes: null, palIdx: 0, profiles: new Map(),
+      lk: { on: opts.linked !== 'off', status: 'idle', inv: '', refs: [], data: null, models: new Map(), allowed: new Set() } };
     const fail = (e) => { root.dataset.hgError = String((e && e.message) || e); };
 
     // ── loading ──
@@ -843,7 +994,72 @@
       S.follow = null;
       if (live && src.follow) S.follow = src.follow(inv, S.m.head, onLiveEvent, (s) => { S.stream = s; status(); }, onTel, S.m.telNext);
       render();
+      if (!keep || S.lk.inv !== inv) loadLinked();
     }
+
+    // ── linked records: what this investigation pins in other records, each read as its own verified bundle ──
+    const linkMode = opts.linked || 'same-origin';           // 'same-origin' (and opts.records) | 'all' | 'off'
+    const fetchBundle = resolveWith(opts.records || {});
+    const mapped = new Set(Object.keys(opts.records || {}).map((k) => normRecord(k) || k));
+    const selfRecord = normRecord(opts.recordUrl || src.recordUrl || '');
+    const originOf = (u) => { try { return new URL(u).origin; } catch { return ''; } };
+    const hostOf = (u) => { try { return new URL(u).host; } catch { return u; } };
+    const allowRecord = (rec) => linkMode !== 'off' && (mapped.has(rec) || linkMode === 'all' ||
+      (!!originOf(rec) && (originOf(rec) === (global.location && global.location.origin) || S.lk.allowed.has(originOf(rec)))));
+    async function loadLinked() {
+      const inv = S.inv, lk = S.lk;
+      lk.inv = inv; lk.refs = []; lk.data = null; lk.models = new Map();
+      if (linkMode === 'off' || !src.references) { lk.status = 'none'; return; }
+      lk.status = 'loading';
+      let refs = [];
+      try { refs = (await src.references(inv)) || []; } catch { refs = []; }
+      if (S.inv !== inv) return;
+      lk.refs = refs.map((r) => ({ ...r, citation: r.citation || ((S.m.byId.get(r.id) || {}).title) || '' }));
+      if (!lk.refs.length) { lk.status = 'none'; return; }
+      if (S.view === 'graph' || S.view === 'overview') render();
+      let data = null;
+      try {
+        data = await linkRecords(lk.refs, { self: selfRecord, fetchBundle, allow: allowRecord,
+          depth: opts.linkDepth || 3, max: opts.linkMax || 12 });
+      } catch (e) { data = { records: [], pins: [], problem: String((e && e.message) || e) }; }
+      if (S.inv !== inv) return;
+      lk.data = data; lk.status = 'done';
+      lk.models = new Map(data.records.filter((r) => r.bundle).map((r) => [r.key, { ...r, byId: new Map(r.nodes.map((n) => [n.id, n])),
+        byCode: new Map(r.nodes.filter((n) => n.code).map((n) => [n.code, n])), src: BundleSource(r.bundle) }]));
+      if (S.view === 'graph' || S.view === 'overview') render();
+      if (S.drawer && S.drawer.node && S.m.byId.has(S.drawer.node)) openNode(S.drawer.node);
+    }
+    /** ok (the pin holds and the node stands), revised, withdrawn, bad (doesn't match, or its record doesn't verify),
+     *  local (a pin into this record), or none (not read: another site, the depth limit, unreachable). */
+    function pinState(p) {
+      const c = p.check || {};
+      if (c.local) return 'local';
+      if (c.ok === true) return c.withdrawn || c.lifecycle === 'withdrawn' ? 'withdrawn' : c.revised ? 'revised' : 'ok';
+      return c.ok === false ? 'bad' : 'none';
+    }
+    const PIN_TONE = { ok: 'ok', revised: 'warn', withdrawn: 'bad', bad: 'bad', local: 'neutral', none: 'neutral' };
+    const PIN_GLYPH = { ok: '✓', revised: '↻', withdrawn: '✕', bad: '✕', local: '·', none: '?' };
+    function pinWords(p) {
+      const k = pinState(p), c = p.check || {}, R = S.lk.data && S.lk.data.records.find((r) => r.key === p.to);
+      if (k === 'ok') return T('pin.ok');
+      if (k === 'revised') return T('pin.revised', { v: c.current_version });
+      if (k === 'withdrawn') return T('pin.withdrawn');
+      if (k === 'local') return T('pin.local');
+      if (k === 'bad') return R && R.status === 'unverified' ? T('pin.unverified') : T('pin.bad');
+      return T('lk.st.' + ((R && R.status) || 'failed'), { host: hostOf(p.record), n: opts.linkDepth || 3 });
+    }
+    const pinPill = (p) => `<span class="pill ${PIN_TONE[pinState(p)]}" title="${esc((p.check && p.check.problem) || '')}">${esc(PIN_GLYPH[pinState(p)] + ' ' + pinWords(p))}</span>`;
+    /** The pinned node's standing where it lives: derived by its own record, not changed by this one. */
+    function thereStand(p) {
+      const R = recOf(p.to), n = R && R.bundle && R.nodes.find((x) => x.id === p.node);
+      if (!n) return '';
+      const s = st(n), k = ['withdrawn', 'superseded'].includes(s.lifecycle) ? s.lifecycle : s.at_risk ? 'at_risk' : reviewOf(n) || 'unchecked';
+      const tone = k === 'checked' ? 'ok' : ['contested', 'withdrawn', 'at_risk'].includes(k) ? 'bad' : k === 'superseded' ? 'warn' : 'neutral';
+      return ` <span class="pill ${tone}" title="${esc(T('pin.there.tip'))}">${esc(T('pin.there', { state: T('st.' + k) }))}</span>`;
+    }
+    const recOf = (key) => (S.lk.data && S.lk.data.records.find((r) => r.key === key)) || null;
+    const recName = (r) => r ? `${r.code ? r.code + ' · ' : ''}${r.title}` : '';
+    const recLink = (r, code) => /^https?:/.test(r.record) ? `${r.record}/#view=graph${code ? '&node=' + encodeURIComponent(code) : ''}` : '';
     let refreshTimer = null;
     function onLiveEvent(e) {
       if (!S.m || S.m.events.some((x) => x.seq === e.seq)) return;
@@ -1134,6 +1350,10 @@
             </tbody></table>` : `<div class="empty">${esc(T('ov.no_questions'))}</div>`}</div>
           <div class="grid" style="align-content:start">
             <div class="card"><h3>${esc(T('ov.attention'))}</h3><div class="body">${alertList(alerts())}</div></div>
+            ${S.lk.refs.length ? `<div class="card"><h3>⛓ ${esc(T('lk.title'))} <span class="r"><button class="btn" type="button" data-v="graph">${esc(T('lk.see'))}</button></span></h3><div class="body">
+              ${S.lk.data ? [...new Set(S.lk.data.pins.filter((p) => p.from === 'self').map((p) => p.to))].map((k) => { const r = recOf(k), ps = S.lk.data.pins.filter((p) => p.from === 'self' && p.to === k);
+                return `<div style="margin-bottom:8px"><b>${esc(recName(r))}</b> <span class="dim">${esc(where((r || {}).record || ''))}</span>${ps.map((p) => `<div class="lk-pin"><button type="button" class="code" data-n="${esc(p.fromId)}">${esc(p.fromCode)}</button> <span class="dim">→</span> <span class="code">${esc(p.toCode || p.node.slice(0, 14))}</span> <span class="dim mono">v${p.version}</span> ${pinPill(p)}${thereStand(p)}</div>`).join('')}</div>`; }).join('')
+                : `<div class="dim">${esc(T('lk.loading'))}</div>`}</div></div>` : ''}
             ${comp ? `<div class="card"><h3>${esc(T('ov.completion'))} <span class="sub">${esc(comp.profile || m.pid || T('ov.kernel'))}</span></h3><div class="body">
               ${(comp.criteria || []).map((c) => `<div class="gate" style="margin-bottom:8px"><span class="m ${c.met ? 'met' : 'no'}" aria-hidden="true">${c.met ? '✓' : '·'}</span>
               <div><b>${esc(String(c.name).replace(/_/g, ' '))}</b> <span class="sr">${esc(T(c.met ? 'gate.met' : 'gate.not_met'))}</span><div class="dim">${esc(c.why)}</div></div></div>`).join('')}</div></div>` : ''}
@@ -1224,13 +1444,36 @@
     }
 
     function vGraph() {
-      const m = S.m, types = [...new Set(m.nodes.map((n) => n.type))].filter((t) => t !== 'review');
+      const m = S.m, lk = S.lk, types = [...new Set(m.nodes.map((n) => n.type))].filter((t) => t !== 'review');
       if (!S.graphTypes) S.graphTypes = new Set(types.filter((t) => t !== 'task'));
+      const nrec = new Set(lk.refs.map((r) => r.record)).size, on = lk.on && lk.refs.length > 0;
       return head(esc(T('view.graph')), esc(m.profile.name ? T('gr.lede', { name: m.profile.name }) : T('gr.lede.plain')),
         `<button class="btn" type="button" data-act="png">${esc(T('gr.png'))}</button><button class="btn" type="button" data-act="json">${esc(T('gr.json'))}</button>`) +
-        `<div class="toolbar">${types.map((t) => `<button type="button" class="chip" data-gtype="${t}" aria-pressed="${S.graphTypes.has(t)}"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${TYPE_COLOR[t] || '#98a2b3'};margin-right:5px"></i>${esc(TL(t))}</button>`).join('')}</div>
-        <div class="card"><div class="graph big" id="hg-graph" role="img" aria-label="${esc(T('gr.aria', { n: m.nodes.length }))}"></div><div class="legend">
-          <span><i style="border:2px solid var(--ok)"></i>${esc(T('st.checked'))}</span><span><i style="border:2px dashed var(--warn)"></i>${esc(T('st.stale'))}</span><span><i style="border:2px solid var(--bad)"></i>${esc(T('gr.lg.bad'))}</span><span><i style="background:var(--line2)"></i>${esc(T('gr.lg.gone'))}</span></div></div>`;
+        `<div class="toolbar">${lk.refs.length ? `<button type="button" class="chip lk-chip" data-act="linked" aria-pressed="${on}" title="${esc(T('gr.linked.tip'))}">⛓ ${esc(T('gr.linked', { n: nrec }))}${lk.status === 'loading' ? ' …' : ''}</button><span class="lk-sep" aria-hidden="true"></span>` : ''}${types.map((t) => `<button type="button" class="chip" data-gtype="${t}" aria-pressed="${S.graphTypes.has(t)}"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${TYPE_COLOR[t] || '#98a2b3'};margin-right:5px"></i>${esc(TL(t))}</button>`).join('')}</div>
+        <div class="card"><div class="graph big" id="hg-graph" role="img" aria-label="${esc(T(on && lk.data ? 'gr.aria.linked' : 'gr.aria', { n: m.nodes.length, r: lk.data ? lk.data.records.length : 0 }))}"></div><div class="legend">
+          <span><i style="border:2px solid var(--ok)"></i>${esc(T('st.checked'))}</span><span><i style="border:2px dashed var(--warn)"></i>${esc(T('st.stale'))}</span><span><i style="border:2px solid var(--bad)"></i>${esc(T('gr.lg.bad'))}</span><span><i style="background:var(--line2)"></i>${esc(T('gr.lg.gone'))}</span>
+          ${on ? `<span><i class="lg-rec"></i>${esc(T('gr.lg.record'))}</span><span><i class="lg-pin"></i>${esc(T('gr.lg.pin'))}</span>` : ''}</div></div>${linkedPanel()}`;
+    }
+    /** The records this investigation pins: each one's chain, and each pin into it checked against it. */
+    function linkedPanel() {
+      const lk = S.lk;
+      if (!lk.refs.length) return '';
+      const data = lk.data;
+      const body = !data ? `<div class="dim">${esc(T('lk.loading'))}</div>` : data.problem ? `<div class="why">${esc(data.problem)}</div>` : `<table class="lk-table"><thead><tr>
+        <th scope="col" style="width:30%">${esc(T('lk.col.record'))}</th><th scope="col">${esc(T('lk.col.pins'))}</th><th scope="col" style="width:190px">${esc(T('lk.col.chain'))}</th><th scope="col" style="width:64px">${esc(T('lk.col.nodes'))}</th><th scope="col" style="width:150px"></th></tr></thead><tbody>
+        ${data.records.map((r, i) => {
+          const ps = data.pins.filter((p) => p.to === r.key), from = [...new Set(ps.filter((p) => p.from !== 'self').map((p) => recName(recOf(p.from))))];
+          const chain = r.verify ? (r.verify.ok ? `<span class="pill ok" title="${esc(T('chain.ok.tip', { n: r.verify.checked, head: String(r.verify.head || '').slice(0, 12) }))}">${esc(T('chain.ok', { n: r.verify.checked }))}</span>${r.verify.coverage === 'partial' ? ` <span class="pill warn" title="${esc(r.verify.warning || '')}">${esc(T('chain.partial'))}</span>` : ''}`
+            : `<span class="pill bad" title="${esc(r.verify.problem || '')}">${esc(T('chain.bad'))}</span>`) : `<span class="pill neutral">${esc(T('lk.st.' + r.status, { host: hostOf(r.record), n: opts.linkDepth || 3 }))}</span>`;
+          const act = r.status === 'blocked' ? `<button class="btn" type="button" data-act="lk-allow" data-origin="${esc(originOf(r.record))}" title="${esc(T('lk.allow.tip', { host: hostOf(r.record) }))}">${esc(T('lk.allow', { host: hostOf(r.record) }))}</button>`
+            : recLink(r) ? `<a class="btn" href="${esc(recLink(r))}" target="_blank" rel="noopener">${esc(T('lk.open'))}</a>` : '';
+          return `<tr class="click" data-act="lk-focus" data-i="${i}" tabindex="0"><td><b>${esc(recName(r))}</b>${r.bundle ? `<div class="dim mono lk-where">${esc(where(r.record))}</div>` : ''}${r.problem ? `<div class="why lk-where">${esc(r.problem)}</div>` : ''}${r.depth > 1 && from.length ? `<div class="dim lk-where">${esc(T('lk.via', { list: from.join(', ') }))}</div>` : ''}</td>
+            <td>${[...new Set(ps.map((p) => p.from))].map((f) => `${f === 'self' ? '' : `<div class="lk-from">${esc(T('lk.in', { name: clip(recName(recOf(f)), 60) }))}</div>`}${ps.filter((p) => p.from === f).map((p) => `<div class="lk-pin">${p.from === 'self' ? `<button type="button" class="code" data-n="${esc(p.fromId)}">${esc(p.fromCode)}</button>` : `<button type="button" class="code" data-ln="${esc(p.from + '|' + p.fromId)}">${esc(p.fromCode)}</button>`}
+              <span class="dim">→</span> ${r.bundle ? `<button type="button" class="code" data-ln="${esc(r.key + '|' + p.node)}">${esc(p.toCode || p.node)}</button>` : `<span class="code">${esc(p.node.slice(0, 14))}</span>`} <span class="dim mono">v${p.version}</span> ${pinPill(p)}${thereStand(p)}</div>`).join('')}`).join('')}</td>
+            <td>${chain}</td><td class="mono">${r.bundle ? r.nodes.filter((n) => n.type !== 'review').length : '—'}</td><td style="text-align:right">${act}</td></tr>`;
+        }).join('')}</tbody></table>`;
+      return `<div class="card lk-card" style="margin-top:14px"><h3>⛓ ${esc(T('lk.title'))} <span class="sub">${esc(T('lk.sub', { n: lk.refs.length, r: new Set(lk.refs.map((x) => x.record)).size }))}</span></h3>
+        <div class="body"><p class="dim" style="margin:0 0 10px">${esc(T('lk.lede'))}</p>${body}<p class="dim" style="margin:10px 0 0;font-size:11.5px">${esc(T('lk.note'))}</p></div></div>`;
     }
 
     // ── live ──
@@ -1348,16 +1591,20 @@
     }
 
     // ── graph ──
-    function graphInto(el, nodes, edges, fit) {
+    function graphInto(el, nodes, edges, fit, linked) {
       if (!el || !global.cytoscape) { if (el) el.innerHTML = `<div class="empty">${esc(T('gr.needs'))}</div>`; return null; }
       const css = getComputedStyle(root), tok = (k) => css.getPropertyValue(k).trim();
       const shown = nodes.filter((n) => n.type !== 'review');
       const ids = new Set(shown.map((n) => n.id));
       const ring = (n) => staleOf(n).length ? 'stale' : (st(n).at_risk || reviewOf(n) === 'contested') ? 'bad' : reviewOf(n) === 'checked' ? 'ok' : '';
-      const cy = global.cytoscape({ container: el, wheelSensitivity: 0.25, boxSelectionEnabled: false,
-        elements: [...shown.map((n) => ({ data: { id: n.id, label: n.code || '', type: n.type, color: TYPE_COLOR[n.type] || '#98a2b3', ring: ring(n),
-          gone: ['superseded', 'withdrawn'].includes(st(n).lifecycle) ? 'y' : '' } })),
-          ...edges.filter((e) => ids.has(e.src) && ids.has(e.dst)).map((e, i) => ({ data: { id: `e${i}-${e.src}-${e.dst}`, source: e.src, target: e.dst, rel: e.rel } }))],
+      const nodeEl = (n, id, parent, rec) => ({ data: { id, label: n.code || '', type: n.type, color: TYPE_COLOR[n.type] || '#98a2b3', ring: ring(n),
+        gone: ['superseded', 'withdrawn'].includes(st(n).lifecycle) ? 'y' : '', ...(parent ? { parent } : {}), ...(rec ? { rec, nid: n.id } : {}) } });
+      const selfBox = linked ? 'rec:self' : '';
+      const els = [...(linked ? [{ data: { id: selfBox, kind: 'rec', self: 'y', label: `${clip(`${S.m.code} · ${S.m.title}`, 58)}\n${[T('lk.this'), selfRecord ? where(selfRecord) : ''].filter(Boolean).join(' · ')}` } }] : []),
+        ...shown.map((n) => nodeEl(n, n.id, selfBox)),
+        ...edges.filter((e) => ids.has(e.src) && ids.has(e.dst)).map((e, i) => ({ data: { id: `e${i}-${e.src}-${e.dst}`, source: e.src, target: e.dst, rel: e.rel } })),
+        ...(linked ? linkedEls(linked, ids, nodeEl) : [])];
+      const cy = global.cytoscape({ container: el, wheelSensitivity: 0.25, boxSelectionEnabled: false, elements: els,
         style: [
           { selector: 'node', style: { 'background-color': 'data(color)', label: 'data(label)', 'font-size': 9, color: tok('--ink2'), 'text-valign': 'bottom',
             'text-margin-y': 3, width: 16, height: 16, 'font-family': 'ui-monospace, monospace' } },
@@ -1378,11 +1625,124 @@
           { selector: 'edge[rel="supersedes"]', style: { 'line-style': 'dashed', 'line-color': tok('--warn'), 'target-arrow-color': tok('--warn') } },
           { selector: 'edge[rel="challenges"]', style: { 'line-color': tok('--bad'), 'target-arrow-color': tok('--bad') } },
           { selector: ':selected', style: { 'overlay-color': tok('--accent'), 'overlay-opacity': 0.22, 'overlay-padding': 5 } },
+          // linked records: each a box with its name on top; the open record's in the accent colour
+          { selector: 'node[kind="rec"]', style: { shape: 'round-rectangle', 'background-color': tok('--surface2'), 'background-opacity': 0.9,
+            'border-width': 1.5, 'border-style': 'dashed', 'border-color': tok('--line2'), label: 'data(label)', 'text-wrap': 'wrap',
+            'text-max-width': 340, 'text-valign': 'top', 'text-halign': 'center', 'text-margin-y': -6, 'font-size': 11, 'font-weight': 600,
+            'line-height': 1.35, color: tok('--ink'), 'font-family': tok('--sans') || 'system-ui', padding: 22, 'corner-radius': 14,
+            'text-background-color': tok('--surface'), 'text-background-opacity': 0.92, 'text-background-padding': 3, 'text-background-shape': 'round-rectangle' } },
+          { selector: 'node[kind="rec"][self="y"]', style: { 'border-style': 'solid', 'border-width': 2, 'border-color': tok('--accent'), 'background-color': tok('--accent-soft'), 'background-opacity': 0.55 } },
+          { selector: 'node[kind="rec"][state="unverified"], node[kind="rec"][state="failed"]', style: { 'border-color': tok('--bad'), 'border-style': 'solid' } },
+          { selector: 'node[kind="rec"][state="blocked"], node[kind="rec"][state="limit"]', style: { 'background-opacity': 0.4, color: tok('--ink2') } },
+          { selector: 'node[kind="ph"]', style: { shape: 'ellipse', width: 22, height: 22, 'background-color': tok('--sunken'), 'border-width': 1.5,
+            'border-style': 'dashed', 'border-color': tok('--ink3'), label: '?', 'text-valign': 'center', 'text-margin-y': 0, 'font-size': 11, color: tok('--ink3') } },
+          { selector: 'edge[kind="pin"]', style: { width: 2.4, 'line-style': 'dashed', 'line-dash-pattern': [7, 4], 'curve-style': 'bezier',
+            'target-arrow-shape': 'triangle-backcurve', 'arrow-scale': 1.1, label: 'data(label)', 'font-size': 9.5, 'font-weight': 600,
+            'text-rotation': 'autorotate', 'text-background-color': tok('--surface'), 'text-background-opacity': 1, 'text-background-padding': 2,
+            'text-background-shape': 'round-rectangle', 'font-family': 'ui-monospace, monospace', 'line-color': tok('--ink3'), 'target-arrow-color': tok('--ink3'), color: tok('--ink2') } },
+          ...[['ok', '--ok'], ['revised', '--warn'], ['withdrawn', '--bad'], ['bad', '--bad'], ['local', '--accent']].map(([k, c]) =>
+            ({ selector: `edge[pin="${k}"]`, style: { 'line-color': tok(c), 'target-arrow-color': tok(c), color: tok(c) } })),
         ] });
-      try { cy.layout({ name: hasFcose() ? 'fcose' : 'cose', animate: false, randomize: true, nodeRepulsion: 6500, idealEdgeLength: 60, fit: fit !== false, padding: 24 }).run(); }
-      catch { cy.layout({ name: 'cose', animate: false }).run(); }
-      cy.on('tap', 'node', (ev) => openNode(ev.target.id()));
+      if (linked) arrangeRecords(cy, linked, fit !== false);
+      else {
+        try { cy.layout({ name: hasFcose() ? 'fcose' : 'cose', animate: false, randomize: true, nodeRepulsion: 6500, idealEdgeLength: 60, fit: fit !== false, padding: 24 }).run(); }
+        catch { cy.layout({ name: 'cose', animate: false }).run(); }
+      }
+      cy.on('tap', 'node', (ev) => {
+        const d = ev.target.data();
+        if (d.kind === 'rec') return cy.animate({ fit: { eles: ev.target, padding: 40 } }, { duration: 320 });
+        if (d.kind === 'ph') { const p = S.lk.data && S.lk.data.pins.find((x) => x.to === d.rec); return p && p.from === 'self' ? openNode(p.fromId) : null; }
+        if (d.rec) return openLinked(d.rec, d.nid);
+        return openNode(ev.target.id());
+      });
       return cy;
+    }
+    /** Each record laid out on its own, then the records set in columns: the open one on the left, each record in
+     *  the column of its distance in pins, a column ordered by where the pins into it start, so pins run left to right. */
+    function arrangeRecords(cy, data, fit) {
+      const lay = (eles) => {
+        try { eles.layout({ name: hasFcose() ? 'fcose' : 'cose', animate: false, randomize: true, nodeRepulsion: 6500, idealEdgeLength: 60, fit: false }).run(); }
+        catch { eles.layout({ name: 'cose', animate: false, fit: false }).run(); }
+      };
+      const boxes = [cy.getElementById('rec:self'), ...data.records.map((r, i) => cy.getElementById(`rec:${i}`))];
+      const depth = [0, ...data.records.map((r) => r.depth || 1)];
+      boxes.forEach((b) => {
+        const kids = b.children();
+        if (kids.length > 1) lay(kids.union(kids.connectedEdges().filter((e) => e.data('kind') !== 'pin' && kids.contains(e.source()) && kids.contains(e.target()))));
+      });
+      const cols = [];
+      boxes.forEach((b, i) => { (cols[depth[i]] = cols[depth[i]] || []).push(i); });
+      const GAP_X = 190, GAP_Y = 96;
+      let x = 0;
+      cols.forEach((col) => {
+        if (!col) return;
+        // the pins into a box start at nodes already placed: order the column by their mean height
+        const into = (i) => {
+          const ys = boxes[i].children().connectedEdges('[kind="pin"]').filter((e) => boxes[i].children().contains(e.target()))
+            .map((e) => e.source().position('y'));
+          return ys.length ? ys.reduce((a, y) => a + y, 0) / ys.length : 0;
+        };
+        col.sort((a, b) => into(a) - into(b) || a - b);
+        const bbs = col.map((i) => boxes[i].children().boundingBox({ includeLabels: true }));
+        const width = Math.max(...bbs.map((bb) => bb.w)), height = bbs.reduce((a, bb) => a + bb.h, 0) + GAP_Y * (col.length - 1);
+        let y = -height / 2;
+        col.forEach((i, k) => {
+          const bb = bbs[k], dx = x + (width - bb.w) / 2 - bb.x1, dy = y - bb.y1;
+          boxes[i].children().positions((n) => ({ x: n.position('x') + dx, y: n.position('y') + dy }));
+          y += bb.h + GAP_Y;
+        });
+        x += width + GAP_X;
+      });
+      // mirror each record in place (its box doesn't move) whichever way makes its pins shortest
+      const pins = cy.edges('[kind="pin"]');
+      const span = () => pins.reduce((a, e) => a + Math.hypot(e.source().position('x') - e.target().position('x'), e.source().position('y') - e.target().position('y')), 0);
+      const mirror = (kids, fx, fy) => {
+        const bb = kids.boundingBox(), cx = (bb.x1 + bb.x2) / 2, cyy = (bb.y1 + bb.y2) / 2;
+        kids.positions((n) => ({ x: fx ? 2 * cx - n.position('x') : n.position('x'), y: fy ? 2 * cyy - n.position('y') : n.position('y') }));
+      };
+      for (let pass = 0; pass < 2; pass++) boxes.forEach((b) => {
+        const kids = b.children();
+        if (kids.length < 2 || !kids.connectedEdges('[kind="pin"]').length) return;
+        let best = span(), pick = [false, false];
+        [[true, false], [false, true], [true, true]].forEach(([fx, fy]) => {
+          mirror(kids, fx, fy); const d = span(); mirror(kids, fx, fy);
+          if (d < best - 1) { best = d; pick = [fx, fy]; }
+        });
+        if (pick[0] || pick[1]) mirror(kids, pick[0], pick[1]);
+      });
+      if (fit) cy.fit(undefined, 28);
+    }
+    const where = (u) => { try { const x = new URL(u); return clip(x.host + x.pathname.replace(/\/+$/, ''), 52); } catch { return clip(u, 52); } };
+    const clip = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+    /** The linked records as Cytoscape elements: a box per record holding its nodes (those the type filter keeps,
+     *  and always the ones a pin starts or ends at), and each pin drawn from the citing source to the node it pins,
+     *  or to a placeholder for a record that wasn't read. */
+    function linkedEls(data, selfIds, nodeEl) {
+      const at = new Map(data.records.map((r, i) => [r.key, i])), must = new Map();
+      const need = (k, id) => (must.get(k) || must.set(k, new Set()).get(k)).add(id);
+      data.pins.forEach((p) => { need(p.to, p.node); need(p.from, p.fromId); });
+      const keep = (n) => S.graphTypes.has(n.type) && (S.graphTypes.has('task') || !isBookkeeping(n));
+      const els = [];
+      data.records.forEach((r, i) => {
+        const box = `rec:${i}`, line2 = [r.bundle ? where(r.record) : '', r.status === 'loaded' ? '' : T('lk.st.' + r.status, { host: hostOf(r.record), n: opts.linkDepth || 3 })].filter(Boolean).join(' · ');
+        els.push({ data: { id: box, kind: 'rec', state: r.status, key: r.key, label: `${clip(recName(r), 58)}\n${line2}` } });
+        if (!r.bundle) { els.push({ data: { id: `L${i}:?`, parent: box, kind: 'ph', rec: r.key } }); return; }
+        const m = must.get(r.key) || new Set(), shown = r.nodes.filter((n) => n.type !== 'review' && (keep(n) || m.has(n.id)));
+        const ids = new Set(shown.map((n) => n.id));
+        shown.forEach((n) => els.push(nodeEl(n, `L${i}:${n.id}`, box, r.key)));
+        r.edges.filter((e) => ids.has(e.src) && ids.has(e.dst)).forEach((e, j) =>
+          els.push({ data: { id: `L${i}e${j}`, source: `L${i}:${e.src}`, target: `L${i}:${e.dst}`, rel: e.rel } }));
+      });
+      const end = (k, id) => {
+        if (k === 'self') return selfIds.has(id) ? id : '';
+        const i = at.get(k);
+        return i == null ? '' : data.records[i].bundle ? `L${i}:${id}` : `L${i}:?`;
+      };
+      data.pins.forEach((p, j) => {
+        const a = end(p.from, p.fromId), b = end(p.to, p.node);
+        if (a && b) els.push({ data: { id: `pin${j}`, source: a, target: b, kind: 'pin', pin: pinState(p), label: `v${p.version} ${PIN_GLYPH[pinState(p)]}` } });
+      });
+      return els;
     }
     let fcoseKnown = null;
     function hasFcose() {
@@ -1400,14 +1760,41 @@
       const b = d.querySelector('[data-act="close"]'); if (b) b.focus({ preventScroll: true });
     }
     function closeDrawer() { const d = $('#hg-drawer'); d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); S.drawer = null; syncHash(); }
-    const nodeLink = (id, rel) => { const n = S.m.byId.get(id); return `<div class="link"><button type="button" data-n="${esc(id)}"><span class="code">${esc((n && n.code) || id)}</span></button>
+    const here = () => ({ byId: S.m.byId, attr: (id) => `data-n="${esc(id)}"` });
+    const nodeLink = (id, rel, cx = here()) => { const n = cx.byId.get(id); return `<div class="link"><button type="button" ${cx.attr(id)}><span class="code">${esc((n && n.code) || id)}</span></button>
       ${rel ? `<span class="dim">${esc(rel)}</span>` : ''}<span class="ink2" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n ? (TL(n.type) + ' · ' + (n.title || '')) : '')}</span></div>`; };
     async function openNode(idOrCode) {
       const m = S.m, n = m.byId.get(idOrCode) || m.byCode.get(idOrCode);
       if (!n) return;
       if (n.type === 'question') return openQuestion(n.code);
       S.drawer = { node: n.id }; syncHash();
-      const s = st(n), rv = s.review || {};
+      const pins = S.lk.data ? S.lk.data.pins.filter((p) => p.from === 'self' && p.fromId === n.id) : [];
+      const top = pins.length ? `<section class="lk-sec"><h4>⛓ ${esc(T('dr.pin'))}</h4>${pins.map((p) => { const r = recOf(p.to);
+        return `<div class="lk-pin"><b>${esc(recName(r) || hostOf(p.record))}</b><div style="margin:4px 0"><span class="dim">${esc(T('dr.pin.node'))}</span> ${r && r.bundle ? `<button type="button" class="code" data-ln="${esc(p.to + '|' + p.node)}">${esc(p.toCode || p.node)}</button>` : `<span class="code">${esc(p.node)}</span>`} <span class="dim mono">v${p.version}</span> ${pinPill(p)}${thereStand(p)}</div>
+          ${p.check && p.check.problem ? `<div class="why">${esc(p.check.problem)}</div>` : ''}<div class="mono dim" style="font-size:11px;overflow-wrap:anywhere">sha256 ${esc(p.hash)}</div>
+          ${r && recLink(r, p.toCode) ? `<a class="btn" style="margin-top:6px" href="${esc(recLink(r, p.toCode))}" target="_blank" rel="noopener">${esc(T('lk.open'))}</a>` : ''}</div>`; }).join('')}</section>`
+        : S.lk.refs.some((r) => r.id === n.id) && S.lk.status === 'loading' ? `<section><h4>⛓ ${esc(T('dr.pin'))}</h4><div class="dim">${esc(T('lk.loading'))}</div></section>` : '';
+      return nodeDrawer(n, here(), src, top, true);
+    }
+    /** A node of a linked record: shown from that record's own bundle, its links staying in that record. */
+    async function openLinked(key, idOrCode) {
+      const M = S.lk.models.get(key);
+      if (!M) return;
+      const n = M.byId.get(idOrCode) || M.byCode.get(idOrCode);
+      if (!n) return;
+      S.drawer = { ln: key, lnode: n.id };
+      const cx = { byId: M.byId, attr: (id) => `data-ln="${esc(key + '|' + id)}"` };
+      const by = S.lk.data.pins.filter((p) => p.to === key && p.node === n.id);
+      const top = `<section class="lk-sec"><h4>⛓ ${esc(T('dr.in_record'))}</h4><div><b>${esc(recName(M))}</b><div class="dim mono lk-where">${esc(where(M.record))}</div></div>
+        <div style="margin-top:4px">${M.verify && M.verify.ok ? `<span class="pill ok">${esc(T('chain.ok', { n: M.verify.checked }))}</span>` : `<span class="pill bad" title="${esc((M.verify || {}).problem || '')}">${esc(T('chain.bad'))}</span>`}
+        ${recLink(M, n.code) ? ` <a class="btn" style="margin-left:6px" href="${esc(recLink(M, n.code))}" target="_blank" rel="noopener">${esc(T('lk.open'))}</a>` : ''}</div>
+        ${by.length ? `<div style="margin-top:8px"><span class="dim">${esc(T('dr.pinned_by'))}</span>${by.map((p) => `<div class="lk-pin">${p.from === 'self' ? `<button type="button" class="code" data-n="${esc(p.fromId)}">${esc(p.fromCode)}</button> <span class="dim">${esc(T('lk.this'))}</span>`
+          : `<button type="button" class="code" data-ln="${esc(p.from + '|' + p.fromId)}">${esc(p.fromCode)}</button> <span class="dim">${esc(recName(recOf(p.from)))}</span>`} <span class="dim mono">v${p.version}</span> ${pinPill(p)}</div>`).join('')}</div>` : ''}</section>`;
+      return nodeDrawer(n, cx, M.src, top, false);
+    }
+    async function nodeDrawer(n, cx, from, top, mine) {
+      const s = st(n), rv = s.review || {}, nodeLink2 = (id, rel) => nodeLink(id, rel, cx);
+      const still = () => S.drawer && (mine ? S.drawer.node === n.id : S.drawer.lnode === n.id);
       const skeleton = (det, why, imp) => {
         const body = (det && det.body) || {};
         const fields = Object.entries(body).filter(([k, v]) => v !== '' && v != null && !['title'].includes(k)).slice(0, 14);
@@ -1419,15 +1806,15 @@
         <section><h4>${esc(T('dr.written'))}</h4><div class="kv"><span class="k">${esc(T('dr.by'))}</span><span>${esc(n.by)}</span><span class="k">${esc(T('dr.at'))}</span><span class="mono">${esc(String(n.at || '').replace('T', ' ').slice(0, 19))}</span>
           ${det && det.versions && det.versions.length > 1 ? `<span class="k">${esc(T('dr.versions'))}</span><span>${det.versions.map((v) => `v${v.v}${v.reason ? ' (' + esc(v.reason) + ')' : ''}`).join(' · ')}</span>` : ''}</div></section>
         ${fields.length ? `<section><h4>${esc(T('dr.fields'))}</h4><div class="kv">${fields.map(([k, v]) => `<span class="k">${esc(k)}</span><span style="overflow-wrap:anywhere">${esc(typeof v === 'object' ? JSON.stringify(v) : v).slice(0, 600)}</span>`).join('')}</div></section>` : ''}
-        <section><h4>${esc(T('dr.rests_on'))}</h4>${det ? (det.out || []).map((e) => nodeLink(e.dst, e.rel)).join('') || `<div class="dim">${esc(T('dr.nothing'))}</div>` : '<div class="dim">…</div>'}</section>
-        <section><h4>${esc(T('dr.rests_on_it'))}</h4>${det ? (det.in || []).map((e) => nodeLink(e.src, e.rel)).join('') || `<div class="dim">${esc(T('dr.nothing'))}</div>` : '<div class="dim">…</div>'}</section>
-        ${why && why.nodes && why.nodes.length > 1 ? `<section><h4>${esc(T('dr.provenance'))} <span class="dim">${esc(T('dr.provenance.sub'))}</span></h4>${why.nodes.filter((x) => x.id !== n.id).slice(0, 40).map((x) => nodeLink(x.id)).join('')}</section>` : ''}
-        ${imp && imp.dependents && imp.dependents.length ? `<section><h4>${esc(T('dr.if_fell'))} <span class="dim">${esc(T('dr.if_fell.sub'))}</span></h4>${imp.dependents.slice(0, 40).map((x) => nodeLink(x.node.id, x.rel)).join('')}</section>` : ''}`;
+        <section><h4>${esc(T('dr.rests_on'))}</h4>${det ? (det.out || []).map((e) => nodeLink2(e.dst, e.rel)).join('') || `<div class="dim">${esc(T('dr.nothing'))}</div>` : '<div class="dim">…</div>'}</section>
+        <section><h4>${esc(T('dr.rests_on_it'))}</h4>${det ? (det.in || []).map((e) => nodeLink2(e.src, e.rel)).join('') || `<div class="dim">${esc(T('dr.nothing'))}</div>` : '<div class="dim">…</div>'}</section>
+        ${why && why.nodes && why.nodes.length > 1 ? `<section><h4>${esc(T('dr.provenance'))} <span class="dim">${esc(T('dr.provenance.sub'))}</span></h4>${why.nodes.filter((x) => x.id !== n.id).slice(0, 40).map((x) => nodeLink2(x.id)).join('')}</section>` : ''}
+        ${imp && imp.dependents && imp.dependents.length ? `<section><h4>${esc(T('dr.if_fell'))} <span class="dim">${esc(T('dr.if_fell.sub'))}</span></h4>${imp.dependents.slice(0, 40).map((x) => nodeLink2(x.node.id, x.rel)).join('')}</section>` : ''}`;
       };
-      const title = `<span class="code">${esc(n.code)}</span><span class="pill neutral">${esc(TL(n.type))}</span>`;
-      drawer(title, esc(n.title), skeleton(null));
-      const [det, why, imp] = await Promise.all([settle(src.node(n.id)), settle(src.why(n.id)), settle(src.impact(n.id))]);
-      if (S.drawer && S.drawer.node === n.id) drawer(title, esc(n.title), skeleton(det, why, imp));
+      const title = `<span class="code">${esc(n.code)}</span><span class="pill neutral">${esc(TL(n.type))}</span>${mine ? '' : `<span class="pill accent">⛓ ${esc(clip(n.inv && S.lk.models.get(S.drawer.ln) ? recName(S.lk.models.get(S.drawer.ln)) : '', 40))}</span>`}`;
+      drawer(title, esc(n.title), top + skeleton(null));
+      const [det, why, imp] = await Promise.all([settle(from.node(n.id)), settle(from.why(n.id)), settle(from.impact(n.id))]);
+      if (still()) drawer(title, esc(n.title), top + skeleton(det, why, imp));
     }
     function openQuestion(code) {
       const m = S.m, sq = (m.stages || []).find((x) => x.code === code), q = (m.board || []).find((x) => x.code === code) || {};
@@ -1475,7 +1862,10 @@
         root.dataset.hgView = S.view; root.dataset.hgReady = '1';
         if (S.cy) { try { S.cy.destroy(); } catch { /* gone */ } S.cy = null; }
         // the scheduler's own decisions (accepting work orders) are work-order bookkeeping: shown with the work orders
-        if (S.view === 'graph') S.cy = graphInto($('#hg-graph'), S.m.nodes.filter((n) => S.graphTypes.has(n.type) && (S.graphTypes.has('task') || !isBookkeeping(n))), S.m.edges);
+        if (S.view === 'graph') {
+          const lk = S.lk, on = lk.on && lk.data && lk.data.records.length, cite = new Set(on ? lk.data.pins.filter((p) => p.from === 'self').map((p) => p.fromId) : []);
+          S.cy = graphInto($('#hg-graph'), S.m.nodes.filter((n) => cite.has(n.id) || (S.graphTypes.has(n.type) && (S.graphTypes.has('task') || !isBookkeeping(n)))), S.m.edges, true, on ? lk.data : null);
+        }
         if (S.view === 'live') {
           const made = new Set(S.m.events.slice(0, S.cursor == null ? S.m.events.length : S.cursor).filter((e) => e.kind === 'create').map((e) => e.ref));
           S.cy = graphInto($('#hg-live-graph'), S.m.nodes.filter((n) => made.has(n.id) && n.type !== 'task' && !isBookkeeping(n)).slice(0, 400), S.m.edges);
@@ -1499,18 +1889,27 @@
 
     // ── events (delegated) ──
     root.addEventListener('click', (ev) => {
-      const t = ev.target.closest('[data-v],[data-inv],[data-q],[data-n],[data-act],[data-sort],[data-evtype],[data-gtype],[data-pi]');
+      const t = ev.target.closest('[data-v],[data-inv],[data-q],[data-n],[data-ln],[data-act],[data-sort],[data-evtype],[data-gtype],[data-pi]');
       if (!t || !root.contains(t)) { if (ev.target.id === 'hg-pal') palClose(); return; }
       if (t.dataset.v) return setView(t.dataset.v);
       if (t.dataset.inv) return select(t.dataset.inv);
       if (t.dataset.q) return openQuestion(t.dataset.q);
       if (t.dataset.n) return openNode(t.dataset.n);
+      if (t.dataset.ln) { const i = t.dataset.ln.lastIndexOf('|'); return openLinked(t.dataset.ln.slice(0, i), t.dataset.ln.slice(i + 1)); }
       if (t.dataset.pi != null) { const it = S.palCurrent[+t.dataset.pi]; palClose(); if (it) it.run(); return; }
       if (t.dataset.sort) { S.sort = { k: t.dataset.sort, asc: S.sort.k === t.dataset.sort ? !S.sort.asc : true }; return render(); }
       if (t.dataset.evtype) { const x = t.dataset.evtype; S.ev.types.has(x) ? S.ev.types.delete(x) : S.ev.types.add(x); return render(); }
       if (t.dataset.gtype) { const x = t.dataset.gtype; S.graphTypes.has(x) ? S.graphTypes.delete(x) : S.graphTypes.add(x); return render(); }
       const a = t.dataset.act, m = S.m, slug = (m.code || 'inv').toLowerCase();
       if (a === 'close') return closeDrawer();
+      if (a === 'linked') { S.lk.on = !S.lk.on; return render(); }
+      if (a === 'lk-allow') { S.lk.allowed.add(t.dataset.origin); S.lk.inv = ''; return loadLinked(); }
+      if (a === 'lk-focus') {
+        if (!S.lk.on) { S.lk.on = true; render(); }
+        const box = S.cy && S.cy.getElementById('rec:' + t.dataset.i);
+        if (box && box.length) { $('#hg-graph').scrollIntoView({ block: 'center', behavior: 'smooth' }); S.cy.animate({ fit: { eles: box, padding: 40 } }, { duration: 320 }); }
+        return;
+      }
       if (a === 'lv-play') return S.playing ? (stopPlay(), render()) : play();
       if (a === 'lv-start') { stopPlay(); S.cursor = 0; return render(); }
       if (a === 'lv-live') { stopPlay(); S.cursor = null; return render(); }
@@ -1591,6 +1990,7 @@
         const h = fromHash();
         const want = h.get('inv'), pick = S.invs.find((i) => i.id === want || i.code === want || S.profiles.get(i.id) === want) || S.invs[0];
         if (h.get('view') && V[h.get('view')]) S.view = h.get('view');
+        else if (opts.view && V[opts.view]) S.view = opts.view;   // the view a page opens on
         await openInv(pick.id);
         if (h.get('at') && S.view === 'live') { S.cursor = Math.min(+h.get('at'), S.m.events.length); render(); }
         else if (opts.play || h.get('play')) replayFromStart();
@@ -1620,6 +2020,7 @@
   }
 
   const API = { mount, HttpSource, BundleSource, verifyBundle, anchored, sha256, version: VERSION, TYPE_COLOR,
+    linkRecords, checkPin, bundleReferences, normRecord, resolveWith,
     languages: { ...LANGS }, pickLang, matchLang, addStrings };
   global.HypGraph = API;
   global.HypAtlas = global.HypAtlas || API;        // the Atlas's name, kept for one release

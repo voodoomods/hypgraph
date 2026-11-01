@@ -107,6 +107,13 @@ separate implementation.
   investigation, fails; so does a bundle without a scope that has redacted events.
 - A source that pins another record's node checks that the cited body still hashes to the pinned version. It doesn't
   check the cited record's history: for that, verify that record against its own published head.
+- The Explorer's graph draws the records an investigation pins beside it, and the records those pin in turn (three
+  links deep, twelve records at most by default). Each is read as its own bundle and its chain re-verified, and each
+  pin is checked against the version it names, hashing the exact stored body as `verify_reference` does. Nothing is
+  merged: each record keeps its own standing, shown beside the pin ("checked there", "unchecked there"). A bundle
+  can't prove the address it was served from, so a pin ties the citation to the version's hash, not to the URL. The
+  page reads another site only when the viewer asks; same-origin records, and records the page maps to a bundle
+  (`records` in `HypGraph.mount`), are read at once.
 
 ## Try it
 

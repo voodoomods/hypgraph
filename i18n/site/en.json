@@ -341,6 +341,13 @@
    "1b6453a997": "<1/> events · <2/> nodes · <3/> writes refused, then rewritten",
    "20127dccb5": "Optimization ·",
    "2b4b9c229b": "Objective, feasibility and a gap. An objective with no feasibility check is refused, and “optimal” needs a bound that meets it.",
+   "7898c8e89d": "Linked records",
+   "5c9830f3f5": "Three records, each with its own chain and board, joined by pinned references. A synthesis pins claims in two other records, and one of those pins the third, so the graph draws all three together, each verified on its own.",
+   "86761b63a7": "records",
+   "468d1975c3": "<1/> bundles · <2/> events · <3/> nodes",
+   "740fda728d": "pins",
+   "224f0dd714": "<1/> pinned references, each checked against the record it names",
+   "0e1491f6eb": "<1>See them together</1>",
    "d862a30a93": "The runs use HypSwarm's scripted models, so they cost nothing and replay the same way every time; run any of them with a real model with <1/>. Rebuild these pages with <2/>. Each bundle verifies on its own: <3>verify one</3>.",
    "3de9eb333d": "Don't believe the hype. Test the hyp.",
    "65399431d3": "Made by <1>Nicolas Houghtaling</1> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <2>Disclaimer</2> · <3>GitHub</3>",
@@ -422,6 +429,39 @@
    "d3276d6377": "Assign six customers to three depots at minimum cost: a HypSwarm run under the optimization profile, replayed live — every model and tool call, work order, review and refusal.",
    "0c2a930099": "Profiles",
    "2738f6bc4e": "Optimization example"
+  },
+  "examples/linked/index.html": {
+   "8b57abdc80": "London&#x27;s water · linked records — HypGraph",
+   "eb01bf04c9": "Examples",
+   "1c7488b268": "London&#x27;s water",
+   "4b343b4613": "East London, 1866",
+   "0361e73a41": "Download bundle",
+   "1783de2360": "Verify it",
+   "f828920e4e": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it. A teaching reconstruction: no figures beyond what the records state.",
+   "41986b30dc": "One of three HypGraph records joined by pinned references, drawn together and each verified on its own.",
+   "e51c55255b": "Records"
+  },
+  "examples/linked/broad-street/index.html": {
+   "0e43422af9": "Broad Street, 1854 · linked records — HypGraph",
+   "eb01bf04c9": "Examples",
+   "1c7488b268": "London&#x27;s water",
+   "4b343b4613": "East London, 1866",
+   "0361e73a41": "Download bundle",
+   "1783de2360": "Verify it",
+   "f828920e4e": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it. A teaching reconstruction: no figures beyond what the records state.",
+   "41986b30dc": "One of three HypGraph records joined by pinned references, drawn together and each verified on its own.",
+   "e51c55255b": "Records"
+  },
+  "examples/linked/east-london-1866/index.html": {
+   "2b616fa2b8": "East London, 1866 · linked records — HypGraph",
+   "eb01bf04c9": "Examples",
+   "1c7488b268": "London&#x27;s water",
+   "4b343b4613": "East London, 1866",
+   "0361e73a41": "Download bundle",
+   "1783de2360": "Verify it",
+   "f828920e4e": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it. A teaching reconstruction: no figures beyond what the records state.",
+   "41986b30dc": "One of three HypGraph records joined by pinned references, drawn together and each verified on its own.",
+   "e51c55255b": "Records"
   },
   "explore/index.html": {
    "578f7edbb0": "Explore a record — HypGraph",

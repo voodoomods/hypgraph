@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from hypgraph import __version__  # noqa: E402
-from hypgraph.demos import broad_street  # noqa: E402
+from hypgraph.demos import broad_street, linked  # noqa: E402
 from hypgraph.schema import describe  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "dev"))
@@ -255,7 +255,7 @@ def example_stats(path: Path) -> dict:
             "stopped": end.get("stopped", ""), "head": b["head"], "size": path.stat().st_size}
 
 
-def write_examples() -> None:
+def write_examples(lk: dict) -> None:
     data = SITE / "data" / "examples"
     stats = {k: example_stats(data / f"{k}.bundle.json") for k, *_ in EXAMPLES if (data / f"{k}.bundle.json").is_file()}
     if len(stats) != len(EXAMPLES):
@@ -292,6 +292,18 @@ def write_examples() -> None:
     <dt>run</dt><dd>{v(s["calls"])} model calls · {v(s["tools"])} tool calls · {v(s["seconds"])} s · {html.escape(s["stopped"])}</dd>
     <dt>record</dt><dd>{v(s["events"])} events · {v(s["nodes"])} nodes · {refused}</dd></dl>{codes}
   <span class="go">Watch it run</span>
+</a>""")
+    v = lambda x: f"<span data-v>{html.escape(str(x))}</span>"  # noqa: E731
+    lo = lk["london"]
+    cards.append(f"""<a class="excard excard-linked" href="linked/">
+  <div class="who">Linked records</div>
+  <h2 translate="no">{html.escape(lo["title"])}</h2>
+  <p>Three records, each with its own chain and board, joined by pinned references. A synthesis pins claims in two
+    other records, and one of those pins the third, so the graph draws all three together, each verified on its
+    own.</p>
+  <dl><dt>records</dt><dd>{v(len(lk))} bundles · {v(sum(s["events"] for s in lk.values()))} events · {v(sum(s["nodes"] for s in lk.values()))} nodes</dd>
+    <dt>pins</dt><dd>{v(sum(s["pins"] for s in lk.values()))} pinned references, each checked against the record it names</dd></dl>
+  <span class="go">See them together</span>
 </a>""")
     body = f"""<!doctype html>
 <html lang="en">
@@ -330,6 +342,48 @@ def write_examples() -> None:
 </html>
 """
     write(SITE / "examples" / "index.html", body)
+
+
+LINKED = [  # (name, page folder under examples/linked/, tab label)
+    ("london", "", "London's water"),
+    ("broad-street", "broad-street", "Broad Street, 1854"),
+    ("east-london-1866", "east-london-1866", "East London, 1866"),
+]
+
+
+def write_linked() -> dict:
+    """Three records joined by pinned references (hypgraph.demos.linked), each served as its own page and bundle.
+    Each page is given the map from every record URL its pins name to that record's bundle on this site, so the
+    Explorer can read and verify them without leaving the site (the pins name hypgraph.com URLs)."""
+    data = SITE / "data" / "examples" / "linked"
+    stats = {}
+    for name, (g, inv) in linked.build().items():
+        b = g.export()
+        write(data / f"{name}.bundle.json", json.dumps(b, ensure_ascii=False, separators=(",", ":")))
+        stats[name] = {"events": len(b["events"]), "nodes": len(b["nodes"]), "pins": len(g.references(inv)),
+                       "title": linked.TITLES[name]}
+    for name, folder, label in LINKED:
+        up = "../../../" if folder else "../../"
+        page = SITE / "examples" / "linked" / folder / "index.html" if folder else SITE / "examples" / "linked" / "index.html"
+        records = {linked.URLS[k]: f"data/examples/linked/{k}.bundle.json" for k in linked.URLS}   # under the site root
+        here = "./" if not folder else "../"
+        tabs = "".join(f'<a href="{here}{f2 + "/" if f2 else ""}"{CURRENT if n2 == name else ""}>{html.escape(l2)}</a>'
+                       for n2, f2, l2 in LINKED)
+        bar = (f'<a class="crumb" href="{up}examples/">Examples</a><nav class="tabs" aria-label="Records">{tabs}</nav>'
+               f'<span class="sp"></span><a class="act" href="{up}data/examples/linked/{name}.bundle.json" download>Download bundle</a>'
+               f'<a class="act hide-sm" href="{up}verify/">Verify it</a>')
+        note = ('<p class="appnote"><b>Linked records</b> · three records, each its own hash chain and board, joined '
+                'only by pinned references: a source in one record names a node of another, the version it read and '
+                'that version’s hash. Open the graph and every record it pins is drawn beside this one, each read '
+                'as its own bundle, verified in your browser, and each pin checked against it. A teaching '
+                'reconstruction: no figures beyond what the records state.</p>')
+        mount = (f'<div data-hypgraph data-bundle="{up}data/examples/linked/{name}.bundle.json" data-hash="on" '
+                 f'data-view="graph" data-record="{linked.URLS[name]}" '
+                 f"data-records='{html.escape(json.dumps(records), quote=True)}' aria-label='{html.escape(label, quote=True)}'></div>")
+        write(page, app_page(up, f"{label} · linked records",
+                             "One of three HypGraph records joined by pinned references, "
+                             "drawn together and each verified on its own.", bar, note, mount))
+    return stats
 
 
 def write_explore() -> None:
@@ -372,7 +426,7 @@ def main() -> None:
     shutil.copy2(PKG / "ui" / "hypgraph.svg", SITE / "assets" / "hypgraph.svg")
     print("  site/app/vendor/, site/assets/hypgraph.svg")
     write_explore()
-    write_examples()
+    write_examples(write_linked())
 
     py = SITE / "py"
     shutil.rmtree(py, ignore_errors=True)

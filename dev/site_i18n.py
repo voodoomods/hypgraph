@@ -38,6 +38,7 @@ BUILD = {"note": "This page is a translation. The English page is the authoritat
 # the English pages that have translations, as paths under site/ (the build writes site/<lang>/<path>)
 PAGES = ["index.html", "agents/index.html", "engineers/index.html", "examples/index.html",
          *(f"examples/{k}/index.html" for k in ("scientific", "software", "trading", "knowledge", "optimization")),
+         *(f"examples/linked/{k}index.html" for k in ("", "broad-street/", "east-london-1866/")),
          "explore/index.html", "never/index.html", "verify/index.html", "play/index.html", "spec/index.html",
          "disclaimer/index.html"]
 
