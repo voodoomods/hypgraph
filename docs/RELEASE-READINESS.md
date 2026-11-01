@@ -114,6 +114,23 @@ was taken from a changelog without being checked against the code.*
 > suite is 482 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. The audit asks for a fresh
 > independent audit before anyone claims 0.7.22 resists these attack classes. Released as 0.7.22.
 
+> **Audit of 0.7.22 (2026-11-01), fixed for 0.7.23.** A third independent audit found five cases, each reproduced on
+> the 0.7.22 wheel. Two let a count stand for its opposite: a count of routes longer than 26 km refused the true "the
+> shortest route is 26 km" (HG-022-01), and none shorter than 26 backed "nothing / no route is longer than 26 km"
+> (HG-022-02). One let a unit claim in: "recorded parcel weights use pounds" stated no copula (HG-022-03). Two made
+> false accusations: "passenger weights" was matched with "shipping weights" on a shared word (HG-022-04), and a
+> quantity converted to another unit was read as a unit of record (HG-022-05). Comparisons now carry a direction, and
+> a result can state its comparison (`op`); "no X is longer than…" opening a clause is an absolute; a short fixed list
+> of verbs states a unit; units are compared only between subjects with the same head and compatible modifiers; a unit
+> after a number is a quantity. Each case is a regression test written to fail on 0.7.22. Replaying the 1,900
+> recorded adversarial entries names exactly the same parties as 0.7.22; one repeated false unit claim is no longer
+> refused, because 0.7.22 had refused it on a shared word and a quantity, and its author is still named.
+>
+> **Where that stands.** #87 is merged with green CI (17 of 17 checks); from the 0.7.23 wheel in a fresh venv the
+> suite is 504 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Which thing a subject names and
+> which unit a record uses are still read from words, not typed; a fresh independent audit should precede any claim
+> that 0.7.23 resists these attack classes. Released as 0.7.23.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one

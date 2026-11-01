@@ -1,5 +1,5 @@
 {
- "version": "0.7.22",
+ "version": "0.7.23",
  "files": [
   "hypgraph/__init__.py",
   "hypgraph/__main__.py",

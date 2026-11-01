@@ -213,6 +213,12 @@ def _bound(s: Snap, meas: list) -> tuple[list[tuple[dict, dict]], list[Problem]]
                                     f"{said.group(0).strip()}, but result {m['result']} counted '{m['key']}' against "
                                     f"{_fmt(f)}", fix=f"name the count after {_fmt(f)}, the figure it was made against"))
             bad = True
+        op, named = stated_op(rv), _directions(str(m.get("name") or ""))
+        if not bad and op and any(_opposed(d, ("", _OPS[op])) for d in named):
+            problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name')}: its name points the other "
+                                    f"way from what result {m['result']} counted for '{m['key']}' ({op})",
+                                    fix=f"name the count after the comparison it made ({op})"))
+            bad = True
         if not bad:
             good.append((m, rv))
     return good, problems
@@ -301,6 +307,74 @@ def _count_figures(m: dict, rv: dict, figs: set[float] = frozenset()) -> set[flo
     return out
 
 
+# which way a comparison points, as (axis, sign): "longer" and "longest" point up the length axis, "shorter" and
+# "shortest" down it; "more", "above", "highest" point up with no axis of their own, so they meet any axis. A count of
+# routes longer than 26 km says nothing against "the shortest is 26 km" (audit HG-022-01), and none shorter than 26
+# doesn't back "nothing is longer than 26" (HG-022-02).
+_DIRECTION_WORDS = {
+    "": {1: "more greater higher larger bigger above over exceed exceeds exceeding exceeded most highest largest "
+            "greatest biggest maximum max top",
+         -1: "less fewer lower smaller below under least lowest smallest fewest minimum min"},
+    "long": {1: "longer longest", -1: "shorter shortest"},
+    "good": {1: "better best", -1: "worse worst"},
+    "fast": {1: "faster fastest", -1: "slower slowest"},
+    "cost": {1: "dearer dearest", -1: "cheaper cheapest"},
+    "time": {1: "later latest", -1: "earlier earliest"},
+}
+_DIRECTION_OF = {w: (axis, sign) for axis, signs in _DIRECTION_WORDS.items() for sign, ws in signs.items()
+                 for w in ws.split()}
+_OPS = {">": 1, ">=": 1, "<": -1, "<=": -1}
+
+
+def _directions(text: str) -> set[tuple[str, int]]:
+    return {_DIRECTION_OF[w] for w in re.findall(r"[a-z]+", (text or "").lower()) if w in _DIRECTION_OF}
+
+
+def _opposed(a: tuple[str, int], b: tuple[str, int]) -> bool:
+    """Do these point opposite ways on one axis? An axis-free word ("more") meets any axis; two different axes
+    ("longer", "faster") can't be compared, so they aren't opposed."""
+    return a[1] != b[1] and (a[0] == b[0] or not a[0] or not b[0])
+
+
+def stated_op(rv: dict) -> str | None:
+    """The comparison a count says it made, written by the instrument beside it: {"k": 2, "n": 3, "figure": 26,
+    "op": ">"} is two found above 26."""
+    op = rv.get("op")
+    return op if op in _OPS else None
+
+
+def _count_directions(m: dict, rv: dict) -> set[tuple[str, int]]:
+    """Every way a bound count could point; empty when nothing says. A comparison the result states is the only one.
+    Otherwise its name's and its key's: as with its figure, the author writes the name, so a name that points the
+    other way from the key adds a direction and never replaces one."""
+    op = stated_op(rv)
+    if op:
+        return {("", _OPS[op])}
+    return _directions(str(m.get("name") or "")) | _directions(str(m.get("key") or "").replace("_", " "))
+
+
+def _claim_directions(stmt: str, w: str = "") -> set[tuple[str, int]]:
+    """Which way the exceptions to a claim point: those the absolute ``w``'s own clause compares against ("nothing
+    longer than 26 km" — longer), else those beyond its extremes ("the shortest route is 26 km" — shorter)."""
+    out: set[tuple[str, int]] = set()
+    for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I) if w else ():
+        end = next((x.start() for x in _SUBCLAUSE.finditer(stmt, m.end())), len(stmt))
+        out |= {d for h in _CLAIM_FIGURE.finditer(stmt[m.end():end]) for d in _directions(h.group(0))}
+    return out or {d for x in _extremes(stmt) for d in _directions(x)}
+
+
+def _points(m: dict, rv: dict, a: tuple[int, int], dirs: set[tuple[str, int]]) -> bool:
+    """Does this count point the way the claim's exceptions do? One that points the other way can't refute the claim
+    or back it. When it could point either way (a name against its key), a count that finds some may still refute,
+    and a count of none or all backs the claim only if no way it could point is the other way. A count, or a claim,
+    whose direction can't be told is read as before."""
+    c = _count_directions(m, rv)
+    if not c or not dirs:
+        return True
+    against = {d for d in c if all(_opposed(d, x) for x in dirs)}
+    return against != c if 0 < a[0] < a[1] else not against
+
+
 def _absolute_figures(stmt: str, w: str) -> set[float]:
     """The figures an absolute is about: one its own clause compares against ("nothing worth more than 93 fits"),
     else the figures the statement's extremes name ("the highest is 93; nothing worth more fits")."""
@@ -311,12 +385,15 @@ def _absolute_figures(stmt: str, w: str) -> set[float]:
     return figs or _extreme_figures(stmt)
 
 
-def _bears(m: dict, rv: dict, a: tuple[int, int], figs: set[float]) -> bool:
+def _bears(m: dict, rv: dict, a: tuple[int, int], figs: set[float],
+           dirs: set[tuple[str, int]] = frozenset()) -> bool:
     """Does this count bear on a claim about ``figs``? One about another figure doesn't, whatever it finds: a zero
     beyond 140 can't vouch for 93, and two beyond 93 can't refute 95. When it could be about more than one figure (a
     name that disagrees with its key), a count that finds some bears if any of them is the claim's, and a count of
     none or all only if every one is: a label can widen what a count refutes, never what it vouches for. A count that
     names no figure, or a claim that names none, is read as before."""
+    if not _points(m, rv, a, dirs):
+        return False
     c = _count_figures(m, rv, figs)
     if not c or not figs:
         return True
@@ -349,7 +426,8 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
 
 
 def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float]) -> list[Problem]:
-    arms = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, rv, a, figs)]
+    dirs = _claim_directions(stmt, w)
+    arms = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, rv, a, figs, dirs)]
     about = L.content_words(stmt)
     # a count at the claim's own figure that finds exceptions refutes it, whatever else is bound beside it
     pinned = [(m, a) for m, rv, a in arms if _pinned(m, rv, a, figs)
@@ -506,7 +584,8 @@ def _superlative_contradicted(stmt: str, bound: list) -> list[Problem]:
         return []
     about = L.content_words(stmt)
     figs = _extreme_figures(stmt)
-    rel = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, rv, a, figs)
+    dirs = _claim_directions(stmt)
+    rel = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, rv, a, figs, dirs)
            and (L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about
                 or _BEYOND.search(f"{m.get('name', '')} {m.get('key', '')}".replace("_", " "))
                 or stated_figure(rv) in figs)]
@@ -720,22 +799,60 @@ def _plural(canon: str) -> str:
             "yen": "yen", "yuan": "yuan"}.get(canon, canon + "s")
 
 
+# a unit after a number is a quantity ("about 2.2 pounds", "one kilogram", "36 kg"), not the unit something is
+# recorded in: a quantity converted into another unit says nothing against a source's unit (audit HG-022-05)
+_QUANTITY = re.compile(r"(?:\d|\b(?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|"
+                       r"forty|fifty|hundred|hundreds|thousand|thousands|million|millions|dozen|dozens|half|quarter|"
+                       r"few|several|couple)\b)[\s-]*(?:of\s+)?$", re.I)
+
+
 def _units_in(text: str) -> set[tuple[str, str]]:
-    return {u for w in re.findall(r"[a-z]+", (text or "").lower()) for u in _UNIT_OF.get(w, ())}
+    """The units of record ``text`` names: a unit a number comes before is a quantity and doesn't count."""
+    text = (text or "").lower()
+    return {u for m in re.finditer(r"[a-z]+", text) if m.group(0) in _UNIT_OF
+            and not _QUANTITY.search(text[:m.start()]) for u in _UNIT_OF[m.group(0)]}
 
 
 _CONDITIONAL = re.compile(r"\b(?:if|whether|unless|suppos\w*|assum\w*|were they|had they)\b", re.I)
+# what states the unit something is in: a copula, or one of a short, fixed list of verbs ("recorded parcel weights use
+# pounds", "the weights are given in pounds"; audit HG-022-03). Prose outside the list isn't read.
+_RECORDS = re.compile(r"\b(?:is|are|was|were|uses?|used|using|(?:recorded|measured|expressed|given|listed|reported|"
+                      r"denominated|kept|stated|written|logged|entered|priced|quoted)\s+(?:in|as|using))\b", re.I)
+_HEDGED = re.compile(r"\b(?:may|might|could|perhaps|possibly)\b", re.I)
+_DETERMINERS = set("a an the all every each any some these those this that its their our his her both".split())
+_PREPOSITIONS = set("of in for from on at by with to among across within under over into per".split())
 
 
-def _unit_assertions(text: str) -> list[tuple[set[str], set[tuple[str, str]], str]]:
-    """(subject words, units asserted of it, clause) for each clause with a copula, outside the reach of negation:
-    "the recorded weights are in pounds" says pounds of the recorded weights. A condition ("if the weights are
-    pounds") asserts nothing."""
+def _subject(text: str) -> tuple[str, frozenset[str]]:
+    """What a unit is said of, as (head, modifiers): "every recorded parcel weight in the register" is (weight,
+    {recorded, parcel}). Determiners go, and the subject ends at its first preposition."""
+    words = []
+    for w in re.findall(r"[a-z]+", (text or "").lower()):
+        if w in _PREPOSITIONS and words:
+            break
+        if w not in _DETERMINERS:
+            words += sorted(L.content_words(w))
+    return (words[-1], frozenset(words[:-1])) if words else ("", frozenset())
+
+
+def _same_thing(a: tuple[str, frozenset[str]], b: tuple[str, frozenset[str]]) -> bool:
+    """Could these be one thing? Their heads must match, and two subjects each named for something the other isn't
+    ("passenger weights", "shipping weights") are two things (audit HG-022-04). A bare "weights" may be either."""
+    return bool(a[0]) and a[0] == b[0] and (not a[1] or not b[1] or bool(a[1] & b[1]))
+
+
+def _unit_assertions(text: str) -> list[tuple[tuple[str, frozenset[str]], set[tuple[str, str]], str]]:
+    """(subject, units of record asserted of it, clause) for each clause that states one, outside the reach of
+    negation: "the recorded weights are in pounds" says pounds of the recorded weights. A condition ("if the weights
+    are pounds") or a hedge ("the weights might be recorded in pounds") asserts nothing."""
     out = []
     for c in _UNIT_CLAUSE.split(_unnegated(text or "")):
-        cop = _ASSERTS.search(c)
-        if cop and not _CONDITIONAL.search(c[:cop.start()]) and (units := _units_in(c[cop.end():])):
-            out.append((L.content_words(c[:cop.start()]), units, c.strip()))
+        verb = _RECORDS.search(c)
+        if not verb or _CONDITIONAL.search(c[:verb.start()]) or _HEDGED.search(c[:verb.start()]):
+            continue
+        subj = _subject(c[:verb.start()])
+        if subj[0] and (units := _units_in(c[verb.end():])):
+            out.append((subj, units, c.strip()))
     return out
 
 
@@ -746,25 +863,23 @@ def asserted_units(stmt: str) -> set[str]:
 
 
 def _other_unit(passage: str, stmt: str) -> tuple[str, str, str] | None:
-    """(the statement's unit, the source's, the source sentence) when a sentence of ``passage`` says the statement's
-    subject is in another unit of the same kind, and no clause of the statement about that subject says the source's
-    unit too (a clause that only converts, "about 2.2 pounds each", asserts nothing; "kilograms, not pounds" is a
-    denial, checked above)."""
+    """(the statement's unit, the source's, the source sentence) when the source says the statement's subject is in
+    another unit of the same kind, nowhere says it is in the statement's, and no clause of the statement about that
+    subject says the source's unit too ("kilograms, not pounds" is a denial, checked above)."""
     claimed = _unit_assertions(stmt)
     if not claimed:
         return None
-    for sent in re.split(r"(?<=[.!?;])\s+", passage or ""):
-        clean = _unnegated(sent)
-        cop = list(_ASSERTS.finditer(clean))
-        if not cop:
-            continue
-        subj, said = L.content_words(clean[:cop[-1].start()]), _units_in(clean[cop[-1].end():])
-        about = [units for csubj, units, _c in claimed if csubj & subj]
-        also = {u for units in about for u in units}
-        for fam, canon in sorted(also):
+    given = [(subj, units, sent.strip()) for sent in re.split(r"(?<=[.!?;])\s+", passage or "")
+             for subj, units, _c in _unit_assertions(sent)]
+    for csubj, cunits, _c in claimed:
+        theirs_all = [(units, sent) for subj, units, sent in given if _same_thing(csubj, subj)]
+        said = {u for units, _s in theirs_all for u in units}
+        also = {u for subj, units, _c in claimed if _same_thing(csubj, subj) for u in units}
+        for fam, canon in sorted(cunits):
             theirs = {c for f, c in said if f == fam}
             if theirs and canon not in theirs and not {(fam, c) for c in theirs} & also:
-                return canon, sorted(theirs)[0], sent.strip()
+                sent = next(s for units, s in theirs_all if any(f == fam for f, _c in units))
+                return canon, sorted(theirs)[0], sent
     return None
 
 
@@ -805,8 +920,8 @@ def _source_contradicts(s: Snap, stmt: str, support: list[str]) -> list[Problem]
             label = cite[:80] if cite else (n.get("code") or src)
             return [Problem("SOURCE_CONTRADICTS",
                             f"the statement says {_plural(ours)}, but a source it links as support ({label}) says "
-                            f"{_plural(theirs)}: \"{sent[:200]}\". One quantity isn't in two units of one kind, so that source isn't "
-                            "support: correct the statement, or link the source as a challenge",
+                            f"{_plural(theirs)} for the same thing: \"{sent[:200]}\". That source doesn't support the statement: "
+                            "correct the statement, or link the source as a challenge",
                             fix="correct the statement, or link that source as a challenge", words=[f"unit:{ours}"])]
     return []
 
