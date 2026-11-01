@@ -348,8 +348,8 @@ def V(r, x):
     return {"name": key.replace("_", " "), "result": r, "key": key, "value": x}
 
 
-def write(g, inv, who, statement, links, meas):
-    return g.author(who).add("claim", inv, statement=statement, scope=SCOPE, measurements=list(meas),
+def write(g, inv, who, statement, links, meas, scope=SCOPE):
+    return g.author(who).add("claim", inv, statement=statement, scope=scope, measurements=list(meas),
                              links=[{"rel": "supports", "from": x, "why": "The party cites this for its claim."}
                                     for x in links])
 
@@ -391,19 +391,25 @@ def test_a_count_at_another_figure_does_not_refute_a_true_extreme(env):
 
 
 def test_the_figure_a_count_is_about():
-    from hypgraph.checks import _count_figure
-    assert _count_figure({"name": "fitting selections worth more than 93", "key": "x"}) == 93
+    from hypgraph.checks import _count_figures
+
+    def f(name, key, figs=frozenset(), rv=None):
+        return _count_figures({"name": name, "key": key}, rv or {}, figs)
+    assert f("fitting selections worth more than 93", "x") == {93}
     # a key's number is a figure only when the claim names it: it may just number repeated counts
-    assert _count_figure({"name": "fitting selections worth more", "key": "worth_more_93"}, {93}) == 93
-    assert _count_figure({"name": "fitting selections worth more", "key": "worth_more_93"}) is None
-    assert _count_figure({"name": "fitting selections worth more", "key": "fitting_selections_worth_more_2"},
-                         {116}) is None
+    assert f("fitting selections worth more", "worth_more_93", {93}) == {93}
+    assert f("fitting selections worth more", "worth_more_93") == set()
+    assert f("fitting selections worth more", "fitting_selections_worth_more_2", {116}) == set()
     # a name made from such a key ("fitting selections worth more 2") isn't prose saying "more than 2"
-    assert _count_figure({"name": "fitting selections worth more 2", "key": "fitting_selections_worth_more_2"},
-                         {116}) is None
-    assert _count_figure({"name": "routes shorter than 26 km", "key": "shorter"}) == 26
-    assert _count_figure({"name": "selections that fit within 36 kg", "key": "fit"}) is None
-    assert _count_figure({"name": "fitting selections worth more", "key": "worth_more"}) is None
+    assert f("fitting selections worth more 2", "fitting_selections_worth_more_2", {116}) == set()
+    assert f("routes shorter than 26 km", "shorter") == {26}
+    assert f("selections that fit within 36 kg", "fit") == set()
+    assert f("fitting selections worth more", "worth_more") == set()
+    # a name that disagrees with its key adds a figure, never replaces one (HG-021-01)
+    assert f("fitting selections worth more than 140", "worth_more_93", {93}) == {140, 93}
+    assert f("fitting selections worth more than 93", "worth_more_140", {93}) == {93, 140}
+    # a figure the result states is the only one
+    assert f("fitting selections worth more than 140", "worth_more_2", {93}, {"k": 2, "n": 9, "figure": 93}) == {93}
 
 
 @pytest.mark.parametrize("passage", ["Units note: every recorded weight is in kilograms, not pounds.",
@@ -469,3 +475,112 @@ def test_numbered_keys_are_not_figures(env):
         write(g, inv, "a", "The highest total value that fits within 36 kg is 116; 3 of 1,024 fitting selections are "
               "worth more than 115, so 115 is not the maximum.", [memo, r], meas)
     assert "COUNT_CONTRADICTS" in codes(e)
+
+
+# --- audit of 0.7.21 (HG-021-01..03): a label can't change what a count is about, one true part of a claim can't
+# vouch for a false one, and a source that states another unit isn't support for this one
+
+def test_a_count_states_its_figure_and_a_label_cannot_move_it(env):
+    """HG-021-01: 0.7.21 read a count's figure from its free-text name, so renaming the count of 2 beyond 93
+    "worth more than 140" moved it off the claim and the false "highest is 93" went in. The author writes the name;
+    the instrument writes the result. A result that states its figure is authoritative, and a name that says another
+    is refused; without one, a name that disagrees with the key can only widen what the count refutes."""
+    g, inv, kg, memo, _r = env
+    lab = g.author("lab")
+    run = lab.add("run", inv, kind="lab", state="succeeded", name="Counted selections worth more than 93 and 140.")
+    typed = lab.add("result", inv, kind="computed", outcome="positive", summary="Selections worth more than each.",
+                    values={"worth_more_93": {"k": 2, "n": 1024, "figure": 93},
+                            "worth_more_140": {"k": 0, "n": 1024, "figure": 140}, "greedy_value": 93},
+                    links=[{"rel": "produced", "from": run["id"]}])["id"]
+    lie = {"name": "fitting selections worth more than 140", "result": typed, "key": "worth_more_93", "k": 2, "n": 1024}
+    with pytest.raises(GraphError) as e:
+        write(g, inv, "a", "The highest value that fits is 93.", [memo, typed], [lie, V(typed, 93)])
+    assert "MEASUREMENT_MISMATCH" in codes(e) and "140" in str(e.value)
+    # a stated figure decides even with a name that says none, and the true count at 140 can't rescue 93
+    with pytest.raises(GraphError) as e:
+        write(g, inv, "a", "The highest value that fits is 93.", [memo, typed],
+              [{"name": "fitting selections", "result": typed, "key": "worth_more_93", "k": 2, "n": 1024},
+               {"name": "fitting selections", "result": typed, "key": "worth_more_140", "k": 0, "n": 1024},
+               V(typed, 93)])
+    assert "COUNT_CONTRADICTS" in codes(e)
+    # an untyped result: the relabelled count still refutes 93, in every statement form and order
+    r = counts(g, inv)
+    lie = {"name": "fitting selections worth more than 140", "result": r, "key": "worth_more_93", "k": 2, "n": 1024}
+    for statement in ("The highest value that fits is 93.", "Nothing worth more than 93 fits among the 1,024 selections.",
+                      "The highest value that fits is 93; nothing worth more fits."):
+        for meas in ([lie, V(r, 93)], [V(r, 93), lie], [lie, C(r, 140, 0), V(r, 93)]):
+            with pytest.raises(GraphError) as e:
+                write(g, inv, "a", statement, [memo, r], meas)
+            assert "COUNT_CONTRADICTS" in codes(e), (statement, meas, codes(e))
+    # a mislabelled zero can't vouch: "worth more than 93" on the count beyond 140 doesn't back "nothing beyond 93"
+    with pytest.raises(GraphError) as e:
+        write(g, inv, "a", "Nothing worth more than 93 fits among the 1,024 selections.", [memo, r],
+              [{"name": "fitting selections worth more than 93", "result": r, "key": "worth_more_140", "k": 0,
+                "n": 1024}, V(r, 93)])
+    assert "ABSOLUTE_WITHOUT_COUNT" in codes(e) or "COUNT_CONTRADICTS" in codes(e)
+    # honest controls: the true claim with its own count goes in, typed or not
+    write(g, inv, "h", "Nothing worth more than 140 fits among the 1,024 selections.", [memo, typed],
+          [{"name": "fitting selections worth more than 140", "result": typed, "key": "worth_more_140", "k": 0,
+            "n": 1024}, {"name": "fitting selections worth more than 93", "result": typed, "key": "worth_more_93",
+                         "k": 2, "n": 1024}])
+    write(g, inv, "h", "The highest value that fits is 95.", [memo, r], [C(r, 95, 0), C(r, 93, 2), V(r, 95)])
+
+
+THRESHOLD = SCOPE + " 140 is the design threshold."
+COMPOUND = ["The highest value that fits is 93; nothing worth more than 140 fits among the 1,024 selections.",
+            "Nothing worth more than 140 fits among the 1,024 selections; the highest value that fits is 93.",
+            "The maximum value that fits is 93, and no selection worth more than 140 fits among the 1,024.",
+            "The highest value that fits is 93, and nothing worth more than 140 fits among the 1,024 selections."]
+
+
+@pytest.mark.parametrize("statement", COMPOUND)
+def test_a_true_part_of_a_claim_cannot_vouch_for_a_false_one(env, statement):
+    """HG-021-02: an absolute that was true ("nothing beyond 140") ended the check, and the false extreme beside it
+    ("the highest is 93") was never looked at. Every absolute and every extreme is checked."""
+    g, inv, kg, memo, _r = env
+    r = counts(g, inv)
+    for meas in ([C(r, 93, 2), C(r, 140, 0), V(r, 93)], [C(r, 140, 0), C(r, 93, 2), V(r, 93)],
+                 [V(r, 93), C(r, 140, 0), C(r, 93, 2)]):
+        with pytest.raises(GraphError) as e:
+            write(g, inv, "liar", statement, [memo, r], meas, THRESHOLD)
+        assert codes(e) == ["COUNT_CONTRADICTS"], (statement, meas, codes(e))
+    # the true compound goes in
+    write(g, inv, "honest", statement.replace("93", "95"), [memo, r], [C(r, 95, 0), C(r, 140, 0), V(r, 95)],
+          THRESHOLD)
+
+
+@pytest.mark.parametrize("statement", ["The recorded weights are in pounds.",
+                                       "The weights in the inventory were recorded in pounds.",
+                                       "The 36 kg limit is wrong, because the recorded weights are in pounds.",
+                                       "The recorded weights are in lbs."])
+def test_a_source_that_states_another_unit_is_not_support(env, statement):
+    """HG-021-03: only a claim that denied or doubted the source's word was compared with it, so dropping "not
+    kilograms" let "the weights are in pounds" in with the kilograms note cited as support. Units of one kind rule
+    each other out: a source that says the same thing is in another unit doesn't support this one."""
+    g, inv, kg, memo, r = env
+    src = g.author("curator").add("source", inv, citation="Units note", passage="Every recorded weight is in "
+                                  "kilograms, not pounds.", kind="primary")["id"]
+    with pytest.raises(GraphError) as e:
+        write(g, inv, "b", statement, [memo, src], [])
+    assert "SOURCE_CONTRADICTS" in codes(e) and "kilograms" in str(e.value)
+    # without the citation it's the dropped-citation limit, not a contradiction
+    write(g, inv, "b", statement, [memo], [])
+
+
+@pytest.mark.parametrize("statement", ["The recorded weights are in kilograms.",
+                                       "The recorded weights are in kilograms, about 2.2 pounds each.",
+                                       "The recorded weights are in kilograms; the prices are in dollars.",
+                                       "The 36 kg limit applies to the recorded weights.",
+                                       "The route lengths are in miles.",
+                                       "In 0 of 1,024 selections can the limit be applied as stated if the recorded "
+                                       "weights are pounds."])
+def test_other_units_that_do_not_contradict_the_source(env, statement):
+    """Controls: the source's own unit, a conversion beside it, another quantity in another unit, another subject, a
+    condition (it asserts nothing)."""
+    g, inv, kg, memo, r = env
+    src = g.author("curator").add("source", inv, citation="Units note", passage="Every recorded weight is in "
+                                  "kilograms, not pounds.", kind="primary")["id"]
+    try:
+        write(g, inv, "c", statement, [memo, src], [])
+    except GraphError as e:
+        assert "SOURCE_CONTRADICTS" not in [p["code"] for p in e.problems], (statement, e.problems)

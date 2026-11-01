@@ -154,7 +154,7 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
     prim = []
     arms = []
     for m, rv in bound:
-        plain += _nums(m) + _nums(rv)
+        plain += _nums(m) + _nums(rv) + [f for f in (stated_figure(rv),) if f is not None]
         a = _arm(rv)
         if a:
             k, n = a
@@ -199,7 +199,7 @@ def _bound(s: Snap, meas: list) -> tuple[list[tuple[dict, dict]], list[Problem]]
                                     f"{m['result']} has no value '{m['key']}'"))
             continue
         bad = False
-        for k in ("value", "k", "n"):
+        for k in ("value", "k", "n", "figure"):
             if k in m and k in rv and isinstance(m[k], (int, float)) and isinstance(rv[k], (int, float)):
                 dec = len(str(m[k]).split(".")[1]) if "." in str(m[k]) else 0
                 if round(float(rv[k]), dec) != round(float(m[k]), dec) and not (
@@ -207,6 +207,12 @@ def _bound(s: Snap, meas: list) -> tuple[list[tuple[dict, dict]], list[Problem]]
                     problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name') or i + 1}: says "
                                             f"{k}={m[k]} but result {m['result']} has {rv[k]}"))
                     bad = True
+        said, f = _COUNT_FIGURE.search(str(m.get("name") or "")), stated_figure(rv)
+        if not bad and said and f is not None and float(said.group(1).replace(",", "")) != f:
+            problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name')}: its name says "
+                                    f"{said.group(0).strip()}, but result {m['result']} counted '{m['key']}' against "
+                                    f"{_fmt(f)}", fix=f"name the count after {_fmt(f)}, the figure it was made against"))
+            bad = True
         if not bad:
             good.append((m, rv))
     return good, problems
@@ -268,18 +274,31 @@ _CLAIM_FIGURE = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|wo
 _SUBCLAUSE = re.compile(r",(?!\d)|[;:!?()]|\.(?!\d)|\b(?:and|but|while|whereas|although|so)\b", re.I)
 
 
-def _count_figure(m: dict, figs: set[float] = frozenset()) -> float | None:
-    """The figure a bound count is about, or None when it names none. Its name says it ("more than 93"). A key is an
+def stated_figure(rv: dict) -> float | None:
+    """The figure a count says it is about, written by the instrument beside it: {"k": 2, "n": 1024, "figure": 93} is
+    two found beyond 93."""
+    f = rv.get("figure")
+    return float(f) if isinstance(f, (int, float)) and not isinstance(f, bool) else None
+
+
+def _count_figures(m: dict, rv: dict, figs: set[float] = frozenset()) -> set[float]:
+    """Every figure a bound count could be about; empty when nothing says. A figure the result states is the only one:
+    the instrument wrote it with the count. Otherwise the name's figure ("more than 93") and the key's: a key is an
     identifier, and the number at its end may only tell repeated counts apart ("fitting_selections_worth_more_2" is
-    the second count, not one beyond 2), so a key's number is read as the figure only when it is one of ``figs``, the
-    figures the claim names ("worth_more_93" beside "the highest is 93")."""
+    the second count, not one beyond 2), so it is read only when the claim names it or the name names another. The
+    author writes the name, so a name that disagrees with the key adds a figure and never replaces one: renaming the
+    count beyond 93 "worth more than 140" no longer moves it off "the highest is 93" (audit HG-021-01)."""
+    f = stated_figure(rv)
+    if f is not None:
+        return {f}
+    out: set[float] = set()
     hit = _COUNT_FIGURE.search(str(m.get("name") or ""))
     if hit:
-        return float(hit.group(1).replace(",", ""))
+        out.add(float(hit.group(1).replace(",", "")))
     hit = _KEY_FIGURE.search(str(m.get("key") or "").replace("_", " "))
-    if hit and float(hit.group(1).replace(",", "")) in figs:
-        return float(hit.group(1).replace(",", ""))
-    return None
+    if hit and (float(hit.group(1)) in figs or out):
+        out.add(float(hit.group(1)))
+    return out
 
 
 def _absolute_figures(stmt: str, w: str) -> set[float]:
@@ -292,27 +311,48 @@ def _absolute_figures(stmt: str, w: str) -> set[float]:
     return figs or _extreme_figures(stmt)
 
 
-def _bears(m: dict, figs: set[float]) -> bool:
+def _bears(m: dict, rv: dict, a: tuple[int, int], figs: set[float]) -> bool:
     """Does this count bear on a claim about ``figs``? One about another figure doesn't, whatever it finds: a zero
-    beyond 140 can't vouch for 93, and two beyond 93 can't refute 95. A count that names no figure, or a claim that
-    names none, is read as before."""
-    f = _count_figure(m, figs)
-    return f is None or not figs or f in figs
+    beyond 140 can't vouch for 93, and two beyond 93 can't refute 95. When it could be about more than one figure (a
+    name that disagrees with its key), a count that finds some bears if any of them is the claim's, and a count of
+    none or all only if every one is: a label can widen what a count refutes, never what it vouches for. A count that
+    names no figure, or a claim that names none, is read as before."""
+    c = _count_figures(m, rv, figs)
+    if not c or not figs:
+        return True
+    return bool(c & figs) if 0 < a[0] < a[1] else c <= figs
+
+
+def _pinned(m: dict, rv: dict, a: tuple[int, int], figs: set[float]) -> bool:
+    """A count at the claim's own figure that finds exceptions: it refutes the claim whatever else is bound beside it."""
+    return 0 < a[0] < a[1] and bool(figs) and bool(_count_figures(m, rv, figs) & figs)
 
 
 def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
+    """Every absolute in the statement, and every extreme, checked on its own: a true "nothing worth more than 140
+    fits" used to end the check, and "the highest is 93" beside it went in unexamined (audit HG-021-02)."""
     words = [w for w in L.asserted(L.ABSOLUTE, stmt) if not _enumerated(stmt, w)]
     if any(str(m.get("key") or "").lower() in ("gap", "bound") for m, _rv in bound):
         words = [w for w in words if not _PROVEN.match(w)]      # an optimum with its bound (gap 0) is proven
     words = [w for w in words if not _names_counted_set(stmt, w, bound)]
-    if not words:
-        return _superlative_contradicted(stmt, bound)
-    w = words[0]
-    figs = _absolute_figures(stmt, w)
-    arms = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, figs)]
+    out: list[Problem] = []
+    seen: set[frozenset] = set()
+    for w in words:                                  # one check per figure the absolutes are about
+        figs = frozenset(_absolute_figures(stmt, w))
+        if figs not in seen:
+            seen.add(figs)
+            out += [p for p in _absolute(stmt, scope, body, bound, w, words, set(figs)) if p.text() not in
+                    {q.text() for q in out}]
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _superlative_contradicted(stmt, bound)
+    return out
+
+
+def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float]) -> list[Problem]:
+    arms = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, rv, a, figs)]
     about = L.content_words(stmt)
     # a count at the claim's own figure that finds exceptions refutes it, whatever else is bound beside it
-    pinned = [(m, a) for m, _rv, a in arms if 0 < a[0] < a[1] and figs and _count_figure(m, figs) in figs
+    pinned = [(m, a) for m, rv, a in arms if _pinned(m, rv, a, figs)
               and L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about]
     if pinned:
         m, (k, n) = max(pinned, key=lambda x: x[1][1])
@@ -466,12 +506,13 @@ def _superlative_contradicted(stmt: str, bound: list) -> list[Problem]:
         return []
     about = L.content_words(stmt)
     figs = _extreme_figures(stmt)
-    rel = [(m, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, figs)
+    rel = [(m, rv, a) for m, rv in bound if (a := _arm(rv)) and _bears(m, rv, a, figs)
            and (L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about
-                or _BEYOND.search(f"{m.get('name', '')} {m.get('key', '')}".replace("_", " ")))]
+                or _BEYOND.search(f"{m.get('name', '')} {m.get('key', '')}".replace("_", " "))
+                or stated_figure(rv) in figs)]
     # a count beyond the extreme's own figure that finds some refutes it, whatever else is bound beside it
-    pinned = [(m, a) for m, a in rel if 0 < a[0] < a[1] and figs and _count_figure(m, figs) in figs
-              and not _qualified(stmt, *a)]
+    pinned = [(m, a) for m, rv, a in rel if _pinned(m, rv, a, figs) and not _qualified(stmt, *a)]
+    rel = [(m, a) for m, _rv, a in rel]
     if pinned:
         m, (k, n) = max(pinned, key=lambda x: x[1][1])
         return [_count_contradicts(stmt, sup[0], sup, m, k, n)]
@@ -647,9 +688,89 @@ def _doubted_in(passage: str, doubted: set[str]) -> tuple[list[str], str] | None
     return None
 
 
+# units of one kind rule each other out: weights recorded in kilograms are not recorded in pounds. Only units and
+# currencies, where the alternatives are known; a claim that contradicts a source in meaning outside these families
+# isn't caught here (audit HG-021-03).
+_UNIT_FAMILIES = {
+    "mass": {"kilogram": "kilogram kilograms kilo kilos kg kgs", "gram": "gram grams", "milligram": "milligram "
+             "milligrams mg", "tonne": "tonne tonnes ton tons", "pound": "pound pounds lb lbs",
+             "ounce": "ounce ounces oz"},
+    "length": {"metre": "metre metres meter meters", "kilometre": "kilometre kilometres kilometer kilometers km kms",
+               "centimetre": "centimetre centimetres centimeter centimeters cm", "millimetre": "millimetre millimetres "
+               "millimeter millimeters mm", "mile": "mile miles", "yard": "yard yards", "foot": "foot feet ft",
+               "inch": "inch inches"},
+    "temperature": {"celsius": "celsius centigrade", "fahrenheit": "fahrenheit", "kelvin": "kelvin"},
+    "volume": {"litre": "litre litres liter liters", "millilitre": "millilitre millilitres milliliter milliliters ml",
+               "gallon": "gallon gallons", "pint": "pint pints", "quart": "quart quarts"},
+    "currency": {"dollar": "dollar dollars usd", "euro": "euro euros eur", "pound": "pound pounds gbp sterling",
+                 "yen": "yen jpy", "yuan": "yuan renminbi cny", "rupee": "rupee rupees inr", "franc": "franc francs chf",
+                 "peso": "peso pesos"},
+}
+_UNIT_OF = {}
+for _fam, _units in _UNIT_FAMILIES.items():
+    for _canon, _words in _units.items():
+        for _w in _words.split():
+            _UNIT_OF.setdefault(_w, set()).add((_fam, _canon))
+_UNIT_CLAUSE = re.compile(r",(?!\d)|[;:()]|\.(?!\d)|\b(?:and|but|while|whereas|although|though|because|since|so)\b",
+                          re.I)
+
+
+def _plural(canon: str) -> str:
+    return {"foot": "feet", "inch": "inches", "celsius": "celsius", "fahrenheit": "fahrenheit", "kelvin": "kelvin",
+            "yen": "yen", "yuan": "yuan"}.get(canon, canon + "s")
+
+
+def _units_in(text: str) -> set[tuple[str, str]]:
+    return {u for w in re.findall(r"[a-z]+", (text or "").lower()) for u in _UNIT_OF.get(w, ())}
+
+
+_CONDITIONAL = re.compile(r"\b(?:if|whether|unless|suppos\w*|assum\w*|were they|had they)\b", re.I)
+
+
+def _unit_assertions(text: str) -> list[tuple[set[str], set[tuple[str, str]], str]]:
+    """(subject words, units asserted of it, clause) for each clause with a copula, outside the reach of negation:
+    "the recorded weights are in pounds" says pounds of the recorded weights. A condition ("if the weights are
+    pounds") asserts nothing."""
+    out = []
+    for c in _UNIT_CLAUSE.split(_unnegated(text or "")):
+        cop = _ASSERTS.search(c)
+        if cop and not _CONDITIONAL.search(c[:cop.start()]) and (units := _units_in(c[cop.end():])):
+            out.append((L.content_words(c[:cop.start()]), units, c.strip()))
+    return out
+
+
+def asserted_units(stmt: str) -> set[str]:
+    """The units (canonical names) a statement asserts of something: refusals.carried reads them to tell a unit
+    contradiction said again from a correction."""
+    return {canon for _subj, units, _c in _unit_assertions(stmt) for _fam, canon in units}
+
+
+def _other_unit(passage: str, stmt: str) -> tuple[str, str, str] | None:
+    """(the statement's unit, the source's, the source sentence) when a sentence of ``passage`` says the statement's
+    subject is in another unit of the same kind, and no clause of the statement about that subject says the source's
+    unit too (a clause that only converts, "about 2.2 pounds each", asserts nothing; "kilograms, not pounds" is a
+    denial, checked above)."""
+    claimed = _unit_assertions(stmt)
+    if not claimed:
+        return None
+    for sent in re.split(r"(?<=[.!?;])\s+", passage or ""):
+        clean = _unnegated(sent)
+        cop = list(_ASSERTS.finditer(clean))
+        if not cop:
+            continue
+        subj, said = L.content_words(clean[:cop[-1].start()]), _units_in(clean[cop[-1].end():])
+        about = [units for csubj, units, _c in claimed if csubj & subj]
+        also = {u for units in about for u in units}
+        for fam, canon in sorted(also):
+            theirs = {c for f, c in said if f == fam}
+            if theirs and canon not in theirs and not {(fam, c) for c in theirs} & also:
+                return canon, sorted(theirs)[0], sent.strip()
+    return None
+
+
 def _source_contradicts(s: Snap, stmt: str, support: list[str]) -> list[Problem]:
     denied, doubted = denied_words(stmt), doubted_words(stmt)
-    if not denied and not doubted:
+    if not denied and not doubted and not _unit_assertions(stmt):
         return []
     for src in support:
         n = s.nodes.get(src)
@@ -677,6 +798,16 @@ def _source_contradicts(s: Snap, stmt: str, support: list[str]) -> list[Problem]
                                 "says the opposite isn't support: correct the statement, or link the source as a "
                                 "challenge",
                                 fix="correct the statement, or link that source as a challenge", words=[stem])]
+        other = _other_unit(passage, stmt)
+        if other:
+            ours, theirs, sent = other
+            cite = str(n["body"].get("citation") or "").strip()
+            label = cite[:80] if cite else (n.get("code") or src)
+            return [Problem("SOURCE_CONTRADICTS",
+                            f"the statement says {_plural(ours)}, but a source it links as support ({label}) says "
+                            f"{_plural(theirs)}: \"{sent[:200]}\". One quantity isn't in two units of one kind, so that source isn't "
+                            "support: correct the statement, or link the source as a challenge",
+                            fix="correct the statement, or link that source as a challenge", words=[f"unit:{ours}"])]
     return []
 
 

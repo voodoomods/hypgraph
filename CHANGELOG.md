@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased: a label can't move a count, every part of a claim is checked, units rule each other out
+
+Fixes from an independent audit of 0.7.21 (HG-021-01 to -04); each case below failed on 0.7.21 and is now a test.
+
+- **The result says what a count is about, not its label** (HG-021-01). 0.7.21 read a count's figure from its
+  free-text name, so renaming the count of 2 beyond 93 "worth more than 140" moved it off "the highest value is 93",
+  and the false claim went in. An instrument can now state the figure with the count
+  (`{"k": 2, "n": 1024, "figure": 93}`); that figure is the only one, a measurement whose name says another is refused
+  as `MEASUREMENT_MISMATCH`, and the figure accounts for the number in the statement. Without one, a name that
+  disagrees with its key adds a figure and never replaces one: a count that finds exceptions refutes a claim at either
+  figure, and a count of none vouches only when both are the claim's.
+- **Every absolute and every extreme in a claim is checked** (HG-021-02). A true "nothing worth more than 140 fits
+  among the 1,024 selections" ended the check, and "the highest value is 93" beside it was never looked at. One check
+  now runs per figure the absolutes are about, and the extreme is checked as well.
+- **A source that states another unit of the same kind isn't support** (HG-021-03). Only a claim that denied or
+  doubted the source's word was compared with it, so "the recorded weights are in pounds", citing the note that every
+  recorded weight is in kilograms, went in. Units of mass, length, temperature and volume, and currencies, now rule
+  each other out when the claim and the source say them of the same thing (`SOURCE_CONTRADICTS`). A clause that only
+  converts ("in kilograms, about 2.2 pounds each") or states a condition ("if the weights are pounds") asserts
+  nothing. `conduct()` counts saying the ruled-out unit again as saying the claim again.
+- **`shown_false` is not a lying rate** (HG-021-04). The `conduct()` docstring now says so: it adds up contradictions
+  by the record's own count and by a cited source, and a source can be wrong. Read `by_count`, `by_source`,
+  `corrected`, `reasserted` and `still_saying` instead.
+- Limits, unchanged: contradictions in meaning outside the unit families aren't checked; a claim that drops the
+  citation or count that would contradict it is not checked against it; `strict_claims: false` runs no claim checks;
+  and a result without a stated figure still relies on its key to say what it counted.
+
 ## 0.7.21 — 2026-11-01: counts at the claim's figure, scoped negation, conduct by kind
 
 Fixes from an independent audit of 0.7.20 (HG-020-01 to -04); each case below failed on 0.7.20 and is now a test.
