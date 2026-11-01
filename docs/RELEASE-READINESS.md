@@ -131,6 +131,24 @@ was taken from a changelog without being checked against the code.*
 > which unit a record uses are still read from words, not typed; a fresh independent audit should precede any claim
 > that 0.7.23 resists these attack classes. Released as 0.7.23.
 
+> **Audit of 0.7.23 (2026-11-01), fixed for 0.7.24.** A fourth independent audit, a code review without running the
+> wheel, named five candidate defects; each reproduced on the PyPI 0.7.23 wheel, plus two of the same kind. A count of
+> none or all backed any absolute, so "nothing is longer than 26 km" went in with all routes longer and "every route
+> is longer" with none (HG-023-01). Comparisons lost their boundary, so a count at least 26 refuted the true "no route
+> is longer than 26" and "at least" was read as pointing down (HG-023-02). Two extremes in one sentence were pooled
+> and a true one refused (HG-023-03). "Weights of cargo" and "weights of passengers" read as one thing (HG-023-04),
+> and "not in pounds but in kilograms" lost its kilograms (HG-023-05). A claim now needs the extreme its quantifier
+> names; comparisons keep their boundary across six operators; each extreme is checked on its own; the object of "of"
+> / "for" says which thing, and subjects that each say something the other doesn't are left apart, unresolved; a
+> contrast keeps its unit. Each case is a regression test written to fail on 0.7.23. Replaying the 1,900 recorded
+> adversarial entries changes nothing against 0.7.23 (a first version over-read "a count of every route" and named
+> one honest party wrongly; caught by the replay, fixed and tested), but none of those entries tries these cases.
+>
+> **Where that stands.** #89 is merged with green CI (17 of 17 checks); from the 0.7.24 wheel in a fresh venv the
+> suite is 549 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. The audit recommends a typed
+> claim layer (subject, property, comparator, threshold, unit, quantifier) so that strong verdicts rest on typed fields
+> rather than prose; that is not built. Released as 0.7.24.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
