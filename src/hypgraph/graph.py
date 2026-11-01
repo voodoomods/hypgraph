@@ -814,7 +814,8 @@ class Graph:
                     if problems:
                         found = [p.to_dict() for p in problems]
                         refusals.record_refusal(self, author=author, op="create", inv=inv, node="", body=body,
-                                                problems=found, support=self._support_ids(s, nid, pending))
+                                                problems=found, support=self._support_ids(s, nid, pending),
+                                                answers=[b for _a, rel, b in pending if rel == "answers"])
                         raise GraphError("claim refused:\n- " + "\n- ".join(p.text() for p in problems), found)
                 if type == "result" and author not in P.curators:
                     rp = value_issues(body) + profiles.result_issues(s, inv, body, pending, author=author)
@@ -884,7 +885,8 @@ class Graph:
         if type in refusals.REPLAYABLE and author not in P.curators:
             fixed = refusals.match_fix(self, author=author, inv=inv, node=nid, op="create",
                                        statement=str(body.get("statement") or body.get("summary") or ""),
-                                       values=body.get("values") if type == "result" else None)
+                                       values=body.get("values") if type == "result" else None,
+                                       answers=[str(lk.get("to")) for lk in links or [] if lk.get("rel") == "answers"])
             if fixed:
                 out["fixes_refusals"] = fixed
         return out
@@ -1463,6 +1465,10 @@ class Graph:
     def refusals(self, inv: str = "", author: str = "", since: str = "", limit: int = 500) -> list[dict]:
         """Every overclaim the record refused, newest first, with its codes and what fixed it (if anything)."""
         return refusals.rows(self, inv=inv, author=author, since=since, limit=limit)
+
+    def conduct(self, inv: str = "", author: str = "") -> dict:
+        """Per author: claims the record showed false, then corrected or said again (refusals.conduct)."""
+        return refusals.conduct(self, inv=inv, author=author)
 
     def refusal_report(self, inv: str = "", since: str = "") -> dict:
         """Overclaims caught per author and per rule, fixed vs open, with the latest in full (and as markdown)."""

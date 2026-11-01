@@ -180,7 +180,7 @@ def test_range_and_absolutes_are_checked(g, inv):
         claim(g, inv, "Natural passages use 17 to 22 different letters.", [letters],
               measurements=[M("letters", letters, "english", lo=18, hi=25)])
     flat = result(g, inv, {"merges": {"k": 1, "n": 1000}})
-    with pytest.raises(GraphError, match="'never' is absolute"):        # "never" when it happened 1 in 1,000
+    with pytest.raises(GraphError, match="COUNT_CONTRADICTS"):         # "never" when it happened 1 in 1,000
         claim(g, inv, "Random merges never match the flatness.", [flat],
               measurements=[M("merges", flat, "merges", k=1, n=1000)])
     assert claim(g, inv, "Random merges matched the flatness in 1 of 1000 passages.", [flat],
