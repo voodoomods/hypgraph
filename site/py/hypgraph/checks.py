@@ -16,6 +16,10 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   ABSOLUTE_WITHOUT_COUNT        "never" / "always" / "eliminates" / "100%" with no count of 0 or n behind it
                                 (an absolute over a set the sentence enumerates — "all three subsets: …" — is
                                 not a generalisation and is left alone)
+  COUNT_CONTRADICTS             the absolute is contradicted by a bound count of what it's about: k of n with
+                                0 < k < n, the exceptions it says don't exist were counted. Not a missing count
+                                (ABSOLUTE_WITHOUT_COUNT) but a false statement, and the refusal log tracks whether
+                                its author then corrects it or says it again (refusals.conduct)
   ABSOLUTE_UNRELATED_COUNT      the 0-of-n it leans on counts something else
   ABSOLUTE_UNDERPOWERED         0 of n with n too small (the rate could still be above 5%), and the statement
                                 generalises past the n trials instead of saying them ("never leaks")
@@ -25,6 +29,11 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   SIGNIFICANCE_NOT_SHOWN        the test behind it isn't significant
   SIGNIFICANCE_CONTRADICTED     "not significant", but the bound evidence is (p < 0.05)
   CAUSAL_WITHOUT_INTERVENTION   "causes" / "leads to" when no experiment intervened
+  SOURCE_CONTRADICTS            the statement denies a word ("…in pounds, not kilograms") that a source it links
+                                as support asserts, in a sentence with no negation of its own ("every weight is
+                                in kilograms"): the source says the opposite, so it can't be a line of support.
+                                (Before this, a claim citing its own refutation was accepted with "3 independent
+                                lines of support".)
   EXCLUSION_WITHOUT_POWER       "no effect" / "rules out" without a search shown to find a planted effect
   CONVENTION_HEDGED             a convention that hedges
   VALUE_NOT_A_NUMBER            (results) a value's k or n is not a number: {"k": "40/50", "n": "rank 1 of 20"}
@@ -248,12 +257,19 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     words = [w for w in L.asserted(L.ABSOLUTE, stmt) if not _enumerated(stmt, w)]
     if any(str(m.get("key") or "").lower() in ("gap", "bound") for m, _rv in bound):
         words = [w for w in words if not _PROVEN.match(w)]      # an optimum with its bound (gap 0) is proven
+    words = [w for w in words if not _names_counted_set(stmt, w, bound)]
     if not words:
-        return []
+        return _superlative_contradicted(stmt, bound)
     w = words[0]
     arms = [(m, rv, _arm(rv)) for m, rv in bound if _arm(rv)]
     exact = [(m, rv, a) for m, rv, a in arms if a[0] in (0, a[1])]
     if not exact:
+        about = L.content_words(stmt)
+        against = [(m, a) for m, _rv, a in arms if 0 < a[0] < a[1]
+                   and L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about]
+        if against:
+            m, (k, n) = max(against, key=lambda x: x[1][1])
+            return [_count_contradicts(stmt, w, words, m, k, n)]
         seen = ", ".join(f"{a[0]} of {a[1]:,}" for _m, _rv, a in arms)
         return [Problem("ABSOLUTE_WITHOUT_COUNT",
                         f"'{w}' is absolute: back it with a k/n measurement of what it's about, where k is 0 or n, and "
@@ -293,6 +309,298 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
                     f"'{w}' means here: {what} no more than {stats.pct(opposite)} of the time "
                     f"({stats.one_in(opposite)}, 95% upper bound)." + _exposure_note(opposite, body),
                     fix=f"add 'in {n:,} trials'", words=words)]
+
+
+_STATED_COUNT = re.compile(r"\b(\d[\d,]*) of (\d[\d,]*)\b")
+_CLAUSE = re.compile(r"[;!?]|\.(?!\d)")
+
+
+def _names_counted_set(stmt: str, w: str, bound: list) -> bool:
+    """Is the absolute the set a count the statement itself reports ran over: "a count of every possible selection
+    finds 2 of 1,024 that are worth more"? It names what was counted, not a claim that nothing lies outside it. (Read
+    as an absolute, the record refused that honest correction as the lie said again.)"""
+    return _names_stated_count(stmt, w, {a for _m, rv in bound if (a := _arm(rv))})
+
+
+def _names_stated_count(stmt: str, w: str, counts: set | None = None) -> bool:
+    """Does ``w``'s clause state a k-of-n count (one of ``counts``, when given)?"""
+    for c in _CLAUSE.split(stmt):
+        if re.search(r"\b" + re.escape(w) + r"\b", c, re.I) and any(
+                counts is None or (int(a.replace(",", "")), int(b.replace(",", ""))) in counts
+                for a, b in _STATED_COUNT.findall(c)):
+            return True
+    return False
+
+
+def claimed_extremes(stmt: str) -> list[str]:
+    """What a sentence claims as an extreme: its asserted superlatives (``_extremes``) and absolutes, less an absolute
+    that names the set a count in its own clause ran over ("a count of every route finds 1 of 74 shorter"). The refusal
+    log reads a later write with this to tell a correction from the lie said again."""
+    return _extremes(stmt) + [w for w in L.asserted(L.ABSOLUTE, stmt)
+                              if not _enumerated(stmt, w) and not _names_stated_count(stmt, w)]
+
+
+# the extreme's own predicate denied after it, in its clause: "the highest total value ... is not 130"
+_DENIED_EXTREME = re.compile(r"\b(?:is|are|was|were)\s+(?:not|no longer|never)\b|\b(?:isn't|aren't|wasn't|weren't)\b|"
+                             # or said to lie beyond a figure: "the true maximum is higher than 98"
+                             r"\b(?:is|are|was|were|lies)\s+(?:\w+\s+)?(?:higher|lower|greater|larger|smaller|more|less|"
+                             r"above|below|over|under|shorter|longer|beyond)\b", re.I)
+# or denied before it: "120 is not the highest total value", "isn't the shortest"
+_DENIED_BEFORE = re.compile(r"(?:\b(?:is|are|was|were)\s+(?:not|no longer|never)|\b(?:isn't|aren't|wasn't|weren't))"
+                            r"\s+(?:the\s+|a\s+|an\s+)?(?:true\s+|real\s+|actual\s+)?$", re.I)
+_COPULA = re.compile(r"\b(?:is|are|was|were|isn't|aren't|wasn't|weren't|lies)\b", re.I)
+
+
+def _denied(after: str) -> bool:
+    """Does the extreme's own predicate — the first copula after it — deny it or put it beyond a figure? Only that
+    one: "the highest value is 98 ..., so the true maximum is higher" still claims 98."""
+    cop = _COPULA.search(after)
+    return bool(cop and _DENIED_EXTREME.match(after, cop.start()))
+
+
+# a count named for what lies beyond a figure ("fitting selections worth more", "shorter routes connecting") is about
+# any extreme the statement claims, whatever words the statement uses for it ("the highest total value is 99")
+_BEYOND = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|slower|"
+                     r"larger|smaller|above|below|exceed\w*|beat\w*)\b", re.I)
+
+
+def _extremes(stmt: str) -> list[str]:
+    """The superlatives a statement asserts of a figure. Not one whose clause goes on to deny it: "the highest total
+    value that fits is not 130" corrects the extreme, it doesn't claim one. Nor one whose clause names nothing after
+    it ("the shortest route must be computed from the figures as kilometres"): no count can contradict an extreme of
+    nothing in particular. (The record used to refuse both as false and log corrections as the lie said again.)"""
+    out = []
+    for w in L.asserted(L.SUPERLATIVE, stmt):
+        for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
+            end = next((x.start() for x in _CLAUSE.finditer(stmt, m.end())), len(stmt))
+            start = max((x.end() for x in _CLAUSE.finditer(stmt, 0, m.start())), default=0)
+            if (not _denied(stmt[m.end():end]) and not _DENIED_BEFORE.search(stmt[start:m.start()])
+                    and re.search(r"\d", stmt[start:end])):
+                out.append(w)
+                break
+    return out
+
+
+def _count_contradicts(stmt: str, w: str, words: list, m: dict, k: int, n: int) -> Problem:
+    """The refusal for a statement the record's own count shows false. It names what is false in the statement's own
+    terms: a count it states that the record's differs from, or the extreme it claims ("highest"), before the word
+    that triggered the check."""
+    said = [int(a.replace(",", "")) for a, b in _STATED_COUNT.findall(stmt)
+            if int(b.replace(",", "")) == n and int(a.replace(",", "")) != k]
+    sup = _extremes(stmt)
+    head = (f"the statement says {said[0]:,} of {n:,}, but the record's own count is {k:,} of {n:,}" if said
+            else f"'{sup[0] if sup else w}' is contradicted by the record's own count: {k:,} of {n:,}")
+    return Problem("COUNT_CONTRADICTS",
+                   f"{head} ({m.get('name') or m.get('key')}). The exceptions the statement rules out were "
+                   f"counted, so it is false as written: correct it, or say '{k:,} of {n:,}'",
+                   fix=f"correct the statement, or say '{k:,} of {n:,}'",
+                   words=words + [f"={_fmt(v)}" for v in _subject_numbers(stmt, k, n)])
+
+
+def _qualified(stmt: str, k: int, n: int) -> bool:
+    """Does the statement give this count about a figure of its own ("1 of 61 routes are shorter than 26 km")?
+    Then it's a count of something beyond that figure, not of exceptions to the extreme it claims."""
+    forms = {f"{k} of {n}", f"{k:,} of {n:,}"}
+    return any(any(f in c for f in forms) and re.search(r"\bthan\b", c) for c in _CLAUSE.split(stmt))
+
+
+def _superlative_contradicted(stmt: str, bound: list) -> list[Problem]:
+    """An extreme ("the shortest route is 34 km") with no absolute word, where the record's own count of what lies
+    beyond it is neither 0 nor all and no exact count backs any figure: refused as false (COUNT_CONTRADICTS)."""
+    sup = _extremes(stmt)
+    if not sup:
+        return []
+    about = L.content_words(stmt)
+    rel = [(m, a) for m, rv in bound if (a := _arm(rv))
+           and (L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about
+                or _BEYOND.search(f"{m.get('name', '')} {m.get('key', '')}".replace("_", " ")))]
+    if not rel or any(a[0] in (0, a[1]) for _m, a in rel):
+        return []
+    against = [(m, a) for m, a in rel if 0 < a[0] < a[1] and not _qualified(stmt, *a)]
+    if not against:
+        return []
+    m, (k, n) = max(against, key=lambda x: x[1][1])
+    return [_count_contradicts(stmt, sup[0], sup, m, k, n)]
+
+
+# a count of what reaches a figure exactly: "fitting selections worth exactly 108", "routes exactly 33 km long"
+_REACHES = re.compile(r"\bexactly\s+(-?\d[\d,]*(?:\.\d+)?)", re.I)
+_FIGURE = re.compile(r"\s*(?:[A-Za-z$]+\s+){0,2}?\$?(-?\d[\d,]*(?:\.\d+)?)(?![\d.,]?\d)(?!\s*of\s+\d)")
+
+
+def _extreme_figures(stmt: str) -> set[float]:
+    """The figures a statement's asserted extremes name: the number its own predicate gives ("the highest total value
+    that fits within 36 kg is 97" names 97, not 36), else every number in the extreme's clause. A figure elsewhere in
+    the sentence ("..., not 97") is not one, nor a stated count ("the shortest route is 1 of 63 routes shorter")."""
+    out = set()
+    for w in _extremes(stmt):
+        for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
+            end = next((x.start() for x in _CLAUSE.finditer(stmt, m.end())), len(stmt))
+            start = max((x.end() for x in _CLAUSE.finditer(stmt, 0, m.start())), default=0)
+            after = stmt[m.end():end]
+            if _denied(after) or _DENIED_BEFORE.search(stmt[start:m.start()]):
+                continue
+            cop = _COPULA.search(after)
+            fig = _FIGURE.match(after, cop.end()) if cop else None
+            if fig:
+                out.add(float(fig.group(1).replace(",", "")))
+            elif not (cop and re.match(r"\s*(?:\w+\s+){0,2}?-?\d[\d,]*\s+of\s+\d", after[cop.end():])):
+                out |= {v for v, *_ in numbers(stmt[start:end])}
+    return out
+
+
+def _unreached(stmt: str, bound: list) -> list[Problem]:
+    """An extreme claimed of a figure nothing reaches. The count of what lies beyond the figure can't show it false
+    (nothing beats a figure above the true best), so the instrument also counts what reaches it exactly, naming the
+    figure ("fitting selections worth exactly 140"); 0 of n there means no answer is that figure, so it is no extreme.
+    (Without it, "the highest value is 140", with an item counted twice against a true best of 113, was accepted.)"""
+    sup = _extremes(stmt)
+    figs = _extreme_figures(stmt) if sup else set()
+    for m, rv in bound:
+        a = _arm(rv)
+        hit = _REACHES.search(f"{m.get('name', '')}")
+        if not a or a[0] != 0 or not hit:
+            continue
+        x = float(hit.group(1).replace(",", ""))
+        if x not in figs:
+            continue
+        name = m.get("name") or m.get("key")
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{sup[0]}' names {_fmt(x)}, but the record's own count finds 0 of {a[1]:,} {name}: no "
+                        f"answer reaches {_fmt(x)}, so it can't be the {sup[0]}. Correct the figure, or say what was "
+                        f"reached",
+                        fix="correct the figure to one that is reached", words=sup + [f"={_fmt(x)}"])]
+    return []
+
+
+def _fmt(v: float) -> str:
+    return str(int(v)) if float(v).is_integer() else str(v)
+
+
+def _subject_numbers(stmt: str, k: int, n: int) -> list[float]:
+    """The figures a contradicted statement asserts, other than the count itself: what it would have to change to be
+    corrected (refusals.conduct reads them to tell a correction from the same claim said again)."""
+    return [v for v, *_ in numbers(stmt) if v not in (0, k, n)]
+
+
+# a word a statement denies: "not kilograms", "doesn't apply", "never reached" (the one or two words after it)
+_DENIAL = re.compile(r"(?:\bnot\b|\bnever\b|n't\b|\brather than\b|\binstead of\b)\s+((?:[A-Za-z]+\s+)?[A-Za-z]+)",
+                     re.I)
+_PASSAGE_NEGATION = re.compile(r"\b(not|no|never|none|nor|neither|without)\b|n't\b", re.I)
+
+
+def denied_words(stmt: str) -> set[str]:
+    """Content words (stemmed, as language.content_words) that the statement explicitly denies."""
+    out: set[str] = set()
+    for m in _DENIAL.finditer(stmt or ""):
+        out |= L.content_words(m.group(1))
+    return out
+
+
+# casting doubt on a word rather than denying it: "is not independently established that they are kilograms", "the
+# only note calling them kilometres", "conflicts with any pound reading" (a party can cite a note as support and doubt
+# it in these words, which SOURCE_CONTRADICTS' denial check doesn't see)
+_DOUBT = re.compile(
+    r"\bnot\s+(?:\w+ly\s+)?(?:established|confirmed|verified|proven|shown|settled|resolved|reliabl\w*|determined)\b"
+    r"|\b(?:un(?:confirmed|verified|established|proven|resolved|reliable|corroborated)|disputed|questionable|doubtful)\b"
+    r"|\b(?:cannot|can't|can not)\s+be\s+(?:relied|trusted|applied|used|taken|confirmed|verified|established|"
+    r"certified|determined)\b"
+    r"|\b(?:does|do|did)\s+not\s+(?:establish|confirm|determine|prove|settle|support)\b"
+    r"|\b(?:doesn't|don't|didn't)\s+(?:establish|confirm|determine|prove|settle|support)\b"
+    r"|\b(?:may|might|could)\s+(?:be|have been)\s+(?:recorded|given|stated|measured|in)\b|\bno\s+independent\b"
+    r"|\bonly\s+(?:\w+\s+)?(?:thing|evidence|source|note|basis|assertion|claim|label)\b|\bat issue\b"
+    r"|\bin (?:doubt|dispute|question)\b|\bconflicts?\s+with\b|\bcontradicted\s+by\b|\binconsistent\b", re.I)
+_DOUBT_CLAUSE = re.compile(r"([,;:()]|\b(?:because|while|but|although|though|whereas|since|so|and)\b)", re.I)
+# a doubt after these turns on the clause before it: "E12 says kilometres, while the figures may be in miles"
+_TURNS_BACK = re.compile(r"\s*(?:while|but|although|though|whereas)\s*$", re.I)
+
+
+def doubted_words(stmt: str) -> set[str]:
+    """Content words (stemmed) that the statement casts doubt on without denying them: those of a clause with a doubt
+    in it, and of the clause before when the doubt turns back on it ("E12 says kilometres, while the figures may be
+    in miles"; "the note says kilograms, which conflicts with any pound reading")."""
+    parts = _DOUBT_CLAUSE.split(stmt or "")
+    clauses, seps = parts[0::2], [""] + parts[1::2]
+    out: set[str] = set()
+    for i, c in enumerate(clauses):
+        if not c or not _DOUBT.search(c):
+            continue
+        out |= L.content_words(c)
+        if i and (_TURNS_BACK.match(seps[i]) or re.match(r"\s*(?:which|that)\b", c, re.I)):
+            back = i - 1
+            while back > 0 and not clauses[back].strip():
+                back -= 1
+            out |= L.content_words(clauses[back])
+    return out
+
+
+_ASSERTS = re.compile(r"\b(?:is|are|was|were)\b", re.I)
+
+
+def _asserted_words(sent: str) -> list[str]:
+    """What a source sentence asserts, as stems in order: the words after its last copula ("every weight in the
+    inventory is in kilograms" asserts kilograms). A line with no copula ("item 2, weight 3 kg, value 26") is data,
+    not an assertion a doubt could turn on: a doubt about "the highest value" isn't one about that line's value."""
+    cop = list(_ASSERTS.finditer(sent))
+    if not cop:
+        return []
+    return [w for t in re.findall(r"[A-Za-z]+", sent[cop[-1].end():]) for w in L.content_words(t)]
+
+
+def _affirmed_in(passage: str, stem: str) -> str:
+    """The sentence of ``passage`` that asserts a word with this stem without negating anything, or ''."""
+    for sent in re.split(r"(?<=[.!?;])\s+", passage or ""):
+        if stem in L.content_words(sent) and not _PASSAGE_NEGATION.search(sent):
+            return sent.strip()
+    return ""
+
+
+def _doubted_in(passage: str, doubted: set[str]) -> tuple[list[str], str] | None:
+    """The words a plain (un-negated) sentence of ``passage`` asserts ("every weight ... is in kilograms") that the
+    statement doubts, and the sentence. Doubting a source's subject ("whether the container is available") is not
+    doubting what it says of it ("the container takes at most 36 kg")."""
+    if not doubted:
+        return None
+    for sent in re.split(r"(?<=[.!?;])\s+", passage or ""):
+        if _PASSAGE_NEGATION.search(sent):
+            continue
+        hit = list(dict.fromkeys(w for w in _asserted_words(sent) if w in doubted))
+        if hit:
+            return hit, sent.strip()
+    return None
+
+
+def _source_contradicts(s: Snap, stmt: str, support: list[str]) -> list[Problem]:
+    denied, doubted = denied_words(stmt), doubted_words(stmt)
+    if not denied and not doubted:
+        return []
+    for src in support:
+        n = s.nodes.get(src)
+        if not n or n["type"] != "source":
+            continue
+        passage = str(n["body"].get("passage") or "")
+        doubt = _doubted_in(passage, doubted)
+        if doubt:
+            stems, sent = doubt
+            cite = str(n["body"].get("citation") or "").strip()
+            label = cite[:80] if cite else (n.get("code") or src)
+            return [Problem("SOURCE_CONTRADICTS",
+                            f"the statement casts doubt on '{stems[-1]}', which a source it links as support ({label}) "
+                            f"asserts: \"{sent[:200]}\". A source can't support a doubt about what it says: accept it, "
+                            "or link it as a challenge and cite a source that says otherwise",
+                            fix="accept what the source says, or link it as a challenge", words=stems)]
+        for stem in sorted(denied):
+            sent = _affirmed_in(passage, stem)
+            if sent:
+                cite = str(n["body"].get("citation") or "").strip()
+                label = cite[:80] if cite else (n.get("code") or src)
+                return [Problem("SOURCE_CONTRADICTS",
+                                f"the statement denies '{stem}', but a source it links as support ({label}) says: "
+                                f"\"{sent[:200]}\". A source that "
+                                "says the opposite isn't support: correct the statement, or link the source as a "
+                                "challenge",
+                                fix="correct the statement, or link that source as a challenge", words=[stem])]
+    return []
 
 
 def _measured_claim(s: Snap, support: list[str]) -> bool:
@@ -636,9 +944,12 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 + ", ".join(named[:6]) + " — write the number in the sentence; it's bound to that key, "
                                 "so the record checks it", fix="replace each key with its number", words=named[:6]))
     problems += _absolutes(clean, scope, body, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
+        problems += _unreached(clean, bound)
     if kind not in ("lead", "convention"):
         problems += _comparisons(s, clean, bound, support)
         problems += _causal(s, clean, support)
+        problems += _source_contradicts(s, clean, support)
     problems += _exclusion(s, clean, kind, support, bound)
     if kind == "finding":
         problems += _uncorrected(s, clean, bound, inv)

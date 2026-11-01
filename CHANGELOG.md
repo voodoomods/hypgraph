@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.20 — 2026-11-01: a claim the record can show false, and who keeps making it
+
+- **A claim the record's own counts show false is refused as false** (`COUNT_CONTRADICTS`). "The shortest route is
+  31 km" beside a bound count of 2 of 81 routes shorter, or "nothing worth more fits" beside 1 of 1,024 that does, used
+  to fail at most as a missing denominator; now the count is named as the contradiction. An extreme claimed of a figure
+  no answer reaches is refused too, when the instrument also counts what reaches the figure exactly (0 of n). Not
+  claims: a denied extreme ("120 is not the highest"), the domain a stated count ran over ("a count of every route
+  finds 1 of 74 shorter") and a stated count itself ("is 1 of 63 routes").
+- **A source cited as support that says the opposite is refused** (`SOURCE_CONTRADICTS`): "the weights are in
+  pounds" citing the note that every weight is in kilograms, or casting doubt on what that note asserts without
+  denying it ("not independently established", "the only note calling them kilograms"). It no longer counts as a
+  line of support for the claim that contradicts it.
+- **Conduct: who corrected and who kept saying it.** `Graph.conduct(inv, author)` reads the refusal log per author:
+  claims shown false, corrections, the same claim said again (`reasserted`; a correction that names the old figure to
+  deny it is not a repeat), and where each author ends (`still_saying`, `moved_off`, `ends_false`). Refusal rows carry
+  the event `seq`, so a claim accepted later that moves off a refused one is seen.
+- `content_words` stems a word and its inflections alike (route / routes, fits / fitting), so a count's name meets
+  the sentence it bears on. `language.SUPERLATIVE` is exported. Tests: `tests/test_contradictions.py`.
+
 ## 0.7.19 — 2026-10-31: linked records, drawn together
 
 - **The Explorer draws linked records together.** When an investigation pins nodes of other records (pinned

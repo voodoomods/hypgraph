@@ -19,6 +19,10 @@ ABSOLUTE = re.compile(
     r"certain|guaranteed?|guarantees|eliminat(?:es|ed|ing)|entirely|completely|totally|universally|invariably|"
     r"consistently|without exception|perfect(?:ly)?|solves?|solved|definitively|conclusively|undeniably|"
     r"zero(?!-))\b|(?<![\d.])100\s*%", re.I)
+# a superlative names an extreme ("the highest value is 93"): a count of anything beyond it contradicts it
+SUPERLATIVE = re.compile(
+    r"\b(highest|lowest|largest|smallest|shortest|longest|greatest|fewest|best|worst|maximum|minimum|optimal|"
+    r"optimum|cheapest|fastest|slowest|biggest|earliest|latest)\b", re.I)
 COMPARATIVE = re.compile(
     r"\b(better|worse|beats?|beat|outperform(?:s|ed|ing)?|underperform(?:s|ed|ing)?|improv(?:es|ed|ement|ing)|"
     r"superior|inferior|exceeds?|exceeded|higher than|lower than|more than|fewer than|less than|faster|slower|"
@@ -128,14 +132,21 @@ def found(pattern: re.Pattern, text: str) -> list[str]:
 
 
 def content_words(text: str) -> set[str]:
-    """Words that say what something is about: 4+ letters, not stop words, crudely stemmed."""
+    """Words that say what something is about: 4+ letters, not stop words, crudely stemmed so that a word and its
+    inflections meet: route / routes, value / values, fits / fitting. (A stemmer that turned "routes" into "rout" but
+    left "route" alone kept a count of shorter routes from ever meeting "the shortest route is 31 km", and the record
+    accepted the false extreme.)"""
     out = set()
     for w in re.findall(r"[a-z]{4,}", (text or "").lower()):
         if w in STOP:
             continue
         for suf in ("ations", "ation", "ings", "ing", "ies", "es", "ed", "s"):
-            if w.endswith(suf) and len(w) - len(suf) >= 4:
+            if w.endswith(suf) and len(w) - len(suf) >= 3:
                 w = w[: -len(suf)]
                 break
+        if len(w) > 3 and w.endswith("e"):
+            w = w[:-1]                                 # route -> rout, as routes -> rout
+        if len(w) > 3 and w[-1] == w[-2] and w[-1] not in "aeioulsz":
+            w = w[:-1]                                 # fitting -> fitt -> fit, as fits -> fit
         out.add(w)
     return out
