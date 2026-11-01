@@ -27,11 +27,13 @@ chain, separate from the record's events (verify() on the record is unchanged; v
                    says the false part and doesn't fix it either: the author moved off it. Logged once each time
                    the author moves off it. ``ref`` is the refusal it leaves behind.
 
-conduct() is the per-author view of those: how often the record showed an author's claim false, how often the
+conduct() is the per-author view of those: how often the record contradicted an author's claim, how often the
 author corrected it, how often it said the same thing again — and where it stands now: whether its LAST word on
-each claim shown false still says it. An honest mistake gets corrected when the contradiction is shown; still saying
-it at the end, after being shown, is the mark of a party arguing in bad faith. A party that repeated itself once
-and then moved off the claim is counted as having said it again, but not as still saying it.
+each contradicted claim still says it. A party that repeated itself once and then moved off the claim is counted as
+having said it again, but not as still saying it. It keeps the two kinds apart: the record's own count (``by_count``)
+and a source the author cited as support that says otherwise (``by_source``) — the second shows the citation doesn't
+support the claim, not that the claim is false, since a source can be wrong. Conduct describes what an author did
+after being shown, not why: it is evidence for a reviewer to weigh, not a verdict on anyone's intent.
 
 report() turns it into the numbers worth watching: overclaims caught per author, how many were fixed and how many
 abandoned, which rules fire most — "your agents tried to say 'never' 14 times this week; 11 came back honest".
@@ -333,9 +335,11 @@ def rows(g: "Graph", inv: str = "", author: str = "", since: str = "", limit: in
 
 
 def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
-    """Per author: how often the record showed a claim of theirs false (its own count, or a source they cited, says
+    """Per author: how often the record contradicted a claim of theirs (its own count, or a source they cited, says
     the opposite), how often they then corrected it, and how often they said the same thing again.
-    {author: {"shown_false", "corrected", "reasserted", "open", "still_saying", "moved_off", "sentence"}}. A
+    {author: {"shown_false", "by_count", "by_source", "corrected", "reasserted", "open", "still_saying", "moved_off",
+    "ends_false", "sentence"}}. ``shown_false`` is every claim contradicted, ``by_count`` / ``by_source`` how many of
+    them the record's own count or a cited source contradicted (one claim can be both). A
     re-assertion that was itself refused is not counted as a new time shown false. ``still_saying``: claims shown false
     whose author's last word on them (its last fix, repeat or move away, in log order) says them again;
     ``moved_off``: claims it last moved away from without a fix; ``ends_false``: the author's last write was itself
@@ -359,6 +363,7 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
                 repeats.add(r)
     shown = {rid: a for rid, kind, a, _r, codes, _d in rows
              if kind == "refused" and rid not in repeats and set(json.loads(codes or "[]")) & set(CONTRADICTIONS)}
+    shown_codes = {rid: set(json.loads(codes or "[]")) for rid, _k, _a, _r, codes, _d in rows if rid in shown}
     root = {}                                       # a repeat's own refusal → the refusal it repeated
     for _id, kind, _a, ref, _c, det in rows:
         if kind == "reasserted" and ref:
@@ -379,9 +384,11 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
                 last[r] = kind
     out: dict[str, dict] = {}
     for rid, a in shown.items():
-        o = out.setdefault(a, {"shown_false": 0, "corrected": 0, "reasserted": 0, "open": 0, "still_saying": 0,
-                               "moved_off": 0})
+        o = out.setdefault(a, {"shown_false": 0, "by_count": 0, "by_source": 0, "corrected": 0, "reasserted": 0,
+                               "open": 0, "still_saying": 0, "moved_off": 0})
         o["shown_false"] += 1
+        o["by_count"] += "COUNT_CONTRADICTS" in shown_codes[rid]
+        o["by_source"] += "SOURCE_CONTRADICTS" in shown_codes[rid]
         fixed = any(k == "fixed" and r == rid for _i, k, _a, r, _c, _d in rows)
         again = sum(1 for _i, k, _a, r, _c, _d in rows if k == "reasserted" and r == rid)
         o["corrected"] += fixed
@@ -409,8 +416,12 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
         o["ends_false"] = any(k == "reasserted" or (k == "refused" and set(json.loads(c or "[]")) & set(CONTRADICTIONS))
                               for k, c in rs) and not _accepted_after(con, a, inv, key)
     for a, o in out.items():
-        n = o["shown_false"]
-        o["sentence"] = (f"the record showed a claim of this author's false {n} time{'s' * (n != 1)}; "
+        c, s_ = o["by_count"], o["by_source"]
+        shown = "; ".join(
+            ([f"the record's own count contradicted a claim of this author's {c} time{'s' * (c != 1)}"] if c else [])
+            + ([f"{s_} claim{'s' * (s_ != 1)} of this author's went against a source it cited as support"]
+               if s_ else []))
+        o["sentence"] = (shown + "; "
                          + (f"the author said it again {o['reasserted']} time{'s' * (o['reasserted'] != 1)} after "
                             "being shown" if o["reasserted"] else "the author did not say it again")
                          # "never corrected" only beside a repeat: dropping a claim for a different one is no repeat
@@ -418,7 +429,7 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
                             if o["corrected"] else ", and never corrected it"
                             if o["reasserted"] and (o["still_saying"] or o["ends_false"]) else "")
                          + ("; its last word still says it" if o["still_saying"] else
-                            "; its last word was shown false" if o["ends_false"] else
+                            "; its last word was contradicted by the record" if o["ends_false"] else
                             "; its last word no longer says it" if o["reasserted"] else ""))
     return out
 

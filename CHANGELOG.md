@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+Fixes from an independent audit of 0.7.20 (HG-020-01 to -04); each case below failed on 0.7.20 and is now a test.
+
+- **A count bears on a claim only at the figure the claim names.** A count says what lies beyond one figure
+  ("fitting selections worth more than 93"). In 0.7.20, binding a count of nothing beyond 140 beside the count of 2
+  beyond 93, in either order, let "nothing worth more than 93 fits" and "the highest value is 93" in (HG-020-01); and
+  a count beyond 93 refused the true "the highest value is 95" as `COUNT_CONTRADICTS`, which `conduct()` then held
+  against its author (HG-020-02). Now a count of exceptions at the claim's own figure refutes it whatever else is bound
+  beside it, and a count at another figure neither refutes nor rescues it. A count says its figure in its name
+  ("more than 93", "above 93"); a number at the end of a key counts only when it is a figure the claim names, since it
+  may just number repeated counts (`worth_more_2` is the second count, not one beyond 2). A count that names no figure
+  is read as before.
+- **A source's "not X" negates X, not its whole sentence.** "Every recorded weight is in kilograms, not pounds" used
+  to be skipped for its "not", so it supported a claim of pounds (HG-020-03). A negation now reaches to the end of its
+  clause; "the weights were not recorded in kilograms" still asserts nothing about kilograms.
+- **Conduct says which contradiction it was, and describes behaviour, not intent** (HG-020-04). `conduct()` adds
+  `by_count` (the record's own count contradicted the claim) and `by_source` (a source the author cited as support
+  says otherwise: the citation doesn't support the claim, which is not proof it is false, since a source can be
+  wrong). `shown_false` is still their total. Its sentence names each kind, and a last word that was refused now
+  reads "contradicted by the record". The docstring no longer reads intent into it: conduct is evidence for a
+  reviewer, not a verdict on anyone.
+- Limits, unchanged and now stated: a claim that drops the citation or count that would contradict it is not checked
+  against it, and an investigation with `strict_claims: false` runs no claim checks.
+
 ## 0.7.20 — 2026-11-01: a claim the record can show false, and who keeps making it
 
 - **A claim the record's own counts show false is refused as false** (`COUNT_CONTRADICTS`). "The shortest route is
