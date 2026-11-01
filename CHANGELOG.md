@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.18 — 2026-10-31: a scoped bundle can't call an active node superseded
 
 - **A scoped bundle can't show an active node as superseded and still say its views are checked.** A re-audit of
   0.7.17 found that a bundle naming a `scope.inv` (which the chain doesn't cover) could show any node, an active claim

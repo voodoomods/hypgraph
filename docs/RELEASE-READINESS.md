@@ -58,6 +58,18 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #75 is merged with green CI (17 of 17 checks); from the 0.7.17 wheel in a fresh venv the
 > suite is 424 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.17.
 
+> **Re-audit of 0.7.17 (2026-10-31).** Confirmed and fixed for 0.7.18: a bundle naming a `scope.inv` (not covered by
+> the chain) could show any non-withdrawn node, an active claim or the investigation itself, as superseded and verify
+> against its published head with `views: "checked"` and coverage complete; the published Broad Street bundle, which
+> has no redacted events, was enough. The scoped allowance now needs redacted events and a type a `supersedes` /
+> `corrects` link can reach (never an investigation or a review), and even then the views are `"unconfirmed"`, with
+> each node named, in Python and the browser alike. The verify page and the Explorer header now say *views not
+> checked* for `historical` and `unconfirmed` views, and the spec no longer says a verifier accepts either rule.
+> Tests: `tests/test_verify_scoped_views.py`.
+>
+> **Where that stands.** #77 is merged with green CI (17 of 17 checks); from the 0.7.18 wheel in a fresh venv the
+> suite is 431 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Released as 0.7.18.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
