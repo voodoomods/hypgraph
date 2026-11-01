@@ -70,7 +70,11 @@ EXPORTED = {"overview", "pipeline", "evidence", "orders", "report"}
 SITE_PAGES = ([(f"examples/{k}/", "live", ["Replaying", "not hash-chained", 'aria-current="page"']) for k in EXAMPLES]
               + [("", "live", ["chain verified", "Replaying", "data-open-claim", 'class="card ref"', "0 errors"]),
                  ("explore/", "overview", []), ("atlas/", "overview", []),
-                 ("examples/", "", ['class="excard"'] * 1 + [f'href="{k}/"' for k in EXAMPLES])])
+                 ("examples/", "", ['class="excard"'] * 1 + [f'href="{k}/"' for k in EXAMPLES] + ['href="linked/"']),
+                 # linked records: the pinned records drawn beside the open one, every pin checked against its record
+                 ("examples/linked/", "graph", ['class="card lk-card"', "hash matches", 'aria-current="page"']),
+                 ("examples/linked/east-london-1866/", "graph", ['class="card lk-card"', "hash matches"]),
+                 ("examples/linked/broad-street/", "graph", ['aria-current="page"'])])
 
 
 def serve() -> tuple[http.server.ThreadingHTTPServer, int]:

@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- **The Explorer draws linked records together.** When an investigation pins nodes of other records (pinned
+  references, 0.7.8), its graph now draws each of those records beside it, each in its own box, and follows their
+  pins in turn: a parent that pins child 1 and child 2 shows all three, with every pin drawn from the citing source to
+  the node it pins. Each record is read as its own bundle with its hash chain re-verified, and each pin is checked
+  against the version it names (`checkPin`, held to `verify_reference`'s verdicts by `tests/test_linked_records.py`):
+  green when the hash matches, amber when the node was revised since, red when it was withdrawn or doesn't match.
+  Beside each pin is the pinned node's standing in its own record. Nothing is merged; the records are laid out in
+  columns by distance, each mirrored to keep its pins short. A *Linked records* panel under the graph lists each
+  record, its chain, and every pin into it; the overview has a card, and a node of a linked record opens in the
+  drawer from its own bundle. Following stops at three links and twelve records by default (`linkDepth`,
+  `linkMax`); another site is read only when the viewer asks (`linked: 'same-origin' | 'all' | 'off'`), and a page
+  can map record URLs to bundles (`records`, `recordUrl`). `HypGraph.linkRecords`, `checkPin`, `bundleReferences`,
+  `normRecord` and `resolveWith` are exported. Translated into es, fr, de and zh-Hans.
+- **A worked example on the site.** `hypgraph.demos.linked` builds three records joined by pins: Broad Street, 1854
+  (the demo, unchanged), East London, 1866 (Farr's inquiry, which pins Broad Street's comparison as what it repeats)
+  and a synthesis, London's water, 1854–1866, which pins claims in both. `examples/linked/` serves each record as
+  its own page and bundle, opening on the graph.
+- The site's `.sub` style no longer leaks into the app's card headings.
+
 ## 0.7.18 — 2026-10-31: a scoped bundle can't call an active node superseded
 
 - **A scoped bundle can't show an active node as superseded and still say its views are checked.** A re-audit of

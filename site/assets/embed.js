@@ -34,9 +34,14 @@ const HG_ROOT = new URL('..', document.currentScript ? document.currentScript.sr
       return;
     }
     const theme = document.documentElement.dataset.theme || (window.HG ? window.HG.theme() : 'light');
+    // linked records: data-record is this record's own URL; data-records maps the record URLs its pins name to bundles
+    let records = {};
+    try {
+      records = Object.fromEntries(Object.entries(JSON.parse(el.dataset.records || '{}')).map(([k, v]) => [k, new URL(v, HG_ROOT).href]));
+    } catch { records = {}; }
     const view = HypGraph.mount(el, {
       source: HypGraph.BundleSource(bundle), theme, hash: el.dataset.hash === 'on', play: el.dataset.play === 'on',
-      onTheme: syncTheme,
+      onTheme: syncTheme, records, recordUrl: el.dataset.record || '', view: el.dataset.view || undefined,
       // the app speaks the page's language; choosing another in the app opens the page in that language
       lang: document.documentElement.lang || 'en', onLang: (code) => { if (window.HG && window.HG.toLang) window.HG.toLang(code); },
     });
