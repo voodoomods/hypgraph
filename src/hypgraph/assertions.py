@@ -18,7 +18,9 @@ steered one of those inferences. Here the instrument types what it counted and t
   population  a path: ``route/passenger`` lies within ``route``, so a count of 0 over every route also settles
               "no passenger route"; a count of the passenger routes says nothing of the cargo routes.
   property    an id, compared for equality ("length" is not "speed").
-  unit        compared for equality, spellings of one unit read as one ("km" = "kilometres"); never converted.
+  unit        compared for equality, spellings of one unit read as one ("km" = "kilometres") within one kind of unit:
+              "lb" is mass and "GBP" currency, never the same; "pound", which could be either, matches only
+              another spelling that could be either. Never converted.
   n           optional: the population's size as the claim states it; must be the count's n.
 
 Each atom is decided on its own, by sets on the number line — S_e = {x : x op_e figure_e} (what was counted) and
@@ -28,7 +30,13 @@ S_a = {x : x op_a figure_a} (what is asserted) — and the paths. A count of k i
               contradicted when a count above 0 is over a set inside S_a and a population inside the atom's
   some S_a    the mirror: a count above 0 inside S_a supports it, a count of 0 containing S_a contradicts it
   all S_a     none of the complement of S_a
-  exactly     the same set and the same population, then k compared
+  exactly     the same population; a count over a set inside S_a puts at least that many in it, a count over a
+              set containing S_a at most that many: k inside those bounds, at both ends supported, outside them
+              contradicted (4 of 4 above F puts at most 0 below it, so "exactly 4 below F" is false)
+
+Figures are compared exactly, at any magnitude: containment is decided on the pieces of the number line the two
+figures cut it into (the figures themselves and the open intervals between), with no arithmetic on the figures — a
+probe at figure + 1 is the figure itself above 2**53, which made x > 1e18 look inside x <= 1e18 (HG-080-01).
 
 Anything else is unresolved, and the verdict names the field that blocked it. One count can back two atoms only if
 each checks out against it on its own, so a true absolute can't lend anything to a false one (HG-028-01), and "all"
@@ -76,29 +84,56 @@ def prop(p) -> str | None:
 
 
 def _unit(u) -> frozenset | None:
-    """A unit as the set of names it could be ("km" → {kilometre}); None when there's none."""
+    """A unit as the (kind, unit) pairs it could be ("km" → {(length, kilometre)}, "pound" → {(mass, pound),
+    (currency, pound)}); an unknown spelling is itself. None when there's none."""
     if u is None or (isinstance(u, str) and not u.strip()):
         return None
     from .checks import _UNIT_OF                           # one table of unit spellings, shared with the word checks
     w = str(u).strip().lower()
-    return frozenset(c for _f, c in _UNIT_OF.get(w, ())) or frozenset({w})
+    return frozenset(_UNIT_OF.get(w, ())) or frozenset({("", w)})
 
 
 def same_unit(a, b) -> bool:
-    ua, ub = _unit(a), _unit(b)
-    return (ua is None and ub is None) or (ua is not None and ub is not None and bool(ua & ub))
+    """One unit: every reading of one is a reading of the other. "lb" = "lbs" and "GBP" = "sterling", but "lb" is
+    never "GBP" (HG-080-02), and an ambiguous "pound" is neither of them."""
+    return _unit(a) == _unit(b)
+
+
+def ambiguous(u) -> list[str]:
+    """The kinds of unit an ambiguous spelling could be ("pound": currency, mass); [] when it is one unit."""
+    kinds = sorted({k for k, _c in _unit(u) or ()})
+    return kinds if len(kinds) > 1 else []
 
 
 def holds(x: float, op: str, f: float) -> bool:
     return {"<": x < f, "<=": x <= f, "=": x == f, "!=": x != f, ">=": x >= f, ">": x > f}[op]
 
 
+def _pieces(*figures) -> list[tuple]:
+    """The number line cut at the figures: each figure as a point ("pt", x) and the open intervals between and beyond
+    them ("iv", lo, hi), None for an infinite end. Figures are compared as given (Python compares ints and floats
+    exactly); nothing is added to or averaged from them."""
+    pts = sorted(set(figures))
+    out: list[tuple] = [("iv", None, pts[0])]
+    for x, y in zip(pts, pts[1:]):
+        out += [("pt", x), ("iv", x, y)]
+    return out + [("pt", pts[-1]), ("iv", pts[-1], None)]
+
+
+def _inside(piece: tuple, op: str, f) -> bool:
+    """Is a piece of the line inside {x : x op f}? f is one of the cuts, so an open interval lies wholly below or
+    wholly above it, and which side decides."""
+    if piece[0] == "pt":
+        return holds(piece[1], op, f)
+    _iv, _lo, hi = piece
+    below = hi is not None and hi <= f
+    return op in ("<", "<=", "!=") if below else op in (">", ">=", "!=")
+
+
 def subset(a: tuple, b: tuple) -> bool:
-    """Is {x : x a[0] a[1]} inside {x : x b[0] b[1]}? Both sets are unions of intervals with ends at the two figures,
-    so membership is constant on each piece between them: checking one point per piece decides it."""
-    pts = sorted({float(a[1]), float(b[1])})
-    probes = pts + [pts[0] - 1, pts[-1] + 1] + [(x + y) / 2 for x, y in zip(pts, pts[1:])]
-    return all(holds(x, *b) for x in probes if holds(x, *a))
+    """Is {x : x a[0] a[1]} inside {x : x b[0] b[1]}? Both sets are unions of the pieces the two figures cut the line
+    into, so it is decided piece by piece, exactly, at any magnitude."""
+    return all(_inside(p, *b) for p in _pieces(a[1], b[1]) if _inside(p, *a))
 
 
 def same_set(a: tuple, b: tuple) -> bool:
@@ -122,7 +157,7 @@ def count_fields(rv) -> tuple[dict | None, str]:
     pop = path(rv["population"])
     if pop is None:
         return None, "the count's population is not a path (route/passenger)"
-    return {"k": int(k), "n": int(n), "op": rv["op"], "figure": float(rv["figure"]), "population": pop,
+    return {"k": int(k), "n": int(n), "op": rv["op"], "figure": rv["figure"], "population": pop,
             "property": prop(rv["property"]), "unit": rv.get("unit")}, ""
 
 
@@ -171,9 +206,18 @@ def _cond(a: dict) -> str:
     return f"{a['property']} {SHOW_OP.get(a['op'], a['op'])} {fig}{u}"
 
 
+def whole_form(f):
+    """A figure with its exact value, an integral float as an int (26.0 → 26, 1e18 → 10**18): 26 and 26.0 are one
+    figure. (Not ``f.is_integer()`` on an int — that is Python 3.12+.)"""
+    return f if isinstance(f, int) else int(f) if float(f).is_integer() else f
+
+
 def stats_fmt(v) -> str:
+    """A figure as it is: ints whole, floats exact (repr round-trips), so a rendered figure never hides a difference."""
+    if isinstance(v, int):
+        return str(v)
     v = float(v)
-    return str(int(v)) if v.is_integer() else f"{v:g}"
+    return str(int(v)) if v.is_integer() and abs(v) < 1e15 else repr(v)
 
 
 def render(a: dict) -> str:
@@ -213,8 +257,11 @@ def _decide(a: dict, e: dict) -> tuple[str, str, str]:
         return "unresolved", "property", (f"the count is of {e['property']}, the assertion is about "
                                           f"{prop(a['property'])}")
     if not same_unit(a.get("unit"), e.get("unit")):
+        amb = next(((u, ambiguous(u)) for u in (a.get("unit"), e.get("unit")) if ambiguous(u)), None)
         return "unresolved", "unit", (f"the count is in {e.get('unit') or 'no unit'}, the assertion in "
-                                      f"{a.get('unit') or 'no unit'}: state the figure in the count's unit")
+                                      f"{a.get('unit') or 'no unit'}: state the figure in the count's unit"
+                                      + (f"; '{amb[0]}' could be {' or '.join(amb[1])}, so name the unit "
+                                         "unambiguously (lb, GBP)" if amb else ""))
     if not (within(pa, pe) or within(pe, pa)):
         return "unresolved", "population", (f"the count is of {_pop(pe)}, the assertion is about {_pop(pa)}: "
                                             "neither lies within the other")
@@ -225,7 +272,7 @@ def _decide(a: dict, e: dict) -> tuple[str, str, str]:
                                    f"{_pop(pe)} ({e['n']}) doesn't give")
     # what was counted, both ways: k inside S_e and n - k outside it
     sides = [((e["op"], e["figure"]), e["k"]), ((COMPLEMENT[e["op"]], e["figure"]), e["n"] - e["k"])]
-    q, t = a["quantifier"], (a["op"], float(a["figure"]))
+    q, t = a["quantifier"], (a["op"], a["figure"])
     got = _settle(q, t, sides, pa, pe, a)
     if got:
         return got
@@ -242,11 +289,18 @@ def _settle(q: str, t: tuple, sides: list, pa: tuple, pe: tuple, a: dict) -> tup
     if q == "exactly":
         if pa != pe:
             return None
+        lo, hi = 0, sum(c for _side, c in sides)
         for side, c in sides:
-            if same_set(t, side):
-                ok = int(a["k"]) == c
-                return ("supported" if ok else "contradicted", "" if ok else "k",
-                        f"the count finds {c}" + ("" if ok else f", not {int(a['k'])}"))
+            if subset(side, t):                  # everything counted there is in the atom's set
+                lo = max(lo, c)
+            if subset(t, side):                  # the atom's set lies inside what was counted there
+                hi = min(hi, c)
+        want = int(a["k"])
+        found = f"the count finds {lo}" if lo == hi else f"the count puts {lo} to {hi} there"
+        if lo == hi == want:
+            return "supported", "", found
+        if want < lo or want > hi:
+            return "contradicted", "k", f"{found}, not {want}"
         return None
     neg = "that don't" if q == "all" else "that do"
     if q == "all":                               # everything meets it: nothing meets its complement
@@ -308,8 +362,10 @@ def key(a) -> str:
     if atom_shape(a, None)[0]:
         return json.dumps(a, sort_keys=True, default=str)[:300]
     u = _unit(a.get("unit"))
+    f = a["figure"]
+    fig = whole_form(f)                                                          # 26 and 26.0 are one figure, exactly
     return json.dumps([a["quantifier"], "/".join(path(a["population"]) or ()), prop(a["property"]), a["op"],
-                       float(a["figure"]), sorted(u) if u else None, a.get("n"), a.get("k")], default=str)
+                       fig, sorted(u) if u else None, a.get("n"), a.get("k")], default=str)
 
 
 def numbers(body: dict) -> list[float]:
@@ -375,7 +431,7 @@ def draft(s: Snap, body: dict, inv: str = "") -> list[dict]:
             pool = [(i, e) for i, e in typed if e["n"] == n]
             for i, e in [x for x in pool if x[1]["figure"] in figs] or pool:
                 add({"quantifier": "exactly", "population": _pop(e["population"]), "property": e["property"],
-                     "op": e["op"], "figure": int(e["figure"]) if e["figure"].is_integer() else e["figure"],
+                     "op": e["op"], "figure": whole_form(e["figure"]),
                      "k": k, "n": n, "measurement": i}, e)
     return out[:6]
 

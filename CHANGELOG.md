@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased: exact figures, units within their kind
+
+An independent audit of 0.8.0 found two defects in the typed checks, both confirmed on the published wheel.
+
+- **Exact figures (HG-080-01).** Containment of two conditions was decided by probing at each figure ± 1 and the
+  midpoints, in floats. Above 2**53 a figure + 1 is the figure, so x > 1e18 looked inside x <= 1e18, and a count of 0
+  above 1e18 supported "none below 1e18". Containment is now decided on the pieces the two figures cut the line into,
+  with no arithmetic on them, and figures keep their exact value (10**18 + 1 is not 1e18; it renders as itself).
+- **Units within their kind (HG-080-02).** The unit table's kind was dropped, so `lb` (mass) matched `GBP` and
+  `sterling` (currency) through the shared name "pound". A unit is now its (kind, unit) readings: `lb` = `lbs` and
+  `GBP` = `sterling` still, never across kinds, and an ambiguous `pound` matches only another `pound`; the refusal says
+  what it could be and asks for `lb` or `GBP`.
+- **`exactly` decided from bounds.** It was left unresolved unless its set was the counted one or its complement:
+  4 of 4 above F now contradicts "exactly 4 below F". Over one population every verdict now equals enumeration of the
+  consistent worlds (sound and complete), and the test checks that.
+- **An extreme stated as a value is two atoms.** In a typed investigation "the longest of the 4 routes is 26 km"
+  needs both "none above 26" and "some at 26 or more"; one of them is refused (`ASSERTION_MISSING`). An extreme stated
+  as a bound ("the slowest took at least 40 minutes") needs one.
+- Tests: containment against exact rational probes over large, adjacent, subnormal and signed-zero figures; the audit's
+  cases through `_decide` and the write gate; units; extremes. The audit's own test file passes (13 of 13).
+
 ## 0.8.0 — 2026-11-01: typed claim assertions
 
 Eight independent audits (HG-020 → HG-028) found the same class of failure, each time in a new wording: to decide

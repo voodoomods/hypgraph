@@ -7,7 +7,9 @@ is decided by sets on the number line and population paths. Invariants: a verdic
 never on the sentence around them; a true atom never lends anything to a false one; a count is whole."""
 import itertools
 import json
+import math
 import random
+from fractions import Fraction
 
 import pytest
 
@@ -75,16 +77,17 @@ def brute(q, op_a, f_a, op_e, f_e, k, n, kk=None):
 @pytest.mark.parametrize("op_a", A.OPS)
 @pytest.mark.parametrize("op_e", A.OPS)
 @pytest.mark.parametrize("f_a", [20, 26, 30])
-def test_the_interval_logic_never_decides_what_enumeration_leaves_open(q, op_a, op_e, f_a):
-    """Sound: a supported or contradicted verdict is what every consistent world says. (Unresolved may be returned
-    where enumeration could decide — the logic is conservative — but never the other way round.)"""
+def test_the_interval_logic_decides_exactly_what_enumeration_decides(q, op_a, op_e, f_a):
+    """Sound and complete over one population: supported or contradicted exactly when every consistent world agrees,
+    unresolved exactly when they differ. (0.8.0 left 'exactly' open unless its set was the counted one or its
+    complement; it is now decided from bounds — HG-080.)"""
     n = 3
     for k in range(n + 1):
-        kw = {"k": 1} if q == "exactly" else {}
-        a = atom(q, op_a, f_a, **kw)
-        got = A._decide(a, A.count_fields(cnt(k, 26, op_e, n))[0])[0]
-        want = brute(q, op_a, f_a, op_e, 26, k, n, kw.get("k"))
-        assert got == "unresolved" or got == want, (q, op_a, f_a, op_e, k, got, want)
+        for kk in (range(n + 1) if q == "exactly" else [None]):
+            kw = {"k": kk} if q == "exactly" else {}
+            got = A._decide(atom(q, op_a, f_a, **kw), A.count_fields(cnt(k, 26, op_e, n))[0])[0]
+            want = brute(q, op_a, f_a, op_e, 26, k, n, kk)
+            assert got == want, (q, op_a, f_a, op_e, k, kk, got, want)
 
 
 @pytest.mark.parametrize("q", ["none", "all", "some"])
@@ -388,3 +391,119 @@ def test_a_drafted_lie_is_still_refused():
             "measurements": [{"result": r, "key": "over_26"}]}
     d = A.draft(g.snapshot(), body, inv)
     assert [v["verdict"] for v in A.verify(g.snapshot(), {**body, "asserts": d}, inv)] == ["contradicted"]
+
+
+# ── HG-080-01: exact at any magnitude ───────────────────────────────────────────────────────────────────────────
+
+TRICKY = [10**16, 10**18, 10**24, 1e18, 10**18 + 1, -10**18, 2**53, 2**53 + 1, 5e-324, 0, -0.0, 1.0,
+          math.nextafter(1.0, 2.0), 26, 26.0]
+
+
+def exact_subset(a, b):
+    """The reference: the probe method in exact rational arithmetic, where a figure ± 1 and a midpoint are always new
+    points (in floats, above 2**53 they are the figure itself)."""
+    fa, fb = Fraction(a[1]), Fraction(b[1])
+    pts = sorted({fa, fb})
+    probes = pts + [pts[0] - 1, pts[-1] + 1] + [(x + y) / 2 for x, y in zip(pts, pts[1:])]
+    return all(A.holds(x, b[0], fb) for x in probes if A.holds(x, a[0], fa))
+
+
+@pytest.mark.parametrize("fa", TRICKY)
+@pytest.mark.parametrize("fb", TRICKY)
+def test_containment_is_exact_at_any_magnitude(fa, fb):
+    for oa in A.OPS:
+        for ob in A.OPS:
+            assert A.subset((oa, fa), (ob, fb)) == exact_subset((oa, fa), (ob, fb)), (oa, fa, ob, fb)
+
+
+@pytest.mark.parametrize("f", [10**16, 10**18, 1e18, 10**24])
+def test_a_large_figure_decides_as_a_small_one(f):
+    def e(k, op):
+        return A.count_fields(cnt(k, f, op))[0]
+    assert not A.subset((">", f), ("<=", f)) and not A.same_set((">", f), ("<", f))
+    assert A._decide(atom("none", "<", f, n=4), e(0, ">"))[0] == "unresolved"       # 0 above F says nothing below
+    assert A._decide(atom("exactly", "<", f, n=4, k=4), e(4, ">"))[0] == "contradicted"
+    assert A._decide(atom("none", ">", f, n=4), e(0, ">"))[0] == "supported"
+    assert A._decide(atom("some", ">=", f), e(1, ">"))[0] == "supported"
+
+
+def test_one_past_a_large_figure_is_another_figure():
+    """10**18 + 1 is not 1e18, though float() makes them one: nothing over 10**18 + 1 leaves room above 10**18."""
+    assert A._decide(atom("none", ">", 10**18, n=4), A.count_fields(cnt(0, 10**18 + 1))[0])[0] == "unresolved"
+    assert A._decide(atom("none", ">", 10**18 + 1, n=4), A.count_fields(cnt(0, 10**18))[0])[0] == "supported"
+
+
+def test_a_large_figure_through_the_write_gate():
+    values = {"over": cnt(0, 10**18, ">", unit=None)}
+    codes = write(values, "No route is shorter than 1000000000000000000 among the 4 routes.",
+                  [atom("none", "<", 10**18, unit=None, n=4)], ["over"])
+    assert "ASSERTION_UNRESOLVED" in codes, codes
+    values = {"over": cnt(4, 10**18, ">", unit=None)}
+    codes = write(values, "Exactly 4 of the 4 routes are shorter than 1000000000000000000.",
+                  [atom("exactly", "<", 10**18, unit=None, n=4, k=4)], ["over"])
+    assert "ASSERTION_CONTRADICTED" in codes, codes
+
+
+def test_a_figure_renders_as_it_is():
+    assert A.stats_fmt(10**18 + 1) == "1000000000000000001" and A.stats_fmt(26.0) == "26"
+    assert A.stats_fmt(math.nextafter(1.0, 2.0)) == "1.0000000000000002"
+    assert A.key(atom("none", figure=10**18)) != A.key(atom("none", figure=10**18 + 1))
+    assert A.key(atom("none", figure=26)) == A.key(atom("none", figure=26.0))
+
+
+# ── HG-080-02: a unit is one only within its kind ───────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("a,b,same", [
+    ("lb", "lbs", True), ("GBP", "sterling", True), ("km", "kilometres", True), ("pounds", "pound", True),
+    ("widgets", "widgets", True), (None, None, True), (None, "", True),
+    ("lb", "GBP", False), ("lbs", "gbp", False), ("lb", "sterling", False),   # mass is never currency
+    ("pound", "lb", False), ("pound", "GBP", False),                            # "pound" could be either
+    ("km", "miles", False), ("km", None, False),
+])
+def test_units_are_one_only_within_their_kind(a, b, same):
+    assert A.same_unit(a, b) is same and A.same_unit(b, a) is same, (a, b)
+
+
+def test_a_currency_count_cannot_back_a_mass_claim():
+    values = {"over": cnt(0, 40, ">", population="shipment", property="quantity", unit="GBP")}
+    a = atom("none", ">", 40, population="shipment", property="quantity", unit="lb", n=4)
+    v, field, _why = A._decide(a, A.count_fields(values["over"])[0])
+    assert (v, field) == ("unresolved", "unit")
+    codes = write(values, "No shipment weighs more than 40 lb among the 4 shipments.", [a], ["over"])
+    assert "ASSERTION_UNRESOLVED" in codes, codes
+
+
+def test_an_ambiguous_unit_says_what_it_could_be():
+    v, field, why = A._decide(atom("none", unit="pound", n=4), A.count_fields(cnt(0, unit="lb"))[0])
+    assert (v, field) == ("unresolved", "unit") and "could be currency or mass" in why, why
+
+
+# ── an extreme stated as a value is two atoms ───────────────────────────────────────────────────────────────────
+
+EXTREME = {"over_26": cnt(0), "at_least_26": cnt(1, op=">=")}
+BOTH = [atom("none", n=4), atom("some", ">=", m=1)]
+
+
+def test_an_extreme_stated_as_a_value_needs_both_atoms():
+    stmt = "The longest of the 4 routes is 26 km."
+    assert write(EXTREME, stmt, BOTH, ["over_26", "at_least_26"]) == []
+    for one in (BOTH[:1], BOTH[1:]):
+        codes = write(EXTREME, stmt, one, ["over_26", "at_least_26"])
+        assert "ASSERTION_MISSING" in codes, (one, codes)
+
+
+def test_an_extreme_stated_as_a_bound_needs_one_atom():
+    values = {"at_least_40": cnt(1, 40, ">=", property="time", unit="minutes")}
+    assert write(values, "The slowest of the 4 routes took at least 40 minutes.",
+                 [atom("some", ">=", 40, property="time", unit="minutes")], ["at_least_40"]) == []
+
+
+@pytest.mark.parametrize("part,needed", [
+    ("The longest of the 4 routes is 26 km.", 2), ("The highest score was 93.", 2),
+    ("The longest route, at 26 km, is the only one above 20 km.", 2),
+    ("The slowest of the 4 routes took at least 40 minutes.", 1), ("The highest of all 4 scores is at most 93.", 1),
+    ("No route is longer than 26 km.", 1),
+])
+def test_how_many_atoms_a_part_asks_for(part, needed):
+    from hypgraph import checks as C
+    assert C.atoms_needed(part) == needed
