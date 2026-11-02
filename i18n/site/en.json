@@ -341,6 +341,12 @@
    "1b6453a997": "<1/> events · <2/> nodes · <3/> writes refused, then rewritten",
    "20127dccb5": "Optimization ·",
    "2b4b9c229b": "Objective, feasibility and a gap. An objective with no feasibility check is refused, and “optimal” needs a bound that meets it.",
+   "adc6131df2": "A disputed answer",
+   "75aa1a1c1a": "An honest mistake and a lie about the same question. The record refuses both, the honest party corrects hers, the liar says it again, and an independent reviewer checks one claim and fails the other.",
+   "d72041bc0d": "claims",
+   "24468cae27": "<1/> checked · <2/> contested",
+   "0bc6644174": "<1/> events · <2/> nodes · <3/> writes refused",
+   "35fc06681a": "<1>See who gets called out</1>",
    "7898c8e89d": "Linked records",
    "5c9830f3f5": "Three records, each with its own chain and board, joined by pinned references. A synthesis pins claims in two other records, and one of those pins the third, so the graph draws all three together, each verified on its own.",
    "86761b63a7": "records",
@@ -462,6 +468,15 @@
    "f828920e4e": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it. A teaching reconstruction: no figures beyond what the records state.",
    "41986b30dc": "One of three HypGraph records joined by pinned references, drawn together and each verified on its own.",
    "e51c55255b": "Records"
+  },
+  "examples/dispute/index.html": {
+   "9b3d69efd4": "A disputed answer — HypGraph",
+   "eb01bf04c9": "Examples",
+   "0361e73a41": "Download bundle",
+   "1783de2360": "Verify it",
+   "20a6f53018": "<1>A disputed answer</1> · two parties answer one question from the same road register. <2>Ada</2> makes an honest mistake: 30 km, when the instrument counts 1 of 4 routes shorter. The record refuses it (<3/>) and she corrects it to 29 km. <4>Mallory</4> says the register is in miles, citing the register’s own units note, which says kilometres. The record refuses it (<5/>), she says it again, then files it without the note. An independent reviewer reads both against the register. Nobody labels anyone: the standing below is derived on read, and so is the conduct log, which says Ada corrected what she was shown and Mallory said it again 2 times, never corrected it, and still says it.",
+   "f8519659b3": "An honest mistake and a lie about one question: the HypGraph record checks one answer, contests the other, and says which author kept saying it.",
+   "adc6131df2": "A disputed answer"
   },
   "explore/index.html": {
    "578f7edbb0": "Explore a record — HypGraph",

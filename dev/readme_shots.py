@@ -11,6 +11,7 @@ site is deployed. Serves site/ on a free local port; reads nothing from the netw
                             the bundle itself is not published). Without --record the existing pictures are kept.
     linked-<theme>.png      three records joined by pinned references (examples/linked/, Graph view)
     refusals-<theme>.png    overclaims the engine refused, each with its code and the accepted rewrite (home page)
+    dispute-<theme>.png     an honest answer checked and a lie contested (examples/dispute/, Evidence view)
 """
 from __future__ import annotations
 
@@ -31,11 +32,12 @@ SITE, OUT = ROOT / "site", ROOT / "site" / "assets" / "readme"
 WIDTH = 1760                     # 2x GitHub's README column, so text stays sharp on high-density screens
 PAD = 20                         # CSS px around an element shot
 
-# name, page, element to photograph, viewport
+# name, page, element to photograph, viewport[, margin around the element in CSS px (default PAD)]
 SHOTS = [
     ("record", "_record/#view=graph", "#hg-graph", (1500, 1250)),
     ("linked", "examples/linked/#view=graph", "#hg-graph", (1600, 1000)),
     ("refusals", "", "#refusals", (1400, 1000)),
+    ("dispute", "examples/dispute/#view=evidence", "#hg-main .card", (1400, 1000), 12),   # the filter chips sit 14 px above
 ]
 
 
@@ -85,7 +87,8 @@ def main() -> None:
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            for name, page, sel, (w, h) in shots:
+            for name, page, sel, (w, h), *margin in shots:
+                pad = margin[0] if margin else PAD
                 for theme in ("light", "dark"):
                     path, _, frag = page.partition("#")
                     pg = browser.new_page(viewport={"width": w, "height": h}, device_scale_factor=2)
@@ -101,8 +104,8 @@ def main() -> None:
                         if el is None:
                             raise SystemExit(f"{name} ({theme}): no {sel} on {page or 'the home page'}")
                         b = el.bounding_box()            # a margin, so card borders don't touch the picture's edge
-                        clip = {"x": b["x"] - PAD, "y": b["y"] - PAD, "width": b["width"] + 2 * PAD,
-                                "height": b["height"] + 2 * PAD}
+                        clip = {"x": b["x"] - pad, "y": b["y"] - pad, "width": b["width"] + 2 * pad,
+                                "height": b["height"] + 2 * pad}
                     out = OUT / f"{name}-{theme}.png"
                     save(pg.screenshot(clip=clip, full_page=bool(clip)), out)
                     print(f"{out.relative_to(ROOT)}  {out.stat().st_size // 1024} KB")

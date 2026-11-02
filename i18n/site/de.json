@@ -479,7 +479,16 @@
 "41986b30dc": "Eines von drei HypGraph-Protokollen, verbunden durch fixierte Referenzen, zusammen gezeichnet und jedes für sich verifiziert.",
 "e51c55255b": "Protokolle",
 "0e43422af9": "Broad Street, 1854 · verknüpfte Protokolle — HypGraph",
-"2b616fa2b8": "East London, 1866 · verknüpfte Protokolle — HypGraph"
+"2b616fa2b8": "East London, 1866 · verknüpfte Protokolle — HypGraph",
+"adc6131df2": "Eine umstrittene Antwort",
+"75aa1a1c1a": "Ein ehrlicher Fehler und eine Lüge zur selben Frage. Das Protokoll lehnt beide ab, die ehrliche Seite korrigiert ihren, die Lügnerin wiederholt ihre, und ein unabhängiger Prüfer bestätigt die eine Behauptung und weist die andere zurück.",
+"d72041bc0d": "Behauptungen",
+"24468cae27": "<1/> geprüft · <2/> angefochten",
+"0bc6644174": "<1/> Ereignisse · <2/> Knoten · <3/> Schreibvorgänge abgelehnt",
+"35fc06681a": "<1>Sehen, wer benannt wird</1>",
+"9b3d69efd4": "Eine umstrittene Antwort — HypGraph",
+"f8519659b3": "Ein ehrlicher Fehler und eine Lüge zu einer Frage: Das HypGraph-Protokoll prüft die eine Antwort, ficht die andere an und sagt, wer bei der Behauptung blieb.",
+"20a6f53018": "<1>Eine umstrittene Antwort</1> · zwei Seiten beantworten eine Frage anhand desselben Straßenregisters. <2>Ada</2> macht einen ehrlichen Fehler: 30 km, während das Instrument 1 von 4 kürzeren Routen zählt. Das Protokoll lehnt ab (<3/>), und sie korrigiert auf 29 km. <4>Mallory</4> behauptet, das Register sei in Meilen, und führt als Beleg die Einheitennotiz des Registers selbst an, die Kilometer sagt. Das Protokoll lehnt ab (<5/>), sie wiederholt es und reicht es dann ohne die Notiz ein. Ein unabhängiger Prüfer liest beides gegen das Register. Niemand etikettiert jemanden: Der Stand unten wird beim Lesen abgeleitet, ebenso das Verhaltensprotokoll, das sagt, dass Ada korrigierte, was ihr gezeigt wurde, und Mallory es 2 Mal wiederholte, nie korrigierte und weiter behauptet."
 },
 "js": {
 "Couldn't load the bundle: {e}": "Das Bundle konnte nicht geladen werden: {e}",

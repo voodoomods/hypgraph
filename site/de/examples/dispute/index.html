@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eine umstrittene Antwort — HypGraph</title>
+<meta name="description" content="Ein ehrlicher Fehler und eine Lüge zu einer Frage: Das HypGraph-Protokoll prüft die eine Antwort, ficht die andere an und sagt, wer bei der Behauptung blieb.">
+<link rel="icon" href="../../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../assets/site.css">
+<link rel="stylesheet" href="../../../app/hypgraph.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('hg-theme')||'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+<!--i18n:strings--><script src="../../../assets/strings.de.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/examples/dispute/" data-rel="../../../examples/dispute/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/examples/dispute/" data-rel="../../../es/examples/dispute/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/examples/dispute/" data-rel="../../../fr/examples/dispute/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/examples/dispute/" data-rel="../../../de/examples/dispute/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/examples/dispute/" data-rel="../../../zh-Hans/examples/dispute/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/examples/dispute/"><!--/i18n:alt-->
+</head>
+<body class="apppage">
+<header class="appbar"><a class="brand" href="../../"><img src="../../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+<a class="crumb" href="../">Beispiele</a><span class="sp"></span><a class="act" href="../../../data/examples/dispute.bundle.json" download>Das Bundle herunterladen</a><a class="act hide-sm" href="../../verify/">Es verifizieren</a><!--i18n:menu--><details class="langs"><summary aria-label="Sprache" title="Sprache">DE</summary><div class="langs-menu"><a href="../../../examples/dispute/" hreflang="en" lang="en">English</a><a href="../../../es/examples/dispute/" hreflang="es" lang="es">Español</a><a href="../../../fr/examples/dispute/" hreflang="fr" lang="fr">Français</a><a href="../../../de/examples/dispute/" hreflang="de" lang="de" aria-current="page">Deutsch</a><a href="../../../zh-Hans/examples/dispute/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--></header>
+<!--i18n:note--><p class="i18n-note appnote">Diese Seite ist eine Übersetzung. Maßgeblich ist die englische Fassung: <a href="../../../examples/dispute/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<p class="appnote"><b>Eine umstrittene Antwort</b> · zwei Seiten beantworten eine Frage anhand desselben Straßenregisters. <b>Ada</b> macht einen ehrlichen Fehler: 30 km, während das Instrument 1 von 4 kürzeren Routen zählt. Das Protokoll lehnt ab (<code>COUNT_CONTRADICTS</code>), und sie korrigiert auf 29 km. <b>Mallory</b> behauptet, das Register sei in Meilen, und führt als Beleg die Einheitennotiz des Registers selbst an, die Kilometer sagt. Das Protokoll lehnt ab (<code>SOURCE_CONTRADICTS</code>), sie wiederholt es und reicht es dann ohne die Notiz ein. Ein unabhängiger Prüfer liest beides gegen das Register. Niemand etikettiert jemanden: Der Stand unten wird beim Lesen abgeleitet, ebenso das Verhaltensprotokoll, das sagt, dass Ada korrigierte, was ihr gezeigt wurde, und Mallory es 2 Mal wiederholte, nie korrigierte und weiter behauptet.</p><div class="appfull"><div data-hypgraph data-bundle="../../../data/examples/dispute.bundle.json" data-hash="on" data-view="evidence" aria-label="Eine umstrittene Antwort"></div></div>
+<script src="../../../app/vendor/cytoscape.min.js"></script>
+<script src="../../../app/vendor/layout-base.js"></script>
+<script src="../../../app/vendor/cose-base.js"></script>
+<script src="../../../app/vendor/cytoscape-fcose.js"></script>
+<script src="../../../app/hypgraph.js"></script>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/embed.js"></script>
+</body>
+</html>

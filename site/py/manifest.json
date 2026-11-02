@@ -11,6 +11,7 @@
   "hypgraph/coord.py",
   "hypgraph/demos/__init__.py",
   "hypgraph/demos/broad_street.py",
+  "hypgraph/demos/dispute.py",
   "hypgraph/demos/linked.py",
   "hypgraph/derive.py",
   "hypgraph/graph.py",

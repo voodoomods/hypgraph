@@ -479,7 +479,16 @@
 "41986b30dc": "Uno de tres registros de HypGraph unidos por referencias fijadas, dibujados juntos y cada uno verificado por separado.",
 "e51c55255b": "Registros",
 "0e43422af9": "Broad Street, 1854 · registros enlazados — HypGraph",
-"2b616fa2b8": "East London, 1866 · registros enlazados — HypGraph"
+"2b616fa2b8": "East London, 1866 · registros enlazados — HypGraph",
+"adc6131df2": "Una respuesta en disputa",
+"75aa1a1c1a": "Un error honesto y una mentira sobre la misma pregunta. El registro rechaza ambos, la parte honesta corrige el suyo, quien miente lo repite, y un revisor independiente comprueba una afirmación y rechaza la otra.",
+"d72041bc0d": "afirmaciones",
+"24468cae27": "<1/> comprobada · <2/> impugnada",
+"0bc6644174": "<1/> eventos · <2/> nodos · <3/> escrituras rechazadas",
+"35fc06681a": "<1>Ver a quién se señala</1>",
+"9b3d69efd4": "Una respuesta en disputa — HypGraph",
+"f8519659b3": "Un error honesto y una mentira sobre una pregunta: el registro de HypGraph comprueba una respuesta, impugna la otra y dice qué autor siguió diciéndolo.",
+"20a6f53018": "<1>Una respuesta en disputa</1> · dos partes responden a una pregunta con el mismo registro de carreteras. <2>Ada</2> comete un error honesto: 30 km, cuando el instrumento cuenta 1 de 4 rutas más cortas. El registro lo rechaza (<3/>) y ella lo corrige a 29 km. <4>Mallory</4> dice que el registro está en millas y cita como apoyo la propia nota de unidades del registro, que dice kilómetros. El registro lo rechaza (<5/>), ella lo repite y luego lo presenta sin la nota. Un revisor independiente lee ambas afirmaciones frente al registro. Nadie etiqueta a nadie: la situación que se ve abajo se deriva al leer, y también el registro de conducta, que dice que Ada corrigió lo que se le mostró y que Mallory lo repitió 2 veces, nunca lo corrigió y lo sigue diciendo."
 },
 "js": {
 "Couldn't load the bundle: {e}": "No se pudo cargar el bundle: {e}",
