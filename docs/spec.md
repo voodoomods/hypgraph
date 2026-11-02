@@ -20,10 +20,10 @@ correction is a new row, never an edited one.
 
 | type | code | fields (\* required) | what it is |
 |---|---|---|---|
-| `investigation` | INV | **title**\*, **objective**\*, success_criteria, scope, state, reviewers, constants, strict_claims, keywords, projects, doi, note, legacy_case | The study: an objective, its scope, who reviews it. Every other node belongs to one. |
+| `investigation` | INV | **title**\*, **objective**\*, success_criteria, scope, state, reviewers, constants, strict_claims, typed_claims, keywords, projects, doi, note, legacy_case | The study: an objective, its scope, who reviews it. Every other node belongs to one. |
 | `question` | Q | **text**\*, why | Something you want to know. |
 | `hypothesis` | H | **statement**\*, assumptions, **predictions**\*, distinguishing, open_questions | A possible answer, with the predictions that would show it wrong. |
-| `claim` | CL | **statement**\*, scope, limitations, kind, measurements, evidence_note, exposure, exposure_unit, legacy | What you assert is known, with its scope and its numbers bound to results. |
+| `claim` | CL | **statement**\*, scope, limitations, kind, measurements, asserts, evidence_note, exposure, exposure_unit, legacy | What you assert is known, with its scope and its numbers bound to results. |
 | `experiment` | X | **aim**\*, **protocol**\*, controls, **success_criteria**\*, method, budget, power_check, cost_minutes, seed | A planned test: aim, protocol, controls, success criteria, and what each hypothesis expects. |
 | `run` | RUN | **kind**\*, job_id, name, state, code, inputs, outputs, args, config, seed, env, started, finished, exit_code, log_sha256, note | One execution: code, inputs and outputs hashed, seed, state. `kind=lab` only from an instrument. |
 | `result` | RS | **summary**\*, kind, outcome, values, expected, limitations, power, evidence_note, legacy | What a run (or an observation, or a citation) found: values, outcome, power. |
@@ -58,6 +58,21 @@ correction is a new row, never an edited one.
 
 Field kinds and lengths: `hypgraph schema --json` (or `/schema/hypgraph-1.json` on the site). A claim's
 `measurements` are `{name, value | k & n | lo & hi, result: <result id>, key: <field of that result's values>}`.
+
+**Counts and typed counts.** A result value with `k` or `n` is a count: `k` of `n`, both whole numbers (an int, or a
+float with no fraction), finite, `0 ≤ k ≤ n`, `n ≥ 1`. It may say what it compared: `figure` and `op` (one of `<` `<=`
+`=` `!=` `>=` `>`). A **typed count** also says what it counted: `population`, a path such as `route/passenger` (lower
+case; `a/b` lies within `a`), `property`, an id (`length`), and optionally `unit`. `{"k": 1, "n": 4, "figure": 26,
+"op": ">", "population": "route", "property": "length", "unit": "km"}` is 1 of 4 routes with length > 26 km. The
+types are the result's author's; on an instrument-filed result they are the instrument's.
+
+**Typed assertions (`asserts`).** A claim may state what it asserts as atoms, each checked against a typed count
+(§7): `{quantifier, population, property, op, figure, unit?, n?, k?, measurement}`, where `quantifier` is `none`
+(nothing in the population meets `property op figure`), `all` (everything does), `some` (at least one does) or
+`exactly` (`k` of them do; `k` required), `n` is the population's size as the claim states it, and `measurement` is the
+0-based index of the claim's measurement whose count decides it. An extreme is two atoms: "the longest route is 26 km"
+is `none` `>` 26 and `some` `>=` 26. An investigation with `typed_claims: true` (or a profile that sets it) checks its
+claims this way.
 
 Verdicts: positive `checked`, `pass`, `reproduced`, `replicated`, `separate_implementation`, `generalizes`; negative
 `fail`, `not_reproduced`, `not_replicated`, `does_not_generalize`; and `objection`, `resolved`, `inconclusive`,
@@ -169,7 +184,8 @@ published and signed, and what each check does and doesn't show: [verification.m
 verifier must check every fact in it that the rows fix: which investigations it covers (the scope's, or every
 investigation node), which investigations the list shows (each once), which nodes each investigation's graph shows
 (all of them, unless capped at 5,000) and which live (unretracted) links among them, each node's `type`, `code`, `inv`,
-`by`, `at`, `v`, `title`, `kind` and `state.lifecycle`, and each link's `id`, ends, versions, `rel`, `data`, `at`,
+`by`, `at`, `v`, `title`, `kind` and `state.lifecycle`, each typed assertion's verdict (`state.assertions`, a function
+of the claim's and its results' latest rows), and each link's `id`, ends, versions, `rel`, `data`, `at`,
 `by` and `why`. Every one of these must be **present**, not only equal where present: a viewer fills a missing fact
 with a default, and a withdrawn claim without its lifecycle would read as active. The lifecycle is derived from the
 verified rows (withdrawn when a withdrawal exists; superseded when a live `supersedes` or `corrects` replacement is
@@ -212,6 +228,11 @@ Implementations must derive these, never store them:
   - A replication edge on the run raises the profile according to its `differs`.
   - A result of `kind=cited` is external only if it `cites` a source node.
 - **basis_changed** (decisions): a `based_on` edge whose target's version has moved past the pinned `dst_v`.
+- **assertions** (claims with `asserts`): each atom with its verdict against its count as the record holds it now
+  (§7, *Typed claims*) and its rendered sentence ("no route/passenger (of 4) has length > 26 km"). The rendered atoms
+  are what the record verified; the statement is the author's prose. **assertion_contradicted**: the atoms a count
+  revised since the claim was written now makes false. **checked_by**: `typed` when the claim's investigation checks
+  typed atoms, `wording` when the word checks applied, `none` with `strict_claims: false`.
 - **written blind** (results): a work order with `blind: true` opens a window at its creation event and closes it at
   the first release (return or cancel) or withdrawal of any order in its rework chain. A result its assignee
   created inside the window, and has not revised since it closed, is written blind under that order, provided the
@@ -227,6 +248,9 @@ Implementations must derive these, never store them:
 - Only the instrument files a `kind=lab` run, and only the instrument records what that run `produced`.
 - Claims must pass the checks in §7, unless written by the operator or importer, or in an investigation with
   `strict_claims: false`.
+- A result's counts must be counts (`VALUE_NOT_A_NUMBER`, `VALUE_NOT_A_COUNT`), and a typed count must be complete
+  (`VALUE_TYPE_INVALID`: `population` a path, `property` an id, `op` one of the six, `figure` a number) — on creation
+  and on revision.
 - Nobody officially reviews their own node.
 - Writes into an `archived` or `published` investigation are refused (reserved authors excepted).
 - Only the importer may set a write's time. Everyone else's comes from the writer's clock.
@@ -263,6 +287,31 @@ smallest detectable difference uses 80% power at two-sided α = 0.05.
 | 9 | `CAUSAL_WITHOUT_INTERVENTION` | a causal word (causes, leads to, results in, drives, due to, because of, responsible for, …) when no supporting result was produced by a run that `executes` an experiment |
 | 10 | `EXCLUSION_WITHOUT_POWER` | `kind: exclusion`, or wording that says an effect is absent (no effect, no difference, makes no difference, does not affect, rules out, ineffective, …) in a finding, without a supporting result with `power: demonstrated` or one produced by a run of an experiment with a `power_check`. With two counts, the message gives the smallest detectable difference. |
 | 11 | `UNCORRECTED_EFFECT` | a finding asserts an effect (changes, lowers, differs, affects, significant, …) on an outcome, while a live result in the investigation holds that outcome's corrected p-value (a field named with holm / bonferroni / fdr / adjusted / corrected …) at or above 0.05, or a count of 0 outcomes surviving correction (`n_holm_sig`), and the effect word is neither qualified within 20 words as uncorrected (uncorrected, unadjusted, nominally, without correction, …) nor names the correction with a corrected value bound as a measurement. A family-wide value (`min_adjusted_p`) applies when the claim binds a nominal p < 0.05. Thresholds (`bonferroni_alpha_threshold`) are not evidence. Honest forms: bind the corrected p and say "not significant after correction", or file `kind: lead`. |
+
+**Typed claims.** An atom (§2) is decided by its bound count alone; no words are read. Let S_e = {x : x op_e f_e} (what
+was counted, k of n inside it, n − k outside) and S_a = {x : x op_a f_a} (what is asserted); P_e and P_a the
+populations. The property must equal the count's and the unit match it (spellings of one unit are one unit; nothing is
+converted); a stated `n` must equal the count's.
+
+- `none` S_a: **supported** when a side of the count with 0 inside it contains S_a and P_a lies within P_e;
+  **contradicted** when a side with more than 0 lies inside S_a and P_e lies within P_a.
+- `some` S_a: supported when a side with more than 0 lies inside S_a and P_e within P_a; contradicted when a side with
+  0 contains S_a and P_a lies within P_e.
+- `all` S_a is `none` of the complement of S_a. `exactly` k needs the same population and the same set (or its
+  complement, counted n − k), then compares k.
+- Anything else is **unresolved**, and names the field that blocked it.
+
+| Code | Refused when |
+|---|---|
+| `ASSERTION_CONTRADICTED` | an atom is false by its count. The refusal log tracks it like a count contradiction (§8). |
+| `ASSERTION_UNRESOLVED` | an atom its count can't settle: another property or unit, a population neither within nor containing the count's, a condition the count's doesn't decide, an untyped count, a malformed atom. |
+| `ASSERTION_MISSING` | in a `typed_claims` investigation, the statement has more parts that assert an absolute, an extreme or a count than the claim has atoms. Detection reads words only to ask for atoms; a missed word leaves prose unverified, never an atom verified. The refusal proposes atoms drafted from the statement and the claim's typed counts, which are checked like any other once written. |
+
+Atoms are checked in every investigation that has them. In a `typed_claims` investigation the word interpretation
+stands down: a measurement's name and key are not read for what was counted, and rule 5 (absolutes, with the
+counterexample, extreme and unreached-figure checks behind it) does not run. Every other rule runs as before. Outside
+one, rule 5 and those checks are heuristics, frozen as of 0.7.28: they read a claim's words for what a count measured,
+what the claim asserts and which clause a count belongs to, and the claimant writes those words.
 
 **Exposure.** A claim may set `exposure` (how many uses, users or units it will be applied to) and `exposure_unit`.
 Absolute refusals then state how many failures the bound leaves unruled out at that scale. An accepted claim's

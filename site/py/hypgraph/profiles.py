@@ -71,6 +71,7 @@ class Profile:
     completion: tuple = ("questions_settled",)            # names from _CRITERIA
     seats: tuple = ()                                     # suggested seat templates: (name, role, takes...)
     workflow: Workflow | None = None                      # @2: the discipline's workflow (None = kernel defaults)
+    typed_claims: bool = False                            # its investigations check claims as typed atoms
 
     @property
     def id(self) -> str:

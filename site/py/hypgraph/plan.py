@@ -93,7 +93,7 @@ def work_map(g: "Graph", inv: str = "") -> dict:
             continue
         st = D.state(s, i)
         rv = st["review"]["state"]
-        if rv == "needs_revalidation" or st.get("at_risk") or st.get("unsupported") or st.get("rests_on_superseded"):
+        if rv == "needs_revalidation" or st.get("at_risk") or st.get("unsupported") or st.get("rests_on_superseded")                 or st.get("assertion_contradicted"):     # its count was revised against a typed assertion
             reval.append(g.brief(s, i))                  # something it rests on moved: first, before any review
         elif rv == "contested":
             contested.append(g.brief(s, i))

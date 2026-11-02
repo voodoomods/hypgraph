@@ -30,6 +30,7 @@ TYPES: dict[str, dict] = {
         "title": _f("str", 200, True), "objective": _f("text", 3000, True), "success_criteria": _f("text", 3000),
         "scope": _f("text", 3000), "state": _f("enum:active|archived|published"), "reviewers": _f("list", 20),
         "constants": _f("list", 60), "strict_claims": _f("bool"), "keywords": _f("list", 30), "projects": _f("list", 20),
+        "typed_claims": _f("bool"),                      # claims assert typed atoms; the word checks stand down
         "doi": _f("str", 120), "note": _f("text", 2000), "legacy_case": _f("str", 80),
         "profile": _f("str", 60)}},                      # governance profile, e.g. software@1 (profiles.py)
     "question": {"prefix": "Q", "fields": {"text": _f("text", 1500, True), "why": _f("text", 1500),
@@ -40,6 +41,7 @@ TYPES: dict[str, dict] = {
     "claim": {"prefix": "CL", "fields": {
         "statement": _f("text", 1500, True), "scope": _f("text", 1000), "limitations": _f("text", 1500),
         "kind": _f("enum:finding|exclusion|inconclusive|convention|lead"), "measurements": _f("list", 40),
+        "asserts": _f("list", 20),                       # typed atoms checked against typed counts (assertions.py)
         "evidence_note": _f("text", 1500), "exposure": _f("num"), "exposure_unit": _f("str", 60),
         "legacy": _f("dict", 4000)}},
     "experiment": {"prefix": "X", "fields": {

@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased: typed claim assertions
+
+Eight independent audits (HG-020 → HG-028) found the same class of failure, each time in a new wording: to decide
+whether a count backs or contradicts a claim, the checks read words — the result's key and the claimant's
+measurement name for what was counted, the statement for what is asserted and which clause a count belongs to — and
+the claimant writes most of those words. Each fix narrowed one wording; the next audit found another. 0.8.0 stops
+inferring that structure from words.
+
+- **Typed counts.** A count may say what it counted: `population` (a path, `route/passenger` lies within `route`),
+  `property` and `unit`, beside `k`, `n`, `figure` and `op`. The result's author writes them; the instrument, on its
+  own results.
+- **Typed assertions.** A claim may carry `asserts`, atoms `{quantifier none | all | some | exactly, population,
+  property, op, figure, unit, n, k, measurement}`. Each is decided against its bound count by sets on the number line
+  and population paths (`src/hypgraph/assertions.py`): supported, contradicted, or unresolved with the field that
+  blocked it. No words are read, so a true atom can't lend anything to a false one (HG-028-01) and "all 4 routes"
+  meets its counterexample however the set is enumerated (HG-028-02). New codes `ASSERTION_CONTRADICTED` (tracked in
+  conduct like `COUNT_CONTRADICTS`, `by_assertion`) and `ASSERTION_UNRESOLVED`.
+- **Typed investigations.** `typed_claims: true` on an investigation (or a profile's `typed_claims`) makes atoms the
+  check: a statement that asserts an absolute, an extreme or a count needs an atom for each part that does
+  (`ASSERTION_MISSING`, with atoms drafted from the statement and its typed counts — never trusted, checked once
+  written), and the word interpretation stands down there: measurement names and keys aren't read for what was
+  counted, and the absolute / counterexample / extreme checks don't run. Numbers in the statement must still be bound;
+  every other check runs as before.
+- **Standing.** A claim's state carries `assertions` (each atom rendered as the sentence it asserts, with its verdict
+  against the count as it stands now), `assertion_contradicted` when a count revised later makes an atom false (the
+  claim joins the revalidation queue), and `checked_by`: `typed`, `wording` or `none`. Bundles carry the verdicts, and
+  the verifier checks them against the rows. The Atlas claim drawer shows the atoms as the headline and the author's
+  sentence beneath, labelled as prose.
+- **A count is whole, for everyone** (HG-028-03). `k` and `n` must be whole numbers (an int or an integral float),
+  finite, `0 ≤ k ≤ n`, `n ≥ 1`, on creation and on revision (`VALUE_NOT_A_COUNT`); counts used to be truncated, so 0.9
+  of 4 read as 0 of 4 and backed "none". A typed count must be complete (`VALUE_TYPE_INVALID`).
+- **The word checks are frozen.** Outside a typed investigation they run as in 0.7.28 and are documented as heuristics;
+  HG-028-01 and -02 remain limits of untyped mode. Replaying the 1,900 recorded adversarial entries changes none, and
+  every trial's standing is the same.
+- Tests: `tests/test_assertions.py` (the interval logic checked against enumeration over every op and quantifier, paths,
+  units, the gate, standing, bundles, the draft) and `tests/test_typed_audits.py` (92 attack sentences from the audits
+  and their holdouts, around fixed atoms: none changes a verdict).
+
 ## 0.7.28 — 2026-11-01: a figure said twice, a comparison in another tense
 
 Fixes from an independent audit of 0.7.27 (HG-027-01, -02) and from paraphrases written after the first fix; each case

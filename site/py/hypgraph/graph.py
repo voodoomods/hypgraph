@@ -886,7 +886,8 @@ class Graph:
             fixed = refusals.match_fix(self, author=author, inv=inv, node=nid, op="create",
                                        statement=str(body.get("statement") or body.get("summary") or ""),
                                        values=body.get("values") if type == "result" else None,
-                                       answers=[str(lk.get("to")) for lk in links or [] if lk.get("rel") == "answers"])
+                                       answers=[str(lk.get("to")) for lk in links or [] if lk.get("rel") == "answers"],
+                                       atoms=body.get("asserts") if type == "claim" else None)
             if fixed:
                 out["fixes_refusals"] = fixed
         return out
@@ -1077,6 +1078,13 @@ class Graph:
                         refusals.record_refusal(self, author=author, op="revise", inv=n["inv"], node=node, body=body,
                                                 problems=found, support=self._support_ids(s, node, []))
                         raise GraphError("revision refused:\n- " + "\n- ".join(p.text() for p in problems), found)
+                if n["type"] == "result" and author not in P.curators:
+                    rp = value_issues(body)          # a revision can't turn a count into 0.9 of 4 (audit HG-028-03)
+                    if rp:
+                        found = [p.to_dict() for p in rp]
+                        refusals.record_refusal(self, author=author, op="revise", inv=n["inv"], node=node, body=body,
+                                                problems=found, support=[], type="result")
+                        raise GraphError("revision refused:\n- " + "\n- ".join(p.text() for p in rp), found)
                 at = self.clock()
 
                 def write(con):
@@ -1098,7 +1106,8 @@ class Graph:
         if out["type"] in refusals.REPLAYABLE and author not in P.curators:
             fixed = refusals.match_fix(self, author=author, inv=out["inv"], node=node, op="revise",
                                        statement=str(out["body"].get("statement") or out["body"].get("summary") or ""),
-                                       values=out["body"].get("values") if out["type"] == "result" else None)
+                                       values=out["body"].get("values") if out["type"] == "result" else None,
+                                       atoms=out["body"].get("asserts") if out["type"] == "claim" else None)
             if fixed:
                 out["fixes_refusals"] = fixed
         return out
