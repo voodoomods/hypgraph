@@ -249,6 +249,13 @@ was taken from a changelog without being checked against the code.*
 > the statement. Untyped mode keeps its documented limits. #104 is merged with green CI (17 of 17 checks). Released as
 > 0.8.1.
 
+> **After 0.8.1 (2026-11-01).** The frozen word checks were changed once, for a soundness gap rather than a new
+> wording: a stated count exempted an extreme even when the count was at the extreme's own figure, so an extreme that
+> quoted its own counterexample was accepted. The exemption now holds only for a count about another figure; an adverb
+> before "not" and a bound in the extreme's own direction are read as what they are. Replaying the 1,900 recorded
+> claim writes changes 5, all now refused (4 lies, 1 retraction worded as the claim). #106 is merged with green CI.
+> Released as 0.8.2, with the `dispute` demo (#107).
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one

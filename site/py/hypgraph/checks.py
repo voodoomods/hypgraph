@@ -955,22 +955,34 @@ def claimed_extremes(stmt: str) -> list[str]:
                               if not _enumerated(stmt, w) and not _names_stated_count(stmt, w)]
 
 
+# an adverb between the copula and its negation: "the highest ... is therefore not 125"
+_ADVERB = r"(?:(?:therefore|thus|hence|then|so|also|still|\w+ly)\s+)?"
 # the extreme's own predicate denied after it, in its clause: "the highest total value ... is not 130"
-_DENIED_EXTREME = re.compile(r"\b(?:is|are|was|were)\s+(?:not|no longer|never)\b|\b(?:isn't|aren't|wasn't|weren't)\b|"
+_DENIED_EXTREME = re.compile(r"\b(?:is|are|was|were)\s+" + _ADVERB + r"(?:not|no longer|never)\b|"
+                             r"\b(?:isn't|aren't|wasn't|weren't)\b|"
                              # or said to lie beyond a figure: "the true maximum is higher than 98"
                              r"\b(?:is|are|was|were|lies)\s+(?:\w+\s+)?(?:higher|lower|greater|larger|smaller|more|less|"
                              r"above|below|over|under|shorter|longer|beyond)\b", re.I)
 # or denied before it: "120 is not the highest total value", "isn't the shortest"
-_DENIED_BEFORE = re.compile(r"(?:\b(?:is|are|was|were)\s+(?:not|no longer|never)|\b(?:isn't|aren't|wasn't|weren't))"
+_DENIED_BEFORE = re.compile(r"(?:\b(?:is|are|was|were)\s+" + _ADVERB + r"(?:not|no longer|never)|"
+                            r"\b(?:isn't|aren't|wasn't|weren't))"
                             r"\s+(?:the\s+|a\s+|an\s+)?(?:true\s+|real\s+|actual\s+)?$", re.I)
 _COPULA = re.compile(r"\b(?:is|are|was|were|isn't|aren't|wasn't|weren't|lies)\b", re.I)
 
 
-def _denied(after: str) -> bool:
+def _denied(after: str, w: str = "") -> bool:
     """Does the extreme's own predicate — the first copula after it — deny it or put it beyond a figure? Only that
-    one: "the highest value is 98 ..., so the true maximum is higher" still claims 98."""
+    one: "the highest value is 98 ..., so the true maximum is higher" still claims 98. A bound in the extreme's own
+    direction is beyond its figure too: "the highest value is at least 91" (or "91 or more") says the true maximum is
+    91 or above, which what lies beyond 91 doesn't contradict; "the highest is at most 91" still claims a figure."""
     cop = _COPULA.search(after)
-    return bool(cop and _DENIED_EXTREME.match(after, cop.start()))
+    if not cop:
+        return False
+    if _DENIED_EXTREME.match(after, cop.start()):
+        return True
+    own = {s for _a, s, _strict in _comparisons_in(w)}
+    pred = after[cop.end():].split(",")[0]
+    return bool(own) and any(not strict and s in own for _a, s, strict in _comparisons_in(pred))
 
 
 # a count named for what lies beyond a figure ("fitting selections worth more", "shorter routes connecting") is about
@@ -988,7 +1000,7 @@ def _extremes(stmt: str) -> list[str]:
         for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
             end = next((x.start() for x in _CLAUSE.finditer(stmt, m.end())), len(stmt))
             start = max((x.end() for x in _CLAUSE.finditer(stmt, 0, m.start())), default=0)
-            if (not _denied(stmt[m.end():end]) and not _DENIED_BEFORE.search(stmt[start:m.start()])
+            if (not _denied(stmt[m.end():end], w) and not _DENIED_BEFORE.search(stmt[start:m.start()])
                     and re.search(r"\d", stmt[start:end])):
                 out.append(w)
                 break
@@ -1011,11 +1023,23 @@ def _count_contradicts(stmt: str, w: str, words: list, m: dict, k: int, n: int) 
                    words=words + [f"={_fmt(v)}" for v in _subject_numbers(stmt, k, n)])
 
 
-def _qualified(stmt: str, k: int, n: int) -> bool:
+_THAN_FIGURE = re.compile(r"\bthan\s+\$?(-?\d[\d,]*(?:\.\d+)?)", re.I)
+
+
+def _qualified(stmt: str, k: int, n: int, figs: frozenset = frozenset(), rv: dict | None = None) -> bool:
     """Does the statement give this count about a figure of its own ("1 of 61 routes are shorter than 26 km")?
-    Then it's a count of something beyond that figure, not of exceptions to the extreme it claims."""
+    Then it's a count of something beyond that figure, not of exceptions to the extreme it claims. Not when the
+    figure is the extreme's own: "the shortest route is 30 km, since 1 of 77 are shorter than 30 km" states the very
+    count that shows it false, and quoting the counterexample doesn't make an extreme true."""
+    if figs and rv is not None and stated_figure(rv) in figs:
+        return False
     forms = {f"{k} of {n}", f"{k:,} of {n:,}"}
-    return any(any(f in c for f in forms) and re.search(r"\bthan\b", c) for c in _CLAUSE.split(stmt))
+    for c in _CLAUSE.split(stmt):
+        if any(f in c for f in forms) and re.search(r"\bthan\b", c):
+            said = {float(x.replace(",", "")) for x in _THAN_FIGURE.findall(c)}
+            if not (said & set(figs)):
+                return True
+    return False
 
 
 def _superlative_contradicted(stmt: str, bound: list) -> list[Problem]:
@@ -1032,7 +1056,7 @@ def _superlative_contradicted(stmt: str, bound: list) -> list[Problem]:
                and (L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about
                     or _BEYOND.search(f"{m.get('name', '')} {m.get('key', '')}".replace("_", " "))
                     or stated_figure(rv) in figs)
-               and not (role == "refute" and _qualified(stmt, *a))]
+               and not (role == "refute" and _qualified(stmt, *a, figs, rv))]
         # a count beyond the extreme's own figure that finds some refutes it, whatever else is bound beside it
         pinned = [(m, a) for m, rv, a, role in rel if role == "refute" and _pinned(m, rv, set(figs))]
         if pinned:
@@ -1061,7 +1085,7 @@ def _extreme_claims(stmt: str) -> list[tuple[str, frozenset]]:
             end = next((x.start() for x in _CLAUSE.finditer(stmt, m.end())), len(stmt))
             start = max((x.end() for x in _CLAUSE.finditer(stmt, 0, m.start())), default=0)
             after = stmt[m.end():end]
-            if _denied(after) or _DENIED_BEFORE.search(stmt[start:m.start()]):
+            if _denied(after, w) or _DENIED_BEFORE.search(stmt[start:m.start()]):
                 continue
             cop = _COPULA.search(after)
             fig = _FIGURE.match(after, cop.end()) if cop else None
