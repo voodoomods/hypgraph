@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased: words said elsewhere, comparisons the checks didn't know
+
+Fixes from an independent audit of 0.7.26 (HG-026-01, -02); each case below failed on 0.7.26 and is now a test
+(`tests/test_borrowed_words.py`).
+
+- **A word said in another clause doesn't make a count fit** (HG-026-01). What a count's key says it counted had to be
+  said by the measurement's name or anywhere in the statement, so "Speed was recorded separately; no route is longer
+  than 26 km" let a speed count named "routes longer than 26 km" back the length claim, and "Cargo routes were
+  inspected; no passenger route is longer …" did the same for a cargo count. The words must now be said where the
+  claim states the count's figure (its clause, from the comma before its absolute or extreme). Eight paraphrases over
+  other subjects and properties, written after the fix, are tests too: an extra clause never turns a refusal into an
+  acceptance, and an honest count backs the claim with or without one.
+- **Any comparison makes an absolute** (HG-026-01, found while reproducing it). "No crate is heavier than 40 kg" and "no
+  shift had errors above 5" weren't read as absolutes, so they went in with no count, or with a count of crate prices.
+  "No …" before any comparison word is now an absolute; heavier / lighter, warmer / colder, older / younger, taller,
+  wider, deeper, louder and stronger are comparisons along their own axes (weight, temperature, age, height, width,
+  depth, loudness, strength), and a comparative the checks don't know ("brighter than") is met only by a count that
+  says the same word. A three-letter word before a comparison ("bridge age above 60") now names what was counted, and
+  "span" is a length, so an honest count of bridge spans backs "no bridge is longer than 60 m".
+- **A mixed "and" / "or" clause has to be split** (HG-026-02). 0.7.26's notes said such a clause is unresolved "until a
+  count of the whole condition is bound"; nothing ties a count to the whole condition, so that never happened. The
+  refusal now says to split the claim into clauses that each join their comparisons one way.
+
 ## 0.7.26 — 2026-11-01: what a count is of, what its key compared, "and" with "or"
 
 Fixes from an independent audit of 0.7.25 (HG-025-01 to -03); each case below failed on 0.7.25 and is now a test
