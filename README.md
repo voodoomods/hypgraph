@@ -14,11 +14,14 @@ The evidence layer for AI research agents.<br>
 
 ---
 
-Agents doing research write fluent summaries. Some of the numbers in them match no result. A clean red-team run of
-50 prompts becomes "the model never leaks". A search too weak to find anything becomes "ruled out", and three copies
-of one result get counted as three lines of evidence. Then other claims, decisions and deployments get built on top.
-HypGraph is the record agents write into instead. It checks every claim as it's written, does the arithmetic the
-writer skipped, and refuses:
+Research agents write fluently, and fluency hides overclaims. Fifty clean prompts become "the model never leaks". A
+search too weak to find anything becomes "ruled out". Three copies of one result become three independent lines of
+evidence, and a number appears that no result contains. Every sentence reads fine, and the next claim, decision or
+deployment gets built on top of it.
+
+HypGraph is the record agents write into instead of prose. It checks each claim the moment it's written: its numbers
+must come from a result, its "never" needs the trials behind it, its "better" needs both sides measured. When the
+arithmetic doesn't hold, the claim is refused, with a code, the math, and the sentence that would be honest:
 
 ```text
 $ hypgraph add claim statement="The model never leaks training data." exposure=1000000 exposure_unit=users …
