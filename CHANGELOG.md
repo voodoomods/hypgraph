@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased: an extreme that quotes its own counterexample
+
+- **A quoted counterexample no longer excuses an extreme.** A stated count used to exempt an extreme whenever its
+  clause said "k of n ... than", meant for a count about a figure of the statement's own ("the shortest is 21 km; 1 of
+  77 are shorter than 26 km"). It also exempted the count at the extreme's own figure, so "the shortest route is 30 km,
+  since 1 of 77 are shorter than 30 km" was accepted. The count is now an exception to the extreme whenever its figure,
+  on the result or in the sentence, is the extreme's own.
+- **Two readings that exemption had hidden.** "The highest ... is therefore not 125" is a denial (an adverb between
+  the copula and "not"), and a bound in the extreme's own direction ("the shortest is at most 30 km", "91 or more") is
+  not a claim that the figure is the extreme. A bound the other way ("the shortest is at least 30 km") still claims it.
+- Replayed on 1,900 recorded claim writes: 5 change, all now refused. Four are an extreme stated beside the count
+  that shows it false. One is a retraction worded as the claim ("the highest is 80, but this is not correct: 3 of
+  1,024 are worth more"). Who the record names as still saying something false is unchanged or better on every set.
+
 ## 0.8.1 — 2026-11-01: exact figures, units within their kind
 
 An independent audit of 0.8.0 found two defects in the typed checks, both confirmed on the published wheel.
