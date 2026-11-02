@@ -246,7 +246,8 @@ was taken from a changelog without being checked against the code.*
 >
 > **Where that stands.** The boundary the audit names stays: prose is matched to atoms by reading words, so a missed
 > part leaves prose unverified, never an atom verified; integrations should consume `asserts` and their verdicts, not
-> the statement. Untyped mode keeps its documented limits.
+> the statement. Untyped mode keeps its documented limits. #104 is merged with green CI (17 of 17 checks). Released as
+> 0.8.1.
 
 ## Recommendation: CONDITIONAL GO
 
