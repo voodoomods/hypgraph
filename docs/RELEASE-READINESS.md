@@ -213,6 +213,27 @@ was taken from a changelog without being checked against the code.*
 > checked against a counterexample. This is still word matching; the typed claim layer the audits recommend is not
 > built. Released as 0.7.28.
 
+> **Audit of 0.7.28 (2026-11-01): the class, not the symptom.** A ninth independent audit named three defects, all
+> reproduced on the PyPI 0.7.28 wheel (9 of 12 reproducer cases failed, the 3 controls passed): a true absolute about
+> one thing still lent its words to a false one about another in the same statement (HG-028-01); an enumerated "all 4
+> routes" skipped the counterexample check (HG-028-02); and fractional counts were truncated, so 0.9 of 4 read as 0 of
+> 4 (HG-028-03). The first two are the class every audit since HG-020 found: the checks infer from the claimant's
+> words what a count measured, what a claim asserts and which clause a count belongs to. That is now addressed
+> structurally rather than per wording: counts carry types (population, property, unit), claims carry typed atoms, and
+> an atom is decided against its count by interval logic and population paths, reading no words
+> (`src/hypgraph/assertions.py`). The audit's typed-predicate recommendation is the design. Fractional and impossible
+> counts are refused for everyone (`VALUE_NOT_A_COUNT`).
+>
+> **Where that stands.** Typed checking is opt-in per investigation (`typed_claims`), additive to `hypgraph/1`.
+> Inside it, the audits' 92 attack sentences around fixed atoms change no verdict, and the interval logic is checked
+> against enumeration for every op and quantifier. Outside it the word checks are frozen at 0.7.28 and labelled
+> heuristic: HG-028-01 and -02 are known limits of untyped mode, closed only by typed mode. Typed checking covers
+> count-based assertions (none / all / some / exactly, and extremes as pairs); comparisons between two measured arms
+> and significance are still word-checked. In typed mode the prose remains the author's: a sentence that asserts
+> more than its atoms is refused (`ASSERTION_MISSING`), but a detection miss leaves prose unverified rather than
+> verified, and the record shows the atoms, not the sentence, as what it checked. Replaying the 1,900 recorded
+> adversarial entries changes none.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one

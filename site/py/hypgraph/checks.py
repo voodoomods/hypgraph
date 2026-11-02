@@ -37,6 +37,30 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
   EXCLUSION_WITHOUT_POWER       "no effect" / "rules out" without a search shown to find a planted effect
   CONVENTION_HEDGED             a convention that hedges
   VALUE_NOT_A_NUMBER            (results) a value's k or n is not a number: {"k": "40/50", "n": "rank 1 of 20"}
+  VALUE_NOT_A_COUNT             (results) a value's k or n is a number but not a count: not whole (0.9 of 4), not
+                                finite, k outside 0..n, or n below 1. Counts used to be truncated, so 0.9 of 4
+                                read as 0 of 4 and backed "none" (audit HG-028-03)
+  VALUE_TYPE_INVALID            (results) a count typed with a population or property whose type is incomplete or
+                                malformed: population a path (route/passenger), property an id, op one of
+                                < <= = != >= >, figure a number
+
+Typed claims (assertions.py; an investigation with ``typed_claims``, or a claim that carries ``asserts``):
+
+  ASSERTION_CONTRADICTED        an atom is false by its bound count: "no route/passenger has length > 26 km" against
+                                1 of 4 counted. Tracked like COUNT_CONTRADICTS (refusals.conduct)
+  ASSERTION_UNRESOLVED          an atom its count can't settle, with the field that blocked it: another property or
+                                unit, a population neither within nor containing the count's, a condition the count
+                                didn't compare, a count with no types, a malformed atom
+  ASSERTION_MISSING             in a typed investigation, the statement asserts an absolute, an extreme or a count
+                                ("no route", "the longest", "1 of 4") and the claim gives fewer atoms than the parts
+                                that assert one. Detection reads words, but only to ask for atoms: a missed word leaves
+                                prose unverified (shown as prose), never an atom verified.
+
+In a typed investigation the word interpretation stands down: a measurement's name and key aren't read for what was
+counted, and the absolute / extreme / counterexample checks (ABSOLUTE_*, COUNT_CONTRADICTS) don't run — the atoms say
+what is asserted and the counts' types say what was counted. Every number in the statement must still be bound, and
+scope, evidence, comparison, significance, causal, source, exclusion and correction checks run as before. Outside it
+those word checks are heuristics, frozen at 0.7.28; their parsers draft atoms (assertions.draft).
   UNCORRECTED_EFFECT            a finding says an outcome changed / differs / is significant on an uncorrected
                                 test, while a live result in the investigation holds that outcome's corrected
                                 (Holm / Bonferroni / FDR …) p-value at or above 0.05, or a count of 0 outcomes
@@ -56,9 +80,11 @@ applied to — and the refusal (and the claim's standing) then says how many fai
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 
+from . import assertions as A
 from . import language as L
 from . import stats
 from .derive import Snap, lifecycle, producing_run, result_value
@@ -126,9 +152,10 @@ def _nums(d: dict) -> list[float]:
 
 
 def _arm(rv: dict) -> tuple[int, int] | None:
-    """(k, n) when a result value is a count."""
+    """(k, n) when a result value is a count: whole k and n, n at least 1, k in 0..n. Nothing is truncated — 0.9 of
+    4 is not a count, and reading it as 0 of 4 made it back "none" (audit HG-028-03)."""
     k, n = rv.get("k"), rv.get("n")
-    if isinstance(k, (int, float)) and isinstance(n, (int, float)) and n > 0 and 0 <= k <= n:
+    if stats.whole(k) and stats.whole(n) and n >= 1 and 0 <= k <= n:
         return int(k), int(n)
     return None
 
@@ -185,9 +212,11 @@ def _matches_stat(printed: tuple, candidates: list[float]) -> bool:
     return printed[1] >= 1 and _matches(printed, candidates)
 
 
-def _bound(s: Snap, meas: list, stmt: str = "") -> tuple[list[tuple[dict, dict]], list[Problem]]:
+def _bound(s: Snap, meas: list, stmt: str = "", words: bool = True) -> tuple[list[tuple[dict, dict]], list[Problem]]:
     """Measurements that check out against their results, and problems with the rest. With ``stmt``, the claim's
-    statement: what a key says it counted must be said by the measurement's name or by the statement."""
+    statement: what a key says it counted must be said by the measurement's name or by the statement. ``words``
+    False (a typed investigation): only the numbers are compared; names and keys aren't read for what was counted —
+    the count's types say that."""
     good, problems = [], []
     for i, m in enumerate(meas):
         if not isinstance(m, dict) or not m.get("result") or not m.get("key"):
@@ -208,6 +237,10 @@ def _bound(s: Snap, meas: list, stmt: str = "") -> tuple[list[tuple[dict, dict]]
                     problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name') or i + 1}: says "
                                             f"{k}={m[k]} but result {m['result']} has {rv[k]}"))
                     bad = True
+        if not words:
+            if not bad:
+                good.append((m, rv))
+            continue
         said, f = _named_figure(str(m.get("name") or "")), stated_figure(rv)
         if not bad and said and f is not None and said[0] != f:
             problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name')}: its name says "
@@ -1677,11 +1710,35 @@ def value_issues(body: dict) -> list[Problem]:
     for key, v in (body.get("values") or {}).items():
         if not isinstance(v, dict) or not ("k" in v or "n" in v):
             continue
+        typed = [f for f in ("population", "property", "unit") if f in v]
+        if typed:
+            e, why = A.count_fields(v)
+            k_, n_ = v.get("k"), v.get("n")
+            if e is None and stats.whole(k_) and stats.whole(n_) and n_ >= 1 and 0 <= k_ <= n_:
+                out.append(Problem("VALUE_TYPE_INVALID", f"values.{key}: a typed count gives population, property, op "
+                                   f"and figure ({why})", fix=f"give values.{key} population (a path such as "
+                                   "route/passenger), property, op and figure, or drop the types"))
         bad = [f"{f}={v[f]!r}" for f in ("k", "n") if f in v and (not isinstance(v[f], (int, float)) or isinstance(v[f], bool))]
         if bad:
             out.append(Problem("VALUE_NOT_A_NUMBER", f"values.{key}: k and n must be numbers ({', '.join(bad)}) — a "
                                "label such as a setting or a rank goes in the summary, or under its own key as "
                                "{\"value\": \"40/50\"}", fix=f"give values.{key} numeric k and n, or move the label"))
+            continue
+        # a count is how many: whole, finite, k in 0..n, n at least 1. 0.9 of 4 used to be truncated to 0 of 4 and
+        # back "none" (audit HG-028-03); a rate or a mean goes under "value"
+        k, n = v.get("k"), v.get("n")
+        why = [f"{f}={v[f]!r} is not a whole number" for f in ("k", "n") if f in v and not stats.whole(v[f])]
+        if not why and "n" in v and n < 1:
+            why.append(f"n={n!r} counts nothing (n must be at least 1)")
+        if not why and "k" in v and k < 0:
+            why.append(f"k={k!r} is below 0")
+        if not why and "k" in v and "n" in v and k > n:
+            why.append(f"k={k!r} is more than n={n!r}")
+        if why:
+            out.append(Problem("VALUE_NOT_A_COUNT", f"values.{key}: k and n are a count — k of n, whole numbers, "
+                               f"0 ≤ k ≤ n, n ≥ 1 ({'; '.join(why)}). A rate, a mean or a fraction goes under "
+                               "\"value\"; a count says how many", fix=f"give values.{key} whole k and n with "
+                               "0 ≤ k ≤ n, or record the number as {\"value\": …}"))
     return out
 
 
@@ -1709,11 +1766,12 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     if kind in ("finding", "exclusion", "inconclusive") and not support:
         problems.append(Problem("EVIDENCE_MISSING", "link the evidence: at least one result, claim or source that "
                                 "supports it (links: {\"rel\": \"supports\", \"from\": <result id>, \"why\": …})"))
-    bound, bad = _bound(s, body.get("measurements") or [], stmt)
+    typed = typed_claims(s, inv)
+    bound, bad = _bound(s, body.get("measurements") or [], stmt, words=not typed)
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
     plain, stat = derived_numbers(bound)
-    allowed = plain + [v for v, *_ in numbers(scope)] + \
+    allowed = plain + [v for v, *_ in numbers(scope)] + A.numbers(body) + \
         [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
     for src in support:                              # a cited source's own text accounts for the numbers in it
         sb = s.nodes[src]["body"] if s.nodes[src]["type"] == "source" else {}
@@ -1734,9 +1792,11 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
         problems.append(Problem("KEY_FOR_NUMBER", "the statement names a measurement's key instead of saying its value: "
                                 + ", ".join(named[:6]) + " — write the number in the sentence; it's bound to that key, "
                                 "so the record checks it", fix="replace each key with its number", words=named[:6]))
-    problems += _absolutes(clean, scope, body, bound)
-    if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
-        problems += _unreached(clean, bound)
+    problems += assertion_issues(s, body, inv, clean, typed)
+    if not typed:                                    # the word interpretation: a heuristic, frozen at 0.7.28
+        problems += _absolutes(clean, scope, body, bound)
+        if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
+            problems += _unreached(clean, bound)
     if kind not in ("lead", "convention"):
         problems += _comparisons(s, clean, bound, support)
         problems += _causal(s, clean, support)
@@ -1745,6 +1805,79 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     if kind == "finding":
         problems += _uncorrected(s, clean, bound, inv)
     return problems
+
+
+def typed_claims(s: Snap, inv: str) -> bool:
+    """Does this investigation check claims as typed atoms? Its own ``typed_claims``, or its profile's."""
+    invb = s.nodes.get(inv, {}).get("body", {}) if inv else {}
+    if invb.get("typed_claims") is True:
+        return True
+    from . import profiles
+    p = profiles.profile_of(s, inv)
+    return bool(p and p.typed_claims)
+
+
+# words that quantify over a population, for asking for atoms (``asserting_parts``) — broader than the checks' own
+# ABSOLUTE on purpose: "…, and no bridge is longer than 60 m", "each of the 4 routes is at most 26 km", "one route
+# exceeds 26", "no route ever failed" all assert something of a count
+_QUANT = (r"\b(?:no|none|each|every|all|any|both|neither|either|zero|only|not\s+(?:one|a\s+single|any)|one|two|three|"
+          r"four|five|six|seven|eight|nine|ten|eleven|twelve|\d[\d,]*)\b")
+_QUANT_CMP = re.compile(_QUANT + r"(?P<rest>(?:\s+\S+){0,8})", re.I)
+_NO_NOUN_VERB = re.compile(r"(?:^|[,;:]\s*|\b(?:and|but|yet|so|while|whereas)\s+)no\s+(?!(?:evidence|sign|signs|"
+                           r"indication|reason|doubt|longer|more|less|fewer|matter|one|need|way|data|test|tests)\b)"
+                           r"[a-z-]+\s+(?:[a-z-]+\s+)?(?:ever\s+|once\s+)?(?:is|are|was|were|had|has|have|did|does|"
+                           r"[a-z]+ed|[a-z]+s)\b", re.I)
+
+
+def asserting_parts(stmt: str) -> list[str]:
+    """The parts of a statement that assert an absolute, an extreme or a count — each needs an atom in a typed
+    investigation: the checks' own absolutes, extremes and stated counts ("1 of 4"), a quantifier before a
+    comparison against a figure ("each of the 4 routes is at most 26 km", "one route exceeds 26"), and "no <noun>
+    <verb>" anywhere in the clause ("…, and no bridge is longer"; "no route ever failed"). Reads words, but only to
+    ask for atoms: over-reporting asks for one more, a miss leaves prose unverified (and shown as prose), and neither
+    marks an atom verified."""
+    out = []
+    for p in (x for x in _SAYING.split(stmt or "") if x and x.strip()):
+        if L.interrogative(p):
+            continue
+        quantified = any(_clause_comparisons(m.group("rest"), after_no=True) for m in _QUANT_CMP.finditer(p))
+        if L.asserted(L.ABSOLUTE, p) or _extremes(p) or _STATED_COUNT.search(p) or quantified or                 _NO_NOUN_VERB.search(p):
+            out.append(p.strip())
+    return out
+
+
+def assertion_issues(s: Snap, body: dict, inv: str, stmt: str, typed: bool) -> list[Problem]:
+    """The claim's atoms checked against their counts, and — in a typed investigation — whether the statement asserts
+    more than its atoms do."""
+    out: list[Problem] = []
+    atoms = body.get("asserts") or []
+    for v in A.verify(s, body, inv):
+        i, text = v["atom"], v["text"]
+        where = f"{s.nodes[v['result']]['code'] or v['result']}.{v['key']}" if v.get("result") in s.nodes else ""
+        if v["verdict"] == "contradicted":
+            out.append(Problem("ASSERTION_CONTRADICTED", f"assertion {i + 1} — {text} — is false by its own count: "
+                               f"{v['counted']} ({where}); {v['why']}. Assert what was counted, and say it in the "
+                               "statement", fix=f"correct assertion {i + 1} to what {where} counted",
+                               words=["atom:" + A.key(atoms[i])]))
+        elif v["verdict"] == "unresolved":
+            out.append(Problem("ASSERTION_UNRESOLVED", f"assertion {i + 1} — {text} — can't be checked "
+                               f"({v['field']}): {v['why']}" + (f" ({where})" if where else ""),
+                               fix=f"bind assertion {i + 1} to a typed count of what it asserts, or fix its "
+                                   f"{v['field']}", words=[v["field"]]))
+    if typed:
+        parts = asserting_parts(stmt)
+        if len(parts) > len(atoms):
+            proposed = A.draft(s, body, inv) if not atoms else []
+            hint = (" Proposed from the statement and its typed counts — check each before using it: "
+                    + json.dumps(proposed, separators=(",", ":"))[:900]) if proposed else ""
+            out.append(Problem("ASSERTION_MISSING", f"this investigation checks claims as typed assertions: the "
+                               f"statement asserts {len(parts)} thing{'s' * (len(parts) != 1)} — "
+                               + "; ".join(f"'{p[:80]}'" for p in parts[:4]) + f" — and the claim gives {len(atoms)} "
+                               "atom" + "s" * (len(atoms) != 1) + ". Add an atom for each to asserts: {quantifier "
+                               "(none | all | some | exactly), population, property, op, figure, unit, n, "
+                               "measurement}." + hint, fix="add an atom to asserts for each thing the statement "
+                               "asserts", words=[p[:80] for p in parts[:4]]))
+    return out
 
 
 def claim_problems(s: Snap, body: dict, support: list[str], inv: str) -> list[str]:

@@ -33,7 +33,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from . import __version__
+from . import __version__, assertions
 from .schema import RELS, SAME_TYPE
 from .store import GENESIS, ROW_TABLES, check_rows, event_body, now
 
@@ -349,8 +349,9 @@ def _derived_problem(b: dict, tables: dict, historical: list | None = None, unco
                      redacted: int = 0) -> str:
     """The derived views are presentation, but a viewer shows them beside a verified chain: every fact in them that
     the rows fix — which investigations there are, which nodes and live links each has, each node's type, code,
-    author, time, version, title and lifecycle, each link's ends and fields — must be present and agree with the
-    verified rows. A view that leaves a fact out fails: a viewer would fill the gap with a default (a withdrawn claim
+    author, time, version, title and lifecycle, each link's ends and fields, and each typed assertion's verdict (a
+    function of the claim's and its results' rows, assertions.py) — must be present and agree with the verified
+    rows. A view that leaves a fact out fails: a viewer would fill the gap with a default (a withdrawn claim
     shown as active). The rest of standing can't be checked this way.
 
     A lifecycle is checked against the current rule only. One that matches only 0.3's rule (the end of a chain of
@@ -414,6 +415,17 @@ def _derived_problem(b: dict, tables: dict, historical: list | None = None, unco
         st = x.get("state")
         if not isinstance(st, dict) or "lifecycle" not in st:
             return f"{where} shows {name} without its lifecycle"
+        if n["type"] == "claim" and body.get("asserts"):
+            def lookup(ref: str, key: str) -> tuple:
+                ver, rb = latest.get(ref, (None, {}))
+                rv = (rb.get("values") or {}).get(key) if ref in nodes and nodes[ref]["type"] == "result" else None
+                rv = {"value": rv} if isinstance(rv, (int, float)) and not isinstance(rv, bool) else rv
+                return ref, rv if isinstance(rv, dict) else None, ver
+            want_v = [a["verdict"] for a in assertions.verify_with(body, lookup)]
+            got_v = [a.get("verdict") if isinstance(a, dict) else None for a in st.get("assertions") or []]
+            if got_v != want_v:
+                return (f"{where} shows {name}'s typed assertions as {_j(got_v)}; its rows make them {_j(want_v)}"
+                        if got_v else f"{where} shows {name} without its typed assertions")
         w, shown = lifecycle(n["id"], True), st["lifecycle"]
         if shown == w:
             return ""

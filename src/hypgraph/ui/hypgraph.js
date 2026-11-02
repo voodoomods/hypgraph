@@ -846,6 +846,9 @@
     "say.picked": "{who} picked up {code}", "say.returned": "returned {code}", "say.withdrew": "withdrew {code}",
     "say.retracted": "retracted a link {edge}",
     "dr.close": "Close details", "dr.standing": "Standing", "dr.checked_by": "checked by {who}", "dr.objections": "open objections: {list}",
+    "dr.prose": "The author's sentence", "dr.prose.sub": "· prose: the record decides the typed assertions above against their counts, not this sentence",
+    "dr.by_wording": "the write gate read its wording — a heuristic, not typed assertions",
+    "as.supported": "supported", "as.contradicted": "contradicted", "as.unresolved": "unresolved",
     "dr.written": "Written", "dr.by": "by", "dr.at": "at", "dr.versions": "versions", "dr.fields": "Fields", "dr.rests_on": "Rests on",
     "dr.nothing": "nothing", "dr.rests_on_it": "What rests on it", "dr.provenance": "Provenance",
     "dr.provenance.sub": "· everything it rests on, to the files", "dr.if_fell": "If it fell", "dr.if_fell.sub": "· what would be at risk",
@@ -1794,12 +1797,19 @@
     }
     async function nodeDrawer(n, cx, from, top, mine) {
       const s = st(n), rv = s.review || {}, nodeLink2 = (id, rel) => nodeLink(id, rel, cx);
+      // a typed claim's headline is what the record checked — its assertions, each with its verdict; the author's
+      // sentence follows, labelled as prose (assertions.py)
+      const av = Array.isArray(s.assertions) ? s.assertions : [];
+      const PILL = { supported: 'ok', contradicted: 'bad', unresolved: 'neutral' };
+      const head = av.length ? av.map((a) => `<div style="margin-top:2px"><span class="pill ${PILL[a.verdict] || 'neutral'}">${esc(T('as.' + (PILL[a.verdict] ? a.verdict : 'unresolved')))}</span> <span class="ink">${esc(a.text)}</span>${a.counted ? ` <span class="dim mono" style="font-size:11px">${esc(a.counted)}</span>` : ''}${a.verdict !== 'supported' && a.why ? `<div class="why">${esc(a.why)}</div>` : ''}</div>`).join('') : esc(n.title);
       const still = () => S.drawer && (mine ? S.drawer.node === n.id : S.drawer.lnode === n.id);
       const skeleton = (det, why, imp) => {
         const body = (det && det.body) || {};
         const fields = Object.entries(body).filter(([k, v]) => v !== '' && v != null && !['title'].includes(k)).slice(0, 14);
         return `
+        ${av.length ? `<section><h4>${esc(T('dr.prose'))} <span class="dim">${esc(T('dr.prose.sub'))}</span></h4><div class="ink2">${esc(n.title)}</div></section>` : ''}
         <section><h4>${esc(T('dr.standing'))}</h4>${standingPill(n, T)} <span style="margin-left:6px">${esc(s.sentence || '')}</span>
+          ${n.type === 'claim' && s.checked_by === 'wording' ? `<div class="dim" style="margin-top:6px">${esc(T('dr.by_wording'))}</div>` : ''}
           ${staleOf(n).length ? `<div class="why">${esc(staleOf(n).join('; '))}</div>` : ''}
           ${rv.positive && rv.positive.length ? `<div class="dim" style="margin-top:6px">${esc(T('dr.checked_by', { who: rv.positive.join(', ') }))}</div>` : ''}
           ${rv.open_objections && rv.open_objections.length ? `<div class="why">${esc(T('dr.objections', { list: rv.open_objections.join(', ') }))}</div>` : ''}</section>
@@ -1812,9 +1822,9 @@
         ${imp && imp.dependents && imp.dependents.length ? `<section><h4>${esc(T('dr.if_fell'))} <span class="dim">${esc(T('dr.if_fell.sub'))}</span></h4>${imp.dependents.slice(0, 40).map((x) => nodeLink2(x.node.id, x.rel)).join('')}</section>` : ''}`;
       };
       const title = `<span class="code">${esc(n.code)}</span><span class="pill neutral">${esc(TL(n.type))}</span>${mine ? '' : `<span class="pill accent">⛓ ${esc(clip(n.inv && S.lk.models.get(S.drawer.ln) ? recName(S.lk.models.get(S.drawer.ln)) : '', 40))}</span>`}`;
-      drawer(title, esc(n.title), top + skeleton(null));
+      drawer(title, head, top + skeleton(null));
       const [det, why, imp] = await Promise.all([settle(from.node(n.id)), settle(from.why(n.id)), settle(from.impact(n.id))]);
-      if (still()) drawer(title, esc(n.title), top + skeleton(det, why, imp));
+      if (still()) drawer(title, head, top + skeleton(det, why, imp));
     }
     function openQuestion(code) {
       const m = S.m, sq = (m.stages || []).find((x) => x.code === code), q = (m.board || []).find((x) => x.code === code) || {};

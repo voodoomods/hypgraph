@@ -9,6 +9,12 @@ Standing, derived on every read. Nothing here is stored or settable:
               > project_rerun > lab_recorded > agent_reported > unverified
   lines       independent lines of support (lines sharing a run, a data artifact or a source count once)
   at_risk     the fallen nodes it rests on; ``unsupported`` when every support it had has fallen
+  assertions  for claims with typed atoms (``asserts``): each atom rendered as the sentence it asserts, with its
+              verdict against its count as the record holds it now — supported | contradicted | unresolved. A count
+              revised after the claim was written can turn a supported atom false: ``assertion_contradicted`` lists
+              those atoms. ``checked_by`` says which checks a claim met at the gate: ``typed`` (its investigation
+              checks typed atoms; the word interpretation stood down), ``wording`` (the word checks, a heuristic) or
+              ``none`` (a non-strict investigation).
   stale       for results and claims: the run used an artifact that is now superseded or withdrawn (a newer diff, a
               corrected data file, a changed instance), or ``valid_until`` has passed — the evidence no longer speaks
               for the thing it measured. A claim is stale when every result behind it is.
@@ -592,7 +598,7 @@ def bounds(s: Snap, nid: str) -> list[dict]:
             continue
         rv = result_value(s, str(m.get("result") or ""), str(m.get("key") or ""))
         k, n = (rv or {}).get("k"), (rv or {}).get("n")
-        if not (isinstance(k, (int, float)) and isinstance(n, (int, float)) and n > 0 and 0 <= k <= n):
+        if not (stats.whole(k) and stats.whole(n) and n >= 1 and 0 <= k <= n):     # 0.9 of 4 is no count (HG-028-03)
             continue
         lo, hi = stats.rate_bounds(int(k), int(n))
         row = {"name": m.get("name") or m.get("key"), "k": int(k), "n": int(n), "rate": k / n, "lo": lo, "hi": hi}
@@ -681,6 +687,14 @@ def state(s: Snap, nid: str) -> dict:
             st["bounds"] = b
         if len(b) >= 2 and lang.found(lang.SIGNIFICANCE, n["body"].get("statement", "")):   # asserted or denied
             st["test"] = stats.two_proportions(b[0]["k"], b[0]["n"], b[1]["k"], b[1]["n"])
+        from . import assertions, checks         # typed atoms (assertions.py): checked again on every read
+        invb = s.nodes.get(n["inv"], {}).get("body", {})
+        st["checked_by"] = "none" if invb.get("strict_claims") is False else             "typed" if checks.typed_claims(s, n["inv"]) else "wording"
+        if n["body"].get("asserts"):
+            st["assertions"] = assertions.verify(s, n["body"], n["inv"])
+            bad = [v["atom"] for v in st["assertions"] if v["verdict"] == "contradicted"]
+            if bad:
+                st["assertion_contradicted"] = bad
     if t in ("claim", "hypothesis"):
         st["evidence"] = profile(s, nid)
         st["independent_lines"] = independent_lines(s, nid)
@@ -765,6 +779,13 @@ def sentence(s: Snap, nid: str, st: dict) -> str:
                 note += f", up to {b['unruled_out']:,} of {b['exposure']:,.0f} not ruled out"
             parts.append(note)
             break
+    av = st.get("assertions") or []
+    if av:
+        ok = sum(v["verdict"] == "supported" for v in av)
+        parts.append(f"{ok} of {len(av)} typed assertion{'s' * (len(av) != 1)} supported by {'its count' if len(av) == 1 else 'their counts'}")
+    if st.get("assertion_contradicted"):
+        parts.append("ASSERTION CONTRADICTED — " + "; ".join(av[i]["text"] for i in st["assertion_contradicted"][:3])
+                     + " — by the count as it stands now")
     if st.get("test"):
         x = st["test"]
         parts.append(f"tested from its counts: difference {x['diff'] * 100:.1f} points, 95% interval "

@@ -93,6 +93,17 @@ the arithmetic. Use it.
 | `EXCLUSION_WITHOUT_POWER` | "no effect" / "rules out" without a search shown to find a planted effect. The refusal says the smallest effect your sample could have seen. | Show power (`power=demonstrated`), or file it as `kind=inconclusive` and say "no detectable effect". |
 | `UNCORRECTED_EFFECT` | "changes" / "differs" / "significant" on an outcome from an uncorrected test, while the record's own corrected p for it (Holm, Bonferroni, FDR) is ≥ 0.05, or 0 outcomes survive. | Say "uncorrected" in the sentence, or bind the corrected p and say "not significant after correction", or file it as `kind=lead`. |
 | `SCOPE_MISSING` / `EVIDENCE_MISSING` | No conditions, or nothing supports it. | Name the data, method and sample. Link the result with `supports`. |
+| `ASSERTION_CONTRADICTED` | A typed atom is false by its own count ("no route has length > 26 km" against 1 of 4 counted). Logged like a count contradiction. | Assert what was counted, and say that in the statement. |
+| `ASSERTION_UNRESOLVED` | The atom's count can't settle it: another property, unit or population, a condition it didn't compare, or an untyped count. The message names the field. | Bind the atom to a typed count of what it asserts, or fix the field named. |
+| `ASSERTION_MISSING` | In a `typed_claims` investigation the statement asserts an absolute, an extreme or a count with no atom for it. The refusal proposes atoms. | Check each proposed atom, then add them as `asserts`. |
+| `VALUE_NOT_A_COUNT` | (results) k or n isn't a count: 0.9 of 4, k > n, n = 0. | Give whole k and n, or record the number as `{"value": …}`. |
+
+**Typed claims.** When an investigation sets `typed_claims: true`, say what you assert as data, not only in words.
+Give each count its types, `{"k": 1, "n": 4, "figure": 26, "op": ">", "population": "route", "property": "length",
+"unit": "km"}`, and give the claim one atom per thing it asserts, `asserts=[{"quantifier": "none", "population":
+"route", "property": "length", "op": ">", "figure": 26, "unit": "km", "n": 4, "measurement": 0}]` (`none` / `all` /
+`some` / `exactly` with `k`; an extreme is a `none` and a `some`). Each atom is decided against its count, no words
+read, and the record shows the atoms as what it verified, your sentence as prose.
 
 **Before writing never or always, run `hypgraph bound K N --exposure USERS`** (MCP tool `bound`). It tells you what
 the count supports and how many failures are not ruled out at the scale the claim will be used. Set `exposure` (and

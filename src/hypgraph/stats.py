@@ -7,12 +7,20 @@ The arithmetic the claim checks use, stdlib only. Each function is small enough 
 - trials_for(bound)        how many failure-free trials it takes before the 95% upper bound drops below ``bound``.
 - two_proportions(...)     difference of two rates with a 95% interval (Newcombe's hybrid score) and a two-sided
                            p-value (pooled two-proportion z-test).
+- whole(x)                 a count's k or n: an int or an integral float, finite, not a bool.
 - detectable(...)          the smallest difference two samples this size could detect with 80% power at α = 0.05.
 """
 
 from __future__ import annotations
 
 import math
+
+def whole(x) -> bool:
+    """A whole number: an int, or a finite float with no fraction (4.0). Not a bool — a count is how many."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return False
+    return isinstance(x, int) or (math.isfinite(x) and x == int(x))
+
 
 Z95 = 1.959963984540054          # two-sided 95%
 Z80 = 0.8416212335729143         # one-sided 80% power

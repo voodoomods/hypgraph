@@ -3,6 +3,7 @@
  "files": [
   "hypgraph/__init__.py",
   "hypgraph/__main__.py",
+  "hypgraph/assertions.py",
   "hypgraph/blind.py",
   "hypgraph/bundle.py",
   "hypgraph/checks.py",

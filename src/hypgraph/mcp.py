@@ -37,6 +37,9 @@ INSTRUCTIONS = """HypGraph is a research record that can't flatter itself. Stand
 3. register_run() for computations you ran (it hashes the files); add results with values {name: {value} | {k, n}}.
 4. add a claim only with its evidence: a `supports` link from a result (with why), a scope, and every number in the
    statement bound to a result field in `measurements`. Absolutes ("never", "all") need k of n with k = 0 or n.
+   In an investigation with typed_claims, type what you assert: `asserts` atoms {quantifier none|all|some|exactly,
+   population, property, op, figure, unit, n, measurement} — checked against counts typed {k, n, figure, op,
+   population, property, unit}; a refusal proposes atoms from your sentence.
    An exclusion needs a search shown to recover a planted answer (result power=demonstrated).
 5. You can't set standing. Reviews by the investigation's reviewers do; nobody reviews their own work.
 When the record refuses a write, it says what to fix — fix that, don't route around it."""
@@ -292,8 +295,10 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
         success_criteria, controls, method, power_check, cost_minutes} with `tests` links carrying data.expected per
         hypothesis · run {kind: agent, name, state} (prefer register_run) · result {summary, values {name: {value} |
         {k, n}}, outcome, power} · claim {statement, scope, kind finding|exclusion|inconclusive|convention|lead,
-        measurements [{name, value | k, n, result: <id>, key: <values field>}]} with a `supports` link from its
-        result · source {citation, doi, url, passage} · decision {choice, reasons, alternatives} with `based_on`.
+        measurements [{name, value | k, n, result: <id>, key: <values field>}], asserts [{quantifier
+        none|all|some|exactly, population route/passenger, property, op < <= = != >= >, figure, unit, n, k (exactly
+        only), measurement: index}]} with a `supports` link from its result — a result's count may be typed {k, n,
+        figure, op, population, property, unit} so atoms can be checked against it · source {citation, doi, url, passage} · decision {choice, reasons, alternatives} with `based_on`.
         links: [{"rel": …, "to": id-or-code} (from this node) or {"rel": …, "from": id-or-code, "why": "a sentence"}
         (into it), optional "data": {...}]."""
         try:
