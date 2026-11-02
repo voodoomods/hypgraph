@@ -166,6 +166,21 @@ was taken from a changelog without being checked against the code.*
 > suite is 574 passed, and hypswarm (118 passed) and hypmesh (37 passed) pass on it. Kinds are read from a plural noun
 > and the words before it, a heuristic; the typed claim layer the audits recommend is not built. Released as 0.7.25.
 
+> **Audit of 0.7.25 (2026-11-01), fixed for 0.7.26.** A sixth independent audit named three defects; each reproduced on
+> the PyPI 0.7.25 wheel. Kinds were read only before a plural, so none of 3 "cargo route longer than 26 km" backed "no
+> passenger route is longer than 26 km" while the passenger count was 1 of 3 (HG-025-01). A count the lab keyed
+> `route_speed_above_26`, named "routes longer than 26 km" by the claimant, backed a claim about length (HG-025-02). A
+> clause joining comparisons with both "and" and "or" was checked part by part, so a true one drew
+> `COUNT_CONTRADICTS` (HG-025-03). What a count names before its comparison is now read singular or plural; a name
+> that compares along another axis than its key, or a key that counts a kind neither the name nor the statement says,
+> is `MEASUREMENT_MISMATCH`; a mixed "and" / "or" clause is unresolved until the whole condition is counted. Each case
+> is a regression test written to fail on 0.7.25. Replaying the 1,900 recorded adversarial entries changes none; the
+> replay caught two over-reaches of a first draft (a value word, "selections worth more", read as the kind; a bound,
+> "the limit is at most 49 kg", read as the subject), now tests too.
+>
+> **Where that stands.** #96 is merged with green CI (17 of 17 checks). Kinds and subjects are still read from the
+> words around a comparison, a heuristic; the typed claim layer the audits recommend is not built. Released as 0.7.26.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: what a count is of, what its key compared, "and" with "or"
+## 0.7.26 — 2026-11-01: what a count is of, what its key compared, "and" with "or"
 
 Fixes from an independent audit of 0.7.25 (HG-025-01 to -03); each case below failed on 0.7.25 and is now a test
 (`tests/test_what_a_count_is_of.py`).
