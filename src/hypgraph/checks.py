@@ -185,8 +185,9 @@ def _matches_stat(printed: tuple, candidates: list[float]) -> bool:
     return printed[1] >= 1 and _matches(printed, candidates)
 
 
-def _bound(s: Snap, meas: list) -> tuple[list[tuple[dict, dict]], list[Problem]]:
-    """Measurements that check out against their results, and problems with the rest."""
+def _bound(s: Snap, meas: list, stmt: str = "") -> tuple[list[tuple[dict, dict]], list[Problem]]:
+    """Measurements that check out against their results, and problems with the rest. With ``stmt``, the claim's
+    statement: what a key says it counted must be said by the measurement's name or by the statement."""
     good, problems = [], []
     for i, m in enumerate(meas):
         if not isinstance(m, dict) or not m.get("result") or not m.get("key"):
@@ -228,9 +229,41 @@ def _bound(s: Snap, meas: list) -> tuple[list[tuple[dict, dict]], list[Problem]]
                                     f"{m['result']} counted '{m['key']}' with {op}",
                                     fix=f"name the count after the comparison it made ({op})"))
             bad = True
+        # the key is the result's own name for what it counted, written by whoever ran it; the measurement's name is
+        # the claimant's. A name may shorten the key, not change it: "routes longer than 26 km" isn't a count of
+        # route_speed_above_26, nor of routes_faster_than_26 (audit HG-025-02)
+        key = str(m["key"]).replace("_", " ")
+        named_axes = {c[0] for c in _comparisons_in(str(m.get("name") or "")) if c[0]}
+        key_axes = {c[0] for c in _comparisons_in(key) if c[0]}
+        if not bad and named_axes and key_axes and not named_axes & key_axes:
+            problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name')}: its name compares "
+                                    f"{_axis_words(named_axes)}, but result {m['result']} counted '{m['key']}', which "
+                                    f"compares {_axis_words(key_axes)}",
+                                    fix="name the count after what it compared, or bind the count that compared that"))
+            bad = True
+        # a name that says no comparison ("fitting selections") doesn't say another count; one that does must keep
+        # what the key counted, here or in the statement
+        unsaid = _unsaid(_subject_of(key), f"{m.get('name') or ''} . {stmt}")
+        if not bad and unsaid and _comparisons_in(str(m.get("name") or "")):
+            problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name')}: result {m['result']} "
+                                    f"counted '{m['key']}', and neither the name nor the statement says what it "
+                                    f"counted ({', '.join(sorted(_key_words(key, unsaid)))})",
+                                    fix="name the count after what it counted, or bind the count of what the claim "
+                                        "is about"))
+            bad = True
         if not bad:
             good.append((m, rv))
     return good, problems
+
+
+def _axis_words(axes: set[str]) -> str:
+    return " / ".join(sorted("/".join(w for w, (a, _s) in _DIRECTION_OF.items() if a == x and not w.endswith("est"))
+                             for x in axes))
+
+
+def _key_words(key: str, stems: set[str]) -> set[str]:
+    """The words of ``key`` whose stems are ``stems``, as written."""
+    return {w for w in re.findall(r"[a-z]+", key.lower()) if L.content_words(w) & stems} or stems
 
 
 def _exposure_note(bound_rate: float, body: dict) -> str:
@@ -439,6 +472,9 @@ def _clause_comparisons(clause: str) -> list[tuple[float, tuple[str, int, bool] 
     return out
 
 
+# a target group whose parts are joined by both "and" and "or" (``_target_groups``)
+MIXED = (frozenset(), frozenset({("mixed", 0, False)}))
+
 # "and" or "or" before a comparison with no subject of its own: "shorter than 20 km and longer than 30 km"
 _JOINED = re.compile(r"\s+(?:also\s+)?(?:(?:not|no)\s+)?(?:" + _CMP + r"\s+than\b|at\s+(?:least|most)\b|above\b|below\b|"
                      r"beyond\b|exceed)", re.I)
@@ -464,7 +500,11 @@ def _target_groups(stmt: str, w: str) -> list[list[tuple[frozenset, frozenset]]]
     falsifies the claim ("no route is shorter than 20 km or longer than 30 km"; "every route is longer than 10 km and
     shorter than 30 km"), and one group where only an exception to both does ("no route is shorter than 20 km and
     longer than 30 km" rules out a route that is both; "every route is shorter than 20 km or longer than 30 km" one that
-    is neither) (audit HG-024-03)."""
+    is neither) (audit HG-024-03).
+
+    A clause that joins comparisons with both "and" and "or" ("every route is longer than 10 km and shorter than 30 km
+    or shorter than 6 km") is one group marked ``MIXED``: which parts go together depends on a grouping the words don't
+    settle, so no count of a part backs or refutes it (audit HG-025-03)."""
     out: list[list[tuple[frozenset, frozenset]]] = []
     every = bool(_ALL.match(w)) and not _names_stated_count(stmt, w)
     for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
@@ -473,7 +513,9 @@ def _target_groups(stmt: str, w: str) -> list[list[tuple[frozenset, frozenset]]]
                    for fig, c in _clause_comparisons(clause)]
         ands = any(_JOINED.match(clause, x.end()) for x in re.finditer(r"\band\b", clause, re.I))
         ors = any(_JOINED.match(clause, x.end()) for x in re.finditer(r"\bor\b", clause, re.I))
-        if len(targets) > 1 and ands != ors and (ands != every):
+        if len(targets) > 1 and ands and ors:
+            out.append([MIXED, *targets])
+        elif len(targets) > 1 and ands != ors and (ands != every):
             out.append(targets)
         else:
             out += [[x] for x in targets]
@@ -482,7 +524,7 @@ def _target_groups(stmt: str, w: str) -> list[list[tuple[frozenset, frozenset]]]
 
 def _absolute_targets(stmt: str, w: str) -> list[tuple[frozenset, frozenset]]:
     """Every thing an absolute rules out, each on its own (``_target_groups`` says which go together)."""
-    return [x for group in _target_groups(stmt, w) for x in group]
+    return [x for group in _target_groups(stmt, w) for x in group if x is not MIXED]
 
 
 def _claim_directions(stmt: str, w: str = "") -> set[tuple[str, int]]:
@@ -552,6 +594,77 @@ def _modifiers(words: list[str], i: int) -> set[str]:
     return out
 
 
+def _subject_of(text: str) -> set[str]:
+    """What a count against a figure is of: the content words right before its first comparison ("cargo route longer
+    than 26 km" and "cargo_routes_longer_26" give {cargo, route}; "speed above 26" {speed}); empty when it makes no
+    comparison or names nothing before it. Singular or plural alike (audit HG-025-01)."""
+    words = [w for w in re.findall(r"[a-z]+|\d[\d.,]*", text.lower().replace("_", " ")) if w not in _COPULAS]
+    i = next((j for j, w in enumerate(words) if w in _DIRECTION_OF or w == "at" and words[j + 1:j + 2] in
+              (["least"], ["most"])), None)
+    return _modifiers(words, i) if i else set()
+
+
+def _subject_parts(text: str) -> tuple[set[str], set[str]]:
+    """``_subject_of`` split into its head, the word right before the comparison, and the words before that: "cargo
+    route longer" gives ({route}, {cargo}), "fitting selections worth more" ({selection}, {fit})."""
+    words = [w for w in re.findall(r"[a-z]+|\d[\d.,]*", text.lower().replace("_", " ")) if w not in _COPULAS]
+    i = next((j for j, w in enumerate(words) if w in _DIRECTION_OF or w == "at" and words[j + 1:j + 2] in
+              (["least"], ["most"])), None)
+    if not i:
+        return set(), set()
+    whole = _modifiers(words, i)
+    while i > 1 and words[i - 1] in _MEASURED_BY:      # "selections worth more": the head is selections
+        whole -= L.content_words(words[i - 1])
+        i -= 1
+    head = L.content_words(words[i - 1]) & whole
+    return head, whole - head
+
+
+# words between what a count is of and its comparison that say what was compared, not which thing
+_MEASURED_BY = set("worth valued priced weighing costing lasting taking".split())
+
+
+_COPULAS = set("is are was were be been being".split())
+# the property a comparison word compares: a count of "route length above 26" is said by "no route is longer than 26"
+_PROPERTY_AXIS = {s: axis for axis, ws in {"long": "length distance", "fast": "speed velocity pace",
+                                           "cost": "cost price", "time": "date time"}.items()
+                  for w in ws.split() for s in L.content_words(w)}
+
+
+def _unsaid(stems: set[str], text: str) -> set[str]:
+    """``stems`` that ``text`` doesn't say: neither as words nor, for a property, by comparing along its axis."""
+    axes = {c[0] for c in _comparisons_in(text) if c[0]}
+    return {s for s in stems - L.content_words(text) if _PROPERTY_AXIS.get(s) not in axes}
+
+
+def _subjects_at(stmt: str, axes: set[str]) -> set[str]:
+    """What a statement's comparisons along ``axes`` are about: "no passenger route is longer than 26 km" gives
+    {passenger, route} for length; "nothing worth more" nothing. A bound ("the limit is at most 49 kg") is not one."""
+    words = [w for w in re.findall(r"[a-z]+|\d[\d.,]*", stmt.lower()) if w not in _COPULAS | _MEASURED_BY]
+    return set().union(*(_modifiers(words, j) for j, w in enumerate(words) if w in _DIRECTION_OF
+                         and _DIRECTION_OF[w][0] in axes and words[j - 1:j] != ["at"]))
+
+
+def _kinds_named(stmt: str) -> set[str]:
+    """The kinds a statement names for what it is about: the words before its comparison ("no passenger route is
+    longer" gives {passenger, route}) and before a plural in a phrase that says what it ranges over ("among the 3
+    passenger routes" gives {passenger}; "the recorded weights" and "the limit applies" name nothing it ranges over)."""
+    said = re.findall(r"[a-z]+|\d[\d.,]*", stmt.lower())
+    out = _subject_of(stmt)
+    for i, w in enumerate(said):
+        if not (w.endswith("s") and not w.endswith("ss") and L.content_words(w)):
+            continue
+        mods = _modifiers(said, i)
+        j = i - 1
+        while j >= 0 and L.content_words(said[j]) & mods:
+            j -= 1
+        while j >= 0 and (said[j] in _DETERMINERS or said[j][0].isdigit()):
+            j -= 1
+        if j >= 0 and said[j] in _PREPOSITIONS:
+            out |= mods
+    return out
+
+
 def _subject_fit(stmt: str, m: dict) -> tuple[bool, bool]:
     """Is a count about what a claim is about? Returns (covers, apart). A count names what it counts in the plural
     ("cargo routes", "fitting selections"); where the statement uses that word too, the words right before it on each
@@ -559,7 +672,12 @@ def _subject_fit(stmt: str, m: dict) -> tuple[bool, bool]:
     statement names too: none of 3 cargo routes longer than 26 km says nothing of passenger routes, nor of every route
     (audit HG-024-02). They are apart if each names a kind the other doesn't (cargo, passenger); a count of all routes
     with one longer may still be about the passenger route. A count that names nothing the statement does is read as
-    before."""
+    before.
+
+    The same holds for what a count names before its comparison, singular or plural: "cargo route longer than 26 km"
+    and "cargo longer than 26 km" are of cargo routes, and back no claim about passenger routes (audit HG-025-01). A
+    count whose subject the statement doesn't name at all ("speed above 26" against a claim about length) neither backs
+    nor refutes it."""
     said = re.findall(r"[a-z]+", stmt.lower())
     stems = [L.content_words(w) for w in said]
     about = set().union(*stems) if stems else set()
@@ -576,6 +694,21 @@ def _subject_fit(stmt: str, m: dict) -> tuple[bool, bool]:
         theirs = set().union(*(_modifiers(said, j) for j, s in enumerate(stems) if s & head)) - mine
         covers = covers and not kinds
         apart = apart or bool(kinds and theirs)
+    parts = [_subject_parts(str(m.get(f) or "")) for f in ("name", "key")]
+    head, mods = parts[0][0] | parts[1][0], parts[0][1] | parts[1][1]
+    if head:
+        subject = head | mods
+        if not _unsaid(head, stmt):      # the statement says the count's head: its other words must be said too
+            kinds = _unsaid(mods, stmt)
+            theirs = set().union(*(_modifiers(said, j) for j, s in enumerate(stems) if s & head)) - subject
+            apart = apart or bool(kinds and theirs)
+        else:                            # a head the statement doesn't say only matters where it names a kind itself
+            named = _kinds_named(stmt)
+            kinds = _unsaid(subject, stmt) if named else set()
+            axes = {c[0] for f in ("name", "key") for c in _comparisons_in(str(m.get(f) or "").replace("_", " "))}
+            theirs = _subjects_at(stmt, axes)
+            apart = apart or bool(theirs and not theirs & subject)
+        covers = covers and not kinds
     return covers, apart
 
 
@@ -598,6 +731,14 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
             if (tuple(group), _ALL.match(w) is None) in seen:
                 continue
             seen.add((tuple(group), _ALL.match(w) is None))
+            if group[0] is MIXED:
+                p = Problem("ABSOLUTE_WITHOUT_COUNT", f"'{w}' rules on comparisons joined by both 'and' and 'or': "
+                            "counts of each comparison on its own can't settle that either way. Count what meets the "
+                            "whole condition, or split it into claims that each join their comparisons one way",
+                            fix="count what meets the whole condition, or split the claim", words=words)
+                if p.text() not in {q.text() for q in out}:
+                    out.append(p)
+                continue
             got = [_absolute(stmt, scope, body, bound, w, words, set(figs), set(comps)) for figs, comps in group]
             if len(group) > 1:                       # ruled out together: none of one part means none of both
                 if any(not g for g in got):
@@ -1477,7 +1618,7 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     if kind in ("finding", "exclusion", "inconclusive") and not support:
         problems.append(Problem("EVIDENCE_MISSING", "link the evidence: at least one result, claim or source that "
                                 "supports it (links: {\"rel\": \"supports\", \"from\": <result id>, \"why\": …})"))
-    bound, bad = _bound(s, body.get("measurements") or [])
+    bound, bad = _bound(s, body.get("measurements") or [], stmt)
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
     plain, stat = derived_numbers(bound)

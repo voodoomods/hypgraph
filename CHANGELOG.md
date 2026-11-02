@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased: what a count is of, what its key compared, "and" with "or"
+
+Fixes from an independent audit of 0.7.25 (HG-025-01 to -03); each case below failed on 0.7.25 and is now a test
+(`tests/test_what_a_count_is_of.py`).
+
+- **A count names its kind in the singular too** (HG-025-01). Kinds were read only before a plural, so none of 3
+  "cargo route longer than 26 km" (or "cargo longer than 26 km") backed "no passenger route is longer than 26 km"
+  while the passenger count was 1 of 3. What a count names before its comparison is now read singular or plural: a
+  count of cargo routes neither backs nor refutes a claim about passenger routes. A word that says what was compared
+  ("selections worth more") isn't read as the kind, and a bound in the statement ("the limit is at most 49 kg") isn't
+  what the claim is about.
+- **A count's name can't change what its key counted** (HG-025-02). A count the lab keyed `route_speed_above_26`,
+  named "routes longer than 26 km" by the claimant, backed a claim about length. The key is the result's own name for
+  what it counted: a measurement whose name compares along another axis (length, not speed), or whose key counts a
+  thing neither the name nor the statement says ("cargo" under a name for passenger routes), is now
+  `MEASUREMENT_MISMATCH`. "route length above 26 km" still names a count of routes longer than 26 km.
+- **"And" with "or" in one clause is left unresolved** (HG-025-03). The parts were checked one by one, so routes of 5,
+  20 and 25 km, which make "every route is longer than 10 km and shorter than 30 km or shorter than 6 km" true, gave
+  `COUNT_CONTRADICTS`. Which parts go together isn't settled by the words, so no count of a part backs or refutes such
+  a clause: it is `ABSOLUTE_WITHOUT_COUNT` until a count of the whole condition is bound, or the claim is split.
+
 ## 0.7.25 — 2026-11-01: which counts bear on a claim, joined comparisons, boundaries in names
 
 Fixes from an independent audit of 0.7.24 (HG-024-01 to -04); each case below failed on 0.7.24 and is now a test
