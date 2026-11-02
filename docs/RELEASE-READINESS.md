@@ -234,6 +234,20 @@ was taken from a changelog without being checked against the code.*
 > verified, and the record shows the atoms, not the sentence, as what it checked. Replaying the 1,900 recorded
 > adversarial entries changes none. #102 is merged with green CI (17 of 17 checks). Released as 0.8.0.
 
+> **Audit of 0.8.0 (2026-11-01).** The first audit of the typed layer found its architecture sound (GO for a
+> controlled typed-claims pilot) and two narrow defects in its helpers, both reproduced on the published wheel (its
+> test file: 9 failed, the 4 controls passed; the wheel's SHA-256 matched the audit's). Containment was probed in
+> floats at figure ± 1, which above 2**53 is the figure itself, so opposite conditions at 1e18 looked equal and an
+> unsupported "none below 1e18" was supported (HG-080-01). And units dropped their kind, so `lb` matched `GBP` through
+> the shared name "pound" (HG-080-02). Containment is now decided exactly on the pieces of the line, with figures kept
+> as given; a unit is its (kind, unit) readings. Two related gaps closed with them: `exactly` was left open unless its
+> set was the counted one (now decided from bounds, and every verdict equals enumeration over one population), and an
+> extreme stated as a value now needs both its atoms.
+>
+> **Where that stands.** The boundary the audit names stays: prose is matched to atoms by reading words, so a missed
+> part leaves prose unverified, never an atom verified; integrations should consume `asserts` and their verdicts, not
+> the statement. Untyped mode keeps its documented limits.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one

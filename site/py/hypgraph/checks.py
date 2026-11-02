@@ -1841,9 +1841,26 @@ def asserting_parts(stmt: str) -> list[str]:
         if L.interrogative(p):
             continue
         quantified = any(_clause_comparisons(m.group("rest"), after_no=True) for m in _QUANT_CMP.finditer(p))
-        if L.asserted(L.ABSOLUTE, p) or _extremes(p) or _STATED_COUNT.search(p) or quantified or                 _NO_NOUN_VERB.search(p):
+        if L.asserted(L.ABSOLUTE, p) or _extremes(p) or _STATED_COUNT.search(p) or quantified or _NO_NOUN_VERB.search(p):
             out.append(p.strip())
     return out
+
+
+_STATED_FIGURE = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?")
+_POPULATION_SIZE = re.compile(r"\b(?:of|among|across|between|from|in|all)\s+(?:the\s+|all\s+|its\s+|these\s+|those\s+)?"
+                              r"(\d[\d,]*)\b(?!\s*(?:%|percent|per\s*cent))", re.I)
+
+
+def atoms_needed(part: str) -> int:
+    """How many atoms a part asks for: an extreme stated as a value ("the longest of the 4 routes is 26 km") is two —
+    nothing above 26 and something at 26 or more; a figure it states only as a bound ("the slowest took at least 40
+    minutes") is one. Over-counting asks for one more atom; it never marks one verified."""
+    if not _extremes(part):
+        return 1
+    bounds = {f for f, _c in _clause_comparisons(part)}
+    sizes = {m.start(1) for m in _POPULATION_SIZE.finditer(part)}            # "of the 4 routes" is who, not a figure
+    stated = {float(m.group(0).replace(",", "")) for m in _STATED_FIGURE.finditer(part) if m.start() not in sizes}
+    return 2 if stated - bounds else 1
 
 
 def assertion_issues(s: Snap, body: dict, inv: str, stmt: str, typed: bool) -> list[Problem]:
@@ -1866,13 +1883,17 @@ def assertion_issues(s: Snap, body: dict, inv: str, stmt: str, typed: bool) -> l
                                    f"{v['field']}", words=[v["field"]]))
     if typed:
         parts = asserting_parts(stmt)
-        if len(parts) > len(atoms):
+        needed = sum(atoms_needed(p) for p in parts)
+        if needed > len(atoms):
             proposed = A.draft(s, body, inv) if not atoms else []
             hint = (" Proposed from the statement and its typed counts — check each before using it: "
                     + json.dumps(proposed, separators=(",", ":"))[:900]) if proposed else ""
             out.append(Problem("ASSERTION_MISSING", f"this investigation checks claims as typed assertions: the "
                                f"statement asserts {len(parts)} thing{'s' * (len(parts) != 1)} — "
-                               + "; ".join(f"'{p[:80]}'" for p in parts[:4]) + f" — and the claim gives {len(atoms)} "
+                               + "; ".join(f"'{p[:80]}'" for p in parts[:4]) + f" — {needed} atom"
+                               + "s" * (needed != 1) + " in all" + (" (an extreme stated as a value is two: none "
+                               "above it, some at it or beyond)" if needed > len(parts) else "")
+                               + f", and the claim gives {len(atoms)} "
                                "atom" + "s" * (len(atoms) != 1) + ". Add an atom for each to asserts: {quantifier "
                                "(none | all | some | exactly), population, property, op, figure, unit, n, "
                                "measurement}." + hint, fix="add an atom to asserts for each thing the statement "

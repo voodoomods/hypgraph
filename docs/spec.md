@@ -290,22 +290,29 @@ smallest detectable difference uses 80% power at two-sided α = 0.05.
 
 **Typed claims.** An atom (§2) is decided by its bound count alone; no words are read. Let S_e = {x : x op_e f_e} (what
 was counted, k of n inside it, n − k outside) and S_a = {x : x op_a f_a} (what is asserted); P_e and P_a the
-populations. The property must equal the count's and the unit match it (spellings of one unit are one unit; nothing is
-converted); a stated `n` must equal the count's.
+populations. The property must equal the count's and the unit match it: spellings of one unit are one unit within one
+kind of unit (`lb` = `lbs`, `GBP` = `sterling`, never `lb` = `GBP`), a spelling that could be two kinds (`pound`:
+mass or currency) matches only another that could be the same two, and nothing is converted. A stated `n` must equal
+the count's. Figures are compared exactly, as given (an int or a float, at any magnitude), on the pieces of the line
+the two figures cut it into — never by arithmetic on them.
 
 - `none` S_a: **supported** when a side of the count with 0 inside it contains S_a and P_a lies within P_e;
   **contradicted** when a side with more than 0 lies inside S_a and P_e lies within P_a.
 - `some` S_a: supported when a side with more than 0 lies inside S_a and P_e within P_a; contradicted when a side with
   0 contains S_a and P_a lies within P_e.
-- `all` S_a is `none` of the complement of S_a. `exactly` k needs the same population and the same set (or its
-  complement, counted n − k), then compares k.
+- `all` S_a is `none` of the complement of S_a.
+- `exactly` k needs the same population. A side of the count lying inside S_a puts at least its count in S_a; a side
+  containing S_a, at most its count. k at both bounds is **supported**, k outside them **contradicted**.
+
+Over one population these verdicts are complete as well as sound: supported or contradicted exactly when every set of
+values consistent with the count agrees.
 - Anything else is **unresolved**, and names the field that blocked it.
 
 | Code | Refused when |
 |---|---|
 | `ASSERTION_CONTRADICTED` | an atom is false by its count. The refusal log tracks it like a count contradiction (§8). |
 | `ASSERTION_UNRESOLVED` | an atom its count can't settle: another property or unit, a population neither within nor containing the count's, a condition the count's doesn't decide, an untyped count, a malformed atom. |
-| `ASSERTION_MISSING` | in a `typed_claims` investigation, the statement has more parts that assert an absolute, an extreme or a count than the claim has atoms. Detection reads words only to ask for atoms; a missed word leaves prose unverified, never an atom verified. The refusal proposes atoms drafted from the statement and the claim's typed counts, which are checked like any other once written. |
+| `ASSERTION_MISSING` | in a `typed_claims` investigation, the statement's parts that assert an absolute, an extreme or a count need more atoms than the claim has: one each, and two for an extreme stated as a value ("the longest is 26 km": none above, some at or above). Detection reads words only to ask for atoms; a missed word leaves prose unverified, never an atom verified. The refusal proposes atoms drafted from the statement and the claim's typed counts, which are checked like any other once written. |
 
 Atoms are checked in every investigation that has them. In a `typed_claims` investigation the word interpretation
 stands down: a measurement's name and key are not read for what was counted, and rule 5 (absolutes, with the
