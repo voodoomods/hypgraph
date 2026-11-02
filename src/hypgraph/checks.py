@@ -243,7 +243,7 @@ def _bound(s: Snap, meas: list, stmt: str = "") -> tuple[list[tuple[dict, dict]]
             bad = True
         # a name that says no comparison ("fitting selections") doesn't say another count; one that does must keep
         # what the key counted, here or in the statement
-        unsaid = _unsaid(_subject_of(key), f"{m.get('name') or ''} . {stmt}")
+        unsaid = _unsaid(_subject_of(key), f"{m.get('name') or ''} . {_clauses_at(stmt, _count_figures(m, rv))}")
         if not bad and unsaid and _comparisons_in(str(m.get("name") or "")):
             problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name')}: result {m['result']} "
                                     f"counted '{m['key']}', and neither the name nor the statement says what it "
@@ -254,6 +254,32 @@ def _bound(s: Snap, meas: list, stmt: str = "") -> tuple[list[tuple[dict, dict]]
         if not bad:
             good.append((m, rv))
     return good, problems
+
+
+# where one thing said ends and another begins: a sentence, a semicolon or colon, or a comma before a conjunction
+_SAYING = re.compile(r"[;:!?]|\.(?!\d)|,\s*(?=(?:and|but|while|whereas|although|though|so|yet)\b)|"
+                     r"\b(?:although|though|whereas)\b", re.I)
+
+
+def _clauses_at(stmt: str, figs: set[float]) -> str:
+    """The parts of ``stmt`` that state one of ``figs``: what a count against that figure must be about is said there,
+    not in another sentence. "Speed was recorded separately; no route is longer than 26 km" says nothing about speed
+    where it says 26 km, so a speed count named "routes longer than 26 km" can't borrow the word (audit HG-026-01).
+    The whole statement when no part states one."""
+    if not stmt or not figs:
+        return stmt
+    parts = [p for p in _SAYING.split(stmt) if p and p.strip()]
+    hit = [_from_claim(p) for p in parts if {round(v[0], 6) for v in numbers(p)} & {round(f, 6) for f in figs}]
+    return " . ".join(hit) if hit else stmt
+
+
+def _from_claim(part: str) -> str:
+    """A part from the comma before its absolute or extreme: "Rural sites aside, no urban clinic had waits above 45"
+    claims only "no urban clinic had waits above 45"."""
+    hit = L.ABSOLUTE.search(part) or L.SUPERLATIVE.search(part)
+    if not hit:
+        return part
+    return part[max((x.end() for x in re.finditer(r",(?!\d)", part[:hit.start()])), default=0):]
 
 
 def _axis_words(axes: set[str]) -> str:
@@ -309,13 +335,11 @@ _PROVEN = re.compile(r"^prov(?:es?|en|ed)$|^proof$", re.I)
 
 # the figure a count is about: "fitting selections worth more than 93", "routes shorter than 26 km" (or, matching a
 # figure the claim names, "worth_more_93"). A count of nothing beyond 140 says nothing about 93 (audit HG-020-01/02).
-_COUNT_FIGURE = re.compile(r"\b(?:(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
-                           r"slower|larger|smaller)\s+than|above|below|over|under|beyond|exceed\w*|beat\w*)\s+\$?"
+_COUNT_FIGURE = re.compile(r"\b(?:(?:" + L.CMP_WORDS + r"|(?!(?:" + L.NOT_CMP + r")\b)[a-z]{3,}er)\s+than|above|below|over|under|beyond|exceed\w*|beat\w*)\s+\$?"
                            r"(-?\d[\d,]*(?:\.\d+)?)", re.I)
 # the figure a name gives before its comparison or with "at least": "routes 26 km or longer", "routes at least 26 km"
 _COUNT_FIGURE_BOUNDARY = re.compile(r"\bat\s+(?:least|most)\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\$?(-?\d[\d,]*(?:\.\d+)?)"
-                                    r"(?:\s+[a-z%]+){0,2}\s+or\s+(?:more|less|fewer|greater|higher|lower|better|worse|"
-                                    r"shorter|longer|cheaper|faster|slower|larger|smaller)\b", re.I)
+                                    r"(?:\s+[a-z%]+){0,2}\s+or\s+(?:" + L.CMP_WORDS + r")\b", re.I)
 
 
 def _named_figure(name: str) -> tuple[float, str] | None:
@@ -329,16 +353,13 @@ def _named_figure(name: str) -> tuple[float, str] | None:
     return None
 
 
-_KEY_FIGURE = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
-                         r"slower|larger|smaller|above|below|over|under|beyond|exceed\w*|beat\w*)(?:\s+than)?\s+"
+_KEY_FIGURE = re.compile(r"\b(?:" + L.CMP_WORDS + r"|above|below|over|under|beyond|exceed\w*|beat\w*)(?:\s+than)?\s+"
                          r"(\d+(?:\.\d+)?)$", re.I)
 # the figure an absolute names in its own clause: "nothing worth more than 93 fits", "no route is shorter than 26 km"
-_CLAIM_FIGURE = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|"
-                           r"slower|larger|smaller)\s+than\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\b(?:above|below|beyond|"
+_CLAIM_FIGURE = re.compile(r"\b(?:" + L.CMP_WORDS + r"|(?!(?:" + L.NOT_CMP + r")\b)[a-z]{3,}er)\s+than\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\b(?:above|below|beyond|"
                            r"exceed(?:s|ing)?)\s+\$?(-?\d[\d,]*(?:\.\d+)?)", re.I)
 _CLAIM_BOUNDARY = re.compile(r"\bat\s+(?:least|most)\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\$?(-?\d[\d,]*(?:\.\d+)?)"
-                             r"(?:\s+[a-z%]+){0,2}\s+or\s+(?:more|less|fewer|greater|higher|lower|better|worse|"
-                             r"shorter|longer|cheaper|faster|slower|larger|smaller)\b", re.I)
+                             r"(?:\s+[a-z%]+){0,2}\s+or\s+(?:" + L.CMP_WORDS + r")\b", re.I)
 _SUBCLAUSE = re.compile(r",(?!\d)|[;:!?()]|\.(?!\d)|\b(?:and|but|while|whereas|although|so)\b", re.I)
 
 
@@ -382,6 +403,14 @@ _DIRECTION_WORDS = {
     "fast": {1: "faster fastest", -1: "slower slowest"},
     "cost": {1: "dearer dearest", -1: "cheaper cheapest"},
     "time": {1: "later latest", -1: "earlier earliest"},
+    "heavy": {1: "heavier heaviest", -1: "lighter lightest"},
+    "warm": {1: "warmer warmest hotter hottest", -1: "colder coldest cooler coolest"},
+    "old": {1: "older oldest", -1: "younger youngest newer newest"},
+    "tall": {1: "taller tallest"},
+    "wide": {1: "wider widest", -1: "narrower narrowest"},
+    "deep": {1: "deeper deepest", -1: "shallower shallowest"},
+    "loud": {1: "louder loudest", -1: "quieter quietest"},
+    "strong": {1: "stronger strongest", -1: "weaker weakest"},
 }
 _DIRECTION_OF = {w: (axis, sign) for axis, signs in _DIRECTION_WORDS.items() for sign, ws in signs.items()
                  for w in ws.split()}
@@ -389,8 +418,7 @@ _DIRECTION_OF = {w: (axis, sign) for axis, signs in _DIRECTION_WORDS.items() for
 # not strict, so a route of exactly 26 lies inside them and outside "longer than" (audit HG-023-02). Six operators;
 # "=" and "!=" point nowhere.
 _OPS = {">": (1, True), ">=": (1, False), "<": (-1, True), "<=": (-1, False), "=": None, "!=": None}
-_CMP = r"(more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|dearer|faster|slower|larger|" \
-       r"smaller|bigger|earlier|later)"
+_CMP = r"(" + L.CMP_WORDS + r")"
 _NOT_STRICT = re.compile(r"\bat\s+(least|most)\b|\b(?:not|no)\s+" + _CMP + r"\s+than\b|\bor\s+" + _CMP + r"\b", re.I)
 
 
@@ -408,7 +436,13 @@ def _comparisons_in(text: str) -> set[tuple[str, int, bool]]:
         else:
             out.add((*_DIRECTION_OF[h.group(3)], False))
     rest = _NOT_STRICT.sub(" ", text)
-    return out | {(*_DIRECTION_OF[w], True) for w in re.findall(r"[a-z]+", rest) if w in _DIRECTION_OF}
+    # a comparative the checks don't know ("brighter than") is an axis of its own: only a count that says the same word
+    # meets it, so nothing else can back a claim made with it (audit HG-026-01)
+    unknown = {(w, 1, True) for w in _UNKNOWN_CMP.findall(rest) if w not in _DIRECTION_OF}
+    return out | unknown | {(*_DIRECTION_OF[w], True) for w in re.findall(r"[a-z]+", rest) if w in _DIRECTION_OF}
+
+
+_UNKNOWN_CMP = re.compile(r"\b(?!(?:" + L.NOT_CMP + r")\b)([a-z]{3,}er)\s+than\b")
 
 
 def _directions(text: str) -> set[tuple[str, int]]:
@@ -582,12 +616,23 @@ _COUNTING = set("count counts counted counting number numbers total totals tally
 _HOW_MANY = set("nothing none never nobody every always ever each whole entire".split())
 
 
+# three-letter words that say nothing about what was counted
+_SHORT_SKIP = set("has had did got get let may can one two six ten few new old top max min own via nor yet per".split())
+
+
+def _stems(text: str) -> set[str]:
+    """``L.content_words`` and the three-letter words it leaves out, which can name what was counted: a count of
+    "bridge age above 60" is of ages, and "age" must be said for it to back a claim (audit HG-026-01)."""
+    return L.content_words(text) | {w for w in re.findall(r"[a-z]+", (text or "").lower())
+                                    if len(w) == 3 and w not in L.STOP and w not in _SHORT_SKIP}
+
+
 def _modifiers(words: list[str], i: int) -> set[str]:
     """The content words right before ``words[i]``, up to a determiner, number, preposition or comparison: "no passenger
     route" gives {passeng}, "the 3 cargo routes" {cargo}, "the shortest route" nothing."""
     out: set[str] = set()
     for w in reversed(words[:i]):
-        cw = L.content_words(w)
+        cw = _stems(w)
         if not cw or w in _DETERMINERS or w in _PREPOSITIONS or w in _DIRECTION_OF or w in _COUNTING | _HOW_MANY:
             break
         out |= cw
@@ -616,7 +661,7 @@ def _subject_parts(text: str) -> tuple[set[str], set[str]]:
     while i > 1 and words[i - 1] in _MEASURED_BY:      # "selections worth more": the head is selections
         whole -= L.content_words(words[i - 1])
         i -= 1
-    head = L.content_words(words[i - 1]) & whole
+    head = _stems(words[i - 1]) & whole
     return head, whole - head
 
 
@@ -626,15 +671,18 @@ _MEASURED_BY = set("worth valued priced weighing costing lasting taking".split()
 
 _COPULAS = set("is are was were be been being".split())
 # the property a comparison word compares: a count of "route length above 26" is said by "no route is longer than 26"
-_PROPERTY_AXIS = {s: axis for axis, ws in {"long": "length distance", "fast": "speed velocity pace",
-                                           "cost": "cost price", "time": "date time"}.items()
-                  for w in ws.split() for s in L.content_words(w)}
+_PROPERTY_AXIS = {s: axis for axis, ws in {"long": "length distance span", "fast": "speed velocity pace",
+                                           "cost": "cost price", "time": "date time", "heavy": "weight mass",
+                                           "warm": "temperature heat", "old": "age", "tall": "height",
+                                           "wide": "width breadth", "deep": "depth", "loud": "loudness",
+                                           "strong": "strength"}.items()
+                  for w in ws.split() for s in _stems(w)}
 
 
 def _unsaid(stems: set[str], text: str) -> set[str]:
     """``stems`` that ``text`` doesn't say: neither as words nor, for a property, by comparing along its axis."""
     axes = {c[0] for c in _comparisons_in(text) if c[0]}
-    return {s for s in stems - L.content_words(text) if _PROPERTY_AXIS.get(s) not in axes}
+    return {s for s in stems - _stems(text) if _PROPERTY_AXIS.get(s) not in axes}
 
 
 def _subjects_at(stmt: str, axes: set[str]) -> set[str]:
@@ -733,9 +781,10 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
             seen.add((tuple(group), _ALL.match(w) is None))
             if group[0] is MIXED:
                 p = Problem("ABSOLUTE_WITHOUT_COUNT", f"'{w}' rules on comparisons joined by both 'and' and 'or': "
-                            "counts of each comparison on its own can't settle that either way. Count what meets the "
-                            "whole condition, or split it into claims that each join their comparisons one way",
-                            fix="count what meets the whole condition, or split the claim", words=words)
+                            "counts of each comparison on its own can't settle that either way, and no count can be "
+                            "tied to the whole condition. Split it into claims that each join their comparisons one "
+                            "way (audit HG-026-02)",
+                            fix="split the claim into clauses that each join their comparisons one way", words=words)
                 if p.text() not in {q.text() for q in out}:
                     out.append(p)
                 continue
@@ -860,8 +909,7 @@ def _denied(after: str) -> bool:
 
 # a count named for what lies beyond a figure ("fitting selections worth more", "shorter routes connecting") is about
 # any extreme the statement claims, whatever words the statement uses for it ("the highest total value is 99")
-_BEYOND = re.compile(r"\b(?:more|less|fewer|greater|higher|lower|better|worse|shorter|longer|cheaper|faster|slower|"
-                     r"larger|smaller|above|below|exceed\w*|beat\w*)\b", re.I)
+_BEYOND = re.compile(r"\b(?:" + L.CMP_WORDS + r"|above|below|exceed\w*|beat\w*)\b", re.I)
 
 
 def _extremes(stmt: str) -> list[str]:
