@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased: a figure said twice, a comparison in another tense
+
+Fixes from an independent audit of 0.7.27 (HG-027-01, -02) and from paraphrases written after the first fix; each case
+below failed on 0.7.27 and is now a test (`tests/test_figure_said_twice.py`, 22 of its 34 cases fail on 0.7.27).
+
+- **A figure said in a clause that claims nothing doesn't lend it words** (HG-027-01). 0.7.27 read every clause that
+  stated a count's figure for what the count was about, so "Speed was recorded above 26 separately; no route is longer
+  than 26 km" still let a speed count named "routes longer than 26 km" back the length claim, and cargo counts back
+  passenger claims the same way. Of the clauses that state the figure, only those that make the claim (an absolute or
+  an extreme) are read now, when any does.
+- **A comparison is read the same in every tense** (HG-027-02). "No route exceeded 26 km" was an absolute, but its
+  figure went unread ("exceeds" was read, "exceeded" wasn't), so any complete count backed it, even beside a count of 1
+  route over 26. Every stage now reads one list: "exceed" and "surpass" in every tense, "above", "below", "beyond", and
+  "over" / "under" after "is" / "was" or the noun "no" opens ("no route under 20 km exists"); not "over 1000 runs",
+  which says how many were run. A comparison whose figure still can't be read ("no route is longer than the usual
+  one") is backed only by a count that makes that comparison, never by one that compares nothing.
+- **"None of the 4 routes" is still contradicted by its count.** An absolute over a set the sentence enumerates needs no
+  count of its own, but it used to skip the check entirely, so a bound count of 1 route over 26 went unread. A count
+  that finds an exception now contradicts an enumerated "none" or "neither". An enumerated "all" / "every" stays
+  exempt: in the recorded entries it names the set a count ran over ("across all 1,024 selections, 2 fit").
+- **One count backs "no route exceeds 26 km".** "Exceeds" with a figure inside an absolute is a bound the absolute check
+  settles, not two measured things compared; the comparison check no longer asks for a second measurement there.
+- Replaying the 1,900 recorded adversarial entries changes none, and every trial's standing is the same. This is
+  still word matching: the typed claim layer the audits recommend is not built.
+
 ## 0.7.27 — 2026-11-01: words said elsewhere, comparisons the checks didn't know
 
 Fixes from an independent audit of 0.7.26 (HG-026-01, -02); each case below failed on 0.7.26 and is now a test
