@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: typed claim assertions
+## 0.8.0 — 2026-11-01: typed claim assertions
 
 Eight independent audits (HG-020 → HG-028) found the same class of failure, each time in a new wording: to decide
 whether a count backs or contradicts a claim, the checks read words — the result's key and the claimant's

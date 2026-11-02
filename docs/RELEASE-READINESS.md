@@ -232,7 +232,7 @@ was taken from a changelog without being checked against the code.*
 > and significance are still word-checked. In typed mode the prose remains the author's: a sentence that asserts
 > more than its atoms is refused (`ASSERTION_MISSING`), but a detection miss leaves prose unverified rather than
 > verified, and the record shows the atoms, not the sentence, as what it checked. Replaying the 1,900 recorded
-> adversarial entries changes none.
+> adversarial entries changes none. #102 is merged with green CI (17 of 17 checks). Released as 0.8.0.
 
 ## Recommendation: CONDITIONAL GO
 
