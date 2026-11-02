@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: an extreme that quotes its own counterexample
+## 0.8.2 — 2026-11-01: an extreme that quotes its own counterexample; a disputed answer
 
 - **A quoted counterexample no longer excuses an extreme.** A stated count used to exempt an extreme whenever its
   clause said "k of n ... than", meant for a count about a figure of the statement's own ("the shortest is 21 km; 1 of
@@ -13,6 +13,13 @@
 - Replayed on 1,900 recorded claim writes: 5 change, all now refused. Four are an extreme stated beside the count
   that shows it false. One is a retraction worded as the claim ("the highest is 80, but this is not correct: 3 of
   1,024 are worth more"). Who the record names as still saying something false is unchanged or better on every set.
+- **`hypgraph demo dispute`: a disputed answer.** A teaching record in which two parties answer one question from the
+  same road register. Ada makes an honest mistake, the record refuses it (`COUNT_CONTRADICTS`) and she corrects it.
+  Mallory cites the register's units note for a claim it contradicts, is refused twice (`SOURCE_CONTRADICTS`) and files
+  it without the note. An independent reviewer checks one claim and fails the other, so the Evidence view shows one
+  answer checked and one contested, and `Graph.conduct()` names who kept saying it. It is also on the website
+  (`examples/dispute/`, in every site language) and in the README. `hypgraph demo` with no name still builds Broad
+  Street.
 
 ## 0.8.1 — 2026-11-01: exact figures, units within their kind
 
