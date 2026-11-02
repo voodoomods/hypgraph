@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: exact figures, units within their kind
+## 0.8.1 — 2026-11-01: exact figures, units within their kind
 
 An independent audit of 0.8.0 found two defects in the typed checks, both confirmed on the published wheel.
 
