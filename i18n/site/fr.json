@@ -479,7 +479,16 @@
 "41986b30dc": "L’un de trois registres HypGraph reliés par des références épinglées, dessinés ensemble et chacun vérifié séparément.",
 "e51c55255b": "Registres",
 "0e43422af9": "Broad Street, 1854 · registres liés — HypGraph",
-"2b616fa2b8": "East London, 1866 · registres liés — HypGraph"
+"2b616fa2b8": "East London, 1866 · registres liés — HypGraph",
+"adc6131df2": "Une réponse contestée",
+"75aa1a1c1a": "Une erreur de bonne foi et un mensonge sur la même question. Le registre refuse les deux, la partie honnête corrige la sienne, la menteuse le répète, et un relecteur indépendant contrôle une affirmation et rejette l’autre.",
+"d72041bc0d": "affirmations",
+"24468cae27": "<1/> contrôlée · <2/> contestée",
+"0bc6644174": "<1/> événements · <2/> nœuds · <3/> écritures refusées",
+"35fc06681a": "<1>Voir qui est désigné</1>",
+"9b3d69efd4": "Une réponse contestée — HypGraph",
+"f8519659b3": "Une erreur de bonne foi et un mensonge sur une question : le registre HypGraph contrôle une réponse, conteste l’autre et dit quel auteur a continué de l’affirmer.",
+"20a6f53018": "<1>Une réponse contestée</1> · deux parties répondent à une question à partir du même registre routier. <2>Ada</2> commet une erreur de bonne foi : 30 km, alors que l’instrument compte 1 itinéraire sur 4 plus court. Le registre la refuse (<3/>) et elle la corrige en 29 km. <4>Mallory</4> affirme que le registre est en miles, en citant comme appui la note des unités du registre lui-même, qui dit kilomètres. Le registre refuse (<5/>), elle le répète, puis le dépose sans la note. Un relecteur indépendant confronte les deux au registre. Personne n’étiquette personne : le statut ci-dessous est dérivé à la lecture, tout comme le journal de conduite, qui dit qu’Ada a corrigé ce qu’on lui a montré et que Mallory l’a répété 2 fois, ne l’a jamais corrigé et le maintient."
 },
 "js": {
 "Couldn't load the bundle: {e}": "Impossible de charger le bundle : {e}",

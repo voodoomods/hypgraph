@@ -2,6 +2,7 @@
 hypgraph — the command line.
 
     hypgraph demo                       build the Broad Street (1854) teaching investigation into ./research.hypgraph
+    hypgraph demo dispute               an honest mistake and a lie: the record checks one and contests the other
     hypgraph serve                      open the HypGraph UI on http://127.0.0.1:8765
     hypgraph init "Plant growth" --objective "…" --reviewers ada,lin
     hypgraph add hypothesis statement="Blue light grows cress faster." predictions='["taller after 7 days"]'
@@ -351,19 +352,27 @@ def cmd_import(args) -> int:
 
 
 def cmd_demo(args) -> int:
-    from .demos import broad_street
+    import importlib
+
+    from .demos import DEMOS
+    demo = importlib.import_module(DEMOS[args.name])
     if Path(args.db).exists():
-        raise GraphError(f"{args.db} exists — choose another file: hypgraph demo --db broad-street.hypgraph")
-    g, inv, story = broad_street.build(path=args.db)
+        raise GraphError(f"{args.db} exists — choose another file: hypgraph demo {args.name} --db {args.name}.hypgraph")
+    g, inv, story = demo.build(path=args.db)
+    conduct = g.conduct(inv) if args.name == "dispute" else {}
     if args.json:
-        _out(args, {"db": g.path, "inv": inv, "story": story})
+        _out(args, {"db": g.path, "inv": inv, "story": story, **({"conduct": conduct} if conduct else {})})
         return 0
     for s in story:
         print(f"{s['at']}  {s['actor']:<10} {s['text']}")
         if "refused" in s:
             print("            ✗ the record refused it:\n              " +
                   s["refused"].replace("\n", "\n              "))
-    print(f"\nBuilt {broad_street.TITLE!r} into {g.path}.\nExplore it:  hypgraph --db {args.db} serve"
+    if conduct:
+        print("\nWhat the record says of each author:")
+        for who, row in conduct.items():
+            print(f"  {who:<10} {row['sentence']}")
+    print(f"\nBuilt {demo.TITLE!r} into {g.path}.\nExplore it:  hypgraph --db {args.db} serve"
           f"   ·   hypgraph --db {args.db} report")
     return 0
 
@@ -553,7 +562,9 @@ def build_parser() -> argparse.ArgumentParser:
                         "outside the hash chain")
     s = cmd("import", cmd_import, "rebuild a graph file from a complete bundle")
     s.add_argument("bundle")
-    cmd("demo", cmd_demo, "build the Broad Street (1854) teaching investigation")
+    s = cmd("demo", cmd_demo, "build a teaching investigation: Broad Street (1854), or a disputed answer")
+    s.add_argument("name", nargs="?", default="broad-street", choices=["broad-street", "dispute"],
+                   help="broad-street (default), or dispute: an honest mistake and a lie, told apart by the record")
     cmd("schema", cmd_schema, "the node types and relations")
     s = cmd("refusals", cmd_refusals, "the overclaims the record caught: per author, per rule, fixed or open")
     s.add_argument("--inv", default="")

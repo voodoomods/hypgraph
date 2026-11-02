@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from hypgraph import __version__  # noqa: E402
-from hypgraph.demos import broad_street, linked  # noqa: E402
+from hypgraph.demos import broad_street, dispute, linked  # noqa: E402
 from hypgraph.schema import describe  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "dev"))
@@ -255,7 +255,7 @@ def example_stats(path: Path) -> dict:
             "stopped": end.get("stopped", ""), "head": b["head"], "size": path.stat().st_size}
 
 
-def write_examples(lk: dict) -> None:
+def write_examples(lk: dict, dp: dict) -> None:
     data = SITE / "data" / "examples"
     stats = {k: example_stats(data / f"{k}.bundle.json") for k, *_ in EXAMPLES if (data / f"{k}.bundle.json").is_file()}
     if len(stats) != len(EXAMPLES):
@@ -295,6 +295,16 @@ def write_examples(lk: dict) -> None:
 </a>""")
     v = lambda x: f"<span data-v>{html.escape(str(x))}</span>"  # noqa: E731
     lo = lk["london"]
+    cards.append(f"""<a class="excard excard-linked" href="dispute/">
+  <div class="who">A disputed answer</div>
+  <h2 translate="no">{html.escape(dp["title"])}</h2>
+  <p>An honest mistake and a lie about the same question. The record refuses both, the honest party corrects hers,
+    the liar says it again, and an independent reviewer checks one claim and fails the other.</p>
+  <dl><dt>claims</dt><dd>{v(dp["checked"])} checked · {v(dp["contested"])} contested</dd>
+    <dt>record</dt><dd>{v(dp["events"])} events · {v(dp["nodes"])} nodes · {v(dp["refused"])} writes refused</dd></dl>
+  <div class="codes"><code>COUNT_CONTRADICTS</code> <code>SOURCE_CONTRADICTS</code></div>
+  <span class="go">See who gets called out</span>
+</a>""")
     cards.append(f"""<a class="excard excard-linked" href="linked/">
   <div class="who">Linked records</div>
   <h2 translate="no">{html.escape(lo["title"])}</h2>
@@ -386,6 +396,38 @@ def write_linked() -> dict:
     return stats
 
 
+def write_dispute() -> dict:
+    """The disputed-answer demo (hypgraph.demos.dispute), opened on the Evidence view: one claim checked, one
+    contested. The note says what the record did and what its conduct log says of each party."""
+    g, inv, story = dispute.build()
+    b = g.export()
+    b["story"] = story
+    write(SITE / "data" / "examples" / "dispute.bundle.json", json.dumps(b, ensure_ascii=False, separators=(",", ":")))
+    conduct = g.conduct(inv)
+    review = [g.get(x["node"])["state"]["review"]["state"] for x in story if x.get("code", "").startswith("CL")]
+    bar = ('<a class="crumb" href="../">Examples</a><span class="sp"></span>'
+           '<a class="act" href="../../data/examples/dispute.bundle.json" download>Download bundle</a>'
+           '<a class="act hide-sm" href="../../verify/">Verify it</a>')
+    a, m = conduct["ada"], conduct["mallory"]
+    assert a["corrected"] and not a["ends_false"] and m["ends_false"] and not m["corrected"]
+    note = ('<p class="appnote"><b>A disputed answer</b> · two parties answer one question from the same road '
+            'register. <b>Ada</b> makes an honest mistake: 30 km, when the instrument counts 1 of 4 routes shorter. '
+            'The record refuses it (<code>COUNT_CONTRADICTS</code>) and she corrects it to 29 km. <b>Mallory</b> '
+            'says the register is in miles, citing the register\u2019s own units note, which says kilometres. The '
+            'record refuses it (<code>SOURCE_CONTRADICTS</code>), she says it again, then files it without the note. '
+            'An independent reviewer reads both against the register. Nobody labels anyone: the standing below is '
+            'derived on read, and so is the conduct log, which says Ada corrected what she was shown and Mallory '
+            f'said it again {m["reasserted"]} times, never corrected it, and still says it.</p>')
+    mount = ('<div data-hypgraph data-bundle="../../data/examples/dispute.bundle.json" data-hash="on" '
+             'data-view="evidence" aria-label="A disputed answer"></div>')
+    write(SITE / "examples" / "dispute" / "index.html",
+          app_page("../../", "A disputed answer", "An honest mistake and a lie about one question: the HypGraph record "
+                   "checks one answer, contests the other, and says which author kept saying it.", bar, note, mount))
+    return {"title": dispute.TITLE, "events": len(b["events"]), "nodes": len(b["nodes"]),
+            "refused": sum("refused" in x for x in story), "checked": review.count("checked"),
+            "contested": review.count("contested")}
+
+
 def write_explore() -> None:
     bar = ('<a class="crumb" href="../examples/">Examples</a><span class="sp"></span>'
            '<a class="act" href="../verify/">Verify another bundle</a>')
@@ -426,7 +468,7 @@ def main() -> None:
     shutil.copy2(PKG / "ui" / "hypgraph.svg", SITE / "assets" / "hypgraph.svg")
     print("  site/app/vendor/, site/assets/hypgraph.svg")
     write_explore()
-    write_examples(write_linked())
+    write_examples(write_linked(), write_dispute())
 
     py = SITE / "py"
     shutil.rmtree(py, ignore_errors=True)

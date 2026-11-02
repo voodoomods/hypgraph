@@ -104,6 +104,34 @@ CL1 — withdrawn claim · …
   ⚠ 2 nodes rest on CL1: 1 decision (D1); 1 claim (CL2) — now AT RISK
 ```
 
+## Calling out a bad answer
+
+Two agents answer one question from the same road register. One makes an honest mistake and the other lies. The
+record tells them apart, and nobody has to label anyone:
+
+<p align="center"><a href="https://hypgraph.com/examples/dispute/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://hypgraph.com/assets/readme/dispute-dark.png">
+  <img src="https://hypgraph.com/assets/readme/dispute-light.png" width="880" alt="The Evidence view of a disputed answer: Ada's claim that the shortest route is 29 km is checked, Mallory's claim that the register is in miles is contested, above the two route counts the instrument filed and the seven register items they rest on">
+</picture></a></p>
+<p align="center"><sub>Standing derived from the record: one answer checked, the other contested. <code>hypgraph demo dispute</code> builds it; <a href="https://hypgraph.com/examples/dispute/">open it live</a>.</sub></p>
+
+- **Ada** says the shortest route is 30 km. The instrument counted 1 of the 4 routes as shorter, so the record refuses
+  it (`COUNT_CONTRADICTS`). She corrects it to 29 km, which the count backs.
+- **Mallory** says the register is in miles, and cites the register's own units note as support. The note says
+  kilometres, so the record refuses it (`SOURCE_CONTRADICTS`). She says it again and is refused again.
+
+The record can't catch every lie by itself: once Mallory stops citing the note, her claim goes in. But it keeps what
+she was shown. The reviewer fails her claim against the note, and the conduct log (`hypgraph refusals`,
+`Graph.conduct()`) says who corrected what they were shown and who kept saying it:
+
+```text
+$ hypgraph demo dispute
+…
+What the record says of each author:
+  ada        the record's own count contradicted a claim of this author's 1 time; the author did not say it again, and corrected it 1 time
+  mallory    1 claim of this author's went against a source it cited as support; the author said it again 2 times after being shown, and never corrected it; its last word still says it
+```
+
 ## Derived, never asserted
 
 Nothing in the record is ever *set* as known. How well each claim is known is **derived on every read**:

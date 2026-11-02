@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Una respuesta en disputa — HypGraph</title>
+<meta name="description" content="Un error honesto y una mentira sobre una pregunta: el registro de HypGraph comprueba una respuesta, impugna la otra y dice qué autor siguió diciéndolo.">
+<link rel="icon" href="../../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../assets/site.css">
+<link rel="stylesheet" href="../../../app/hypgraph.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('hg-theme')||'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+<!--i18n:strings--><script src="../../../assets/strings.es.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/examples/dispute/" data-rel="../../../examples/dispute/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/examples/dispute/" data-rel="../../../es/examples/dispute/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/examples/dispute/" data-rel="../../../fr/examples/dispute/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/examples/dispute/" data-rel="../../../de/examples/dispute/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/examples/dispute/" data-rel="../../../zh-Hans/examples/dispute/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/examples/dispute/"><!--/i18n:alt-->
+</head>
+<body class="apppage">
+<header class="appbar"><a class="brand" href="../../"><img src="../../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+<a class="crumb" href="../">Ejemplos</a><span class="sp"></span><a class="act" href="../../../data/examples/dispute.bundle.json" download>Descargar el bundle</a><a class="act hide-sm" href="../../verify/">Verificarlo</a><!--i18n:menu--><details class="langs"><summary aria-label="Idioma" title="Idioma">ES</summary><div class="langs-menu"><a href="../../../examples/dispute/" hreflang="en" lang="en">English</a><a href="../../../es/examples/dispute/" hreflang="es" lang="es" aria-current="page">Español</a><a href="../../../fr/examples/dispute/" hreflang="fr" lang="fr">Français</a><a href="../../../de/examples/dispute/" hreflang="de" lang="de">Deutsch</a><a href="../../../zh-Hans/examples/dispute/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--></header>
+<!--i18n:note--><p class="i18n-note appnote">Esta página es una traducción. La versión en inglés es la de referencia: <a href="../../../examples/dispute/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<p class="appnote"><b>Una respuesta en disputa</b> · dos partes responden a una pregunta con el mismo registro de carreteras. <b>Ada</b> comete un error honesto: 30 km, cuando el instrumento cuenta 1 de 4 rutas más cortas. El registro lo rechaza (<code>COUNT_CONTRADICTS</code>) y ella lo corrige a 29 km. <b>Mallory</b> dice que el registro está en millas y cita como apoyo la propia nota de unidades del registro, que dice kilómetros. El registro lo rechaza (<code>SOURCE_CONTRADICTS</code>), ella lo repite y luego lo presenta sin la nota. Un revisor independiente lee ambas afirmaciones frente al registro. Nadie etiqueta a nadie: la situación que se ve abajo se deriva al leer, y también el registro de conducta, que dice que Ada corrigió lo que se le mostró y que Mallory lo repitió 2 veces, nunca lo corrigió y lo sigue diciendo.</p><div class="appfull"><div data-hypgraph data-bundle="../../../data/examples/dispute.bundle.json" data-hash="on" data-view="evidence" aria-label="Una respuesta en disputa"></div></div>
+<script src="../../../app/vendor/cytoscape.min.js"></script>
+<script src="../../../app/vendor/layout-base.js"></script>
+<script src="../../../app/vendor/cose-base.js"></script>
+<script src="../../../app/vendor/cytoscape-fcose.js"></script>
+<script src="../../../app/hypgraph.js"></script>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/embed.js"></script>
+</body>
+</html>

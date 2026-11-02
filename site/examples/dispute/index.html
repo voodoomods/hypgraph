@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A disputed answer — HypGraph</title>
+<meta name="description" content="An honest mistake and a lie about one question: the HypGraph record checks one answer, contests the other, and says which author kept saying it.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="stylesheet" href="../../app/hypgraph.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('hg-theme')||'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/examples/dispute/" data-rel="../../examples/dispute/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/examples/dispute/" data-rel="../../es/examples/dispute/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/examples/dispute/" data-rel="../../fr/examples/dispute/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/examples/dispute/" data-rel="../../de/examples/dispute/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/examples/dispute/" data-rel="../../zh-Hans/examples/dispute/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/examples/dispute/"><!--/i18n:alt-->
+</head>
+<body class="apppage">
+<header class="appbar"><a class="brand" href="../../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+<a class="crumb" href="../">Examples</a><span class="sp"></span><a class="act" href="../../data/examples/dispute.bundle.json" download>Download bundle</a><a class="act hide-sm" href="../../verify/">Verify it</a><!--i18n:menu--><details class="langs"><summary aria-label="Language" title="Language">EN</summary><div class="langs-menu"><a href="../../examples/dispute/" hreflang="en" lang="en" aria-current="page">English</a><a href="../../es/examples/dispute/" hreflang="es" lang="es">Español</a><a href="../../fr/examples/dispute/" hreflang="fr" lang="fr">Français</a><a href="../../de/examples/dispute/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/examples/dispute/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--></header>
+<p class="appnote"><b>A disputed answer</b> · two parties answer one question from the same road register. <b>Ada</b> makes an honest mistake: 30 km, when the instrument counts 1 of 4 routes shorter. The record refuses it (<code>COUNT_CONTRADICTS</code>) and she corrects it to 29 km. <b>Mallory</b> says the register is in miles, citing the register’s own units note, which says kilometres. The record refuses it (<code>SOURCE_CONTRADICTS</code>), she says it again, then files it without the note. An independent reviewer reads both against the register. Nobody labels anyone: the standing below is derived on read, and so is the conduct log, which says Ada corrected what she was shown and Mallory said it again 2 times, never corrected it, and still says it.</p><div class="appfull"><div data-hypgraph data-bundle="../../data/examples/dispute.bundle.json" data-hash="on" data-view="evidence" aria-label="A disputed answer"></div></div>
+<script src="../../app/vendor/cytoscape.min.js"></script>
+<script src="../../app/vendor/layout-base.js"></script>
+<script src="../../app/vendor/cose-base.js"></script>
+<script src="../../app/vendor/cytoscape-fcose.js"></script>
+<script src="../../app/hypgraph.js"></script>
+<script src="../../assets/site.js"></script>
+<script src="../../assets/embed.js"></script>
+</body>
+</html>
