@@ -196,6 +196,23 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #98 is merged with green CI (17 of 17 checks). This is still word matching; the typed claim
 > layer the audits recommend is not built. Released as 0.7.27.
 
+> **Audit of 0.7.27 (2026-11-01), fixed for 0.7.28.** An eighth independent audit named two defects; both reproduced
+> on the PyPI 0.7.27 wheel (7 of the audit's 9 cases failed, its 2 controls passed). Repeating the count's figure in a
+> clause that claims nothing ("Speed was recorded above 26 separately; no route is longer than 26 km") still let that
+> clause's words say what the count was of (HG-027-01). And "no route exceeded 26 km" was read as an absolute without
+> its figure, so a complete count of anything backed it, even beside a counted counterexample (HG-027-02). Only the
+> clauses that make the claim are read now; every stage reads one list of comparison words in every tense; a
+> comparison whose figure can't be read is backed only by a count that makes it. Holdout paraphrases written after the
+> first fix found three more gaps, fixed before merge: an enumerated "none of the 4 routes" skipped the check, so a
+> counterexample went unread; "over 1000 runs" must not read as a bound; and one honest count was refused for "no route
+> exceeds 26 km". A first version of the enumerated fix refused three honest corrections in the replay ("across all
+> 1,024 selections, 2 fit"), so it covers "none" / "neither" only. Replaying the 1,900 recorded adversarial entries
+> changes none.
+>
+> **Where that stands.** #100 is merged with green CI (17 of 17 checks). An enumerated "all 4 routes" is still not
+> checked against a counterexample. This is still word matching; the typed claim layer the audits recommend is not
+> built. Released as 0.7.28.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one

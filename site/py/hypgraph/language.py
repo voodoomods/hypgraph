@@ -19,6 +19,11 @@ CMP_WORDS = ("longer|shorter|more|less|fewer|greater|higher|lower|larger|smaller
              "cheaper|dearer|earlier|later|heavier|lighter|warmer|hotter|colder|cooler|older|younger|newer|taller|wider|"
              "narrower|deeper|shallower|louder|quieter|stronger|weaker")
 NOT_CMP = "other|rather|either|neither|whether|never|ever|over|under|after|per|number|order|matter"
+# the words other than "-er than" that compare with a figure, in every tense ("no route exceeded 26 km" is the same
+# claim as "no route exceeds 26 km": audit HG-027-02). "over" and "under" are apart: "over 1,024 selections" is how
+# many were counted, not a bound, so they compare only after "is" / "was" or a noun that "no" opens.
+CMP_PREPS = "above|below|beyond"
+CMP_VERBS = "exceed(?:s|ed|ing)?|surpass(?:es|ed|ing)?"
 
 ABSOLUTE = re.compile(
     r"\b(never|always|all|every|none|nothing|no one|nobody|impossible|cannot|can't|proves?|proven|proof|certainly|"
@@ -31,8 +36,8 @@ ABSOLUTE = re.compile(
     # Any comparison word, and any verb before it: "no crate is heavier than 40 kg", "no shift had errors above 5",
     # "no crate weighs more than 40 kg" (audit HG-026-01: these went unread, so any count backed them)
     r"|(?<![a-z] )no(?=\s+(?:[a-z]+\s+){1,4}?(?:(?:is|are|was|were)\s+(?:any\s+)?)?(?:at\s+(?:least|most)\s|"
-    r"\$?\d[\d,.]*(?:\s+[a-z%]+){0,2}\s+or\s+(?:" + CMP_WORDS + r")\b|(?:" + CMP_WORDS + r"|above|below|over|under|"
-    r"exceed(?:s|ed|ing)?)\b|(?!(?:" + NOT_CMP + r")\b)[a-z]{3,}er\s+than\b)))\b|(?<![\d.])100\s*%", re.I)
+    r"\$?\d[\d,.]*(?:\s+[a-z%]+){0,2}\s+or\s+(?:" + CMP_WORDS + r")\b|(?:" + CMP_WORDS + r"|" + CMP_PREPS + r"|over|"
+    r"under|" + CMP_VERBS + r")\b|(?!(?:" + NOT_CMP + r")\b)[a-z]{3,}er\s+than\b)))\b|(?<![\d.])100\s*%", re.I)
 # a superlative names an extreme ("the highest value is 93"): a count of anything beyond it contradicts it
 SUPERLATIVE = re.compile(
     r"\b(highest|lowest|largest|smallest|shortest|longest|greatest|fewest|best|worst|maximum|minimum|optimal|"

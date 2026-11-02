@@ -262,15 +262,19 @@ _SAYING = re.compile(r"[;:!?]|\.(?!\d)|,\s*(?=(?:and|but|while|whereas|although|
 
 
 def _clauses_at(stmt: str, figs: set[float]) -> str:
-    """The parts of ``stmt`` that state one of ``figs``: what a count against that figure must be about is said there,
-    not in another sentence. "Speed was recorded separately; no route is longer than 26 km" says nothing about speed
-    where it says 26 km, so a speed count named "routes longer than 26 km" can't borrow the word (audit HG-026-01).
-    The whole statement when no part states one."""
+    """The parts of ``stmt`` that state one of ``figs`` and make the claim: what a count against that figure must be
+    about is said there, not in another sentence. "Speed was recorded separately; no route is longer than 26 km" says
+    nothing about speed where it says 26 km, so a speed count named "routes longer than 26 km" can't borrow the word
+    (audit HG-026-01), nor can it when the other sentence repeats the 26 (HG-027-01). The whole statement when no part
+    states one."""
     if not stmt or not figs:
         return stmt
     parts = [p for p in _SAYING.split(stmt) if p and p.strip()]
-    hit = [_from_claim(p) for p in parts if {round(v[0], 6) for v in numbers(p)} & {round(f, 6) for f in figs}]
-    return " . ".join(hit) if hit else stmt
+    hit = [p for p in parts if {round(v[0], 6) for v in numbers(p)} & {round(f, 6) for f in figs}]
+    # of those, the parts that make a claim ("no route is longer than 26 km"), when any does: "speed was recorded
+    # above 26" repeats the figure but claims nothing, so its words can't say what the count was of (audit HG-027-01)
+    claims = [p for p in hit if L.ABSOLUTE.search(p) or L.SUPERLATIVE.search(p)]
+    return " . ".join(_from_claim(p) for p in claims or hit) if hit else stmt
 
 
 def _from_claim(part: str) -> str:
@@ -335,7 +339,7 @@ _PROVEN = re.compile(r"^prov(?:es?|en|ed)$|^proof$", re.I)
 
 # the figure a count is about: "fitting selections worth more than 93", "routes shorter than 26 km" (or, matching a
 # figure the claim names, "worth_more_93"). A count of nothing beyond 140 says nothing about 93 (audit HG-020-01/02).
-_COUNT_FIGURE = re.compile(r"\b(?:(?:" + L.CMP_WORDS + r"|(?!(?:" + L.NOT_CMP + r")\b)[a-z]{3,}er)\s+than|above|below|over|under|beyond|exceed\w*|beat\w*)\s+\$?"
+_COUNT_FIGURE = re.compile(r"\b(?:(?:" + L.CMP_WORDS + r"|(?!(?:" + L.NOT_CMP + r")\b)[a-z]{3,}er)\s+than|above|below|over|under|beyond|exceed\w*|surpass\w*|beat\w*)\s+\$?"
                            r"(-?\d[\d,]*(?:\.\d+)?)", re.I)
 # the figure a name gives before its comparison or with "at least": "routes 26 km or longer", "routes at least 26 km"
 _COUNT_FIGURE_BOUNDARY = re.compile(r"\bat\s+(?:least|most)\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\$?(-?\d[\d,]*(?:\.\d+)?)"
@@ -353,11 +357,20 @@ def _named_figure(name: str) -> tuple[float, str] | None:
     return None
 
 
-_KEY_FIGURE = re.compile(r"\b(?:" + L.CMP_WORDS + r"|above|below|over|under|beyond|exceed\w*|beat\w*)(?:\s+than)?\s+"
+_KEY_FIGURE = re.compile(r"\b(?:" + L.CMP_WORDS + r"|above|below|over|under|beyond|exceed\w*|surpass\w*|beat\w*)"
+                         r"(?:\s+than)?\s+"
                          r"(\d+(?:\.\d+)?)$", re.I)
 # the figure an absolute names in its own clause: "nothing worth more than 93 fits", "no route is shorter than 26 km"
-_CLAIM_FIGURE = re.compile(r"\b(?:" + L.CMP_WORDS + r"|(?!(?:" + L.NOT_CMP + r")\b)[a-z]{3,}er)\s+than\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\b(?:above|below|beyond|"
-                           r"exceed(?:s|ing)?)\s+\$?(-?\d[\d,]*(?:\.\d+)?)", re.I)
+_CLAIM_FIGURE = re.compile(r"\b(?:" + L.CMP_WORDS + r"|(?!(?:" + L.NOT_CMP + r")\b)[a-z]{3,}er)\s+than\s+\$?"
+                           r"(-?\d[\d,]*(?:\.\d+)?)|\b(?:" + L.CMP_PREPS + r"|" + L.CMP_VERBS + r")\s+\$?"
+                           r"(-?\d[\d,]*(?:\.\d+)?)|\b(?:is|are|was|were)\s+(?:over|under)\s+\$?(-?\d[\d,]*(?:\.\d+)?)",
+                           re.I)
+# "over" / "under" right after the noun "no" opens: "no route under 41 km exists" (``CMP_PREPS``)
+_CLAIM_OVER = re.compile(r"^\s*[a-z]+\s+(?:over|under)\s+\$?(-?\d[\d,]*(?:\.\d+)?)", re.I)
+# a comparison with a figure the checks can't read ("no route is longer than the usual one"): what it compares is
+# still read, so a count that compares nothing, or another way, can't back it (audit HG-027-02)
+_UNREAD_CMP = re.compile(r"\b(?:(?:" + L.CMP_WORDS + r"|(?!(?:" + L.NOT_CMP + r")\b)[a-z]{3,}er)\s+than|"
+                         + L.CMP_PREPS + r"|" + L.CMP_VERBS + r")\b", re.I)
 _CLAIM_BOUNDARY = re.compile(r"\bat\s+(?:least|most)\s+\$?(-?\d[\d,]*(?:\.\d+)?)|\$?(-?\d[\d,]*(?:\.\d+)?)"
                              r"(?:\s+[a-z%]+){0,2}\s+or\s+(?:" + L.CMP_WORDS + r")\b", re.I)
 _SUBCLAUSE = re.compile(r",(?!\d)|[;:!?()]|\.(?!\d)|\b(?:and|but|while|whereas|although|so)\b", re.I)
@@ -395,7 +408,8 @@ def _count_figures(m: dict, rv: dict, figs: set[float] = frozenset()) -> set[flo
 # routes longer than 26 km says nothing against "the shortest is 26 km" (audit HG-022-01), and none shorter than 26
 # doesn't back "nothing is longer than 26" (HG-022-02).
 _DIRECTION_WORDS = {
-    "": {1: "more greater higher larger bigger above over exceed exceeds exceeding exceeded most highest largest "
+    "": {1: "more greater higher larger bigger above over beyond exceed exceeds exceeding exceeded surpass surpasses "
+            "surpassed surpassing most highest largest "
             "greatest biggest maximum max top",
          -1: "less fewer lower smaller below under least lowest smallest fewest minimum min"},
     "long": {1: "longer longest", -1: "shorter shortest"},
@@ -492,14 +506,18 @@ def _count_directions(m: dict, rv: dict) -> set[tuple[str, int]]:
 _ALL = re.compile(r"^(?:always|all|every|universally|invariably|consistently|without exception|100\s*%)$", re.I)
 
 
-def _clause_comparisons(clause: str) -> list[tuple[float, tuple[str, int, bool] | None]]:
+def _clause_comparisons(clause: str, after_no: bool = False) -> list[tuple[float, tuple[str, int, bool] | None]]:
     """(figure, comparison) for each comparison against a figure in a claim's clause: "longer than 26 km", "at least
-    26", "26 km or longer", "no more than 93", "above 93"; None for one that points nowhere ("beyond 93")."""
+    26", "26 km or longer", "no more than 93", "above 93", "exceeded 26"; None for one that points nowhere. With
+    ``after_no``, the clause follows "no", and "over 26" / "under 26" after its noun compare too."""
     out = []
-    for h in _CLAIM_FIGURE.finditer(clause):
+    hits = list(_CLAIM_FIGURE.finditer(clause)) + list(_CLAIM_OVER.finditer(clause) if after_no else [])
+    for h in hits:
         neg = re.search(r"\b(?:not|no)\s+$", clause[:h.start()], re.I)      # "no more than 93" is at most 93
-        num = (h.group(1) or h.group(2)).replace(",", "")
-        out += [(float(num), c) for c in _comparisons_in(clause[neg.start() if neg else h.start():h.end()]) or {None}]
+        num = next(g for g in h.groups() if g).replace(",", "")
+        said = clause[neg.start() if neg else h.start():h.end()]
+        said = said if h.re is _CLAIM_FIGURE else said[re.search(r"over|under", said, re.I).start():]
+        out += [(float(num), c) for c in _comparisons_in(said) or {None}]
     for h in _CLAIM_BOUNDARY.finditer(clause):
         num = (h.group(1) or h.group(2)).replace(",", "")
         out += [(float(num), c) for c in _comparisons_in(h.group(0)) or {None}]
@@ -510,8 +528,8 @@ def _clause_comparisons(clause: str) -> list[tuple[float, tuple[str, int, bool] 
 MIXED = (frozenset(), frozenset({("mixed", 0, False)}))
 
 # "and" or "or" before a comparison with no subject of its own: "shorter than 20 km and longer than 30 km"
-_JOINED = re.compile(r"\s+(?:also\s+)?(?:(?:not|no)\s+)?(?:" + _CMP + r"\s+than\b|at\s+(?:least|most)\b|above\b|below\b|"
-                     r"beyond\b|exceed)", re.I)
+_JOINED = re.compile(r"\s+(?:also\s+)?(?:(?:not|no)\s+)?(?:" + _CMP + r"\s+than\b|at\s+(?:least|most)\b|"
+                     r"(?:" + L.CMP_PREPS + r"|" + L.CMP_VERBS + r")\b)", re.I)
 
 
 def _clause_end(stmt: str, start: int) -> int:
@@ -544,7 +562,10 @@ def _target_groups(stmt: str, w: str) -> list[list[tuple[frozenset, frozenset]]]
     for m in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I):
         clause = stmt[m.end():_clause_end(stmt, m.end())]
         targets = [(frozenset({fig}), frozenset() if c is None else frozenset({_negated(c) if every else c}))
-                   for fig, c in _clause_comparisons(clause)]
+                   for fig, c in _clause_comparisons(clause, after_no=w.lower() == "no")]
+        unread = _UNREAD_CMP.search(clause)
+        if not targets and unread and (comps := _comparisons_in(unread.group(0))):
+            targets = [(frozenset(), frozenset(_negated(c) if every else c for c in comps))]
         ands = any(_JOINED.match(clause, x.end()) for x in re.finditer(r"\band\b", clause, re.I))
         ors = any(_JOINED.match(clause, x.end()) for x in re.finditer(r"\bor\b", clause, re.I))
         if len(targets) > 1 and ands and ors:
@@ -767,8 +788,16 @@ def _pinned(m: dict, rv: dict, figs: set[float]) -> bool:
 
 def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     """Every absolute in the statement, and every extreme, checked on its own: a true "nothing worth more than 140
-    fits" used to end the check, and "the highest is 93" beside it went in unexamined (audit HG-021-02)."""
-    words = [w for w in L.asserted(L.ABSOLUTE, stmt) if not _enumerated(stmt, w)]
+    fits" used to end the check, and "the highest is 93" beside it went in unexamined (audit HG-021-02).
+
+    An absolute over a set the sentence enumerates ("none of the 4 routes") isn't a generalisation past the sample, so
+    it needs no count of its own; but a bound count that finds an exception still contradicts "none" or "neither"."""
+    said = L.asserted(L.ABSOLUTE, stmt)
+    enumerated = [w for w in said if _enumerated(stmt, w)]
+    words = [w for w in said if w not in enumerated]
+    # only "none" / "neither", which say nothing in the set is an exception: an enumerated "all" / "every" mostly names
+    # the set a count ran over ("across all 1,024 selections, 2 fit and are worth more"), and claims nothing of it
+    enumerated = [w for w in enumerated if w.lower() in ("none", "neither") and not _names_stated_count(stmt, w)]
     if any(str(m.get("key") or "").lower() in ("gap", "bound") for m, _rv in bound):
         words = [w for w in words if not _PROVEN.match(w)]      # an optimum with its bound (gap 0) is proven
     words = [w for w in words if not _names_counted_set(stmt, w, bound)]
@@ -797,6 +826,10 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
                     "on its own can't show that something meets both. Back it with a count of either one where k is "
                     "0, or count both together", fix="count what meets both comparisons together", words=words)]]
             out += [p for g in got for p in g if p.text() not in {q.text() for q in out}]
+    for w in enumerated:
+        for figs, comps in _absolute_targets(stmt, w):
+            out += [p for p in _absolute(stmt, scope, body, bound, w, enumerated, set(figs), set(comps))
+                    if p.code == "COUNT_CONTRADICTS" and p.text() not in {q.text() for q in out}]
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _superlative_contradicted(stmt, bound)
     return out
@@ -909,7 +942,7 @@ def _denied(after: str) -> bool:
 
 # a count named for what lies beyond a figure ("fitting selections worth more", "shorter routes connecting") is about
 # any extreme the statement claims, whatever words the statement uses for it ("the highest total value is 99")
-_BEYOND = re.compile(r"\b(?:" + L.CMP_WORDS + r"|above|below|exceed\w*|beat\w*)\b", re.I)
+_BEYOND = re.compile(r"\b(?:" + L.CMP_WORDS + r"|above|below|beyond|exceed\w*|surpass\w*|beat\w*)\b", re.I)
 
 
 def _extremes(stmt: str) -> list[str]:
@@ -1392,9 +1425,19 @@ def _p_values(s: Snap, bound: list, support: list[str]) -> list[float]:
     return ps
 
 
+def _thresholds(stmt: str, comp: list[str]) -> set[str]:
+    """Comparison words that only ever compare with a figure inside an absolute: "no route exceeds 26 km" rules out
+    routes past 26, which the absolute check settles with a count; it doesn't compare two measured things."""
+    if not L.asserted(L.ABSOLUTE, stmt):
+        return set()
+    return {w for w in comp if all(re.match(r"\s+\$?\d", stmt[h.end():])
+                                   for h in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I))}
+
+
 def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Problem]:
     out = []
     comp = L.asserted(L.COMPARATIVE, stmt)
+    comp = [w for w in comp if w not in _thresholds(stmt, comp)]
     tested = any(isinstance(rv.get("p"), (int, float)) or rv.get("interval") for _m, rv in bound)
     if comp and len([1 for _m, rv in bound if _primary(rv) is not None]) < 2 and not tested \
             and not _measured_claim(s, support):

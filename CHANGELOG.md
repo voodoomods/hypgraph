@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: a figure said twice, a comparison in another tense
+## 0.7.28 — 2026-11-01: a figure said twice, a comparison in another tense
 
 Fixes from an independent audit of 0.7.27 (HG-027-01, -02) and from paraphrases written after the first fix; each case
 below failed on 0.7.27 and is now a test (`tests/test_figure_said_twice.py`, 22 of its 34 cases fail on 0.7.27).
