@@ -206,6 +206,12 @@ def _cond(a: dict) -> str:
     return f"{a['property']} {SHOW_OP.get(a['op'], a['op'])} {fig}{u}"
 
 
+def whole_form(f):
+    """A figure with its exact value, an integral float as an int (26.0 → 26, 1e18 → 10**18): 26 and 26.0 are one
+    figure. (Not ``f.is_integer()`` on an int — that is Python 3.12+.)"""
+    return f if isinstance(f, int) else int(f) if float(f).is_integer() else f
+
+
 def stats_fmt(v) -> str:
     """A figure as it is: ints whole, floats exact (repr round-trips), so a rendered figure never hides a difference."""
     if isinstance(v, int):
@@ -357,7 +363,7 @@ def key(a) -> str:
         return json.dumps(a, sort_keys=True, default=str)[:300]
     u = _unit(a.get("unit"))
     f = a["figure"]
-    fig = f if isinstance(f, int) else int(f) if float(f).is_integer() else f      # 26 and 26.0 are one figure, exactly
+    fig = whole_form(f)                                                          # 26 and 26.0 are one figure, exactly
     return json.dumps([a["quantifier"], "/".join(path(a["population"]) or ()), prop(a["property"]), a["op"],
                        fig, sorted(u) if u else None, a.get("n"), a.get("k")], default=str)
 
@@ -425,7 +431,7 @@ def draft(s: Snap, body: dict, inv: str = "") -> list[dict]:
             pool = [(i, e) for i, e in typed if e["n"] == n]
             for i, e in [x for x in pool if x[1]["figure"] in figs] or pool:
                 add({"quantifier": "exactly", "population": _pop(e["population"]), "property": e["property"],
-                     "op": e["op"], "figure": int(e["figure"]) if e["figure"].is_integer() else e["figure"],
+                     "op": e["op"], "figure": whole_form(e["figure"]),
                      "k": k, "n": n, "measurement": i}, e)
     return out[:6]
 
