@@ -181,6 +181,21 @@ was taken from a changelog without being checked against the code.*
 > **Where that stands.** #96 is merged with green CI (17 of 17 checks). Kinds and subjects are still read from the
 > words around a comparison, a heuristic; the typed claim layer the audits recommend is not built. Released as 0.7.26.
 
+> **Audit of 0.7.26 (2026-11-01), fixed for 0.7.27.** A seventh independent audit named two defects; both reproduced on
+> the PyPI 0.7.26 wheel. A clause that only mentioned speed ("Speed was recorded separately; no route is longer than
+> 26 km") let a speed count named "routes longer than 26 km" back the length claim, and the same for cargo named as
+> passenger routes: the key's words were looked for anywhere in the statement (HG-026-01). Reproducing it found a
+> wider gap: "no crate is heavier than 40 kg" wasn't read as an absolute, so it went in with no count or with a count
+> of crate prices. And the 0.7.26 note that a count of the whole condition settles a mixed "and" / "or" clause promised
+> something nothing implements (HG-026-02). A key's words must now be said where the claim states the count's figure;
+> "no …" before any comparison is an absolute; eight more comparison pairs have axes of their own, and an unknown
+> "-er than" is met only by a count saying the same word; the mixed-clause refusal says to split the claim. Eleven
+> paraphrases written after the first fix found three more gaps (a three-letter subject, "span", a comma-led aside),
+> fixed before merge. Replaying the 1,900 recorded adversarial entries changes none.
+>
+> **Where that stands.** #98 is merged with green CI (17 of 17 checks). This is still word matching; the typed claim
+> layer the audits recommend is not built. Released as 0.7.27.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
