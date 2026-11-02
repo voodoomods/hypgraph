@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: words said elsewhere, comparisons the checks didn't know
+## 0.7.27 — 2026-11-01: words said elsewhere, comparisons the checks didn't know
 
 Fixes from an independent audit of 0.7.26 (HG-026-01, -02); each case below failed on 0.7.26 and is now a test
 (`tests/test_borrowed_words.py`).

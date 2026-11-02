@@ -14,6 +14,12 @@ from __future__ import annotations
 
 import re
 
+# every comparative the checks know, and the "-er than" words that aren't one ("other than", "rather than")
+CMP_WORDS = ("longer|shorter|more|less|fewer|greater|higher|lower|larger|smaller|bigger|better|worse|faster|slower|"
+             "cheaper|dearer|earlier|later|heavier|lighter|warmer|hotter|colder|cooler|older|younger|newer|taller|wider|"
+             "narrower|deeper|shallower|louder|quieter|stronger|weaker")
+NOT_CMP = "other|rather|either|neither|whether|never|ever|over|under|after|per|number|order|matter"
+
 ABSOLUTE = re.compile(
     r"\b(never|always|all|every|none|nothing|no one|nobody|impossible|cannot|can't|proves?|proven|proof|certainly|"
     r"certain|guaranteed?|guarantees|eliminat(?:es|ed|ing)|entirely|completely|totally|universally|invariably|"
@@ -22,14 +28,16 @@ ABSOLUTE = re.compile(
     # "no route is longer than 26 km": a universal negative comparison, the same claim as "nothing is longer"; only
     # where "no" opens its clause ("routes that visit no town twice" is not one); "no route is 26 km or longer" and
     # "no route is at least 26 km" too
-    r"|(?<![a-z] )no(?=\s+(?:[a-z]+\s+){1,3}?(?:is|are|was|were)\s+(?:any\s+)?(?:at\s+(?:least|most)\s|"
-    r"\$?\d[\d,.]*(?:\s+[a-z%]+){0,2}\s+or\s+(?:longer|shorter|more|less|fewer|greater|higher|lower|larger|smaller|"
-    r"better|worse|faster|slower|cheaper)\b|(?:longer|shorter|more|less|fewer|greater|higher|lower|larger|smaller|"
-    r"better|worse|faster|slower|cheaper|above|below|over|under)\b)))\b|(?<![\d.])100\s*%", re.I)
+    # Any comparison word, and any verb before it: "no crate is heavier than 40 kg", "no shift had errors above 5",
+    # "no crate weighs more than 40 kg" (audit HG-026-01: these went unread, so any count backed them)
+    r"|(?<![a-z] )no(?=\s+(?:[a-z]+\s+){1,4}?(?:(?:is|are|was|were)\s+(?:any\s+)?)?(?:at\s+(?:least|most)\s|"
+    r"\$?\d[\d,.]*(?:\s+[a-z%]+){0,2}\s+or\s+(?:" + CMP_WORDS + r")\b|(?:" + CMP_WORDS + r"|above|below|over|under|"
+    r"exceed(?:s|ed|ing)?)\b|(?!(?:" + NOT_CMP + r")\b)[a-z]{3,}er\s+than\b)))\b|(?<![\d.])100\s*%", re.I)
 # a superlative names an extreme ("the highest value is 93"): a count of anything beyond it contradicts it
 SUPERLATIVE = re.compile(
     r"\b(highest|lowest|largest|smallest|shortest|longest|greatest|fewest|best|worst|maximum|minimum|optimal|"
-    r"optimum|cheapest|fastest|slowest|biggest|earliest|latest)\b", re.I)
+    r"optimum|cheapest|fastest|slowest|biggest|earliest|latest|heaviest|lightest|warmest|hottest|coldest|coolest|"
+    r"oldest|youngest|newest|tallest|widest|narrowest|deepest|shallowest|loudest|quietest|strongest|weakest)\b", re.I)
 COMPARATIVE = re.compile(
     r"\b(better|worse|beats?|beat|outperform(?:s|ed|ing)?|underperform(?:s|ed|ing)?|improv(?:es|ed|ement|ing)|"
     r"superior|inferior|exceeds?|exceeded|higher than|lower than|more than|fewer than|less than|faster|slower|"
