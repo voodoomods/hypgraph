@@ -48,7 +48,8 @@ def next_experiments(g: "Graph", inv: str, limit: int = 10) -> dict:
     """Planned experiments ranked by how well they discriminate between live hypotheses, whether they can show their
     own power, and cost — duplicates and leased work flagged. Plus live hypotheses that no experiment tests yet."""
     s = g.snapshot()
-    live = set(_live_hypotheses(s, inv))
+    order = _live_hypotheses(s, inv)   # the record's order; the set is for membership only
+    live = set(order)
     dup = {x for grp in duplicates(s, inv) for x in grp[1:]}
     rows = []
     for i, n in s.nodes.items():
@@ -69,7 +70,7 @@ def next_experiments(g: "Graph", inv: str, limit: int = 10) -> dict:
     rows.sort(key=lambda r: (r["duplicate"], r["lease"] is not None, -r["score"]))
     tested = {e["dst"] for x, n in s.nodes.items() if n["type"] == "experiment" and n["inv"] == inv
               for e in s.out.get(x, []) if e["rel"] == "tests"}
-    gaps = [g.brief(s, h) for h in live if h not in tested]
+    gaps = [g.brief(s, h) for h in order if h not in tested]
     return {"ranked": rows[:limit], "untested_hypotheses": gaps,
             "rule": "score = hypotheses it separates (distinct expected outcomes) × 1.5 if it can show its own power "
                     "÷ log2(2 + cost in minutes); duplicates and leased work last"}

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased: the next-experiments view in a stable order
+
+- **`verify --standing` no longer fails on a sound bundle with two or more untested hypotheses.** `next_experiments`
+  listed `untested_hypotheses` by iterating a set of ids, so the order followed Python's per-process string hashing:
+  a bundle exported in one process carried one order and its re-derivation another, and `hypgraph verify --standing`
+  reported a standing mismatch (`<inv>/next`) on a record whose content was identical. The list now follows the order
+  the hypotheses were added. Found on a 785-node record; that record and three smaller ones now derive identically
+  under six hash seeds.
+
 ## 0.8.2 — 2026-11-01: an extreme that quotes its own counterexample; a disputed answer
 
 - **A quoted counterexample no longer excuses an extreme.** A stated count used to exempt an extreme whenever its
