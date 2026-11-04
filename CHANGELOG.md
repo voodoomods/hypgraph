@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: the next-experiments view in a stable order
+## 0.8.3 — 2026-11-03: the next-experiments view in a stable order
 
 - **`verify --standing` no longer fails on a sound bundle with two or more untested hypotheses.** `next_experiments`
   listed `untested_hypotheses` by iterating a set of ids, so the order followed Python's per-process string hashing:

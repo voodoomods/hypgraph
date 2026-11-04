@@ -256,6 +256,11 @@ was taken from a changelog without being checked against the code.*
 > claim writes changes 5, all now refused (4 lies, 1 retraction worded as the claim). #106 is merged with green CI.
 > Released as 0.8.2, with the `dispute` demo (#107).
 
+> **After 0.8.2 (2026-11-03).** One determinism fix in a derived view, no change to the checks: `next_experiments`
+> listed untested hypotheses in a set's hash order, so `verify --standing` could report a mismatch on a sound bundle
+> with two or more of them when the exporting and verifying processes hashed strings differently. The list now follows
+> the order the hypotheses were added. #109 is merged with green CI. Released as 0.8.3.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
