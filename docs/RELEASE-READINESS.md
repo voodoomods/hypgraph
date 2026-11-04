@@ -261,6 +261,12 @@ was taken from a changelog without being checked against the code.*
 > with two or more of them when the exporting and verifying processes hashed strings differently. The list now follows
 > the order the hypotheses were added. #109 is merged with green CI. Released as 0.8.3.
 
+> **After 0.8.3 (2026-11-04).** Explorer only, no change to the engine, the checks or the bundle format: a Sources view
+> (what an investigation cites, with what the record did and did not check about each) and a focus on one node's part
+> of the graph, carried in the link. The focus is computed in the browser from the record's own edges;
+> `tests/test_ui_sources_focus.py` holds "what it rests on" and "what rests on it" to one relation read from either
+> end. #111 is merged with green CI. Released as 0.8.4.
+
 ## Recommendation: CONDITIONAL GO
 
 HypGraph is ready for a public developer preview once #59, #60 and #61 are merged with green CI and released as one
