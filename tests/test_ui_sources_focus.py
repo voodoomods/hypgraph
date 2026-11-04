@@ -60,8 +60,25 @@ def test_why_walks_to_the_sources_and_impact_walks_back():
       console.log(JSON.stringify({{ why, impact, none }}));
     """)
     assert claim in got["why"] and source in got["why"], got                 # the claim rests on the source it cites
-    assert got["impact"] == [source] or claim in got["impact"], got           # cites is not a risky relation: nothing falls with a source
+    assert claim in got["impact"] and source in got["impact"], got            # and the source's "what rests on it" draws that claim
     assert got["none"] is None                                                # a centre not in the record: no focus
+
+
+@node
+def test_what_rests_on_it_is_the_mirror_of_what_it_rests_on():
+    """X is in why(Y) exactly when Y is in impact(X): the two lenses are one relation read from either end (below
+    the caps). What would *fall* with a node is a narrower walk, the engine's, shown in the drawer's "If it fell"."""
+    nodes, _edges, _board = _fixture()
+    got = _run("""
+      const whyOf = new Map(nodes.map((n) => [n.id, H.focusIds(nodes, edges, { node: n.id, lens: 'why' }, board)]));
+      const impOf = new Map(nodes.map((n) => [n.id, H.focusIds(nodes, edges, { node: n.id, lens: 'impact' }, board)]));
+      const broken = [];
+      nodes.forEach((x) => nodes.forEach((y) => {
+        if (whyOf.get(y.id).has(x.id) !== impOf.get(x.id).has(y.id)) broken.push([x.code, y.code]);
+      }));
+      console.log(JSON.stringify({ broken, pairs: nodes.length * nodes.length }));
+    """)
+    assert got["broken"] == [], got["broken"][:10]
 
 
 @node

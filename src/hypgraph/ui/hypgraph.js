@@ -40,8 +40,10 @@
     return { out, inn };
   }
   /** The ids a focus shows, the centre always among them: `why` — what the node rests on, down to the files; `impact`
-   *  — what rests on it; `near` — every node within `depth` links either way; `question` — the question, what
-   *  answers or addresses it, and what that rests on. Null when the centre isn't in `nodes`. Caps as the engine's. */
+   *  — what rests on it, the mirror of `why` (the claims that cite a source are drawn, though a source falling does
+   *  not fell them: what would fall is the drawer's "If it fell", the engine's walk); `near` — every node within
+   *  `depth` links either way; `question` — the question, what answers or addresses it, and what that rests on.
+   *  Null when the centre isn't in `nodes`. Caps as the engine's. */
   function focusIds(nodes, edges, focus, board) {
     if (!focus || !nodes.some((n) => n.id === focus.node)) return null;
     const { out, inn } = adjacency(edges), ids = new Set(nodes.map((n) => n.id));
@@ -56,8 +58,8 @@
     };
     const why = (id) => walk([id], (x) => (out.get(x) || []).filter((e) => WHY_OUT.includes(e.rel)).map((e) => e.dst)
       .concat((inn.get(x) || []).filter((e) => WHY_IN.includes(e.rel)).map((e) => e.src)), 300);
-    const impact = (id) => walk([id], (x) => (inn.get(x) || []).filter((e) => RISKY.includes(e.rel)).map((e) => e.src)
-      .concat((out.get(x) || []).filter((e) => e.rel === 'produced' || e.rel === 'supports').map((e) => e.dst)), 500);
+    const impact = (id) => walk([id], (x) => (inn.get(x) || []).filter((e) => WHY_OUT.includes(e.rel)).map((e) => e.src)
+      .concat((out.get(x) || []).filter((e) => WHY_IN.includes(e.rel)).map((e) => e.dst)), 500);
     const both = (x) => (out.get(x) || []).map((e) => e.dst).concat((inn.get(x) || []).map((e) => e.src));
     const near = (id, depth) => walk([id], both, 400, Math.min(3, Math.max(1, +depth || 1)));
     if (focus.lens === 'why') return why(focus.node);
@@ -1811,6 +1813,7 @@
         try { cy.layout({ name: hasFcose() ? 'fcose' : 'cose', animate: false, randomize: true, nodeRepulsion: 6500, idealEdgeLength: 60, fit: fit !== false, padding: 24 }).run(); }
         catch { cy.layout({ name: 'cose', animate: false }).run(); }
       }
+      if (fit !== false && cy.zoom() > 2.5) { cy.zoom(2.5); cy.center(); }   // a focus of one or two nodes is not a wall
       cy.on('tap', 'node', (ev) => {
         const d = ev.target.data();
         if (d.kind === 'rec') return cy.animate({ fit: { eles: ev.target, padding: 40 } }, { duration: 320 });
