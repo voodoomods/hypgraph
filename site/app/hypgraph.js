@@ -23,7 +23,7 @@
  * the visitor asks for reduced motion) · onTheme(t) · operatorUrl · fileUrl(path) ·
  * lang (the host page's language; the UI speaks en, es, fr, de, zh-Hans and picks ?lang=, then lang, then the
  * visitor's saved choice, then the browser's) · langSwitch (false hides the language menu) · onLang(code) (the visitor
- * picked one) · stringsUrl (where hypgraph.i18n.js is, if not beside this script). Keys: 1–8 views · ⌘K / Ctrl+K or / search · Esc close · t theme.
+ * picked one) · stringsUrl (where hypgraph.i18n.js is, if not beside this script). Keys: 1–9 views · ⌘K / Ctrl+K or / search · Esc close · t theme.
  * `HypAtlas` is kept as an alias of `HypGraph` for one release.
  */
 'use strict';
@@ -31,6 +31,59 @@
   const VERSION = '0.6.0';
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const RISKY = ['requires', 'derived_from', 'based_on'];
+
+  // ── focus: one node's part of the record, by the walks the engine uses (graph.py: why, impact, neighborhood) ──
+  const WHY_OUT = ['derived_from', 'requires', 'based_on', 'executes', 'uses', 'cites', 'tests'], WHY_IN = ['supports', 'produced'];
+  function adjacency(edges) {
+    const out = new Map(), inn = new Map();
+    edges.forEach((e) => { (out.get(e.src) || out.set(e.src, []).get(e.src)).push(e); (inn.get(e.dst) || inn.set(e.dst, []).get(e.dst)).push(e); });
+    return { out, inn };
+  }
+  /** The ids a focus shows, the centre always among them: `why` — what the node rests on, down to the files; `impact`
+   *  — what rests on it, the mirror of `why` (the claims that cite a source are drawn, though a source falling does
+   *  not fell them: what would fall is the drawer's "If it fell", the engine's walk); `near` — every node within
+   *  `depth` links either way; `question` — the question, what answers or addresses it, and what that rests on.
+   *  Null when the centre isn't in `nodes`. Caps as the engine's. */
+  function focusIds(nodes, edges, focus, board) {
+    if (!focus || !nodes.some((n) => n.id === focus.node)) return null;
+    const { out, inn } = adjacency(edges), ids = new Set(nodes.map((n) => n.id));
+    const walk = (starts, step, cap, maxDepth = Infinity) => {
+      const got = new Set(starts); let frontier = [...starts], depth = 0;
+      while (frontier.length && got.size < cap && depth < maxDepth) {
+        const nxt = [];
+        frontier.forEach((x) => step(x).forEach((y) => { if (ids.has(y) && !got.has(y) && got.size < cap) { got.add(y); nxt.push(y); } }));
+        frontier = nxt; depth++;
+      }
+      return got;
+    };
+    const why = (id) => walk([id], (x) => (out.get(x) || []).filter((e) => WHY_OUT.includes(e.rel)).map((e) => e.dst)
+      .concat((inn.get(x) || []).filter((e) => WHY_IN.includes(e.rel)).map((e) => e.src)), 300);
+    const impact = (id) => walk([id], (x) => (inn.get(x) || []).filter((e) => WHY_OUT.includes(e.rel)).map((e) => e.src)
+      .concat((out.get(x) || []).filter((e) => WHY_IN.includes(e.rel)).map((e) => e.dst)), 500);
+    const both = (x) => (out.get(x) || []).map((e) => e.dst).concat((inn.get(x) || []).map((e) => e.src));
+    const near = (id, depth) => walk([id], both, 400, Math.min(3, Math.max(1, +depth || 1)));
+    if (focus.lens === 'why') return why(focus.node);
+    if (focus.lens === 'impact') return impact(focus.node);
+    if (focus.lens === 'question') {
+      const byCode = new Map(nodes.filter((n) => n.code).map((n) => [n.code, n.id]));
+      const q = (board || []).find((b) => b.id === focus.node) || {};
+      const seeds = new Set([...both(focus.node).filter((y) => ids.has(y)), ...(q.answers || []).map((c) => byCode.get(c)).filter(Boolean)]);
+      const got = new Set([focus.node, ...seeds]);
+      seeds.forEach((s) => why(s).forEach((y) => { if (got.size < 400) got.add(y); }));
+      return got;
+    }
+    return near(focus.node, focus.depth);
+  }
+  /** BibTeX for the outside literature a record cites: one @misc per source, keyed by its code. */
+  function bibtex(rows) {
+    const v = (s) => String(s ?? '').replace(/[{}]/g, (c) => '\\' + c).replace(/\s+/g, ' ').trim();
+    return rows.map((r) => {
+      const f = [['title', r.citation], ['doi', r.doi], ['url', r.url], ['urldate', r.retrieved],
+        ['note', [r.kind ? `${r.kind} source` : '', r.cited_by && r.cited_by.length ? `cited by ${r.cited_by.join(', ')}` : ''].filter(Boolean).join('; ')]]
+        .filter(([, x]) => x);
+      return `@misc{${String(r.code || 'source').replace(/[^A-Za-z0-9:_-]/g, '')},\n${f.map(([k, x]) => `  ${k} = {${v(x)}},`).join('\n')}\n}`;
+    }).join('\n\n') + (rows.length ? '\n' : '');
+  }
   const SAME_TYPE = ['supersedes', 'corrects'];      // schema.SAME_TYPE: a replacement of the same type
   // bundle.REPLACEABLE: the types a supersedes / corrects link can point at (schema.RELS); no other type is superseded
   const REPLACEABLE = ['artifact', 'claim', 'decision', 'experiment', 'hypothesis', 'question', 'result', 'run', 'source', 'task'];
@@ -672,7 +725,8 @@
     run: '#2e90fa', result: '#06aed4', artifact: '#98a2b3', source: '#eaaa08', review: '#cbd5e1', decision: '#f97066', task: '#667085' };
   const PROFILE_COLOR = { scientific: '#0b6bcb', software: '#5925dc', trading: '#b54708', knowledge: '#067647', optimization: '#c11574' };
   const VIEWS = [['overview', '▦', 'Overview'], ['live', '◉', 'Live'], ['pipeline', '⇶', 'Pipeline'], ['graph', '⬡', 'Graph'],
-    ['evidence', '☰', 'Evidence'], ['orders', '▤', 'Work orders'], ['audit', '⛓', 'Audit log'], ['report', '❐', 'Report']];
+    ['evidence', '☰', 'Evidence'], ['sources', '❝', 'Sources'], ['orders', '▤', 'Work orders'], ['audit', '⛓', 'Audit log'],
+    ['report', '❐', 'Report']];
   const LOGO = '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#0a0d14"/><g fill="none" stroke-linecap="round" stroke-width="3"><path d="M18 44 L32 20 L46 44" stroke="#7cf3ff"/><path d="M18 44 L46 44" stroke="#b18cff" stroke-dasharray="3 5"/></g><circle cx="32" cy="20" r="6" fill="#4ee08a"/><circle cx="18" cy="44" r="5" fill="#7cf3ff"/><circle cx="46" cy="44" r="5" fill="none" stroke="#ff4d5e" stroke-width="3"/></svg>';
 
   // the pill shows the standing in the UI's language (T); standingKey stays English: filters, CSV and tests use it
@@ -854,6 +908,23 @@
     "dr.provenance.sub": "· everything it rests on, to the files", "dr.if_fell": "If it fell", "dr.if_fell.sub": "· what would be at risk",
     "dr.complete": "complete", "dr.settled_by": "settled by {who}", "dr.next": "next: {x}", "dr.gates": "Gates", "dr.met_by": "met by {list}",
     "dr.answered": "Answered by", "dr.no_answer": "No claim answers it yet.",
+    "view.sources": "Sources", "exp.sources": "Standing is",
+    "so.lede": "Everything this investigation cites — outside literature, and pinned references into other records — with what rests on each.",
+    "so.honest": "A citation link says its author rests that node on this source. For a pinned reference the record checked the pinned version's hash; for outside literature it checked nothing: the passage is as the author quoted it.",
+    "so.filter": "Filter by code, citation, link or citer", "so.filter.aria": "Filter sources",
+    "so.only.uncited": "cited by nothing", "so.only.nolink": "no DOI or URL", "so.only.fallen": "fallen, still cited",
+    "so.literature": "Outside literature", "so.literature.sub": "{n} source(s)", "so.pinned": "Pinned references",
+    "so.pinned.sub": "{n} source(s) naming a node of another record",
+    "so.col.citation": "Citation", "so.col.kind": "Kind", "so.col.cited_by": "Cited by", "so.col.record": "Record", "so.col.node": "Pinned node",
+    "so.kind.primary": "primary", "so.kind.secondary": "secondary", "so.kind.tertiary": "tertiary",
+    "so.uncited": "nothing cites it", "so.says": "says", "so.retrieved": "retrieved {date}", "so.loading": "reading each source's fields…",
+    "so.none": "This investigation cites no sources yet.", "so.bibtex": "Export BibTeX",
+    "gr.refs.see": "Its pinned references are listed under Sources.", "gr.aria.focus": "Graph of {n} nodes around {code}",
+    "fo.why": "what it rests on", "fo.impact": "what rests on it", "fo.near": "its neighbours",
+    "fo.question": "the question, what answers it and what that rests on",
+    "fo.n": "{n} of {of} nodes", "fo.depth": "depth", "fo.link": "Copy link", "fo.copied": "Link copied",
+    "fo.clear": "Whole record", "fo.clear.aria": "Clear the focus", "fo.by_question": "By question",
+    "dr.graph": "In the graph", "dr.focus.why": "Show what it rests on", "dr.focus.impact": "Show what rests on it", "dr.focus.near": "Show its neighbours",
     "noverify.banner": "This record does not verify: {problem}. What follows is shown as it arrived, unverified.",
     "empty.none": "This record has no investigations yet.",
     "empty.live": " Start a swarm against it and it appears here as soon as it begins.",
@@ -977,7 +1048,8 @@
     const S = { invs: [], inv: '', m: null, view: 'overview', cursor: null, playing: false, speed: 4, timer: null, stream: 'off',
       lastEventAt: 0, follow: null, cy: null, drawer: null, ev: { q: '', types: new Set(['claim', 'result', 'hypothesis', 'source', 'decision']), standing: '' },
       sort: { k: 'code', asc: true }, audit: { actor: '', kind: '' }, graphTypes: null, palIdx: 0, profiles: new Map(),
-      lk: { on: opts.linked !== 'off', status: 'idle', inv: '', refs: [], data: null, models: new Map(), allowed: new Set() } };
+      so: { q: '', only: '' }, srcDet: { inv: '', map: new Map(), status: 'idle' }, focus: null,
+      lk: { on: opts.linked !== 'off', status: 'idle', inv: '', refs: [], data: null, models: new Map(), allowed: new Set(), at: -1 } };
     const fail = (e) => { root.dataset.hgError = String((e && e.message) || e); };
 
     // ── loading ──
@@ -992,7 +1064,7 @@
       S.inv = inv; S.telSeen = null;
       const raw = await src.load(inv);
       S.m = makeModel(inv, raw);
-      if (!keep) { S.cursor = null; stopPlay(); }
+      if (!keep) { S.cursor = null; S.focus = null; stopPlay(); }
       if (S.follow) S.follow();
       S.follow = null;
       if (live && src.follow) S.follow = src.follow(inv, S.m.head, onLiveEvent, (s) => { S.stream = s; status(); }, onTel, S.m.telNext);
@@ -1019,7 +1091,7 @@
       if (S.inv !== inv) return;
       lk.refs = refs.map((r) => ({ ...r, citation: r.citation || ((S.m.byId.get(r.id) || {}).title) || '' }));
       if (!lk.refs.length) { lk.status = 'none'; return; }
-      if (S.view === 'graph' || S.view === 'overview') render();
+      if (['graph', 'overview', 'sources'].includes(S.view)) render();   // the views that show the records
       let data = null;
       try {
         data = await linkRecords(lk.refs, { self: selfRecord, fetchBundle, allow: allowRecord,
@@ -1029,7 +1101,7 @@
       lk.data = data; lk.status = 'done';
       lk.models = new Map(data.records.filter((r) => r.bundle).map((r) => [r.key, { ...r, byId: new Map(r.nodes.map((n) => [n.id, n])),
         byCode: new Map(r.nodes.filter((n) => n.code).map((n) => [n.code, n])), src: BundleSource(r.bundle) }]));
-      if (S.view === 'graph' || S.view === 'overview') render();
+      if (['graph', 'overview', 'sources'].includes(S.view)) render();   // the views that show the records
       if (S.drawer && S.drawer.node && S.m.byId.has(S.drawer.node)) openNode(S.drawer.node);
     }
     /** ok (the pin holds and the node stands), revised, withdrawn, bad (doesn't match, or its record doesn't verify),
@@ -1095,11 +1167,20 @@
     function nav() {
       const m = S.m;
       const n = { evidence: m.nodes.filter((x) => S.ev.types.has(x.type) && !(x.type === 'decision' && x.by === 'harness')).length,
+        sources: m.nodes.filter((x) => x.type === 'source').length,
         orders: (m.orders || []).length, audit: m.events.length, pipeline: (m.stages || []).length };
       const open = (m.orders || []).filter((o) => ['open', 'overdue'].includes(o.status)).length;
+      // under Graph while it is open: the records this one pins (each read as its own bundle — the subgraphs), each a
+      // jump to that record in the linked graph; then the investigation's questions, each a focus on what answers it
+      const recs = S.view === 'graph' && S.lk.data ? S.lk.data.records.filter((r) => r.bundle).slice(0, 40) : [];
+      const subRecs = recs.length ? `<div class="subnav"><h3>${esc(T('lk.title'))}</h3>${recs.map((r) => { const i = S.lk.data.records.indexOf(r);
+        return `<button type="button" data-act="lk-focus" data-i="${i}" ${linkedOn() && S.lk.at === i ? 'aria-current="true"' : ''} title="${esc(recName(r) + (r.record ? ' · ' + where(r.record) : ''))}"><span class="code">⛓</span><span class="t">${esc(clip(r.title || r.code, 44))}</span></button>`; }).join('')}</div>` : '';
+      const qs = S.view === 'graph' ? (m.board || []).filter((q) => m.byId.has(q.id)).slice(0, 60) : [];
+      const sub = qs.length ? `<div class="subnav"><h3>${esc(T('fo.by_question'))}</h3>${qs.map((q) => `<button type="button" data-fq="${esc(q.id)}" ${S.focus && S.focus.lens === 'question' && S.focus.node === q.id ? 'aria-current="true"' : ''} title="${esc(q.text || '')}"><span class="code">${esc(q.code)}</span><span class="t">${esc(clip(q.text, 44))}</span></button>`).join('')}</div>` : '';
       let h = `<h2>${esc(T('nav.investigation'))}</h2>` + VIEWS.map(([k, ico]) =>
         `<button type="button" data-v="${k}" ${S.view === k ? 'aria-current="page"' : ''}><span class="ico" aria-hidden="true">${ico}</span>${esc(T('view.' + k))}` +
-        (k === 'live' ? (open ? `<span class="n">${esc(T('nav.open', { n: open }))}</span>` : '') : n[k] != null ? `<span class="n">${n[k]}</span>` : '') + '</button>').join('');
+        (k === 'live' ? (open ? `<span class="n">${esc(T('nav.open', { n: open }))}</span>` : '') : n[k] != null ? `<span class="n">${n[k]}</span>` : '') + '</button>' +
+        (k === 'graph' ? subRecs + sub : '')).join('');
       if (S.invs.length > 1) {
         h += `<h2>${esc(T('nav.investigations'))}</h2>` + S.invs.map((i) => {
           const pid = S.profiles.get(i.id) || '', fam = pid.split('@')[0];
@@ -1408,6 +1489,65 @@
         </tbody></table></div>`;
     }
 
+    // ── sources: everything the investigation cites, and what rests on each ──
+    /** Each source node's body (citation, DOI, URL, passage, pin) — the subgraph carries only the brief; read once per investigation. */
+    async function loadSourceDetails() {
+      const inv = S.inv, ids = S.m.nodes.filter((n) => n.type === 'source').map((n) => n.id);
+      const d = S.srcDet;
+      if (d.status === 'loading' && d.inv === inv) return;
+      const map = d.inv === inv ? d.map : new Map(), want = ids.filter((id) => !map.has(id));
+      if (!want.length) { S.srcDet = { inv, map, status: 'done' }; return; }
+      S.srcDet = { inv, map, status: 'loading' };
+      const got = await Promise.all(want.map((id) => settle(src.node(id))));
+      if (S.inv !== inv) return;
+      got.forEach((x, i) => map.set(want[i], (x && x.body) || {}));
+      S.srcDet.status = 'done';
+      if (S.view === 'sources') render();
+    }
+    function sourceRows() {
+      const m = S.m, q = S.so.q.toLowerCase(), det = S.srcDet.inv === S.inv ? S.srcDet.map : new Map(), read = S.srcDet.inv === S.inv && S.srcDet.status === 'done';
+      const refIds = new Set(S.lk.refs.map((r) => r.id)), citers = new Map();
+      m.edges.filter((e) => e.rel === 'cites').forEach((e) => (citers.get(e.dst) || citers.set(e.dst, []).get(e.dst)).push(e.src));
+      const live = (x) => !['withdrawn', 'superseded'].includes(st(x).lifecycle);
+      let rows = m.nodes.filter((n) => n.type === 'source').map((n) => {
+        const b = det.get(n.id) || {}, by = [...new Set(citers.get(n.id) || [])].map((id) => m.byId.get(id)).filter(Boolean);
+        const isRef = refIds.has(n.id) || !!(b.record && b.node);
+        return { n, b, by, isRef, fallen: !live(n) && by.some(live), nolink: read && !isRef && !b.doi && !b.url };
+      });
+      if (S.so.only === 'uncited') rows = rows.filter((r) => !r.by.length);
+      if (S.so.only === 'nolink') rows = rows.filter((r) => r.nolink);
+      if (S.so.only === 'fallen') rows = rows.filter((r) => r.fallen);
+      if (q) rows = rows.filter((r) => `${r.n.code} ${r.n.title} ${r.b.doi || ''} ${r.b.url || ''} ${r.b.record || ''} ${r.b.passage || ''} ${r.by.map((x) => x.code).join(' ')}`.toLowerCase().includes(q));
+      const key = (n) => (n.code || '').replace(/\d+/, (d) => d.padStart(6, '0'));
+      return rows.sort((a, b) => key(a.n).localeCompare(key(b.n)));
+    }
+    function vSources() {
+      const m = S.m, all = m.nodes.filter((n) => n.type === 'source').length;
+      if (all && (S.srcDet.inv !== S.inv || S.srcDet.status === 'idle' || (S.srcDet.status === 'done' && m.nodes.some((n) => n.type === 'source' && !S.srcDet.map.has(n.id))))) loadSourceDetails();
+      const rows = sourceRows(), lit = rows.filter((r) => !r.isRef), refs = rows.filter((r) => r.isRef), reading = S.srcDet.inv !== S.inv || S.srcDet.status !== 'done';
+      const chip = (k) => `<button type="button" class="chip" data-so="${k}" aria-pressed="${S.so.only === k}">${esc(T('so.only.' + k))}</button>`;
+      const link = (u, label) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(clip(label || u, 72))}</a>`;
+      const links = (b) => [b.doi ? link(/^https?:/.test(b.doi) ? b.doi : 'https://doi.org/' + b.doi, 'doi:' + b.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '')) : '', b.url ? link(b.url) : '',
+        b.retrieved ? `<span class="dim">${esc(T('so.retrieved', { date: b.retrieved }))}</span>` : ''].filter(Boolean).join(' · ');
+      const cite = (r) => `<div>${esc(r.n.title)}</div>${r.b.passage ? `<div class="so-cite">“${esc(clip(r.b.passage, 400))}”</div>` : ''}${r.b.says ? `<div class="dim" style="margin-top:3px"><b>${esc(T('so.says'))}</b> ${esc(clip(r.b.says, 300))}</div>` : ''}${links(r.b) ? `<div class="so-links">${links(r.b)}</div>` : ''}`;
+      const citedBy = (r) => r.by.length ? r.by.map((x) => `<div class="lk-pin"><button type="button" class="code" data-n="${esc(x.id)}">${esc(x.code)}</button> ${standingPill(x, T)} <span class="dim">${esc(clip(x.title, 90))}</span></div>`).join('')
+        : `<span class="pill neutral">${esc(T('so.uncited'))}</span>`;
+      const kind = (r) => { const k = r.b.kind || r.n.kind || ''; return k ? `<span class="pill ${k === 'primary' ? 'info' : 'neutral'}">${esc(T.word('so.kind.', k))}</span>` : ''; };
+      const table = (list, cols) => `<table><thead><tr><th scope="col" style="width:70px">${esc(T('col.code'))}</th>${cols}<th scope="col" style="width:120px">${esc(T('col.standing'))}</th></tr></thead><tbody>${list}</tbody></table>`;
+      const litRows = lit.map((r) => `<tr><td class="code"><button type="button" class="code" data-n="${esc(r.n.id)}">${esc(r.n.code)}</button></td><td>${cite(r)}</td><td>${kind(r)}</td><td>${citedBy(r)}</td><td>${standingPill(r.n, T)}</td></tr>`).join('')
+        || `<tr><td colspan="5" class="empty">${esc(T('ev.none'))}</td></tr>`;
+      const refRows = refs.map((r) => `<tr><td class="code"><button type="button" class="code" data-n="${esc(r.n.id)}">${esc(r.n.code)}</button></td><td>${esc(r.n.title)}</td><td class="mono dim" style="overflow-wrap:anywhere">${esc(r.b.record || '')}</td><td class="mono">${esc(r.b.node || '')}${r.b.version != null ? ` <span class="dim">v${esc(r.b.version)}</span>` : ''}</td><td>${citedBy(r)}</td><td>${standingPill(r.n, T)}</td></tr>`).join('');
+      return head(esc(T('view.sources')), esc(T('so.lede')), all ? `<button class="btn" type="button" data-act="csv-sources">${esc(T('csv'))}</button><button class="btn" type="button" data-act="bibtex">${esc(T('so.bibtex'))}</button>` : '') + asExported('exp.sources') +
+        `<div class="note">${esc(T('so.honest'))}</div>` +
+        (!all ? `<div class="card"><div class="empty">${esc(T('so.none'))}</div></div>` :
+        `<div class="toolbar"><input class="input" id="hg-so-q" placeholder="${esc(T('so.filter'))}" value="${esc(S.so.q)}" aria-label="${esc(T('so.filter.aria'))}">${chip('uncited')}${chip('nolink')}${chip('fallen')}
+          <span class="dim">${esc(T('ev.shown', { n: rows.length }))}</span>${reading ? `<span class="dim">${esc(T('so.loading'))}</span>` : ''}</div>
+        <div class="card"><h3>${esc(T('so.literature'))} <span class="sub">${esc(T('so.literature.sub', { n: lit.length }))}</span></h3>
+          ${table(litRows, `<th scope="col">${esc(T('so.col.citation'))}</th><th scope="col" style="width:100px">${esc(T('so.col.kind'))}</th><th scope="col" style="width:34%">${esc(T('so.col.cited_by'))}</th>`)}</div>
+        ${S.lk.refs.length ? linkedPanel() : refs.length ? `<div class="card" style="margin-top:14px"><h3>⛓ ${esc(T('so.pinned'))} <span class="sub">${esc(T('so.pinned.sub', { n: refs.length }))}</span></h3>
+          ${table(refRows, `<th scope="col">${esc(T('so.col.citation'))}</th><th scope="col" style="width:22%">${esc(T('so.col.record'))}</th><th scope="col" style="width:150px">${esc(T('so.col.node'))}</th><th scope="col" style="width:26%">${esc(T('so.col.cited_by'))}</th>`)}</div>` : ''}`);
+    }
+
     function vOrders() {
       const m = S.m, os = m.orders;
       if (!os) return head(esc(T('view.orders')), '') + `<div class="note warn">${T('or.none')}</div>`;
@@ -1446,16 +1586,42 @@
         `<div class="card"><div class="body md">${m.report ? md(m.report.markdown) : `<div class="empty">${esc(T('rp.none'))}</div>`}</div></div>`;
     }
 
+    const focusSet = () => (S.focus && S.m ? focusIds(S.m.nodes, S.m.edges, S.focus, S.m.board) : null);
+    const linkedOn = () => !S.focus && S.lk.on && !!(S.lk.data && S.lk.data.records.length);
+    const graphTypesOf = (m) => new Set([...new Set(m.nodes.map((n) => n.type))].filter((t) => t !== 'review' && t !== 'task'));
+    /** The nodes the Graph view draws: the whole record by type, or — focused — one node's part of it (the centre whatever its type). */
+    function graphNodes() {
+      const m = S.m, fo = focusSet(), on = linkedOn();
+      if (!S.graphTypes) S.graphTypes = graphTypesOf(m);
+      const cite = new Set(on ? S.lk.data.pins.filter((p) => p.from === 'self').map((p) => p.fromId) : []);
+      const typed = (n) => S.graphTypes.has(n.type) && (S.graphTypes.has('task') || !isBookkeeping(n));
+      return m.nodes.filter((n) => fo ? fo.has(n.id) && (n.id === S.focus.node || typed(n)) : cite.has(n.id) || typed(n));
+    }
+    function setFocus(f) {
+      const n = S.m.byId.get(f.node) || S.m.byCode.get(f.node);
+      if (!n) return;
+      S.focus = { node: n.id, lens: ['why', 'impact', 'near', 'question'].includes(f.lens) ? f.lens : (n.type === 'question' ? 'question' : 'near'),
+        depth: Math.min(3, Math.max(1, +f.depth || 1)) };
+      if (S.view !== 'graph') setView('graph'); else render();
+    }
     function vGraph() {
       const m = S.m, lk = S.lk, types = [...new Set(m.nodes.map((n) => n.type))].filter((t) => t !== 'review');
-      if (!S.graphTypes) S.graphTypes = new Set(types.filter((t) => t !== 'task'));
-      const nrec = new Set(lk.refs.map((r) => r.record)).size, on = lk.on && lk.refs.length > 0;
+      if (!S.graphTypes) S.graphTypes = graphTypesOf(m);
+      const nrec = new Set(lk.refs.map((r) => r.record)).size, on = linkedOn(), fo = focusSet(), fn = fo && m.byId.get(S.focus.node);
+      const shown = fn ? graphNodes().filter((n) => n.type !== 'review').length : 0, all = m.nodes.filter((n) => n.type !== 'review').length;
+      const lenses = (fn && fn.type === 'question' ? ['question'] : []).concat(['why', 'impact', 'near']);
+      const bar = !fn ? '' : `<div class="focusbar" role="status" aria-live="polite"><button type="button" class="code" data-n="${esc(fn.id)}">${esc(fn.code)}</button><span class="ink2">${esc(clip(fn.title, 64))}</span><span class="lk-sep" aria-hidden="true"></span>
+          ${lenses.map((l) => `<button type="button" class="chip" data-lens="${l}" aria-pressed="${S.focus.lens === l}">${esc(T('fo.' + l))}</button>`).join('')}
+          ${S.focus.lens === 'near' ? `<span class="dim">${esc(T('fo.depth'))}</span>${[1, 2, 3].map((d) => `<button type="button" class="chip" data-depth="${d}" aria-pressed="${S.focus.depth === d}">${d}</button>`).join('')}` : ''}
+          <span class="dim">${esc(T('fo.n', { n: shown, of: all }))}</span><span class="sp"></span>
+          <button type="button" class="btn" data-act="copy-link">${esc(T('fo.link'))}</button><button type="button" class="btn" data-act="unfocus" aria-label="${esc(T('fo.clear.aria'))}">✕ ${esc(T('fo.clear'))}</button></div>`;
       return head(esc(T('view.graph')), esc(m.profile.name ? T('gr.lede', { name: m.profile.name }) : T('gr.lede.plain')),
         `<button class="btn" type="button" data-act="png">${esc(T('gr.png'))}</button><button class="btn" type="button" data-act="json">${esc(T('gr.json'))}</button>`) +
-        `<div class="toolbar">${lk.refs.length ? `<button type="button" class="chip lk-chip" data-act="linked" aria-pressed="${on}" title="${esc(T('gr.linked.tip'))}">⛓ ${esc(T('gr.linked', { n: nrec }))}${lk.status === 'loading' ? ' …' : ''}</button><span class="lk-sep" aria-hidden="true"></span>` : ''}${types.map((t) => `<button type="button" class="chip" data-gtype="${t}" aria-pressed="${S.graphTypes.has(t)}"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${TYPE_COLOR[t] || '#98a2b3'};margin-right:5px"></i>${esc(TL(t))}</button>`).join('')}</div>
-        <div class="card"><div class="graph big" id="hg-graph" role="img" aria-label="${esc(T(on && lk.data ? 'gr.aria.linked' : 'gr.aria', { n: m.nodes.length, r: lk.data ? lk.data.records.length : 0 }))}"></div><div class="legend">
+        `<div class="toolbar">${lk.refs.length && !fn ? `<button type="button" class="chip lk-chip" data-act="linked" aria-pressed="${lk.on}" title="${esc(T('gr.linked.tip'))}">⛓ ${esc(T('gr.linked', { n: nrec }))}${lk.status === 'loading' ? ' …' : ''}</button><span class="lk-sep" aria-hidden="true"></span>` : ''}${types.map((t) => `<button type="button" class="chip" data-gtype="${t}" aria-pressed="${S.graphTypes.has(t)}"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${TYPE_COLOR[t] || '#98a2b3'};margin-right:5px"></i>${esc(TL(t))}</button>`).join('')}</div>${bar}
+        <div class="card"><div class="graph big" id="hg-graph" role="img" aria-label="${esc(fn ? T('gr.aria.focus', { n: shown, code: fn.code }) : T(on && lk.data ? 'gr.aria.linked' : 'gr.aria', { n: m.nodes.length, r: lk.data ? lk.data.records.length : 0 }))}"></div><div class="legend">
           <span><i style="border:2px solid var(--ok)"></i>${esc(T('st.checked'))}</span><span><i style="border:2px dashed var(--warn)"></i>${esc(T('st.stale'))}</span><span><i style="border:2px solid var(--bad)"></i>${esc(T('gr.lg.bad'))}</span><span><i style="background:var(--line2)"></i>${esc(T('gr.lg.gone'))}</span>
-          ${on ? `<span><i class="lg-rec"></i>${esc(T('gr.lg.record'))}</span><span><i class="lg-pin"></i>${esc(T('gr.lg.pin'))}</span>` : ''}</div></div>${linkedPanel()}`;
+          ${on ? `<span><i class="lg-rec"></i>${esc(T('gr.lg.record'))}</span><span><i class="lg-pin"></i>${esc(T('gr.lg.pin'))}</span>` : ''}</div></div>
+        ${lk.refs.length ? `<p class="dim" style="margin:10px 0 0">${esc(T('gr.refs.see'))} <button type="button" class="btn" data-v="sources" style="padding:1px 8px">${esc(T('view.sources'))}</button></p>` : ''}`;
     }
     /** The records this investigation pins: each one's chain, and each pin into it checked against it. */
     function linkedPanel() {
@@ -1651,6 +1817,7 @@
         try { cy.layout({ name: hasFcose() ? 'fcose' : 'cose', animate: false, randomize: true, nodeRepulsion: 6500, idealEdgeLength: 60, fit: fit !== false, padding: 24 }).run(); }
         catch { cy.layout({ name: 'cose', animate: false }).run(); }
       }
+      if (fit !== false && cy.zoom() > 2.5) { cy.zoom(2.5); cy.center(); }   // a focus of one or two nodes is not a wall
       cy.on('tap', 'node', (ev) => {
         const d = ev.target.data();
         if (d.kind === 'rec') return cy.animate({ fit: { eles: ev.target, padding: 40 } }, { duration: 320 });
@@ -1762,6 +1929,11 @@
       d.classList.add('open'); d.setAttribute('aria-hidden', 'false');
       const b = d.querySelector('[data-act="close"]'); if (b) b.focus({ preventScroll: true });
     }
+    function toast(text) {
+      let el = $('#hg-toast');
+      if (!el) { el = document.createElement('div'); el.id = 'hg-toast'; el.className = 'hg-toast'; el.setAttribute('role', 'status'); root.appendChild(el); }
+      el.textContent = text; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, 1800);
+    }
     function closeDrawer() { const d = $('#hg-drawer'); d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); S.drawer = null; syncHash(); }
     const here = () => ({ byId: S.m.byId, attr: (id) => `data-n="${esc(id)}"` });
     const nodeLink = (id, rel, cx = here()) => { const n = cx.byId.get(id); return `<div class="link"><button type="button" ${cx.attr(id)}><span class="code">${esc((n && n.code) || id)}</span></button>
@@ -1806,6 +1978,9 @@
       const skeleton = (det, why, imp) => {
         const body = (det && det.body) || {};
         const fields = Object.entries(body).filter(([k, v]) => v !== '' && v != null && !['title'].includes(k)).slice(0, 14);
+        const val = (k, v) => { const x = typeof v === 'object' ? JSON.stringify(v) : String(v);     // a DOI or URL opens where it points
+          const u = k === 'doi' && /^10\.\S+$/.test(x) ? 'https://doi.org/' + x : /^https?:\/\/\S+$/.test(x) ? x : '';
+          return u ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(x.slice(0, 600))}</a>` : esc(x.slice(0, 600)); };
         return `
         ${av.length ? `<section><h4>${esc(T('dr.prose'))} <span class="dim">${esc(T('dr.prose.sub'))}</span></h4><div class="ink2">${esc(n.title)}</div></section>` : ''}
         <section><h4>${esc(T('dr.standing'))}</h4>${standingPill(n, T)} <span style="margin-left:6px">${esc(s.sentence || '')}</span>
@@ -1815,9 +1990,10 @@
           ${rv.open_objections && rv.open_objections.length ? `<div class="why">${esc(T('dr.objections', { list: rv.open_objections.join(', ') }))}</div>` : ''}</section>
         <section><h4>${esc(T('dr.written'))}</h4><div class="kv"><span class="k">${esc(T('dr.by'))}</span><span>${esc(n.by)}</span><span class="k">${esc(T('dr.at'))}</span><span class="mono">${esc(String(n.at || '').replace('T', ' ').slice(0, 19))}</span>
           ${det && det.versions && det.versions.length > 1 ? `<span class="k">${esc(T('dr.versions'))}</span><span>${det.versions.map((v) => `v${v.v}${v.reason ? ' (' + esc(v.reason) + ')' : ''}`).join(' · ')}</span>` : ''}</div></section>
-        ${fields.length ? `<section><h4>${esc(T('dr.fields'))}</h4><div class="kv">${fields.map(([k, v]) => `<span class="k">${esc(k)}</span><span style="overflow-wrap:anywhere">${esc(typeof v === 'object' ? JSON.stringify(v) : v).slice(0, 600)}</span>`).join('')}</div></section>` : ''}
+        ${fields.length ? `<section><h4>${esc(T('dr.fields'))}</h4><div class="kv">${fields.map(([k, v]) => `<span class="k">${esc(k)}</span><span style="overflow-wrap:anywhere">${val(k, v)}</span>`).join('')}</div></section>` : ''}
         <section><h4>${esc(T('dr.rests_on'))}</h4>${det ? (det.out || []).map((e) => nodeLink2(e.dst, e.rel)).join('') || `<div class="dim">${esc(T('dr.nothing'))}</div>` : '<div class="dim">…</div>'}</section>
         <section><h4>${esc(T('dr.rests_on_it'))}</h4>${det ? (det.in || []).map((e) => nodeLink2(e.src, e.rel)).join('') || `<div class="dim">${esc(T('dr.nothing'))}</div>` : '<div class="dim">…</div>'}</section>
+        ${mine ? `<section><h4>${esc(T('dr.graph'))}</h4><div class="focus-acts">${['why', 'impact', 'near'].map((l) => `<button type="button" class="btn" data-focus="${esc(n.id)}" data-lens="${l}">${esc(T('dr.focus.' + l))}</button>`).join('')}</div></section>` : ''}
         ${why && why.nodes && why.nodes.length > 1 ? `<section><h4>${esc(T('dr.provenance'))} <span class="dim">${esc(T('dr.provenance.sub'))}</span></h4>${why.nodes.filter((x) => x.id !== n.id).slice(0, 40).map((x) => nodeLink2(x.id)).join('')}</section>` : ''}
         ${imp && imp.dependents && imp.dependents.length ? `<section><h4>${esc(T('dr.if_fell'))} <span class="dim">${esc(T('dr.if_fell.sub'))}</span></h4>${imp.dependents.slice(0, 40).map((x) => nodeLink2(x.node.id, x.rel)).join('')}</section>` : ''}`;
       };
@@ -1839,7 +2015,8 @@
           <div class="dim">${g.met ? T('dr.met_by', { list: (g.evidence || []).map(esc).join(', ') }) : esc(g.why)}${g.who ? ' · ' + esc(g.who) : ''}</div></div></div>`).join('')}</section>` : ''}
         <section><h4>${esc(T('dr.answered'))}</h4>${(q.answers || []).map((c) => { const n = m.byCode.get(c);
           return `<div style="margin-bottom:8px"><button type="button" class="btn" data-n="${esc(n ? n.id : c)}" style="padding:1px 8px">${esc(c)}</button> ${standingPill(n, T)}<div style="margin-top:3px">${esc((n || {}).title || '')}</div></div>`; }).join('') || `<div class="dim">${esc(T('dr.no_answer'))}</div>`}</section>
-        ${orders.length ? `<section><h4>${esc(T('view.orders'))}</h4>${orders.map((o) => `<div class="link"><span class="code">${esc(o.code)}</span><span class="pill neutral">${esc(T.word('os.', o.status))}</span><span class="dim">${esc(o.assignee)}</span></div>`).join('')}</section>` : ''}`);
+        ${orders.length ? `<section><h4>${esc(T('view.orders'))}</h4>${orders.map((o) => `<div class="link"><span class="code">${esc(o.code)}</span><span class="pill neutral">${esc(T.word('os.', o.status))}</span><span class="dim">${esc(o.assignee)}</span></div>`).join('')}</section>` : ''}
+        ${qn ? `<section><h4>${esc(T('dr.graph'))}</h4><div class="focus-acts"><button type="button" class="btn" data-fq="${esc(qn.id)}">${esc(T('fo.question'))}</button></div></section>` : ''}`);
     }
 
     // ── palette ──
@@ -1860,7 +2037,7 @@
     }
 
     // ── render ──
-    const V = { overview: vOverview, live: vLive, pipeline: vPipeline, graph: vGraph, evidence: vEvidence, orders: vOrders, audit: vAudit, report: vReport };
+    const V = { overview: vOverview, live: vLive, pipeline: vPipeline, graph: vGraph, evidence: vEvidence, sources: vSources, orders: vOrders, audit: vAudit, report: vReport };
     function render() {
       if (!S.m) return;
       try {
@@ -1872,10 +2049,7 @@
         root.dataset.hgView = S.view; root.dataset.hgReady = '1';
         if (S.cy) { try { S.cy.destroy(); } catch { /* gone */ } S.cy = null; }
         // the scheduler's own decisions (accepting work orders) are work-order bookkeeping: shown with the work orders
-        if (S.view === 'graph') {
-          const lk = S.lk, on = lk.on && lk.data && lk.data.records.length, cite = new Set(on ? lk.data.pins.filter((p) => p.from === 'self').map((p) => p.fromId) : []);
-          S.cy = graphInto($('#hg-graph'), S.m.nodes.filter((n) => cite.has(n.id) || (S.graphTypes.has(n.type) && (S.graphTypes.has('task') || !isBookkeeping(n)))), S.m.edges, true, on ? lk.data : null);
-        }
+        if (S.view === 'graph') S.cy = graphInto($('#hg-graph'), graphNodes(), S.m.edges, true, linkedOn() ? S.lk.data : null);
         if (S.view === 'live') {
           const made = new Set(S.m.events.slice(0, S.cursor == null ? S.m.events.length : S.cursor).filter((e) => e.kind === 'create').map((e) => e.ref));
           S.cy = graphInto($('#hg-live-graph'), S.m.nodes.filter((n) => made.has(n.id) && n.type !== 'task' && !isBookkeeping(n)).slice(0, 400), S.m.edges);
@@ -1892,6 +2066,7 @@
       if (S.drawer && S.drawer.q) p.set('q', S.drawer.q);
       if (S.drawer && S.drawer.node) p.set('node', S.m.codeOf(S.drawer.node));
       if (S.view === 'live' && S.cursor != null) p.set('at', S.cursor);
+      if (S.view === 'graph' && S.focus && S.m.byId.has(S.focus.node)) { p.set('focus', S.m.codeOf(S.focus.node)); p.set('lens', S.focus.lens); if (S.focus.lens === 'near') p.set('depth', S.focus.depth); }
       const h = '#' + p.toString();
       if (location.hash !== h) history.replaceState(null, '', h);
     }
@@ -1899,7 +2074,7 @@
 
     // ── events (delegated) ──
     root.addEventListener('click', (ev) => {
-      const t = ev.target.closest('[data-v],[data-inv],[data-q],[data-n],[data-ln],[data-act],[data-sort],[data-evtype],[data-gtype],[data-pi]');
+      const t = ev.target.closest('[data-v],[data-inv],[data-q],[data-n],[data-ln],[data-act],[data-sort],[data-evtype],[data-gtype],[data-pi],[data-fq],[data-focus],[data-lens],[data-depth],[data-so]');
       if (!t || !root.contains(t)) { if (ev.target.id === 'hg-pal') palClose(); return; }
       if (t.dataset.v) return setView(t.dataset.v);
       if (t.dataset.inv) return select(t.dataset.inv);
@@ -1910,12 +2085,20 @@
       if (t.dataset.sort) { S.sort = { k: t.dataset.sort, asc: S.sort.k === t.dataset.sort ? !S.sort.asc : true }; return render(); }
       if (t.dataset.evtype) { const x = t.dataset.evtype; S.ev.types.has(x) ? S.ev.types.delete(x) : S.ev.types.add(x); return render(); }
       if (t.dataset.gtype) { const x = t.dataset.gtype; S.graphTypes.has(x) ? S.graphTypes.delete(x) : S.graphTypes.add(x); return render(); }
+      if (t.dataset.fq) return setFocus({ node: t.dataset.fq, lens: 'question', depth: 1 });
+      if (t.dataset.focus) return setFocus({ node: t.dataset.focus, lens: t.dataset.lens, depth: 1 });
+      if (t.dataset.lens && S.focus) { S.focus = { ...S.focus, lens: t.dataset.lens }; return render(); }
+      if (t.dataset.depth && S.focus) { S.focus = { ...S.focus, depth: +t.dataset.depth }; return render(); }
+      if (t.dataset.so != null) { S.so.only = S.so.only === t.dataset.so ? '' : t.dataset.so; return render(); }
       const a = t.dataset.act, m = S.m, slug = (m.code || 'inv').toLowerCase();
       if (a === 'close') return closeDrawer();
       if (a === 'linked') { S.lk.on = !S.lk.on; return render(); }
       if (a === 'lk-allow') { S.lk.allowed.add(t.dataset.origin); S.lk.inv = ''; return loadLinked(); }
-      if (a === 'lk-focus') {
-        if (!S.lk.on) { S.lk.on = true; render(); }
+      if (a === 'unfocus') { S.focus = null; return render(); }
+      if (a === 'copy-link') { const cb = global.navigator && global.navigator.clipboard; if (cb) cb.writeText(global.location.href).then(() => toast(T('fo.copied')), () => {}); return; }
+      if (a === 'lk-focus') {                                  // the records are drawn only around the whole record, in the Graph view
+        S.lk.at = +t.dataset.i;
+        if (S.view !== 'graph' || !S.lk.on || S.focus) { S.lk.on = true; S.focus = null; if (S.view !== 'graph') setView('graph'); else render(); } else nav();
         const box = S.cy && S.cy.getElementById('rec:' + t.dataset.i);
         if (box && box.length) { $('#hg-graph').scrollIntoView({ block: 'center', behavior: 'smooth' }); S.cy.animate({ fit: { eles: box, padding: 40 } }, { duration: 320 }); }
         return;
@@ -1927,15 +2110,24 @@
       if (a === 'print') return global.print();
       if (a === 'md') return download(`${slug}-report.md`, (m.report && m.report.markdown) || '', 'text/markdown');
       if (a === 'bundle') return download(`${slug}.bundle.json`, JSON.stringify(src.bundle), 'application/json');
-      if (a === 'json') return download(`${slug}-graph.json`, JSON.stringify({ nodes: m.nodes, edges: m.edges }, null, 1), 'application/json');
+      if (a === 'json') {                                      // focused: the part of the record that is drawn, and what the focus was
+        const fo = S.view === 'graph' && S.focus && focusSet(), ns = fo ? graphNodes() : m.nodes, ids = new Set(ns.map((n) => n.id));
+        return download(fo ? `${slug}-${m.codeOf(S.focus.node).toLowerCase()}-${S.focus.lens}.json` : `${slug}-graph.json`,
+          JSON.stringify({ ...(fo ? { focus: { node: m.codeOf(S.focus.node), lens: S.focus.lens, depth: S.focus.depth } } : {}), nodes: ns, edges: m.edges.filter((e) => ids.has(e.src) && ids.has(e.dst)) }, null, 1), 'application/json');
+      }
       if (a === 'png' && S.cy) { const u = S.cy.png({ full: true, scale: 2, bg: getComputedStyle(root).getPropertyValue('--surface') }); const l = document.createElement('a'); l.href = u; l.download = `${slug}-graph.png`; l.click(); return; }
       if (a === 'csv-evidence') return download(`${slug}-evidence.csv`, csv([['code', 'type', 'statement', 'author', 'standing'], ...evidenceRows().map((n) => [n.code, TL(n.type), n.title, n.by, standingKey(n)])]), 'text/csv');
+      if (a === 'csv-sources') return download(`${slug}-sources.csv`, csv([['code', 'kind', 'citation', 'doi', 'url', 'retrieved', 'record', 'node', 'version', 'cited_by', 'standing'],
+        ...sourceRows().map((r) => [r.n.code, r.b.kind || r.n.kind || '', r.n.title, r.b.doi || '', r.b.url || '', r.b.retrieved || '', r.b.record || '', r.b.node || '', r.b.version ?? '', r.by.map((x) => x.code).join(' '), standingKey(r.n)])]), 'text/csv');
+      if (a === 'bibtex') return download(`${slug}-sources.bib`, bibtex(sourceRows().filter((r) => !r.isRef).map((r) => ({ code: r.n.code, citation: r.n.title, kind: r.b.kind || r.n.kind || '',
+        doi: r.b.doi || '', url: r.b.url || '', retrieved: r.b.retrieved || '', cited_by: r.by.map((x) => x.code) }))), 'application/x-bibtex');
       if (a === 'csv-orders') return download(`${slug}-work-orders.csv`, csv([['code', 'status', 'assignee', 'target', 'issued', 'objective'], ...(m.orders || []).map((o) => [o.code, o.status, o.assignee, o.target, o.issued, o.objective])]), 'text/csv');
       if (a === 'csv-audit') return download(`${slug}-audit.csv`, csv([['seq', 'at', 'actor', 'kind', 'ref', 'what'], ...auditRows().map((e) => [e.seq, e.at, e.actor, e.kind, m.codeOf(e.ref), say(e, true)])]), 'text/csv');
     });
     root.addEventListener('input', (ev) => {
       const id = ev.target.id;
       if (id === 'hg-ev-q') { S.ev.q = ev.target.value; const pos = ev.target.selectionStart; render(); const i = $('#hg-ev-q'); if (i) { i.focus(); i.setSelectionRange(pos, pos); } }
+      if (id === 'hg-so-q') { S.so.q = ev.target.value; const pos = ev.target.selectionStart; render(); const i = $('#hg-so-q'); if (i) { i.focus(); i.setSelectionRange(pos, pos); } }
       if (id === 'hg-lv-scrub') { stopPlay(); const v = +ev.target.value; S.cursor = v >= S.m.events.length ? null : v; render(); }
       if (id === 'hg-pal-q') { S.palIdx = 0; palDraw(); }
     });
@@ -1960,11 +2152,11 @@
         return;
       }
       if ((ev.key === 'k' || ev.key === 'K') && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); return palOpen(); }
-      if (ev.key === 'Escape') return closeDrawer();
+      if (ev.key === 'Escape') { if (S.drawer) return closeDrawer(); if (S.focus && S.view === 'graph') { S.focus = null; render(); } return; }
       if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('tr.click, .lane.click')) { ev.preventDefault(); return ev.target.click(); }
       if (typing(ev.target) || ev.metaKey || ev.ctrlKey || ev.altKey) return;
       if (ev.key === '/') { ev.preventDefault(); return palOpen(); }
-      if (/^[1-8]$/.test(ev.key)) return setView(VIEWS[+ev.key - 1][0]);
+      if (/^[1-9]$/.test(ev.key)) return setView(VIEWS[+ev.key - 1][0]);
       if (ev.key === 't') { const t = root.dataset.theme === 'dark' ? 'light' : 'dark'; setTheme(t); if (opts.onTheme) opts.onTheme(t); }
     });
     $('#hg-search').addEventListener('click', palOpen);
@@ -1983,6 +2175,14 @@
 
     // ── start ──
     const fromHash = () => (opts.hash ? new URLSearchParams(location.hash.slice(1)) : new URLSearchParams());
+    /** #focus=<code>&lens=…&depth=… names a focus; true when it names a node of the open investigation. */
+    const focusFromHash = (h) => {
+      const n = h.get('focus') && (S.m.byCode.get(h.get('focus')) || S.m.byId.get(h.get('focus')));
+      if (!n) return false;
+      const f = { node: n.id, lens: h.get('lens'), depth: +(h.get('depth') || 1) };
+      S.focus = { node: n.id, lens: ['why', 'impact', 'near', 'question'].includes(f.lens) ? f.lens : (n.type === 'question' ? 'question' : 'near'), depth: Math.min(3, Math.max(1, f.depth || 1)) };
+      return true;
+    };
     const ready = (async () => {
       try {
         await Promise.all([setLang(wantLang), loadInvestigations()]);
@@ -2002,6 +2202,7 @@
         if (h.get('view') && V[h.get('view')]) S.view = h.get('view');
         else if (opts.view && V[opts.view]) S.view = opts.view;   // the view a page opens on
         await openInv(pick.id);
+        if (focusFromHash(h) && S.view === 'graph') render();
         if (h.get('at') && S.view === 'live') { S.cursor = Math.min(+h.get('at'), S.m.events.length); render(); }
         else if (opts.play || h.get('play')) replayFromStart();
         if (h.get('q')) openQuestion(h.get('q'));
@@ -2018,6 +2219,7 @@
         const pick = want && S.invs.find((i) => i.id === want || i.code === want || S.profiles.get(i.id) === want);
         if (pick && pick.id !== S.inv) await openInv(pick.id);
         if (h.get('view') && V[h.get('view')] && h.get('view') !== S.view) setView(h.get('view'));
+        if (h.get('focus') ? focusFromHash(h) : (S.focus && S.view === 'graph' ? (S.focus = null, true) : false)) { if (S.view === 'graph') render(); }
         if (h.get('at') && S.view === 'live') { stopPlay(); S.cursor = Math.min(+h.get('at'), S.m.events.length); render(); }
         else if (h.get('play')) replayFromStart();
         if (h.get('q')) openQuestion(h.get('q'));
@@ -2025,12 +2227,12 @@
       });
     }
     global.addEventListener && global.addEventListener('error', (e) => { if (e && e.filename && /hypgraph\.js/.test(e.filename)) fail(e.message); });
-    return { ready, state: S, setView, setTheme, setLang, lang: () => T.lang, select, show: openNode, focus: openNode, question: openQuestion, source: src,
+    return { ready, state: S, setView, setTheme, setLang, lang: () => T.lang, select, show: openNode, focus: openNode, focusOn: setFocus, question: openQuestion, source: src,
       destroy: () => { if (S.follow) S.follow(); stopPlay(); if (S.cy) S.cy.destroy(); root.innerHTML = ''; } };
   }
 
   const API = { mount, HttpSource, BundleSource, verifyBundle, anchored, sha256, version: VERSION, TYPE_COLOR,
-    linkRecords, checkPin, bundleReferences, normRecord, resolveWith,
+    linkRecords, checkPin, bundleReferences, normRecord, resolveWith, focusIds, bibtex,
     languages: { ...LANGS }, pickLang, matchLang, addStrings };
   global.HypGraph = API;
   global.HypAtlas = global.HypAtlas || API;        // the Atlas's name, kept for one release

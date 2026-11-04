@@ -443,7 +443,7 @@
    "4b343b4613": "East London, 1866",
    "0361e73a41": "Download bundle",
    "1783de2360": "Verify it",
-   "f828920e4e": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it. A teaching reconstruction: no figures beyond what the records state.",
+   "0b7ac8acea": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it; the pins are listed under Sources. A teaching reconstruction: no figures beyond what the records state.",
    "41986b30dc": "One of three HypGraph records joined by pinned references, drawn together and each verified on its own.",
    "e51c55255b": "Records"
   },
@@ -454,7 +454,7 @@
    "4b343b4613": "East London, 1866",
    "0361e73a41": "Download bundle",
    "1783de2360": "Verify it",
-   "f828920e4e": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it. A teaching reconstruction: no figures beyond what the records state.",
+   "0b7ac8acea": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it; the pins are listed under Sources. A teaching reconstruction: no figures beyond what the records state.",
    "41986b30dc": "One of three HypGraph records joined by pinned references, drawn together and each verified on its own.",
    "e51c55255b": "Records"
   },
@@ -465,7 +465,7 @@
    "4b343b4613": "East London, 1866",
    "0361e73a41": "Download bundle",
    "1783de2360": "Verify it",
-   "f828920e4e": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it. A teaching reconstruction: no figures beyond what the records state.",
+   "0b7ac8acea": "<1>Linked records</1> · three records, each its own hash chain and board, joined only by pinned references: a source in one record names a node of another, the version it read and that version’s hash. Open the graph and every record it pins is drawn beside this one, each read as its own bundle, verified in your browser, and each pin checked against it; the pins are listed under Sources. A teaching reconstruction: no figures beyond what the records state.",
    "41986b30dc": "One of three HypGraph records joined by pinned references, drawn together and each verified on its own.",
    "e51c55255b": "Records"
   },

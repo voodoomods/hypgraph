@@ -28,9 +28,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = sorted(p.name.split(".")[0] for p in (ROOT / "dev" / "ui-fixtures").glob("*.bundle.json"))
-VIEWS = ["overview", "live", "pipeline", "graph", "evidence", "orders", "audit", "report"]
+VIEWS = ["overview", "live", "pipeline", "graph", "evidence", "sources", "orders", "audit", "report"]
 HEADINGS = {"overview": None, "live": "Live", "pipeline": "Pipeline", "graph": "Graph", "evidence": "Evidence",
-            "orders": "Work orders", "audit": "Audit log", "report": None}
+            "sources": "Sources", "orders": "Work orders", "audit": "Audit log", "report": None}
 LANGS = ["es", "fr", "de", "zh-Hans"]
 
 
@@ -65,15 +65,17 @@ def chrome_path(given: str = "") -> str:
 
 EXAMPLES = ["scientific", "software", "trading", "knowledge", "optimization"]
 # views of what an engine derived (standing, stages, orders, the report): a bundle's must say they are as exported
-EXPORTED = {"overview", "pipeline", "evidence", "orders", "report"}
+EXPORTED = {"overview", "pipeline", "evidence", "sources", "orders", "report"}
 # site page, the view it must open on ("" = no app on the page), text the page must contain
 SITE_PAGES = ([(f"examples/{k}/", "live", ["Replaying", "not hash-chained", 'aria-current="page"']) for k in EXAMPLES]
               + [("", "live", ["chain verified", "Replaying", "data-open-claim", 'class="card ref"', "0 errors"]),
                  ("explore/", "overview", []), ("atlas/", "overview", []),
                  ("examples/", "", ['class="excard"'] * 1 + [f'href="{k}/"' for k in EXAMPLES] + ['href="linked/"']),
-                 # linked records: the pinned records drawn beside the open one, every pin checked against its record
-                 ("examples/linked/", "graph", ['class="card lk-card"', "hash matches", 'aria-current="page"']),
-                 ("examples/linked/east-london-1866/", "graph", ['class="card lk-card"', "hash matches"]),
+                 # linked records: the pinned records drawn beside the open one; under Sources, every pin checked against its record
+                 ("examples/linked/", "graph", ["listed under Sources", 'aria-current="page"']),
+                 ("examples/linked/#view=sources", "sources", ['class="card lk-card"', "hash matches"]),
+                 ("examples/linked/east-london-1866/", "graph", ["listed under Sources"]),
+                 ("examples/linked/east-london-1866/#view=sources", "sources", ['class="card lk-card"', "hash matches"]),
                  ("examples/linked/broad-street/", "graph", ['aria-current="page"'])])
 
 
@@ -154,7 +156,7 @@ def main() -> int:
         if (ROOT / "site" / "examples" / "index.html").exists():
             for page, view, extra in SITE_PAGES:
                 url = f"http://127.0.0.1:{port}/site/{page}"
-                shot = (shots / ("site-" + (page.strip("/").replace("/", "-") or "home") + ".png")) if shots else None
+                shot = (shots / ("site-" + (page.strip("/").replace("/", "-").replace("#view=", "-") or "home") + ".png")) if shots else None
                 dom = run(chrome, url, shot=shot)
                 why = (check(dom, view, "app" if page == "" else "[data-hypgraph]", telemetry=page.startswith("examples/"))
                        if view else "")

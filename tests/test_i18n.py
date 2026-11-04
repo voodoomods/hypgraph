@@ -37,7 +37,8 @@ NOUN = {"N": "noun", "Ns": "noun", "noun": "noun", "nouns": "noun"}
 # the same word in that language, not English left behind
 SAME_WORD = {
     "es": {"au.actor", "err.one"},                                                        # actor, error
-    "fr": {"lvl.info", "col.code", "col.type", "lv.k.budget", "lv.pause", "lv.trace", "dr.versions", "dr.provenance"},
+    "fr": {"lvl.info", "col.code", "col.type", "lv.k.budget", "lv.pause", "lv.trace", "dr.versions", "dr.provenance", "view.sources",
+           "so.col.citation"},
     "de": {"drawer.aria", "view.graph", "stream.offline", "optional", "col.status", "col.code", "lv.k.budget", "lv.pause",
            "lv.trace"},                                                                    # Details, Graph, Status …
 }

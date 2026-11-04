@@ -385,7 +385,7 @@ def write_linked() -> dict:
         note = ('<p class="appnote"><b>Linked records</b> · three records, each its own hash chain and board, joined '
                 'only by pinned references: a source in one record names a node of another, the version it read and '
                 'that version’s hash. Open the graph and every record it pins is drawn beside this one, each read '
-                'as its own bundle, verified in your browser, and each pin checked against it. A teaching '
+                'as its own bundle, verified in your browser, and each pin checked against it; the pins are listed under Sources. A teaching '
                 'reconstruction: no figures beyond what the records state.</p>')
         mount = (f'<div data-hypgraph data-bundle="{up}data/examples/linked/{name}.bundle.json" data-hash="on" '
                  f'data-view="graph" data-record="{linked.URLS[name]}" '

@@ -475,7 +475,7 @@
 "8b57abdc80": "L’eau de Londres · registres liés — HypGraph",
 "1c7488b268": "L’eau de Londres",
 "4b343b4613": "East London, 1866",
-"f828920e4e": "<1>Registres liés</1> · trois registres, chacun avec sa propre chaîne de hachage et son propre comité, reliés seulement par des références épinglées : une source d’un registre nomme un nœud d’un autre, la version qu’elle a lue et le hachage de cette version. Ouvrez le graphe : chaque registre qu’il épingle est dessiné à côté de celui-ci, chacun lu comme son propre bundle, vérifié dans votre navigateur, et chaque référence contrôlée par rapport à lui. Une reconstruction pédagogique : aucun chiffre au-delà de ce que disent les registres.",
+"0b7ac8acea": "<1>Registres liés</1> · trois registres, chacun avec sa propre chaîne de hachage et son propre comité, reliés seulement par des références épinglées : une source d’un registre nomme un nœud d’un autre, la version qu’elle a lue et le hachage de cette version. Ouvrez le graphe : chaque registre qu’il épingle est dessiné à côté de celui-ci, chacun lu comme son propre bundle, vérifié dans votre navigateur, et chaque référence contrôlée par rapport à lui ; les références sont listées sous Sources. Une reconstruction pédagogique : aucun chiffre au-delà de ce que disent les registres.",
 "41986b30dc": "L’un de trois registres HypGraph reliés par des références épinglées, dessinés ensemble et chacun vérifié séparément.",
 "e51c55255b": "Registres",
 "0e43422af9": "Broad Street, 1854 · registres liés — HypGraph",

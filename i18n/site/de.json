@@ -475,7 +475,7 @@
 "8b57abdc80": "Londons Wasser · verknüpfte Protokolle — HypGraph",
 "1c7488b268": "Londons Wasser",
 "4b343b4613": "East London, 1866",
-"f828920e4e": "<1>Verknüpfte Protokolle</1> · drei Protokolle, jedes mit eigener Hash-Kette und eigenem Gremium, nur durch fixierte Referenzen verbunden: Eine Quelle in einem Protokoll nennt einen Knoten eines anderen, die gelesene Version und den Hash dieser Version. Öffnen Sie den Graph, und jedes Protokoll, das es fixiert, wird neben diesem gezeichnet, jedes als eigenes Bundle gelesen, in Ihrem Browser verifiziert und jede Referenz dagegen geprüft. Eine Rekonstruktion für den Unterricht: keine Zahlen über das hinaus, was die Protokolle sagen.",
+"0b7ac8acea": "<1>Verknüpfte Protokolle</1> · drei Protokolle, jedes mit eigener Hash-Kette und eigenem Gremium, nur durch fixierte Referenzen verbunden: Eine Quelle in einem Protokoll nennt einen Knoten eines anderen, die gelesene Version und den Hash dieser Version. Öffnen Sie den Graph, und jedes Protokoll, das es fixiert, wird neben diesem gezeichnet, jedes als eigenes Bundle gelesen, in Ihrem Browser verifiziert und jede Referenz dagegen geprüft; die Referenzen stehen unter Quellen. Eine Rekonstruktion für den Unterricht: keine Zahlen über das hinaus, was die Protokolle sagen.",
 "41986b30dc": "Eines von drei HypGraph-Protokollen, verbunden durch fixierte Referenzen, zusammen gezeichnet und jedes für sich verifiziert.",
 "e51c55255b": "Protokolle",
 "0e43422af9": "Broad Street, 1854 · verknüpfte Protokolle — HypGraph",

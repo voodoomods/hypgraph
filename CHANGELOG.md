@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased: sources in the sidebar; a focus on one node's part of the graph
+
+- **A Sources view in the Explorer's sidebar.** Everything an investigation cites, in one place: outside literature
+  (citation, kind, DOI and URL as links, the passage as the author quoted it, when it was retrieved) and pinned
+  references into other records (the linked-records table, moved here from under the graph), each with the claims,
+  results, hypotheses and experiments that cite it and their standing. Filters for sources cited by nothing, sources
+  with no DOI or URL, and sources that fell (withdrawn or superseded) while live nodes still cite them. CSV and BibTeX
+  export. The view says what the record checked: a pinned reference's version hash; for outside literature, nothing.
+  A DOI or URL in a node's fields now opens where it points. Key `6`; the later views move to `7`–`9`.
+- **A focus on one node's part of the graph.** From a node's details, "Show what it rests on" (the engine's `why`
+  walk), "Show what rests on it" (its mirror: everything that rests on the node by a link, the claims that cite a
+  source included; what would *fall* with it is the narrower engine walk the drawer shows under "If it fell") or
+  "Show its neighbours" (depth 1–3) draws only that part of the record, with a bar naming the node, the lens, the
+  depth and how many nodes are shown; the type chips still apply, the centre is always drawn, a focus of one or two
+  nodes is drawn at a readable size rather than filling the pane, Esc clears it. Under Graph, the sidebar lists the records this one pins — the
+  subgraphs, each a jump to that record in the linked graph — and the investigation's questions, each a focus on
+  the question, what answers or addresses it and what that rests on. The focus is in the link
+  (`#view=graph&focus=CL7&lens=why`, "Copy link" on the bar), so a review comment can point at exactly the subgraph it
+  means, and the JSON export of a focused graph is that part of the record with the focus named. `HypGraph.focusIds`
+  computes the set from the record's own edges, so a bundle and a server agree (`tests/test_ui_sources_focus.py`).
+
 ## 0.8.3 — 2026-11-03: the next-experiments view in a stable order
 
 - **`verify --standing` no longer fails on a sound bundle with two or more untested hypotheses.** `next_experiments`
