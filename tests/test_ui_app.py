@@ -15,9 +15,9 @@ UI = static_dir()
 def test_the_app_and_its_atlas_shims():
     js = (UI / "hypgraph.js").read_text(encoding="utf-8")
     assert "global.HypGraph = API" in js and "global.HypAtlas = global.HypAtlas || API" in js
-    table = re.search(r"const V = \{([^}]*)\}", js).group(1)                     # the eight views, each with its renderer
+    table = re.search(r"const V = \{([^}]*)\}", js).group(1)                     # the nine views, each with its renderer
     assert [k.split(":")[0].strip() for k in table.split(",")] == ["overview", "live", "pipeline", "graph", "evidence",
-                                                                   "orders", "audit", "report"]
+                                                                   "sources", "orders", "audit", "report"]
     assert "async function verifyBundle" in js and "/stream?inv=" in js          # the chain check and the live stream
     assert "addEventListener('telemetry'" in js and "/telemetry?inv=" in js        # the swarm's telemetry, pushed or polled
     assert "function replayFromStart" in js and "prefers-reduced-motion" in js   # `play` opens on the replay, motion allowing

@@ -28,15 +28,16 @@ docs. For one release, `HypAtlas` stays as a global alias and `/atlas/` redirect
 Every view uses them, and the stages, gates and report name come from the profile's workflow. A record with no
 profile falls back to the kernel's words.
 
-**Information architecture.** These are the prototype's eight views, all driven by data the engine already derives:
+**Information architecture.** These are the Explorer's nine views, all driven by data the engine already derives:
 
 | view | what it answers |
 |---|---|
 | **Overview** | Is this done, and is it sound? KPI tiles (settled, checked, stale, contested, work orders, spend), the completion criteria, each question's stage, recent activity |
 | **Live** | What is the swarm doing right now? (§3) |
 | **Pipeline** | Where is each question in the workflow, and what would move it? A swimlane of the profile's stages with each gate MET / NOT MET, its evidence and what would meet it |
-| **Graph** | What rests on what? The graph, with profile labels, checked and stale rings, and click-through to the node |
+| **Graph** | What rests on what? The graph, with profile labels, checked and stale rings, and click-through to the node. A focus draws one node's part of it — what it rests on, what rests on it, its neighbours to depth 3, or a question with what answers it — named in the link (`#focus=CL7&lens=why`); the sidebar lists the questions as focuses |
 | **Evidence** | Every claim, result, source and decision, with its derived standing: checked, stale, contested, at risk, re-run by the instrument |
+| **Sources** | What does this rest on outside itself? Every source the investigation cites — outside literature with its DOI, URL and the passage as quoted, and pinned references into other records with their hash checks — and what rests on each; filters for the uncited, the unlinked and the fallen-but-still-cited; CSV and BibTeX |
 | **Work orders** | What was each seat asked to do, its predicates for done, and how it ended |
 | **Audit log** | The append-only event log, with the hash chain re-verified on read (the badge in the top bar) |
 | **Report** | The profile's report (Change report, Desk note, Sourced brief, …), with PDF and bundle export |

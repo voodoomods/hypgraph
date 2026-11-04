@@ -247,7 +247,7 @@
     padding: 6px 8px; gap: 4px; }
   .hg .hg-nav h2 { display: none; }
   .hg .hg-nav button { width: auto; flex: none; white-space: nowrap; padding: 6px 10px; }
-  .hg .hg-nav .n { margin-left: 4px; } .hg .hg-nav .inv .s { display: none; }
+  .hg .hg-nav .n { margin-left: 4px; } .hg .hg-nav .inv .s { display: none; } .hg .hg-nav .subnav { display: none; }
   .hg .hg-main { padding: 16px 16px 32px; }
   .hg.hg-embed .hg-nav { overflow-x: auto; overflow-y: hidden; }   /* beats the embed's overflow: visible: every tab reachable */
   .hg .trace .tr { grid-template-columns: minmax(90px, 40%) minmax(0, 1fr) 48px; }
@@ -266,6 +266,20 @@
 .hg .lk-from:first-child { margin-top: 0; }
 .hg .lk-sec { border-left: 3px solid var(--accent); padding-left: 10px; }
 .hg .lk-sec .lk-pin + .lk-pin { margin-top: 8px; }
+/* sources: the passage as the author quoted it, under the citation; its links */
+.hg .so-cite { margin-top: 3px; font-size: 12px; color: var(--ink2); border-left: 2px solid var(--line2); padding-left: 8px; }
+.hg .so-links { margin-top: 3px; font-size: 11.5px; overflow-wrap: anywhere; }
+/* focus: one node's part of the graph — the bar names it, switches the lens, clears it */
+.hg .focusbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 12px; border-radius: 9px;
+  background: var(--accent-soft); color: var(--accent-ink); font-size: 12.5px; }
+.hg .focusbar .sp { flex: 1; } .hg .focusbar > button.code { all: unset; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.hg .focusbar > button.code:hover { text-decoration: underline; }
+.hg .focus-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.hg .hg-nav .subnav { margin: 0 0 4px; display: flex; flex-direction: column; gap: 1px; }
+.hg .hg-nav .subnav h3 { margin: 4px 8px 3px 34px; font: 600 10.5px var(--sans); letter-spacing: .05em; text-transform: uppercase; color: var(--ink3); }
+.hg .hg-nav .subnav button { padding: 4px 10px 4px 34px; font-size: 12px; gap: 7px; }
+.hg .hg-nav .subnav .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hg .hg-toast[hidden] { display: none; }
 @media print {
   .hg .hg-nav, .hg .hg-top, .hg .head .acts, .hg .hg-drawer, .hg .hg-pal { display: none !important; }
   .hg .hg-app { display: block; } .hg { overflow: visible; height: auto; } .hg .hg-main { overflow: visible; padding: 0; }

@@ -475,7 +475,7 @@
 "8b57abdc80": "El agua de Londres · registros enlazados — HypGraph",
 "1c7488b268": "El agua de Londres",
 "4b343b4613": "East London, 1866",
-"f828920e4e": "<1>Registros enlazados</1> · tres registros, cada uno con su propia cadena de hashes y su propio comité, unidos solo por referencias fijadas: una fuente de un registro nombra un nodo de otro, la versión que leyó y el hash de esa versión. Abra el grafo y cada registro que fija se dibuja junto a este, cada uno leído como su propio bundle, verificado en su navegador, y cada referencia comprobada contra él. Una reconstrucción didáctica: ninguna cifra más allá de lo que dicen los registros.",
+"0b7ac8acea": "<1>Registros enlazados</1> · tres registros, cada uno con su propia cadena de hashes y su propio comité, unidos solo por referencias fijadas: una fuente de un registro nombra un nodo de otro, la versión que leyó y el hash de esa versión. Abra el grafo y cada registro que fija se dibuja junto a este, cada uno leído como su propio bundle, verificado en su navegador, y cada referencia comprobada contra él; las referencias se listan en Fuentes. Una reconstrucción didáctica: ninguna cifra más allá de lo que dicen los registros.",
 "41986b30dc": "Uno de tres registros de HypGraph unidos por referencias fijadas, dibujados juntos y cada uno verificado por separado.",
 "e51c55255b": "Registros",
 "0e43422af9": "Broad Street, 1854 · registros enlazados — HypGraph",
