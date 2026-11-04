@@ -125,6 +125,7 @@ def test_the_sources_view_and_the_focus_are_in_the_app():
     assert "/^[1-9]$/.test(ev.key)" in js                                         # key 9 reaches the last view
     assert "p.set('focus', S.m.codeOf(S.focus.node)); p.set('lens', S.focus.lens)" in js   # the focus is in the link
     assert "data-fq=" in js and "'question'" in js                                # the questions under Graph, each a focus
+    assert 'data-act="lk-focus" data-i="${i}" ${linkedOn() && S.lk.at === i' in js  # the linked records under Graph: the subgraphs
     assert "data-focus=" in js and "dr.focus.why" in js                           # the way in from a node's details
     strings = json.JSONDecoder().raw_decode(js, js.index("/* strings:en */") + len("/* strings:en */"))[0]
     for k in ("view.sources", "so.honest", "so.only.uncited", "so.only.nolink", "so.only.fallen", "so.bibtex",

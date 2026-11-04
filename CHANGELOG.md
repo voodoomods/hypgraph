@@ -14,7 +14,8 @@
   source included; what would *fall* with it is the narrower engine walk the drawer shows under "If it fell") or
   "Show its neighbours" (depth 1–3) draws only that part of the record, with a bar naming the node, the lens, the
   depth and how many nodes are shown; the type chips still apply, the centre is always drawn, a focus of one or two
-  nodes is drawn at a readable size rather than filling the pane, Esc clears it. Under Graph, the sidebar lists the investigation's questions, each a focus on
+  nodes is drawn at a readable size rather than filling the pane, Esc clears it. Under Graph, the sidebar lists the records this one pins — the
+  subgraphs, each a jump to that record in the linked graph — and the investigation's questions, each a focus on
   the question, what answers or addresses it and what that rests on. The focus is in the link
   (`#view=graph&focus=CL7&lens=why`, "Copy link" on the bar), so a review comment can point at exactly the subgraph it
   means, and the JSON export of a focused graph is that part of the record with the focus named. `HypGraph.focusIds`

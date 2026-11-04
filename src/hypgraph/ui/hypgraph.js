@@ -1049,7 +1049,7 @@
       lastEventAt: 0, follow: null, cy: null, drawer: null, ev: { q: '', types: new Set(['claim', 'result', 'hypothesis', 'source', 'decision']), standing: '' },
       sort: { k: 'code', asc: true }, audit: { actor: '', kind: '' }, graphTypes: null, palIdx: 0, profiles: new Map(),
       so: { q: '', only: '' }, srcDet: { inv: '', map: new Map(), status: 'idle' }, focus: null,
-      lk: { on: opts.linked !== 'off', status: 'idle', inv: '', refs: [], data: null, models: new Map(), allowed: new Set() } };
+      lk: { on: opts.linked !== 'off', status: 'idle', inv: '', refs: [], data: null, models: new Map(), allowed: new Set(), at: -1 } };
     const fail = (e) => { root.dataset.hgError = String((e && e.message) || e); };
 
     // ── loading ──
@@ -1170,13 +1170,17 @@
         sources: m.nodes.filter((x) => x.type === 'source').length,
         orders: (m.orders || []).length, audit: m.events.length, pipeline: (m.stages || []).length };
       const open = (m.orders || []).filter((o) => ['open', 'overdue'].includes(o.status)).length;
-      // under Graph while it is open: the investigation's questions, each a focus on what answers it and what that rests on
+      // under Graph while it is open: the records this one pins (each read as its own bundle — the subgraphs), each a
+      // jump to that record in the linked graph; then the investigation's questions, each a focus on what answers it
+      const recs = S.view === 'graph' && S.lk.data ? S.lk.data.records.filter((r) => r.bundle).slice(0, 40) : [];
+      const subRecs = recs.length ? `<div class="subnav"><h3>${esc(T('lk.title'))}</h3>${recs.map((r) => { const i = S.lk.data.records.indexOf(r);
+        return `<button type="button" data-act="lk-focus" data-i="${i}" ${linkedOn() && S.lk.at === i ? 'aria-current="true"' : ''} title="${esc(recName(r) + (r.record ? ' · ' + where(r.record) : ''))}"><span class="code">⛓</span><span class="t">${esc(clip(r.title || r.code, 44))}</span></button>`; }).join('')}</div>` : '';
       const qs = S.view === 'graph' ? (m.board || []).filter((q) => m.byId.has(q.id)).slice(0, 60) : [];
       const sub = qs.length ? `<div class="subnav"><h3>${esc(T('fo.by_question'))}</h3>${qs.map((q) => `<button type="button" data-fq="${esc(q.id)}" ${S.focus && S.focus.lens === 'question' && S.focus.node === q.id ? 'aria-current="true"' : ''} title="${esc(q.text || '')}"><span class="code">${esc(q.code)}</span><span class="t">${esc(clip(q.text, 44))}</span></button>`).join('')}</div>` : '';
       let h = `<h2>${esc(T('nav.investigation'))}</h2>` + VIEWS.map(([k, ico]) =>
         `<button type="button" data-v="${k}" ${S.view === k ? 'aria-current="page"' : ''}><span class="ico" aria-hidden="true">${ico}</span>${esc(T('view.' + k))}` +
         (k === 'live' ? (open ? `<span class="n">${esc(T('nav.open', { n: open }))}</span>` : '') : n[k] != null ? `<span class="n">${n[k]}</span>` : '') + '</button>' +
-        (k === 'graph' ? sub : '')).join('');
+        (k === 'graph' ? subRecs + sub : '')).join('');
       if (S.invs.length > 1) {
         h += `<h2>${esc(T('nav.investigations'))}</h2>` + S.invs.map((i) => {
           const pid = S.profiles.get(i.id) || '', fam = pid.split('@')[0];
@@ -2093,7 +2097,8 @@
       if (a === 'unfocus') { S.focus = null; return render(); }
       if (a === 'copy-link') { const cb = global.navigator && global.navigator.clipboard; if (cb) cb.writeText(global.location.href).then(() => toast(T('fo.copied')), () => {}); return; }
       if (a === 'lk-focus') {                                  // the records are drawn only around the whole record, in the Graph view
-        if (S.view !== 'graph' || !S.lk.on || S.focus) { S.lk.on = true; S.focus = null; if (S.view !== 'graph') setView('graph'); else render(); }
+        S.lk.at = +t.dataset.i;
+        if (S.view !== 'graph' || !S.lk.on || S.focus) { S.lk.on = true; S.focus = null; if (S.view !== 'graph') setView('graph'); else render(); } else nav();
         const box = S.cy && S.cy.getElementById('rec:' + t.dataset.i);
         if (box && box.length) { $('#hg-graph').scrollIntoView({ block: 'center', behavior: 'smooth' }); S.cy.animate({ fit: { eles: box, padding: 40 } }, { duration: 320 }); }
         return;
