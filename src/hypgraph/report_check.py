@@ -92,6 +92,28 @@ def _asserted(pattern: re.Pattern, text: str) -> list[str]:
     return [m.group(0).lower() for m in pattern.finditer(text) if not _NEGATOR.search(text[:m.start()])]
 
 
+_P_KEY = re.compile(r"p(?:[_-]?val(?:ue)?|_[a-z0-9_]+)?", re.I)
+
+
+def _carries_test(s: D.Snap, nid: str) -> bool:
+    """Does this node hold a test: a two-sample count the record worked out, a value with a p, a value named as one
+    (p_value, p_exact, pvalue), or, for a claim, its own statement's p-value or any such result it rests on?"""
+    def holds(n: str) -> bool:
+        vals = s.nodes[n]["body"].get("values") or {}
+        return bool(D.state(s, n).get("test")) or any(
+            _P_KEY.fullmatch(str(k)) or (isinstance(v, dict) and "p" in v) for k, v in vals.items())
+    if holds(nid):
+        return True
+    n = s.nodes[nid]
+    if n["type"] != "claim":
+        return False
+    if _P_VALUE.search(n["body"].get("statement") or ""):
+        return True
+    bound = [m.get("result") for m in n["body"].get("measurements") or [] if isinstance(m, dict)]
+    rests = [e["dst"] for e in s.out.get(nid, []) if e["rel"] == "derived_from"]
+    return any(holds(r) for r in [*bound, *rests] if r in s.nodes)
+
+
 def _blank(m: re.Match) -> str:
     return re.sub(r"[^\n]", " ", m.group(0))
 
@@ -286,9 +308,10 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
                     f"'{causal[0]}' is causal and no claim is cited — cite the claim backed by an experiment, or say "
                     "'is associated with'.")
             sig = L.found(L.SIGNIFICANCE, own)
-            if sig and not _P_VALUE.search(sent) and not any(D.state(s, c).get("test") or any(isinstance(v, dict) and "p" in v for v in
-                               (s.nodes[c]["body"].get("values") or {}).values()) for c in cited):
-                negated = re.search(r"\bnot\s+(?:statistically\s+)?(?:significant|unusual)|\bnon-?significant", sent, re.I)
+            if sig and not _P_VALUE.search(sent) and not any(_carries_test(s, c) for c in cited):
+                # the sentence denies the test rather than claims it: emphasis ("*not* significantly") is no assertion
+                plain = re.sub(r"\bnot\s+(?:only|just|merely)\b", "", re.sub(r"[*_]", "", own), flags=re.I)
+                negated = bool(L.denied(L.SIGNIFICANCE, plain)) and not L.asserted(L.SIGNIFICANCE, plain)
                 add(ln, "warning" if negated else "error", "REPORT_SIGNIFICANCE_UNBACKED", sent,
                     f"'{sig[0]}' — cite the claim or result that carries the test.")
     _check_answers(s, text or "", invs, by_code, add, counted)

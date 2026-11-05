@@ -1776,8 +1776,10 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     if invb.get("strict_claims") is False:
         return []
     problems: list[Problem] = []
-    if _PLACEHOLDER.match(stmt) or len(re.findall(r"[^\W\d_]{3,}", stmt)) < 2:
-        # a claim written to clear a gate (studies/challenges E2: "Placeholder.", contested and left in the record)
+    words = len(re.findall(r"[^\W\d_]{3,}", stmt))
+    if _PLACEHOLDER.match(_NUM.sub("", stmt)) or words < (1 if _NUM.search(stmt) else 2):
+        # a claim written to clear a gate (studies/challenges E2: "Placeholder.", contested and left in the record);
+        # a word and a figure do say something: "A's accuracy is 0.814."
         problems.append(Problem("STATEMENT_EMPTY", "the statement says nothing: write the finding itself — what was "
                                 "measured, on what, and what it came to"))
     if kind in ("finding", "exclusion") and len(scope.strip()) < 10:

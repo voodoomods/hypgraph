@@ -76,3 +76,11 @@ def test_a_statement_that_says_nothing_is_refused(tmp_path):
     for i, stmt in enumerate(("Placeholder.", "Placeholder claim.", "TBD — pending.", "To be determined.", "1234567890 ...")):
         assert "STATEMENT_EMPTY" in _claim_error(tmp_path / f"{i}.hypgraph", stmt), stmt
     assert _claim_error(tmp_path / "real.hypgraph", "parse_duration truncates rather than rounds.") == ""
+
+
+def test_a_word_and_a_figure_say_something(tmp_path):
+    """From gpt-oss runs: "A's accuracy is 0.814." has one word of three letters, and was refused as saying nothing."""
+    for i, stmt in enumerate(("A's accuracy is 0.814.", "Accuracy: 81.4 %.")):
+        assert "STATEMENT_EMPTY" not in _claim_error(tmp_path / f"{i}.hypgraph", stmt), stmt
+    for i, stmt in enumerate(("TBD 12.", "Placeholder 3.", "Placeholder 3 — pending.", "See RS1.", "12.")):
+        assert _claim_error(tmp_path / f"e{i}.hypgraph", stmt), stmt            # some are too short to reach this check
