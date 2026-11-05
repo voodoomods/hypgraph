@@ -1598,6 +1598,9 @@ def _exclusion(s: Snap, stmt: str, kind: str, support: list[str], bound: list) -
                     "effect", words=words)]
 
 
+_ORDINAL = re.compile(r"\b(\d+)(?:st|nd|rd|th)\b", re.I)
+# a value not filled in: a template's {date}, or a variable's name where its value belongs ("accuracy = A_easy_acc")
+_SLOT = re.compile(r"\{\s*[A-Za-z_][\w.]*\s*\}|=\s*[A-Za-z]+_[A-Za-z0-9_]*\b(?!\s*\()")
 _PLACEHOLDER = re.compile(r"^\W*(?:(?:placeholder|tbd|todo|tba|n/?a|none|wip|xxx|test|claim|statement|pending|"
                           r"to be (?:determined|confirmed|added)|lorem ipsum)\W*)+$", re.I)
 
@@ -1776,13 +1779,20 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     if invb.get("strict_claims") is False:
         return []
     problems: list[Problem] = []
-    if _PLACEHOLDER.match(stmt) or len(re.findall(r"[^\W\d_]{3,}", stmt)) < 2:
-        # a claim written to clear a gate (studies/challenges E2: "Placeholder.", contested and left in the record)
+    words = len(re.findall(r"[^\W\d_]{3,}", stmt))
+    if _PLACEHOLDER.match(_NUM.sub("", stmt)) or words < (1 if _NUM.search(stmt) else 2):
+        # a claim written to clear a gate (studies/challenges E2: "Placeholder.", contested and left in the record);
+        # a word and a figure do say something: "A's accuracy is 0.814."
         problems.append(Problem("STATEMENT_EMPTY", "the statement says nothing: write the finding itself — what was "
                                 "measured, on what, and what it came to"))
     if kind in ("finding", "exclusion") and len(scope.strip()) < 10:
         problems.append(Problem("SCOPE_MISSING", "scope: say under which conditions this holds (the data, method, "
                                 "sample) — at least a sentence"))
+    slot = _SLOT.search(re.sub(r"`[^`]*`", " ", stmt))
+    if slot:
+        # refused the date, a seat wrote "opened on {date}", and a later version "on a date" was checked as the answer
+        problems.append(Problem("STATEMENT_EMPTY", f"the statement has an unfilled slot ({slot.group(0).strip()}): "
+                                "write the value itself", words=[slot.group(0).strip()]))
     if kind == "convention" and L.HEDGE.search(stmt):
         problems.append(Problem("CONVENTION_HEDGED", "a convention states agreed notation; a hedged interpretation "
                                 "(could / suggests / consistent with) is a finding or a lead"))
@@ -1799,7 +1809,8 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
         [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
     for src in support:                              # a cited source's own text accounts for the numbers in it
         sb = s.nodes[src]["body"] if s.nodes[src]["type"] == "source" else {}
-        allowed += [v for v, *_ in numbers(" ".join(str(sb.get(k) or "") for k in ("passage", "citation", "title")))]
+        said = " ".join(str(sb.get(k) or "") for k in ("passage", "citation", "title"))
+        allowed += [v for v, *_ in numbers(_ORDINAL.sub(r"\1", said))]   # "the 14th of June" accounts for "14 June"
     if _CONVENTIONS.search(clean):                   # "95% interval", "α 0.05", "80% power" are conventions
         allowed += [95.0, 99.0, 90.0, 80.0, 0.05, 0.01]
     loose = [p for p in numbers(clean) if not _matches(p, allowed) and not _matches_stat(p, stat)]

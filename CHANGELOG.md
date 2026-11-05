@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- A date a source writes as an ordinal is in the source: "the 14th of June 1887" accounts for "14 June 1887". It was refused as an unbound number, and a seat ended up with a claim saying the bridge opened "on a date".
+- A statement with an unfilled slot is refused as STATEMENT_EMPTY: a template's `{date}`, or a variable's name where its value belongs (`accuracy = A_easy_acc`). Inline code is not read for this.
+- **A report that denies significance isn't refused for it.** `REPORT_SIGNIFICANCE_UNBACKED` is a warning, not an
+  error, when the sentence denies the test: emphasis ("*not* significantly"), "no statistically significant difference",
+  "does not support a statistically significant advantage". Before, only the bare "not significant" counted, so an
+  honest negative was refused and small models gave up on the report. A sentence that also asserts significance
+  ("not only significantly", "B is not significantly cheaper, but A is significantly better") stays an error.
+- **A named p-value carries the test.** A result whose values name one (`p`, `p_value`, `pvalue`, `p_exact`, …) backs a
+  significance word, and so does a claim whose statement gives a p-value or that rests on such a result. Before, only a
+  value with a `p` field did, so citing the claim that held the test was refused.
+- **A word and a figure say something.** `STATEMENT_EMPTY` no longer fires on "A's accuracy is 0.814."; placeholders
+  still do, with a number beside them or not.
+
 ## 0.8.4 — 2026-11-04: sources in the sidebar; a focus on one node's part of the graph
 
 - **A Sources view in the Explorer's sidebar.** Everything an investigation cites, in one place: outside literature
