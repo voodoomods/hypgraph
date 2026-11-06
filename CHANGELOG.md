@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.8.5 — 2026-11-06: fewer false refusals
+
 - A date a source writes as an ordinal is in the source: "the 14th of June 1887" accounts for "14 June 1887". It was refused as an unbound number, and a seat ended up with a claim saying the bridge opened "on a date".
 - A statement with an unfilled slot is refused as STATEMENT_EMPTY: a template's `{date}`, or a variable's name where its value belongs (`accuracy = A_easy_acc`). Inline code is not read for this.
 - **A report that denies significance isn't refused for it.** `REPORT_SIGNIFICANCE_UNBACKED` is a warning, not an

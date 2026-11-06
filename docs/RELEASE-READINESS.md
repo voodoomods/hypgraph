@@ -261,6 +261,12 @@ was taken from a changelog without being checked against the code.*
 > with two or more of them when the exporting and verifying processes hashed strings differently. The list now follows
 > the order the hypotheses were added. #109 is merged with green CI. Released as 0.8.3.
 
+> **After 0.8.4 (2026-11-06).** Checks only, no change to the bundle format: false refusals found running HypSwarm on a
+> small local model. A report that denies significance is warned, not refused; a named p-value carries the test; a word
+> and a figure are a statement, and an unfilled slot isn't; an ordinal in a source accounts for the number. Tests:
+> `tests/test_report_significance_denied.py`, `tests/test_statement_slots.py`, `tests/test_versions_not_figures.py`.
+> #113 is merged with green CI. Released as 0.8.5.
+
 > **After 0.8.3 (2026-11-04).** Explorer only, no change to the engine, the checks or the bundle format: a Sources view
 > (what an investigation cites, with what the record did and did not check about each) and a focus on one node's part
 > of the graph, carried in the link. The focus is computed in the browser from the record's own edges;
