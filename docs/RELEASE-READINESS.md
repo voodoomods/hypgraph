@@ -261,6 +261,13 @@ was taken from a changelog without being checked against the code.*
 > with two or more of them when the exporting and verifying processes hashed strings differently. The list now follows
 > the order the hypotheses were added. #109 is merged with green CI. Released as 0.8.3.
 
+> **After 0.8.5 (2026-11-07).** Checks only, no change to the bundle format: two ways a claim said nothing and got
+> checked on the BC-250 sweeps. A statement ending in a question mark is refused (a seat wrote the question's own text
+> as a claim superseding its right answer, and the question settled on a question); a figure's name standing where the
+> figure belongs is refused (`$mean_tutored`, `steps_k_p`, `cum_rule_before` — 13 such claims over 1,535, three of
+> them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
+> `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
+
 > **After 0.8.4 (2026-11-06).** Checks only, no change to the bundle format: false refusals found running HypSwarm on a
 > small local model. A report that denies significance is warned, not refused; a named p-value carries the test; a word
 > and a figure are a statement, and an unfilled slot isn't; an ordinal in a source accounts for the number. Tests:

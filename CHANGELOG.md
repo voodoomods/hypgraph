@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.8.6 — 2026-11-07: a placeholder is not a statement
+
 - **A figure's name is not the figure.** The slot check (`STATEMENT_EMPTY`) now refuses `$mean_tutored`,
   `$cost_per_change$`, `<claim_id>`, and a bare name shaped like a figure standing where the figure belongs ("a
   p-value steps_k_p", "before costs of cum_rule_before"). Over every BC-250 challenge record (1,535 claims) 13 were
