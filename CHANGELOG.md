@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **A claim that is a question says nothing.** A statement ending in a question mark is refused as `STATEMENT_EMPTY`.
+  On a BC-250 run a seat wrote the question's own text as a claim superseding its right answer, and the reviewer
+  checked it, so the question settled on a question. A question followed by its answer passes as before.
+
 ## 0.8.5 — 2026-11-06: fewer false refusals
 
 - A date a source writes as an ordinal is in the source: "the 14th of June 1887" accounts for "14 June 1887". It was refused as an unbound number, and a seat ended up with a claim saying the bridge opened "on a date".
