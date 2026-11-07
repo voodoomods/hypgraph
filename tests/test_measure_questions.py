@@ -20,9 +20,9 @@ def _g(profile: str, asks: str | None = "measure"):
     return g, inv, q
 
 
-def _measured(g, inv, q):
+def _measured(g, inv, q, part_of=True):
     run = g.create(author="w", type="run", inv=inv, fields={"kind": "agent", "name": "count", "state": "succeeded", "config": {"source": "print('count')"}},
-                   links=[{"rel": "part_of", "to": q}])["id"]
+                   links=[{"rel": "part_of", "to": q}] if part_of else [])["id"]
     rs = g.create(author="w", type="result", inv=inv, fields={"summary": "A is right on 781 of 1000 items.",
                   "values": {"a_correct": {"k": 781, "n": 1000}}, "outcome": "positive"},
                   links=[{"rel": "produced", "from": run}])["id"]
@@ -41,6 +41,20 @@ def test_a_scientific_measure_question_needs_no_hypothesis():
     assert skipped == {"hypothesis_stated", "preregistered"}
     c = _measured(g, inv, q)
     assert g.stage(q)["stage"] == "reviewed"
+    g.review(author="critic", target=c, verdict="checked", method="Recounted the file.", notes="781 of 1000.")
+    assert g.stage(q)["complete"]
+
+
+def test_a_question_answered_through_its_result_needs_no_part_of_link_on_the_run():
+    """hypswarm's register_run writes run → result → claim and links only the claim to the question. The run gate
+    read "no run executes an experiment on Q1" on a question whose result and claim were both met, so the harness
+    issued a `run` order every round beside the review and the seats filed 11 claims on 3 questions without
+    settling one (BC-250 S3, 2026-11-07). The run behind a result on the question is a run on the question."""
+    g, inv, q = _g("scientific@2")
+    c = _measured(g, inv, q, part_of=False)
+    st = g.stage(q)
+    assert st["stage"] == "reviewed", [(gt["gate"], gt["met"], gt["why"]) for gt in st["gates"]]
+    assert next(gt for gt in st["gates"] if gt["gate"] == "run_registered")["met"]
     g.review(author="critic", target=c, verdict="checked", method="Recounted the file.", notes="781 of 1000.")
     assert g.stage(q)["complete"]
 
