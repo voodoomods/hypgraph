@@ -4,7 +4,7 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
 
   code                          refused when
   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-  STATEMENT_EMPTY               the statement says nothing ("Placeholder.", "TBD", one word)
+  STATEMENT_EMPTY               the statement says nothing ("Placeholder.", "TBD", one word, a question)
   SCOPE_MISSING                 a finding or exclusion doesn't say under which conditions it holds
   EVIDENCE_MISSING              nothing supports it
   MEASUREMENT_MALFORMED         a measurement doesn't name its result and field
@@ -1793,6 +1793,12 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
         # refused the date, a seat wrote "opened on {date}", and a later version "on a date" was checked as the answer
         problems.append(Problem("STATEMENT_EMPTY", f"the statement has an unfilled slot ({slot.group(0).strip()}): "
                                 "write the value itself", words=[slot.group(0).strip()]))
+    if stmt.rstrip().rstrip("'\")").endswith("?"):
+        # a seat wrote the question's own text as the claim, as superseding its right answer, and the reviewer checked
+        # it ("the test failures confirm the claim"): the right answer was buried under a question mark (BC-250,
+        # 2026-11-07, E1). A question followed by its answer still ends in a sentence, and passes
+        problems.append(Problem("STATEMENT_EMPTY", "the statement is a question: write the answer to it — what was "
+                                "found, on what, and what it came to"))
     if kind == "convention" and L.HEDGE.search(stmt):
         problems.append(Problem("CONVENTION_HEDGED", "a convention states agreed notation; a hedged interpretation "
                                 "(could / suggests / consistent with) is a finding or a lead"))
