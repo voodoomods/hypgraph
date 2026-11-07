@@ -1599,8 +1599,14 @@ def _exclusion(s: Snap, stmt: str, kind: str, support: list[str], bound: list) -
 
 
 _ORDINAL = re.compile(r"\b(\d+)(?:st|nd|rd|th)\b", re.I)
-# a value not filled in: a template's {date}, or a variable's name where its value belongs ("accuracy = A_easy_acc")
-_SLOT = re.compile(r"\{\s*[A-Za-z_][\w.]*\s*\}|=\s*[A-Za-z]+_[A-Za-z0-9_]*\b(?!\s*\()")
+# a value not filled in: a template's {date} / $mean_tutored / $cost_per_change$ / <claim_id>, a variable's name where
+# its value belongs ("accuracy = A_easy_acc"), or a figure's name standing in the sentence as if it were the figure
+# ("a p-value steps_k_p", "before costs of cum_rule_before"; BC-250 sweeps 2026-11-05..07: 13 of 1,535 claims, three
+# of them checked by reviewers whose notes listed the numbers the claim left out). A name beside its value is not a
+# slot: "17.13 % (oos_return)", "oos_return = 0.17", "a mean_diff of 1.7"; a column named steps_k is a name
+_FIGURE_SUFFIX = r"p|pvalue|p_value|diff|before|after|return|mean|value|low|high|ci|count|ratio|gain|sd|se"
+_SLOT = re.compile(r"\{\s*[A-Za-z_][\w.]*\s*\}|\$\{?[A-Za-z_]\w*\}?\$?|<[A-Za-z_]\w*>|=\s*[A-Za-z]+_[A-Za-z0-9_]*\b(?!\s*\()"
+                   rf"|(?<![\w`(])[A-Za-z]+(?:_[A-Za-z]+)*_(?:{_FIGURE_SUFFIX})\b(?!\s*(?:[=:≈(\d]|is|was|of|at)\s*[-+−]?\d)(?!\s*\))")
 _PLACEHOLDER = re.compile(r"^\W*(?:(?:placeholder|tbd|todo|tba|n/?a|none|wip|xxx|test|claim|statement|pending|"
                           r"to be (?:determined|confirmed|added)|lorem ipsum)\W*)+$", re.I)
 
