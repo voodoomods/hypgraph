@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **A figure's name is not the figure.** The slot check (`STATEMENT_EMPTY`) now refuses `$mean_tutored`,
+  `$cost_per_change$`, `<claim_id>`, and a bare name shaped like a figure standing where the figure belongs ("a
+  p-value steps_k_p", "before costs of cum_rule_before"). Over every BC-250 challenge record (1,535 claims) 13 were
+  written this way and reviewers checked three of them, one with a note listing the numbers the claim left out. A
+  name beside its value passes: "17.13 % (oos_return)", "oos_return = 0.17", "a mean_diff of 1.7"; a column named
+  `steps_k` is a name, not a slot.
 - **A claim that is a question says nothing.** A statement ending in a question mark is refused as `STATEMENT_EMPTY`.
   On a BC-250 run a seat wrote the question's own text as a claim superseding its right answer, and the reviewer
   checked it, so the question settled on a question. A question followed by its answer passes as before.
