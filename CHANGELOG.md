@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A snapshot is loaded at one moment.** The tables behind a snapshot were each read in their own implicit
+  transaction, so a second Graph on the same file could commit a node and its edge between the `nodes` read and
+  the `edges` read; the edge then named a node the snapshot didn't hold, was skipped, and its mark was advanced
+  past it — that Graph never saw the edge again until a rebuild. hypswarm's scheduler and the MCP server an
+  external seat works through share a file this way (one process, two threads); on Ubuntu CI the scheduler found
+  "no live claim" on a question every other Graph showed answered, reworked the order, and asked the seat to count
+  again, which the record refused as a restatement (2026-11-05 to 11-08, never on Windows). A rebuild, a delta
+  (with its retraction check) and the row load now run inside one read transaction; a load inside a write's own
+  transaction joins it. Reproduced deterministically before the fix (`tests/test_consistent_load.py`).
 - **The run behind a result on a question is a run on the question.** A question's scope collected results through
   its claims (`derived_from`, `supports`) but runs only through an experiment's `executes` or a `part_of` link. A
   harness that registers run → result → claim and links only the claim to the question left the run gate reading
