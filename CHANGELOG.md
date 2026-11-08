@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **The run behind a result on a question is a run on the question.** A question's scope collected results through
+  its claims (`derived_from`, `supports`) but runs only through an experiment's `executes` or a `part_of` link. A
+  harness that registers run → result → claim and links only the claim to the question left the run gate reading
+  "no run executes an experiment on Q1" with the result and the claim both met; the harness issued a `run` order
+  every round beside the review, and on one BC-250 run the seats filed 11 claims on 3 questions without settling
+  one (S3, 2026-11-07). The scope now adds the runs that `produced` its results.
+
 ## 0.8.6 — 2026-11-07: a placeholder is not a statement
 
 - **A figure's name is not the figure.** The slot check (`STATEMENT_EMPTY`) now refuses `$mean_tutored`,
