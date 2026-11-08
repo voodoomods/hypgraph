@@ -104,6 +104,11 @@ class Scope:
             res += typed(out(c, "derived_from"), "result")
         res += typed(inn(root, "part_of"), "result") + ([t] if n["type"] == "result" else [])
         self.results = _uniq(res + mine("result"))
+        # a run that produced a result on the question is a run on the question. A harness registers run → result
+        # → claim with no experiment and no part_of link; the run gate then read "no run executes an experiment" on a
+        # measured question whose result and claim were both met, a `run` order went out every round beside the
+        # review, and 11 claims on 3 questions settled nothing (BC-250 S3, 2026-11-07)
+        self.runs = _uniq(self.runs + [r for x in self.results for r in typed(inn(x, "produced"), "run")])
         decs = [d for x in self.claims + self.results + self.hypotheses for d in typed(inn(x, "based_on"), "decision")]
         decs += [t] if n["type"] == "decision" else []
         self.decisions = _uniq(decs + mine("decision"))

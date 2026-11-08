@@ -394,15 +394,32 @@ class Graph:
 
     def _rebuild(self, con) -> D.Snap:
         s = D.Snap(0, self.policy)
-        retracted = {r[0] for r in con.execute("SELECT edge FROM retractions")}
-        self._load_rows(con, s, retracted)
-        s.seq = max(self._head_seq(con), s.seq)
+        own_txn = not con.in_transaction            # retractions, rows and the head seq read at one moment
+        if own_txn:
+            con.execute("BEGIN")
+        try:
+            retracted = {r[0] for r in con.execute("SELECT edge FROM retractions")}
+            self._load_rows(con, s, retracted)
+            s.seq = max(self._head_seq(con), s.seq)
+        finally:
+            if own_txn:
+                con.execute("COMMIT")
         return s
 
     def _load_rows(self, con, s: D.Snap, retracted: set, *, shared: bool = False) -> set:
         """Add every row newer than s.marks to s (all of it for a fresh Snap) and return the ids of the nodes those
         rows touched. ``shared``: s's per-node lists still belong to an older snapshot too, so a list is copied the
-        first time this load appends to it (readers of the old snapshot never see it change) and appended to after."""
+        first time this load appends to it (readers of the old snapshot never see it change) and appended to after.
+
+        The tables are read inside one read transaction, so they are read at one moment. Each SELECT used to be its
+        own implicit transaction: a second connection (another Graph on the file — hypswarm's scheduler and the MCP
+        server a person's agent works through, in one process on two threads) could commit a claim and its
+        ``answers`` edge after this load had read ``nodes`` and before it read ``edges``. The edge then named a node
+        the snapshot didn't hold yet, was skipped, and its mark was advanced past it, so this Graph never saw the
+        edge again until a rebuild: the question stood answered in every other Graph while the scheduler's
+        ``check_work`` found "no live claim", reworked the order, and the seat was asked to count again (hypswarm's
+        ``test_an_external_seat_works_orders_over_mcp`` on Ubuntu, 2026-11-05 to 11-08). A load already inside a
+        transaction (a write that reads) joins it."""
         touched: set = set()
         owned: set = set()
 
@@ -413,6 +430,9 @@ class Graph:
             else:
                 table[key].append(item)
 
+        own_txn = not con.in_transaction
+        if own_txn:
+            con.execute("BEGIN")
         con.row_factory = sqlite3.Row
         try:
             m = s.marks
@@ -462,6 +482,8 @@ class Graph:
             s.leases = {k: v for k, v in s.leases.items() if v["expires"] > t}
         finally:
             con.row_factory = None
+            if own_txn:
+                con.execute("COMMIT")
         return touched
 
     def _delta(self, con, old: D.Snap) -> Optional[D.Snap]:
@@ -469,21 +491,29 @@ class Graph:
         are shallow copies (C speed), and a per-node list is copied only when this load appends to it — a write
         costs what it touched, not the size of the graph. Derived standing carries over for every node the write
         can't have affected (derive.affected_by). None (rebuild instead) when an edge was retracted: retractions
-        remove, they don't append."""
-        if con.execute("SELECT 1 FROM events WHERE seq > ? AND kind = 'retract' LIMIT 1", (old.seq,)).fetchone():
-            return None
-        s = D.Snap(old.seq, self.policy)
-        s.nodes = dict(old.nodes)
-        s.edges = dict(old.edges)
-        s.out = defaultdict(list, old.out)
-        s.inn = defaultdict(list, old.inn)
-        s.withdrawn = dict(old.withdrawn)
-        s.leases = dict(old.leases)
-        s.versions = defaultdict(list, old.versions)
-        s.events = list(old.events)
-        s.marks = dict(old.marks)
-        s._sigs = old._sigs                       # keyed by body: still right for every node not revised
-        touched = self._load_rows(con, s, set(), shared=True)
+        remove, they don't append. The retraction check and the load are one read transaction: a retraction
+        committed between them would otherwise be loaded as a live edge and its event's seq passed over."""
+        own_txn = not con.in_transaction
+        if own_txn:
+            con.execute("BEGIN")
+        try:
+            if con.execute("SELECT 1 FROM events WHERE seq > ? AND kind = 'retract' LIMIT 1", (old.seq,)).fetchone():
+                return None
+            s = D.Snap(old.seq, self.policy)
+            s.nodes = dict(old.nodes)
+            s.edges = dict(old.edges)
+            s.out = defaultdict(list, old.out)
+            s.inn = defaultdict(list, old.inn)
+            s.withdrawn = dict(old.withdrawn)
+            s.leases = dict(old.leases)
+            s.versions = defaultdict(list, old.versions)
+            s.events = list(old.events)
+            s.marks = dict(old.marks)
+            s._sigs = old._sigs                   # keyed by body: still right for every node not revised
+            touched = self._load_rows(con, s, set(), shared=True)
+        finally:
+            if own_txn:
+                con.execute("COMMIT")
         if old._state and touched:
             stale = D.affected_by(s, touched)
             s._state = {k: v for k, v in old._state.items() if k not in stale}

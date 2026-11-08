@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.8.7 — 2026-11-08: a snapshot is loaded at one moment
+
+No change to the bundle format or the checks: one read fix and one scope fix, both found running HypSwarm.
+
 - **A snapshot is loaded at one moment.** The tables behind a snapshot were each read in their own implicit
   transaction, so a second Graph on the same file could commit a node and its edge between the `nodes` read and
   the `edges` read; the edge then named a node the snapshot didn't hold, was skipped, and its mark was advanced
