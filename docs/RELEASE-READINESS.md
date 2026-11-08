@@ -268,6 +268,15 @@ was taken from a changelog without being checked against the code.*
 > them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
 > `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
 
+> **After 0.8.6 (2026-11-08).** No change to the bundle format or the checks. A snapshot's tables were each read in
+> their own implicit transaction, so a second Graph on the same file could commit a node and its edge between the
+> `nodes` read and the `edges` read; the edge was skipped and its mark advanced past it, lost to that Graph until a
+> rebuild (HypSwarm's scheduler beside its MCP server, on Ubuntu CI). Rebuild, delta and row load now run inside one
+> read transaction; `tests/test_consistent_load.py` reproduces the loss on the old code. And a question's scope
+> counts the runs that `produced` its results, so a harness that links only the claim to the question no longer sees
+> "no run executes an experiment" with the result and claim both met. #118 and #119 are merged with green CI.
+> Released as 0.8.7.
+
 > **After 0.8.4 (2026-11-06).** Checks only, no change to the bundle format: false refusals found running HypSwarm on a
 > small local model. A report that denies significance is warned, not refused; a named p-value carries the test; a word
 > and a figure are a statement, and an unfilled slot isn't; an ordinal in a source accounts for the number. Tests:
