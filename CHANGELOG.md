@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **A link that adds support to a claim is checked like the claim's create.** Claim checks ran when a claim was
+  created or revised, never when a later `link` added to what it rests on. So any check that reads the support
+  (a source that says the opposite, a count against an absolute, a profile's source rules) could be stepped round:
+  write the claim on harmless support, then link the rest. In a HypSwarm swarm on gpt-oss-20b (BC-250, 2026-11-10)
+  an inconclusive answer was created on a result, and its `cites` link to an unreferenced source was added 53 s
+  later. It was reviewed checked. A non-curator's link that changes a claim's support now runs `checks.claim_issues`
+  and the profile's claim checks with and without the link. The link is refused only for problems it brings; one the
+  claim already had doesn't block an unrelated link. The refusal is logged as `op=link` on the claim. Replayed over
+  270 swarm records on the released profiles, 0 of 5,079 later links would be refused.
+
 ## 0.8.7 — 2026-11-08: a snapshot is loaded at one moment
 
 No change to the bundle format or the checks: one read fix and one scope fix, both found running HypSwarm.
