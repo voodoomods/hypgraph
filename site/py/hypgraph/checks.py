@@ -187,7 +187,7 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
             k, n = a
             lo, hi = stats.rate_bounds(k, n)
             plain += [k / n, 1 - k / n, n - k]
-            stat += [lo, hi]
+            stat += rate_bound_values(k, n)
             arms.append(a)
         p = _primary(rv)
         if p is not None:
@@ -210,6 +210,40 @@ def _matches_stat(printed: tuple, candidates: list[float]) -> bool:
     """A statistical quantity counts only when written to at least one decimal place (or as a 'p = 0.03' style
     value), so a rounded integer can't borrow an interval's end."""
     return printed[1] >= 1 and _matches(printed, candidates)
+
+
+def rate_bound_values(k: int, n: int) -> list[float]:
+    """A count's 95% bounds and their complements: the bound on the rate seen, and on the opposite rate ("12 of 12
+    read correctly" bounds failures at 1 - lower bound, which is what the refusals and ``bound()`` print)."""
+    lo, hi = stats.rate_bounds(k, n)
+    return [lo, hi, 1 - lo, 1 - hi]
+
+
+# a figure the statement itself says is a bound: "(95% upper bound 31%)", "at most 19% of the time", "no more than 4%"
+_LABELLED_BOUND = re.compile(r"\b(?:(?:upper|lower)\s+(?:95\s*%\s+)?(?:confidence\s+)?(?:bound|limit)|at\s+most|"
+                             r"at\s+least|no\s+more\s+than|no\s+less\s+than|bounded\s+(?:at|by))"
+                             r"(?:\s+(?:of|is|at|was))?\s*[:=≈]?\s*(?:about\s+|around\s+|roughly\s+|~\s*)?"
+                             r"(\d[\d,]*(?:\.\d+)?\s*%)", re.I)
+
+
+def split_bounds(text: str) -> tuple[str, list[tuple]]:
+    """(the text with each labelled bound's figure blanked, those figures as ``numbers`` gives them). Split by
+    position, so a figure the statement labels as a bound vouches for nothing else that happens to print the same
+    ("rose 31% ... (upper bound 31%)")."""
+    out, labelled, i = [], [], 0
+    for m in _LABELLED_BOUND.finditer(text or ""):
+        out.append(text[i:m.start(1)] + " ")
+        labelled += numbers(m.group(1))
+        i = m.end(1)
+    out.append((text or "")[i:])
+    return "".join(out), labelled
+
+
+def _matches_bound(printed: tuple, bounds: list[float]) -> bool:
+    """A percentage the statement labels as a bound may match a count's 95% bound as printed, whole numbers too: the
+    refusals and ``bound()`` print them that way ("95% upper bound 31%"), and a labelled bound borrows nothing.
+    The decimal rule stays for unlabelled figures."""
+    return printed[2] and _matches(printed, bounds)
 
 
 def _bound(s: Snap, meas: list, stmt: str = "", words: bool = True) -> tuple[list[tuple[dict, dict]], list[Problem]]:
@@ -1143,8 +1177,24 @@ def _fmt(v: float) -> str:
 
 def _subject_numbers(stmt: str, k: int, n: int) -> list[float]:
     """The figures a contradicted statement asserts, other than the count itself: what it would have to change to be
-    corrected (refusals.conduct reads them to tell a correction from the same claim said again)."""
-    return [v for v, *_ in numbers(stmt) if v not in (0, k, n)]
+    corrected (refusals.conduct reads them to tell a correction from the same claim said again). Only figures it
+    asserts (``asserted_figures``): in "the shortest route is 40 km, not 38 km" or "... is 31 km, since the true total
+    exceeds 30 km" the lie is 40 or 31. Storing 38 or 30 with it meant the same sentence said again never counted as a
+    repeat, because a repeat must assert every stored figure and refusals.carried never counts a denied or compared
+    one as asserted. A statement whose every figure is denied or compared keeps them all."""
+    said = asserted_figures(stmt) or {v for v, *_ in numbers(stmt)}
+    return [v for v, *_ in numbers(stmt) if v not in (0, k, n) and v in said]
+
+
+# a figure the statement doesn't assert but denies or compares against: "not 38", "isn't 38", "instead of 38",
+# "than 26", "exceeds 30", "above 90" (refusals.carried reads statements through the same pattern)
+NOT_ASSERTED = re.compile(r"(?:\b(?:not|never|than|above|below|over|under|beyond|exceed(?:s|ing|ed)?|except|"
+                          r"instead\s+of)|n't)\s+(?:about\s+|around\s+|roughly\s+)?\$?\d[\d,]*(?:\.\d+)?", re.I)
+
+
+def asserted_figures(stmt: str) -> set[float]:
+    """The figures a statement asserts: every number it gives, less those it denies or compares against."""
+    return {v for v, *_ in numbers(NOT_ASSERTED.sub(" ", stmt or ""))}
 
 
 # a word a statement denies: "not kilograms", "doesn't apply", "never reached" (the one or two words after it)
@@ -1825,7 +1875,11 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
         allowed += [v for v, *_ in numbers(_ORDINAL.sub(r"\1", said))]   # "the 14th of June" accounts for "14 June"
     if _CONVENTIONS.search(clean):                   # "95% interval", "α 0.05", "80% power" are conventions
         allowed += [95.0, 99.0, 90.0, 80.0, 0.05, 0.01]
-    loose = [p for p in numbers(clean) if not _matches(p, allowed) and not _matches_stat(p, stat)]
+    rest, labelled = split_bounds(clean)              # "(95% upper bound 31%)": a bound the statement names as one
+    bounds = [b for _m, rv in bound if (a := _arm(rv)) for b in rate_bound_values(*a)]
+    loose = [p for p in numbers(rest) if not _matches(p, allowed) and not _matches_stat(p, stat)]
+    loose += [p for p in labelled if not _matches(p, allowed) and not _matches_stat(p, stat)
+              and not _matches_bound(p, bounds)]
     if loose:
         problems.append(Problem("UNBOUND_NUMBER", "numbers in the statement that no bound measurement, the scope or the "
                                 "investigation's constants account for: " + ", ".join(p[3] for p in loose[:8])

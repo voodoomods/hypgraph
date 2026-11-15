@@ -268,6 +268,18 @@ was taken from a changelog without being checked against the code.*
 > them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
 > `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
 
+> **After 0.8.7 (2026-11-15).** No change to the bundle format. A link that adds support to a claim runs the
+> claim checks, so a check can't be stepped round by linking after the create (#121). Four fixes from showcase
+> experiments on gpt-oss-20b (BC-250): a refusal no longer stores a denied or compared figure as part of the lie,
+> so the same sentence said again is a repeat (#122); `conduct()` counts `replaced_false`, a false claim left only
+> for another false one, and says so (#123); a percentage a statement labels as a bound matches a count's 95%
+> bounds as printed, so the honest wording `ABSOLUTE_UNDERPOWERED` and `bound()` suggest is accepted (#124);
+> "flawlessly", "without a single error" and "-free" are absolutes unless their subject is a part (#125).
+> Replaying the experiments' logs: one paid critic's repeats 0 → 3, six get a replacement count, no honest party
+> changes; 11 correct bounds now accepted and 4 false headlines now refused, nothing else moves. Tests:
+> `tests/test_contradictions.py`, `tests/test_bound_wording.py`, `tests/test_implied_absolutes.py`,
+> `tests/test_link_rechecks.py`. #121–#125 are merged with green CI. Released as 0.8.8.
+
 > **After 0.8.6 (2026-11-08).** No change to the bundle format or the checks. A snapshot's tables were each read in
 > their own implicit transaction, so a second Graph on the same file could commit a node and its edge between the
 > `nodes` read and the `edges` read; the edge was skipped and its mark advanced past it, lost to that Graph until a
