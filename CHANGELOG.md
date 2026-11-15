@@ -2,11 +2,6 @@
 
 ## Unreleased
 
-- **A bare plural's refusal offers a qualifier true of the count.** The generic-plural refusal suggested 'nearly
-  all' or 'most' whatever the count; on 3 of 6 large files parsed, the rewrite said "a majority", which half is not
-  (say-no-more-than-the-data showcase run 3). It now offers one word that fits k of n: 'nearly all' (90 % or more),
-  'most' (over half), 'half', 'fewer than half', or 'a few' (under 10 %). Wording only. Tests:
-  `tests/test_generic_plurals.py`.
 - **A figure denied against the source that gives it.** `SOURCE_CONTRADICTS` read denied words and units, not
   figures: "the Nusk–Corlune road is actually 12 km long, not 10 km as the register indicates", linking as support the
   register item that gives 10 km, was accepted (spot-the-bad-actor showcase run 2, the liar's last word). A figure the
@@ -45,6 +40,11 @@
   those eleven are refused, no true or overreach-labelled headline changes, Exp1 unchanged. Over 7,277 claim
   versions with bound measurements in 3,011 existing records, the rule fires on 14 statements, all of them those
   showcase headlines. Tests: `tests/test_generic_plurals.py`.
+- **A bare plural's refusal offers a qualifier true of the count.** The generic-plural refusal suggested 'nearly
+  all' or 'most' whatever the count; on 3 of 6 large files parsed, the rewrite said "a majority", which half is not
+  (say-no-more-than-the-data showcase run 3). It now offers one word that fits k of n: 'nearly all' (90 % or more),
+  'most' (over half), 'half', 'fewer than half', or 'a few' (under 10 %). Wording only. Tests:
+  `tests/test_generic_plurals.py`.
 
 ## 0.8.8 — 2026-11-15: the record tells a liar who keeps at it from one who moved on
 
