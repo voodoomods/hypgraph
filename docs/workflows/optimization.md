@@ -68,6 +68,25 @@ recomputed feasibility.
 - `VERIFIED_BY_SOLVER`: a review of a solution by its own author.
 - `OPTIMAL_ON_STALE_INSTANCE`: "optimal" bound to a solve whose instance is superseded.
 
+## `optimization@3` (2026-11-15): the values behind "optimal"
+
+`optimization@2` checks that a supporting result *has* a bound or gap before "optimal" is said; it doesn't read
+them. Under it, "the route plan is optimal at a cost of 412" was accepted on a result with a bound of 398 (a 3.4%
+gap), and on an infeasible incumbent. `optimization@3` is `optimization@2` with one more claim check;
+`optimization@1` and `@2` are unchanged, and a record keeps the version it was pinned with.
+
+- `OPTIMAL_CONTRADICTED`: *optimal*, *optimum*, *best possible*, *cannot be improved* said of the solution while
+  every supporting result that says something denies it: the incumbent is infeasible, or its relative gap is above
+  1e-4 (the default tolerance of CPLEX, Gurobi, HiGHS and SCIP). The gap is computed from `objective` and `bound`
+  when both are numbers (what the solver proved) and taken from `gap` otherwise. Reference uses are not claims of
+  optimality: "within 0.72% of the theoretical optimum", "the gap to the optimum", "3% below the optimal bound",
+  "close to the optimum"; nor are negated, hedged or unknown ones ("not optimal", "near-optimal", "optimality was not
+  proven").
+
+Measured before it was written: re-filing every logged sentence of the optimal-plan showcase (gpt-oss-20b) under
+`optimization@3` moves none of 126. Every "optimal" the seats wrote sat on a closed gap; on open gaps they wrote
+"within X% of the optimum", which the first draft of this check refused once and which is now a test case.
+
 ## Review questions and decisions (2026-10-26)
 
 1. *The model: hypothesis or experiment?* **Hypothesis** (`modelled`, gate `hypothesis_stated`): it can be wrong

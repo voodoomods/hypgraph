@@ -158,6 +158,7 @@ LABELS: dict[str, dict[str, str]] = {
                        "result": "Solution", "claim": "Solution claim", "artifact": "Instance",
                        "review": "Verification", "decision": "Recommendation"},
 }
+LABELS["optimization@3"] = LABELS["optimization@2"]
 LABELS["trading@3"] = LABELS["trading@2"]
 
 
@@ -399,6 +400,18 @@ OPTIMIZATION2 = _add(Profile(
         report="Solution report",
     )))
 
+# ── @3: "optimal" reads the values, not only the keys. @2 asks that a supporting result *has* a bound or gap; @3 asks
+# what they say. Found in the optimal-plan showcase probes (2026-11-15): under optimization@2, "the plan is optimal"
+# was accepted on a result whose gap to its bound was 3%. Everything else is optimization@2 unchanged. ──────────────
+
+OPTIMIZATION3 = _add(Profile(
+    "optimization", 3, OPTIMIZATION2.about + " 'Optimal' is checked against the values: the incumbent feasible and "
+    "within the gap tolerance (1e-4) of its bound.",
+    vocabulary=OPTIMIZATION2.vocabulary, done_when=OPTIMIZATION2.done_when, predicates=OPTIMIZATION2.predicates,
+    validators=OPTIMIZATION2.validators + ("optimal_needs_zero_gap",),
+    completion=OPTIMIZATION2.completion, seats=OPTIMIZATION2.seats, workflow=OPTIMIZATION2.workflow,
+))
+
 
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
@@ -591,6 +604,8 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
             out.append(Problem("CLAIM_WITHOUT_SOURCE", "a knowledge claim must cite a source node (citation, url or doi, "
                                "the passage) — the record holds what was read, not what was recalled",
                                fix="graph_add a source, then link the claim with {\"rel\": \"cites\", \"to\": <source>}"))
+    if "optimal_needs_zero_gap" in p.validators:
+        out += _optimal_contradicted(s, stmt, results)
     if "edge_needs_oos_gain" in p.validators:
         out += _edge_contradicted(s, stmt, results)
     if "in_sample_labelled" in p.validators:
@@ -601,6 +616,83 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
     return out
 
 
+# ── optimization@3: the values behind "optimal" ──
+# The MIP convention: a solve is optimal when the relative gap |bound − objective| / |objective| is within the solver's
+# tolerance (1e-4 is the default of CPLEX, Gurobi, HiGHS and SCIP) and the incumbent is feasible.
+GAP_TOLERANCE = 1e-4
+_FALSE = (False, 0, "false", "False", "no", "No")
+# 'optimal' as a reference point, not said of the plan: "within 1% of optimal", "the gap to the optimum", "the optimal
+# bound", "close to the optimum"
+_OPT_REFERENCE_BEFORE = re.compile(r"(?:\b(?:of|to|from|on|than|versus|vs|relative|above|below|within|near|close|"
+                                   r"nearly|approximately|about|towards?)\b[\s,]*(?:(?:the|an?)\s+(?:[\w‐‑-]+\s+)?|"
+                                   r"(?:true|proven|known|global|exact|real|lp|best|theoretical)\s+)?)$",
+                                   re.I)
+_OPT_REFERENCE_AFTER = re.compile(r"^[ \t‐‑-]*(?:bounds?|gap)\b", re.I)
+_OPT_UNKNOWN = re.compile(r"\b(?:not (?:known|proven|proved|certain)|unknown|unproven|unproved)\b", re.I)
+_OPT_CLAUSE = re.compile(r"[;:!?—]|\.(?!\d)")
+# A sentence that denies something isn't a bare optimality claim: audits name the optimum to measure a plan against
+# it ("the plan is not optimal; the optimal value is 656", "the rota is infeasible …, whereas the exact minimum cost of
+# a rule-abiding rota is 112"). 5 of the 7 corpus sentences the value check alone refused were these.
+_OPT_DENIED = re.compile(r"\b(?:no|not|never|none|neither|nor|without|cannot|infeasible|unusable|fail(?:s|ed)?)\b|"
+                         r"n't\b", re.I)
+
+
+def _said_optimal(stmt: str) -> str:
+    """The first optimal word said *of* the solution, in a clause that asserts it: '' when every one is a reference
+    point (within 1% of optimal, the gap to the optimum, the optimal bound), negated, hedged or unknown, and in a
+    sentence that denies anything (_OPT_DENIED): precision over recall."""
+    if not L.asserted(_OPTIMAL, stmt or "") or _OPT_DENIED.search(stmt):
+        return ""
+    for clause in _OPT_CLAUSE.split(stmt):
+        if _OPT_UNKNOWN.search(clause) or not L.asserted(_OPTIMAL, clause):
+            continue
+        for m in _OPTIMAL.finditer(clause):
+            if _OPT_REFERENCE_BEFORE.search(clause[:m.start()]) or _OPT_REFERENCE_AFTER.search(clause[m.end():]):
+                continue
+            return m.group(1)
+    return ""
+
+
+def _gap_of(body: dict) -> tuple[str, float] | None:
+    """A result's distance from optimal: ('feasible = false', inf) for an infeasible incumbent, else the relative gap
+    from objective and bound when both are numbers (unambiguous), else the recorded gap; None when it says none."""
+    v = _vals(body)
+    if "feasible" in v and v["feasible"] in _FALSE:
+        return "feasible = false", float("inf")
+
+    def num(k):
+        x = v.get(k)
+        return float(x) if isinstance(x, (int, float)) and not isinstance(x, bool) else None
+    obj, bound, gap = num("objective"), num("bound"), num("gap")
+    if obj is not None and bound is not None:
+        d = abs(bound - obj)
+        rel = d / abs(obj) if obj else (0.0 if d <= 1e-9 else float("inf"))
+        return f"objective {obj:g} against bound {bound:g}, a relative gap of {rel:.3g}", (rel if d > 1e-6 else 0.0)
+    if gap is not None and 0 <= gap <= 1:    # above 1 it's a percentage or an absolute shortfall: units unknown
+        return f"gap = {gap:g}", gap
+    return None
+
+
+def _optimal_contradicted(s: D.Snap, stmt: str, results: list[str]) -> list[Problem]:
+    """OPTIMAL_CONTRADICTED: 'optimal' said of a solution whose supporting results deny it — an infeasible incumbent,
+    or a gap above the tolerance. Refused only when every supporting result that says something denies it."""
+    word = _said_optimal(stmt)
+    if not word:
+        return []
+    denials = []
+    for r in results:
+        g = _gap_of(s.nodes[r]["body"])
+        if g is None:
+            continue
+        if g[1] <= GAP_TOLERANCE:
+            return []
+        denials.append(g[0])
+    if not denials:
+        return []
+    return [Problem("OPTIMAL_CONTRADICTED", f"'{word}' is asserted, but the result it rests on says otherwise: "
+                    f"{denials[0]} — optimal means a feasible incumbent within {GAP_TOLERANCE:g} of its bound",
+                    fix="say 'best found' with its gap (or 'within X of the bound'), or solve until the gap closes",
+                    words=[word])]
 # ── trading@3: the values behind the edge words ──
 _OOS_KEY = re.compile(r"oos|out_?of_?sample|holdout|(?:^|_)test(?:_|$)", re.I)
 _RETURN_KEY = re.compile(r"return|pnl|profit|cagr", re.I)
