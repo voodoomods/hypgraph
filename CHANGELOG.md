@@ -19,6 +19,15 @@
   through the refused statement. Found in the spot-the-bad-actor showcase (gpt-oss-20b, BC-250, 2026-11-15): replaying
   its 20 record-arm disputes, one paid critic goes from 0 repeats and 5 moves off to 3 repeats, still saying it at
   the end. No other party's conduct changes.
+- **A new false figure each time reads as persisting, not moving off.** An author refused six times with a different
+  figure each time (31, 32, 33 km ...) had every refusal logged as moving off the last one, and `conduct()` summed it
+  up as "the author did not say it again". `conduct()` now counts `replaced_false`: claims shown false whose author's
+  last word on them was a move into another claim the record also showed false. It is a subset of `moved_off`, so
+  existing fields keep their meaning. The sentence says it ("did not say the same claim again, but replaced a
+  contradicted claim with another the record also contradicted 5 times, and never corrected it"). Derived on read
+  from the log, so existing records read the new way. Found in the spot-the-bad-actor showcase (gpt-oss-20b, BC-250,
+  2026-11-15), where a tie-breaker reading the record acquitted such a critic. Replaying its 20 record-arm disputes:
+  6 of 10 paid critics get a replacement count, no honest party does, and no verdict of the record rule changes.
 
 ## 0.8.7 — 2026-11-08: a snapshot is loaded at one moment
 
