@@ -903,7 +903,40 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
         out += _all_but_contradicted(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _generic_contradicted(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _majority_at_half(stmt, bound)
     return out
+
+
+# Words that say more than half: "most files", "a majority of", "nearly all". Not "the most" / "at most" (a superlative,
+# a bound), "most likely", or "most" before an -ly word ("most clearly")
+_MAJORITY = re.compile(r"\b(?:(?:a|the)\s+majority\b|more\s+than\s+half\b|(?:nearly|almost|virtually|practically)\s+"
+                       r"(?:all|every)\b|(?<!\bthe )(?<!\bat )most\b(?!\s+(?:likely|\w+ly)\b))", re.I)
+
+
+def _majority_at_half(stmt: str, bound: list) -> list[Problem]:
+    """'A majority', 'most', 'more than half' or 'nearly all' on a count of exactly half. Either side of a count may be
+    the one the sentence means ("most settings lose" on 2 of 20 beating), so a majority word fits any count but an even
+    split: there, neither side is more than half. Found in the say-no-more-than-the-data showcase run 3 (2026-11-15):
+    "Parsed a majority of large files within the time budget" went in on 3 of 6. Across 3,030 existing records it was
+    the only accepted statement with a majority word on a count at or under half."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    about = L.content_words(stmt)
+    for hit in _MAJORITY.finditer(stmt):
+        if L.negated(stmt, hit.start()):
+            continue
+        rel = [(m, a) for m, a in arms if L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about] or arms
+        if not all(2 * k == n for _m, (k, n) in rel):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        w = re.sub(r"\s+", " ", hit.group(0).lower())
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{w}' says more than half, but the record's own count is {k:,} of {n:,} "
+                        f"({m.get('name') or m.get('key')}), an even split: say '{k:,} of {n:,}' or 'half'",
+                        fix=f"say '{k:,} of {n:,}', or 'half'", words=[w])]
+    return []
 
 
 _SMALL = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
