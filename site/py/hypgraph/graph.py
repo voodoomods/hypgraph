@@ -1161,6 +1161,8 @@ class Graph:
                             raise self._sealed(hidden, f"a link that rests {s.nodes[x]['code'] or x} on sealed work")
                 if src in s.nodes:
                     self._fixed_guard(s, author, src)
+                if author not in self.policy.curators:
+                    self._recheck_linked_claims(s, author, (src, rel, dst))
                 eid = self._transaction(lambda con: self._insert_edge(con, s, src, rel, dst, data or {}, why, author,
                                                                       self.clock()))
             except GraphError as e:
@@ -1180,6 +1182,35 @@ class Graph:
             if fixed:
                 out["fixes_refusals"] = fixed
         return out
+
+    def _recheck_linked_claims(self, s: D.Snap, author: str, edge: tuple[str, str, str]) -> None:
+        """A link that adds to what a claim rests on is checked as the claim's create would have been: otherwise any
+        check that reads the support is stepped round by writing the claim first and linking the rest after. Only
+        the problems the link brings refuse it; one the claim already had (the record changed around it) doesn't."""
+        for x in dict.fromkeys(edge[::2]):
+            n = s.nodes.get(x)
+            if not n or n["type"] != "claim" or x in s.withdrawn:
+                continue
+            before = self._support_ids(s, x, [])
+            after = self._support_ids(s, x, [edge])
+            if after == before:
+                continue
+            body, inv = n["body"], n["inv"]
+            # the claim's own links stand in for the pending links its create was checked with
+            own = [(e["src"], e["rel"], e["dst"]) for e in s.out.get(x, []) + s.inn.get(x, [])]
+
+            def issues(support: list[str], pending: list[tuple[str, str, str]]) -> list:
+                return list(claim_issues(s, body, support, inv)) + list(profiles.claim_issues(s, inv, body, support,
+                                                                                              pending))
+            had = {(p.code, p.message) for p in issues(before, own)}
+            new = [p for p in issues(after, own + [edge]) if (p.code, p.message) not in had]
+            if new:
+                found = [p.to_dict() for p in new]
+                refusals.record_refusal(self, author=author, op="link", inv=inv, node=x, body=body, problems=found,
+                                        support=after)
+                c = n["code"] or x
+                raise GraphError(f"link refused: {c} would rest on it, and {c} with it is refused:\n- "
+                                 + "\n- ".join(p.text() for p in new), found)
 
     def retract(self, *, author: str, edge: int, why: str) -> dict:
         if len(str(why or "").strip()) < 10:

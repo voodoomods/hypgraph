@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.8.8 — 2026-11-15: the record tells a liar who keeps at it from one who moved on
+
+No change to the bundle format. One check closes a back door (a link is checked like the claim's create); the
+rest were found by small showcase experiments on gpt-oss-20b (BC-250), where a paid critic argued against an
+honest researcher and a writer drafted launch headlines from test counts. The conduct log now counts a lie said
+again beside a figure it denies as a repeat, and a new false figure each time as persisting (`conduct()` gains
+`replaced_false`); the bound a refusal suggests is accepted; "flawlessly" and "without a single error" are
+absolutes. Each was checked by replaying the experiments' logs, with no model calls: on 0.8.7 the replays
+reproduce the runs exactly.
+
 - **A link that adds support to a claim is checked like the claim's create.** Claim checks ran when a claim was
   created or revised, never when a later `link` added to what it rests on. So any check that reads the support
   (a source that says the opposite, a count against an absolute, a profile's source rules) could be stepped round:

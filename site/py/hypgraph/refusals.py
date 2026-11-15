@@ -125,17 +125,15 @@ def _contradicted(detail: str) -> list[dict]:
 
 
 _CLAUSE = re.compile(r"[;!?]|\.(?!\d)")       # a full stop inside a number (3.5) ends no clause
-_NOT_ASSERTED = re.compile(r"\b(?:not|than|above|below|over|under|beyond|exceed(?:s|ing)?|except)\s+"
-                           r"(?:about\s+|around\s+)?\d[\d,]*(?:\.\d+)?", re.I)
 
 
-def carried(problems: list[dict], statement: str, atoms: list | None = None) -> bool:
+def carried(problems: list[dict], statement: str, atoms: list | None = None, was: str = "") -> bool:
     """Does ``statement`` say again what these contradiction problems showed false? A count contradiction is
     carried when one clause holds every figure it named (the '=…' words) again AND still asserts an extreme or an
     absolute about them ("the highest value is 93", "nothing beats 93"): mentioning the old figure in a correction
     ("1 of 82 routes is shorter than 26 km") is not saying it again. A source contradiction is carried when the
     statement still denies or doubts the same word, or still says the unit the source ruled out. A typed atom shown
-    false is carried when ``atoms`` (the new write's) asserts it again."""
+    false is carried when ``atoms`` (the new write's) asserts it again. ``was`` is the refused statement."""
     from . import assertions, checks
     keys = {assertions.key(a) for a in atoms or []}
     denied = checks.denied_words(statement or "")
@@ -150,11 +148,15 @@ def carried(problems: list[dict], statement: str, atoms: list | None = None) -> 
         if p.get("code") == "ASSERTION_CONTRADICTED" and {w[5:] for w in words if w.startswith("atom:")} & keys:
             return True
         figs = [float(w[1:]) for w in words if w.startswith("=") and w[1:].replace(".", "", 1).isdigit()]
+        # only the figures the refused statement asserted: refusals logged before 0.8.8 also stored the ones it denied
+        # or compared against ("40 km, not 38 km" gave =40 and =38), so that sentence said again never read as a repeat
+        if was and (said := checks.asserted_figures(was)):
+            figs = [f for f in figs if any(abs(f - s) < 1e-9 for s in said)] or figs
         if p.get("code") != "COUNT_CONTRADICTS" or not figs:
             continue
         for c in clauses:
             # a figure the clause negates or compares ("20 km, not 26 km", "greater than 130") isn't asserted
-            nums = [v for v, *_ in checks.numbers(_NOT_ASSERTED.sub(" ", c))]
+            nums = list(checks.asserted_figures(c))
             # nor is an extreme the clause denies ("the highest value is not 130") or a count's own domain ("a count
             # of every route finds 1 of 74 shorter"): both used to be logged as the lie said again
             if all(any(abs(x - f) < 1e-9 for x in nums) for f in figs) and checks.claimed_extremes(c):
@@ -181,7 +183,7 @@ def _note_reassertion(g: "Graph", *, author: str, inv: str, node: str, op: str, 
     con = g._connect()
     since = (datetime.fromisoformat(g.clock()) - FIX_WINDOW).isoformat(timespec="seconds")
     opened = _open_contradictions(con, author, inv, since, before=refusal)
-    hits = [r[0] for r in opened if carried(_contradicted(r[3]), statement, atoms)]
+    hits = [r[0] for r in opened if carried(_contradicted(r[3]), statement, atoms, was=r[2])]
     dropped = _moved_off(con, opened, hits, node=node, statement=statement, answers=answers)
     if not hits and not dropped:
         return
@@ -282,13 +284,13 @@ def match_fix(g: "Graph", *, author: str, inv: str, node: str, statement: str, o
         hits = [r for r in rows if (op == "revise" and r[1] == node) or _overlap(r[2], statement) >= FIX_OVERLAP
                 or _keys_again(r[3], values) or _same_pair(r[2], pair)]
         # a claim shown false and accepted later saying the same false thing is a re-assertion, not a fix
-        again = [r[0] for r in hits if carried(_contradicted(r[3]), statement, atoms)]
+        again = [r[0] for r in hits if carried(_contradicted(r[3]), statement, atoms, was=r[2])]
         hits = [r[0] for r in hits if r[0] not in again]
         # a contradiction this write is about but neither fixes nor says again: the author moved off it
         opened = [r for r in rows if _contradicted(r[3]) and r[0] not in hits]
         again += [r[0] for r in opened if r[0] not in again and _addresses(r, node=node, statement=statement,
                                                                            answers=answers)
-                  and carried(_contradicted(r[3]), statement, atoms)]
+                  and carried(_contradicted(r[3]), statement, atoms, was=r[2])]
         dropped = _moved_off(con, opened, again, node=node, statement=statement, answers=answers)
         if not hits and not again and not dropped:
             return []
@@ -346,11 +348,13 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
     """Per author: how often the record contradicted a claim of theirs (its own count, or a source they cited, says
     the opposite), how often they then corrected it, and how often they said the same thing again.
     {author: {"shown_false", "by_count", "by_source", "corrected", "reasserted", "open", "still_saying", "moved_off",
-    "ends_false", "sentence"}}. ``shown_false`` is every claim contradicted, ``by_count`` / ``by_source`` how many of
+    "replaced_false", "ends_false", "sentence"}}. ``shown_false`` is every claim contradicted, ``by_count`` / ``by_source`` how many of
     them the record's own count or a cited source contradicted (one claim can be both). A
     re-assertion that was itself refused is not counted as a new time shown false. ``still_saying``: claims shown false
     whose author's last word on them (its last fix, repeat or move away, in log order) says them again;
-    ``moved_off``: claims it last moved away from without a fix; ``ends_false``: the author's last write was itself
+    ``moved_off``: claims it last moved away from without a fix; ``replaced_false``: of those, the ones it moved off
+    only into another claim the record also showed false (31 km refused, then 32 km, then 33 km: persisting with a
+    new figure each time, not moving off); ``ends_false``: the author's last write was itself
     shown false or said a contradicted claim again (a fresh false claim at the end counts, which ``still_saying``,
     being per claim, can't see). ``shown_false`` is not a rate of lying: it adds up two kinds of evidence, and a cited
     source can itself be wrong. Read the parts, and what the author did next, not the total."""
@@ -382,8 +386,12 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
                 r = None
             if r:
                 root[r] = ref
+    # every refusal the record showed false, repeats included: a move off a claim into one of these is no move off
+    contra = {rid for rid, kind, _a, _r, codes, _d in rows
+              if kind == "refused" and set(json.loads(codes or "[]")) & set(CONTRADICTIONS)}
     last: dict[int, str] = {}                       # each claim shown false → its author's last word on it
-    for _id, kind, _a, ref, _c, _d in rows:         # rows come in log order
+    into_false: set[int] = set()                    # … when that last word was a move into another false claim
+    for _id, kind, _a, ref, _c, det in rows:        # rows come in log order
         if kind in ("fixed", "reasserted", "dropped") and ref:
             r, seen = ref, set()
             while r not in shown and r in root and r not in seen:
@@ -391,10 +399,15 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
                 r = root[r]
             if r in shown:
                 last[r] = kind
+                try:
+                    to = json.loads(det or "{}").get("refusal")
+                except Exception:  # noqa: BLE001
+                    to = None
+                (into_false.add if kind == "dropped" and to in contra else into_false.discard)(r)
     out: dict[str, dict] = {}
     for rid, a in shown.items():
         o = out.setdefault(a, {"shown_false": 0, "by_count": 0, "by_source": 0, "by_assertion": 0, "corrected": 0,
-                               "reasserted": 0, "open": 0, "still_saying": 0, "moved_off": 0})
+                               "reasserted": 0, "open": 0, "still_saying": 0, "moved_off": 0, "replaced_false": 0})
         o["shown_false"] += 1
         o["by_count"] += "COUNT_CONTRADICTS" in shown_codes[rid]
         o["by_source"] += "SOURCE_CONTRADICTS" in shown_codes[rid]
@@ -406,6 +419,7 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
         o["open"] += not fixed and not again
         o["still_saying"] += last.get(rid) == "reasserted"
         o["moved_off"] += last.get(rid) == "dropped"
+        o["replaced_false"] += rid in into_false
     # where each author ends: its last write — a refused one, or an accepted one that fixed, repeated or moved off a
     # claim shown false — either was shown false (refused as contradicted) or said a contradicted claim again, or not
     writes: dict[tuple, list] = {}
@@ -432,13 +446,19 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
             + ([f"a typed count showed an assertion of this author's false {t_} time{'s' * (t_ != 1)}"] if t_ else [])
             + ([f"{s_} claim{'s' * (s_ != 1)} of this author's went against a source it cited as support"]
                if s_ else []))
+        x = o["replaced_false"]
         o["sentence"] = (shown + "; "
                          + (f"the author said it again {o['reasserted']} time{'s' * (o['reasserted'] != 1)} after "
-                            "being shown" if o["reasserted"] else "the author did not say it again")
-                         # "never corrected" only beside a repeat: dropping a claim for a different one is no repeat
+                            "being shown" if o["reasserted"] else "the author did not say the same claim again"
+                            if x else "the author did not say it again")
+                         # moving off a false claim only into another false one is persisting, not moving off
+                         + (f"{', and' if o['reasserted'] else ', but'} replaced a contradicted claim with another the "
+                            f"record also contradicted {x} time{'s' * (x != 1)}" if x else "")
+                         # "never corrected" only beside a repeat or a replacement: dropping a false claim for a
+                         # different, unrefuted one is no repeat
                          + (f", and corrected it {o['corrected']} time{'s' * (o['corrected'] != 1)}"
                             if o["corrected"] else ", and never corrected it"
-                            if o["reasserted"] and (o["still_saying"] or o["ends_false"]) else "")
+                            if (o["reasserted"] or x) and (o["still_saying"] or o["ends_false"]) else "")
                          + ("; its last word still says it" if o["still_saying"] else
                             "; its last word was contradicted by the record" if o["ends_false"] else
                             "; its last word no longer says it" if o["reasserted"] else ""))
