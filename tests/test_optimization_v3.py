@@ -80,3 +80,22 @@ def test_gap_from_objective_and_bound_beats_the_recorded_gap():
     # a gap field that disagrees with its own objective and bound: the two numbers are what the solver proved
     stale = {**OPEN, "gap": 0.0}
     assert "OPTIMAL_CONTRADICTED" in _codes("The plan is optimal.", stale)
+
+
+# Audits from the HypSwarm optimization challenges (o1 knapsack, o2 assignment, discovery T5): the result describes the
+# plan being audited (infeasible, or short of the optimum), and the sentence names the optimum to measure it against.
+# The value check alone refused 5 such corpus sentences; a sentence that denies something isn't a bare optimality claim.
+@pytest.mark.parametrize("statement", [
+    "The selection in PLAN.md is not optimal; optimal value is 656, plan value 646, so it is 10 below optimum.",
+    "The PLAN.md rota offends 2 of the 4 certification bans in RULES.md, so it is infeasible and unusable as-is; its "
+    "nominal cost is 100 hours, while exhaustive enumeration gives a feasible optimum of 112 hours.",
+    "On this instance the rota is infeasible (feasible=false); its cell sum is 100 hours, equal to the unconstrained "
+    "optimum, whereas the exact minimum cost of a rule-abiding rota is 112.",
+])
+def test_an_audit_measuring_a_plan_against_the_optimum_is_not_refused(statement):
+    assert "OPTIMAL_CONTRADICTED" not in _codes(statement, INFEASIBLE)
+
+
+def test_a_gap_above_one_is_not_read_as_relative():
+    # HypSwarm o1 knapsack: 'gap' recorded as the audited plan's shortfall in value units (656 - 646), not a fraction
+    assert "OPTIMAL_CONTRADICTED" not in _codes("Optimal value is 656.", {"feasible": True, "gap": 10, "objective": 656})
