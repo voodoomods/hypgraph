@@ -33,6 +33,25 @@ def test_what_a_text_mentions_includes_compounds(text, want):
     assert [n[0] for n in numbers(text, mentions=True)] == want
 
 
+@pytest.mark.parametrize("text", ["priority-two tickets", f"priority{NB}two tickets", "phase-three trial",
+                                  f"type{HY}twenty{NB}one", "self-twenty-one"])
+def test_a_number_word_after_a_word_is_a_label_not_a_count(text):
+    assert numbers(text, mentions=True) == [] and numbers(text) == []
+
+
+def test_a_label_in_the_passage_does_not_account_for_the_number():
+    """Who's-hallucinating run 1, s102: "two weeks' notice", made up and citing a passage about "priority-two
+    tickets", went into the record."""
+    g = Graph()
+    inv = g.author("lead").investigation("Notice", "How much notice must a permanent employee give?")["id"]
+    r, s = _cite(g, inv, "Priority-one support tickets get a first response within 4 hours; priority-two tickets "
+                         "within 8 hours.")
+    with pytest.raises(GraphError) as e:
+        r.add("claim", inv, statement="A permanent employee must give two weeks' notice before resigning.",
+              scope="The staff handbook.", links=[{"rel": "cites", "to": s}])
+    assert "UNBOUND_NUMBER" in str(e.value)
+
+
 def test_a_compound_in_the_scope_accounts_for_the_number():
     """docfinqa: a claim scoped "five‑year cumulative return" was refused for its "five years" once U+2011 read as a
     hyphen; the scope names the period, so it accounts for it."""

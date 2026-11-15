@@ -20,11 +20,14 @@
   number ("twenty-five", "forty‑six", ASCII hyphen, U+2010 or U+2011) is now read whole; a number word joined to
   another word ("two-sided", "five‑year") is part of a compound adjective, not a figure in a statement. A scope or a
   cited passage still accounts for what it mentions, compounds included: "a five-year period" accounts for "five
-  years", "a seven-layer protocol" for "7 layers". Over 3,055 existing records (22,138 logged refusals replayed,
-  14,557 live claims and 38,502 live results re-checked), results don't move; one accepted claim is now refused —
-  a pasted passage of ward figures written as words ("fifty-seven", "eighty-six") that nothing binds; 126 refusals
-  lose an `UNBOUND_NUMBER` their scope or passage accounts for, and 55 gain one, all claims citing no source that
-  write "thirty-two" (they were already refused for that). Tests: `tests/test_number_word_hyphens.py`.
+  years", "a seven-layer protocol" for "7 layers". A number word after a word is a label, not a count, and accounts
+  for nothing: "two weeks' notice", made up and citing a passage on "priority-two tickets", went in during the
+  who's-hallucinating run 1 under the first version of this change. Over 3,055 existing records (22,138 logged
+  refusals replayed, 14,557 live claims and 38,502 live results re-checked), results don't move; one accepted claim
+  is now refused — a pasted passage of ward figures written as words ("fifty-seven", "eighty-six") that nothing
+  binds; 126 refusals lose an `UNBOUND_NUMBER` their scope or passage accounts for, and 55 gain one, all claims
+  citing no source that write "thirty-two" (they were already refused for that). The label rule, diffed alone over
+  3,115 records, moves only that "two weeks' notice". Tests: `tests/test_number_word_hyphens.py`.
 - **A figure denied against the source that gives it.** `SOURCE_CONTRADICTS` read denied words and units, not
   figures: "the Nusk–Corlune road is actually 12 km long, not 10 km as the register indicates", linking as support the
   register item that gives 10 km, was accepted (spot-the-bad-actor showcase run 2, the liar's last word). A figure the
