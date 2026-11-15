@@ -92,8 +92,22 @@ from .derive import Snap, lifecycle, producing_run, result_value
 _NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(\s*%)?(?![\w])")
 _WORDS = {w: i for i, w in enumerate("two three four five six seven eight nine ten eleven twelve thirteen fourteen "
                                      "fifteen sixteen seventeen eighteen nineteen twenty".split(), start=2)}
-_WORDNUM = re.compile(r"(?<!-)\b(" + "|".join(_WORDS) + r")\b(?!-)", re.I)   # 'one' is left out: too common as a
-_LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")                 # pronoun; "two-sided" is a name
+# 'one' is left out: too common as a pronoun. A number word joined to another word is part of a compound adjective
+# ("two-sided", "five-year"), whichever hyphen joins it — except a tens-units number ("twenty-five", "forty-six"),
+# which is read whole. gpt-oss writes U+2011, which wasn't a hyphen here: "twenty‑five days" was read as 20 and 5 and
+# refused as figures its passage doesn't give, and "forty‑six lamps" was checked as 6 (who's-hallucinating showcase
+# smoke, 2026-11-15)
+_HY = "-‐‑"
+_TENS = {w: 10 * i for i, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split(), start=2)}
+_UNITS = {w: i for i, w in enumerate("one two three four five six seven eight nine".split(), start=1)}
+_COMPOUND = re.compile(r"(?<![" + _HY + r"\w])(" + "|".join(_TENS) + r")[" + _HY + r"](" + "|".join(_UNITS)
+                       + r")\b(?![" + _HY + r"])", re.I)
+_WORDNUM = re.compile(r"(?<![" + _HY + r"])\b(" + "|".join(_WORDS) + r")\b(?![" + _HY + r"])", re.I)
+# what a text mentions, compounds included: a scope or passage saying "a five-year period" accounts for "five years"
+# in the statement (docfinqa: a claim scoped "five‑year cumulative return" was refused for its "five years")
+_COMPOUND_ANY = re.compile(r"\b(" + "|".join(_TENS) + r")[" + _HY + r"](" + "|".join(_UNITS) + r")\b", re.I)
+_WORDANY = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.I)
+_LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")
 _DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+)?\b")                      # a date is not a measurement
 # identifiers that look like numbers but aren't measurements: a version (1.10.0, v2.0.0-rc.1), inline code, a number a
 # label word names ("case 8", "cases 9–12", "test 4", "line 12", "#3"), or one that labels the literal after it ("9 ('')")
@@ -120,16 +134,21 @@ class Problem:
         return {"code": self.code, "message": self.message, "fix": self.fix, "words": self.words}
 
 
-def numbers(text: str) -> list[tuple[float, int, bool, str]]:
+def numbers(text: str, mentions: bool = False) -> list[tuple[float, int, bool, str]]:
     """(value, decimals printed, is_percent, as printed) for each number in a text. Versions and inline code are
-    identifiers, not figures, and are skipped."""
+    identifiers, not figures, and are skipped. ``mentions``: every number the text names, number words inside a
+    compound adjective included ("five-year" → 5) — for the texts that account for a statement's numbers (its scope,
+    a cited passage), not for the statement, where "two-sided" is no figure to bind."""
     out = []
     text = _NOT_A_FIGURE.sub(" ", text or "")
     for m in _NUM.finditer(text):
         whole, frac, pct = m.group(1), m.group(2), m.group(3)
         v = float(whole.replace(",", "") + ("." + frac if frac else ""))
         out.append((v, len(frac or ""), bool(pct), m.group(0).strip()))
-    for m in _WORDNUM.finditer(text):
+    compound, word = (_COMPOUND_ANY, _WORDANY) if mentions else (_COMPOUND, _WORDNUM)
+    for m in compound.finditer(text):
+        out.append((float(_TENS[m.group(1).lower()] + _UNITS[m.group(2).lower()]), 0, False, m.group(0)))
+    for m in word.finditer(compound.sub(" ", text) if mentions else text):
         out.append((float(_WORDS[m.group(1).lower()]), 0, False, m.group(0)))
     return out
 
@@ -2062,12 +2081,12 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
     plain, stat = derived_numbers(bound)
-    allowed = plain + [v for v, *_ in numbers(scope)] + A.numbers(body) + \
+    allowed = plain + [v for v, *_ in numbers(scope, mentions=True)] + A.numbers(body) + \
         [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
     for src in support:                              # a cited source's own text accounts for the numbers in it
         sb = s.nodes[src]["body"] if s.nodes[src]["type"] == "source" else {}
         said = " ".join(str(sb.get(k) or "") for k in ("passage", "citation", "title"))
-        allowed += [v for v, *_ in numbers(_ORDINAL.sub(r"\1", said))]   # "the 14th of June" accounts for "14 June"
+        allowed += [v for v, *_ in numbers(_ORDINAL.sub(r"\1", said), mentions=True)]  # "the 14th of June": "14 June"
     if _CONVENTIONS.search(clean):                   # "95% interval", "α 0.05", "80% power" are conventions
         allowed += [95.0, 99.0, 90.0, 80.0, 0.05, 0.01]
     rest, labelled = split_bounds(clean)              # "(95% upper bound 31%)": a bound the statement names as one

@@ -13,6 +13,18 @@
   none" right under a results table marking those results "NO" (spot-the-bad-actor showcase, run 3, in the Atlas).
   It now adds that the instrument's own measurements need none and aren't listed. Wording only. Tests:
   `tests/test_report_open_items.py`.
+- **Hyphenated number words: "twenty‑five" is 25, "two‑sided" is no figure, whichever hyphen.** gpt-oss writes the
+  non-breaking hyphen (U+2011), which the number reader didn't treat as a hyphen: "twenty‑five days of paid annual
+  leave", citing a handbook passage that gives 25, was refused as 20 and 5 (who's-hallucinating showcase smoke, an
+  honest seat), "forty‑six lamps" was checked as 6, and "two‑sided p-value" was read as a 2 to bind. A tens-units
+  number ("twenty-five", "forty‑six", ASCII hyphen, U+2010 or U+2011) is now read whole; a number word joined to
+  another word ("two-sided", "five‑year") is part of a compound adjective, not a figure in a statement. A scope or a
+  cited passage still accounts for what it mentions, compounds included: "a five-year period" accounts for "five
+  years", "a seven-layer protocol" for "7 layers". Over 3,055 existing records (22,138 logged refusals replayed,
+  14,557 live claims and 38,502 live results re-checked), results don't move; one accepted claim is now refused —
+  a pasted passage of ward figures written as words ("fifty-seven", "eighty-six") that nothing binds; 126 refusals
+  lose an `UNBOUND_NUMBER` their scope or passage accounts for, and 55 gain one, all claims citing no source that
+  write "thirty-two" (they were already refused for that). Tests: `tests/test_number_word_hyphens.py`.
 - **A figure denied against the source that gives it.** `SOURCE_CONTRADICTS` read denied words and units, not
   figures: "the Nusk–Corlune road is actually 12 km long, not 10 km as the register indicates", linking as support the
   register item that gives 10 km, was accepted (spot-the-bad-actor showcase run 2, the liar's last word). A figure the
