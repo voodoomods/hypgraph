@@ -76,6 +76,43 @@ def test_a_source_that_says_the_opposite_is_not_support(env):
     claim(g, inv, "b", "The old sheet's weights are not kilograms.", [neg])
 
 
+def _codes_of(g, inv, statement, links):
+    try:
+        claim(g, inv, "b", statement, links)
+    except GraphError as e:
+        return [p["code"] for p in e.problems], str(e)
+    return [], ""
+
+
+def test_a_figure_denied_against_the_source_that_gives_it(env):
+    """Found in the spot-the-bad-actor showcase run 2 (gpt-oss-20b, 2026-11-15): "the Nusk-Corlune road is actually
+    12 km long, not 10 km as the register indicates", linking as support the register item that gives 10 km, was
+    accepted. A figure the statement denies, which a source it links as support gives for the same thing, is that
+    source's contradiction, as a denied word is."""
+    g, inv, kg, memo, r = env
+    got, msg = _codes_of(g, inv, "The container takes at most 40 kg in total, not 36 kg as the memo says.", [memo])
+    assert "SOURCE_CONTRADICTS" in got and "denies 36 kg" in msg and "takes at most 36 kg in total" in msg
+    assert "SOURCE_CONTRADICTS" in _codes_of(g, inv, "The container doesn't take 36 kg in total.", [memo])[0]
+    # a figure the source doesn't give, or gives about something else, isn't contradicted
+    assert "SOURCE_CONTRADICTS" not in _codes_of(g, inv, "The container takes at most 36 kg, not 40 kg.", [memo])[0]
+    other = g.author("curator").add("source", inv, citation="Crate list", passage="The crate list names 36 crates.",
+                                    kind="primary")["id"]
+    assert "SOURCE_CONTRADICTS" not in _codes_of(g, inv, "Each item weighs under 5 kg, not 36 kg.", [other])[0]
+    # a plan or expectation the statement departs from is not the source being wrong
+    plan = g.author("curator").add("source", inv, citation="Loading plan", passage="The loading plan expected 30 kg "
+                                   "of cargo in the container.", kind="primary")["id"]
+    assert "SOURCE_CONTRADICTS" not in _codes_of(g, inv, "The container was loaded with 36 kg of cargo, not 30 kg as "
+                                                 "planned.", [plan])[0]
+
+
+def test_a_figure_denied_again_against_its_source_is_said_again():
+    from hypgraph import refusals
+    p = [{"code": "SOURCE_CONTRADICTS", "words": ["denied:10"]}]
+    assert refusals.carried(p, "The Nusk-Corlune road is 12 km, not 10 km as the register says.")
+    assert refusals.carried(p, "The road isn't 10 km long; it is 12 km.")
+    assert not refusals.carried(p, "The Nusk-Corlune road is 10 km long, as the register says.")
+
+
 def test_conduct_tells_a_correction_from_the_same_claim_said_again(env):
     g, inv, kg, memo, r = env
     false = "The highest total value that fits within 36 kg is 93; nothing worth more fits."

@@ -142,6 +142,10 @@ def carried(problems: list[dict], statement: str, atoms: list | None = None, was
         words = [str(w) for w in p.get("words") or []]
         if p.get("code") == "SOURCE_CONTRADICTS" and set(words) & (denied | checks.doubted_words(statement or "")):
             return True
+        gone = {w[7:] for w in words if w.startswith("denied:")}          # a figure denied against its source
+        if p.get("code") == "SOURCE_CONTRADICTS" and gone & {checks._fmt(v) for v, _u, _a in
+                                                             checks.denied_figures(statement or "")}:
+            return True
         units = {w[5:] for w in words if w.startswith("unit:")}           # the unit a source ruled out
         if p.get("code") == "SOURCE_CONTRADICTS" and units & checks.asserted_units(statement or ""):
             return True
