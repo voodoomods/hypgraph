@@ -29,9 +29,12 @@ ABSOLUTE = re.compile(
     r"\b(never|always|all|every|none|nothing|no one|nobody|impossible|cannot|can't|proves?|proven|proof|certainly|"
     r"certain|guaranteed?|guarantees|eliminat(?:es|ed|ing)|entirely|completely|totally|universally|invariably|"
     r"consistently|without exception|perfect(?:ly)?|solves?|solved|definitively|conclusively|undeniably|"
+    # "our parser stands undefeated" on 8 of 9 suites: said of the whole, so a named exception elsewhere doesn't
+    # qualify it (say-no-more-than-the-data showcase, 2026-11-15)
+    r"undefeated|unbeaten|"
     # an absolute with no "all" in it: "files parsed flawlessly" on 62 of 63, "without a single error" on 52 of 55
     # (both accepted in the say-no-more-than-the-data showcase, 2026-11-15)
-    r"flawless(?:ly)?|without\s+(?:a\s+single\s+|any\s+|one\s+)?(?:error|failure|fault|crash|exception|bug|"
+    r"flawless(?:ly)?|without\s+(?:a\s+single\s+|a\s+|any\s+|one\s+)?(?:error|failure|fault|crash|exception|bug|"
     r"mistake|glitch|hitch)e?s?|(?:error|failure|fault|crash|bug)-free|"
     r"zero(?!-)"
     # "no route is longer than 26 km": a universal negative comparison, the same claim as "nothing is longer"; only
@@ -101,8 +104,11 @@ _ZERO_ON_A_SCALE = re.compile(r"\b(below|above|near|to|from|of|than|at|cross(?:e
                               r"exclud(?:es|ed|ing)?|around|about|approximately|spans?|toward|towards|between|"
                               r"distinguishable from|different from|differs? from|differ from|equal to|equals?|net|"
                               r"versus|vs\.?|against|the|a|null of)\s+zero\b", re.I)
-# "almost all", "nearly every", "virtually none": the qualifier says it is not absolute
-_ALMOST = re.compile(r"\b(almost|nearly|virtually|practically|roughly|about|mostly)\s+$", re.I)
+# "almost all", "nearly every", "virtually none", "near-perfect": the qualifier says it is not absolute
+_ALMOST = re.compile(r"(?:\b(almost|nearly|virtually|practically|roughly|about|mostly)\s+|\bnear[-‐‑])$", re.I)
+# "all but one file": a count (n - 1 of n), not an absolute; checks.py holds it to the record's own count
+ALL_BUT = re.compile(r"\ball\s+but\s+(one|two|three|four|five|six|seven|eight|nine|ten|a\s+few|a\s+handful|"
+                     r"a\s+couple|\d[\d,]*)\b", re.I)
 # "the interval lies entirely below zero": where an interval lies, not a rate of 0 or 1
 _INTERVAL_SIDE = re.compile(r"\b(entirely|wholly|completely)\s+(below|above|on|within|inside|outside|negative|"
                             r"positive|to the|in the|on the|the)\b", re.I)
@@ -133,6 +139,8 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
             continue
         if _ALMOST.search(text[:m.start()]):
             continue
+        if m.group(0).lower() == "all" and ALL_BUT.match(text, m.start()):
+            continue
         if m.group(0).lower() in ("entirely", "wholly", "completely") and _INTERVAL_SIDE.match(text, m.start()):
             continue
         if _MANNER.fullmatch(m.group(0)) and (_PART_SUBJECT.search(_clause_before(text, m.start()))
@@ -150,7 +158,10 @@ _MANNER = re.compile(r"flawless(?:ly)?|without\s.*|\w+-free", re.I | re.S)
 _PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:all|every)|most|mostly|majority|many|"
                            r"some|several|all\s+but|\d[\d,]*\s+(?:of|out\s+of)\s+\d)", re.I)
 _EXCEPTIONS = re.compile(r"\b(?:except(?:\s+for)?|all\s+but|but\s+(?:one|two|a\s+few)|apart\s+from|save\s+for|"
-                         r"other\s+than)\b|\b(?:only|just)\s+(?:a\s+)?(?:few|handful|couple|one|\d+)\b[^.;]*?\b"
+                         r"other\s+than)\b|"
+                         # "flawlessly, one exception", "with two exceptions"; not "without a single exception"
+                         r"(?<!without )(?<!not )\b(?:one|a\s+single|two|three|a\s+few|a\s+handful\s+of|\d+)\s+"
+                         r"exceptions?\b|\b(?:only|just)\s+(?:a\s+)?(?:few|handful|couple|one|\d+)\b[^.;]*?\b"
                          r"(?:slipped|failed|fell|broke|crashed|errored|missed|stumbled|faltered|tripped)\b", re.I)
 
 
