@@ -2033,10 +2033,18 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     loose += [p for p in labelled if not _matches(p, allowed) and not _matches_stat(p, stat)
               and not _matches_bound(p, bounds)]
     if loose:
-        problems.append(Problem("UNBOUND_NUMBER", "numbers in the statement that no bound measurement, the scope or the "
-                                "investigation's constants account for: " + ", ".join(p[3] for p in loose[:8])
-                                + " — bind them to result fields (measurements) or move design constants into the "
-                                "scope", fix="bind each number to a result field", words=[p[3] for p in loose[:8]]))
+        # a cited source's passage accounts for its numbers too: say so, and say when the claim cites some that don't
+        # (an answer citing a handbook section that never gives its figure read as told to "bind a result field")
+        cited = sum(1 for x in support if s.nodes[x]["type"] == "source")
+        problems.append(Problem("UNBOUND_NUMBER", "numbers in the statement that no bound measurement, cited source, "
+                                "the scope or the investigation's constants account for: "
+                                + ", ".join(p[3] for p in loose[:8])
+                                + (" (the source it cites doesn't give them)" if cited == 1 else
+                                   f" (none of the {cited} sources it cites gives them)" if cited else "")
+                                + " — bind them to result fields (measurements), cite a source whose passage gives "
+                                "them, or move design constants into the scope",
+                                fix="bind each number to a result field, or cite the source that gives it",
+                                words=[p[3] for p in loose[:8]]))
     keys = {str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
     named = [k for k in sorted(keys) if ("_" in k or any(ch.isdigit() for ch in k)) and len(k) >= 4
              and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)
