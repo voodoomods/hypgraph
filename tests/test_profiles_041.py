@@ -28,7 +28,9 @@ def test_a_cited_source_accounts_for_its_numbers():
                                                            "scope": "The treaties of Osnabrück and Münster.", "kind": "finding"},
                  links=[{"rel": "answers", "to": q}, {"rel": "cites", "to": src}])
     assert c["code"].startswith("CL")
-    with pytest.raises(GraphError, match="UNBOUND_NUMBER"):                      # a number the source does not contain
+    # a number the source does not contain; the refusal says the cited source doesn't give it, and that citing one
+    # that does is a fix (it used to advise binding a result field only)
+    with pytest.raises(GraphError, match=r"(?s)the source it cites doesn't give them.*cite a source whose passage"):
         g.create(author="r", type="claim", inv=inv, fields={"statement": "It was signed by 109 delegations.",
                                                            "scope": "The treaties of Osnabrück and Münster.", "kind": "finding"},
                  links=[{"rel": "answers", "to": q}, {"rel": "cites", "to": src}])

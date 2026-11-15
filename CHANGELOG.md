@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **An unbound number's refusal names the sources the claim cites.** `UNBOUND_NUMBER` advised binding a result field
+  only, even when the claim cited a source: an agent whose cited passage didn't give the number had no way to read
+  that from the refusal. It now says what accounts for numbers (bound measurements, cited sources, the scope, the
+  investigation's constants), adds "the source it cites doesn't give them" (or "none of the N sources it cites gives
+  them") when sources are cited, and offers citing a source whose passage gives them as a fix. Wording only: what is
+  refused does not change. Tests: `tests/test_profiles_041.py`.
 - **A figure denied against the source that gives it.** `SOURCE_CONTRADICTS` read denied words and units, not
   figures: "the Nusk–Corlune road is actually 12 km long, not 10 km as the register indicates", linking as support the
   register item that gives 10 km, was accepted (spot-the-bad-actor showcase run 2, the liar's last word). A figure the
