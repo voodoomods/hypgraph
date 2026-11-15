@@ -174,9 +174,20 @@ def _open_contradictions(con, author: str, inv: str, since: str, before: int | N
     return [r for r in con.execute(q + " ORDER BY id", args).fetchall() if _contradicted(r[3])]
 
 
+def _fixed_contradictions(con, author: str, inv: str, since: str, before: int) -> list:
+    """Contradicted refusals of this author's that a later write already fixed, first refusals only (a repeat's own
+    refusal leads back to the one it repeated)."""
+    repeats = _repeat_ids(con)
+    q = ("SELECT id, node, statement, detail FROM refusal_log WHERE kind='refused' AND author=? AND inv=? AND at>=? "
+         "AND id<? AND id IN (SELECT ref FROM refusal_log WHERE kind='fixed' AND ref IS NOT NULL) ORDER BY id")
+    return [r for r in con.execute(q, (author, inv or "", since, before)).fetchall()
+            if r[0] not in repeats and _contradicted(r[3])]
+
+
 def _note_reassertion(g: "Graph", *, author: str, inv: str, node: str, op: str, statement: str,
                       refusal: int, answers: list | None = None, atoms: list | None = None) -> None:
-    """A new refusal that says again what an earlier refusal showed false: log the repetition. One on the same
+    """A new refusal that says again what an earlier refusal showed false: log the repetition — also when that
+    earlier claim was corrected in between (a lie said again after a correction is still said again). One on the same
     claim that no longer says it: log that the author moved off it."""
     if not refusal:
         return
@@ -184,6 +195,11 @@ def _note_reassertion(g: "Graph", *, author: str, inv: str, node: str, op: str, 
     since = (datetime.fromisoformat(g.clock()) - FIX_WINDOW).isoformat(timespec="seconds")
     opened = _open_contradictions(con, author, inv, since, before=refusal)
     hits = [r[0] for r in opened if carried(_contradicted(r[3]), statement, atoms, was=r[2])]
+    # found in the spot-the-bad-actor showcase (gpt-oss-20b, 2026-11-15): "the shortest is 55 km" refused, then the
+    # true "the route via Quelby measures 55 km" accepted as its fix, then "the shortest is 55 km" again, word for
+    # word — logged as a new, separate claim shown false, so conduct read "did not say it again, corrected it 2 times"
+    hits += [r[0] for r in _fixed_contradictions(con, author, inv, since, refusal)
+             if carried(_contradicted(r[3]), statement, atoms, was=r[2])]
     dropped = _moved_off(con, opened, hits, node=node, statement=statement, answers=answers)
     if not hits and not dropped:
         return

@@ -297,6 +297,69 @@ def test_a_new_false_figure_each_time_reads_as_persisting():
     assert h["replaced_false"] == 0 and "replaced" not in h["sentence"] and not h["ends_false"]
 
 
+def _relapse_record():
+    g = Graph(policy=Policy(reviewers={"critic"}))
+    cur = g.author("curator")
+    inv = cur.investigation("Load", "What is the highest total value that fits within the 36 kg limit?")["id"]
+    q = cur.add("question", inv, text="What is the highest total value that fits within 36 kg?",
+                why="Two parties disagree about the answer.")["id"]
+    lab = g.author("lab")
+    run = lab.add("run", inv, kind="lab", state="succeeded", name="Counted the selections worth more than each figure.")
+    beyond = {93: 2, 94: 1}
+    r = lab.add("result", inv, kind="computed", outcome="positive", summary="Selections that fit and are worth more.",
+                values={**{f"worth_more_{f}": {"k": k, "n": 1024} for f, k in beyond.items()},
+                        "one_fitting_value": 93},
+                links=[{"rel": "produced", "from": run["id"]}])["id"]
+
+    def lie(who, f=93):
+        with pytest.raises(GraphError):
+            g.author(who).add("claim", inv, statement=f"The highest total value that fits within 36 kg is {f}.",
+                              scope=SCOPE, links=[{"rel": "answers", "to": q},
+                                                  {"rel": "supports", "from": r, "why": "The count beyond it."}],
+                              measurements=[{"name": "fitting selections worth more", "result": r,
+                                             "key": f"worth_more_{f}", "k": beyond[f], "n": 1024}])
+
+    def retreat(who, tail=""):
+        # true, keeps the figure, drops the extreme: the record takes it as the lie's fix
+        g.author(who).add("claim", inv, statement=f"A selection that fits within 36 kg has a total value of 93{tail}.",
+                          scope=SCOPE, links=[{"rel": "answers", "to": q},
+                                              {"rel": "supports", "from": r, "why": "One fitting selection."}],
+                          measurements=[{"name": "a fitting selection's value", "result": r,
+                                         "key": "one_fitting_value", "value": 93}])
+    return g, inv, lie, retreat
+
+
+def test_a_lie_said_again_after_a_correction_is_said_again():
+    """Found in the spot-the-bad-actor showcase run 2 (gpt-oss-20b, 2026-11-15): a paid critic's "the shortest is
+    55 km" was refused, then the true "the route via Quelby measures 55 km" was accepted as its fix; the critic then
+    filed "the shortest is 55 km" again, word for word, refused again, and retreated again. The second refusal was
+    logged as a new claim shown false, so conduct read "did not say it again, and corrected it 2 times" and a
+    tie-breaker reading the record acquitted. A fixed lie said again is a repeat."""
+    g, inv, lie, retreat = _relapse_record()
+    lie("shifty")
+    retreat("shifty")
+    lie("shifty")
+    retreat("shifty", " too")
+    s = g.conduct(inv)["shifty"]
+    assert (s["shown_false"], s["reasserted"], s["corrected"], s["still_saying"]) == (1, 1, 1, 0), s
+    assert "said it again 1 time after being shown" in s["sentence"] and "did not say" not in s["sentence"]
+    assert not s["ends_false"]   # its last word was the true retreat
+    # a third time leads back to the first refusal, not to the repeat
+    lie("shifty")
+    s = g.conduct(inv)["shifty"]
+    assert (s["shown_false"], s["reasserted"]) == (1, 2) and s["ends_false"], s
+
+
+def test_a_corrected_author_who_says_something_else_has_not_said_it_again():
+    """The control: refused, corrected, then a different false claim. That is a new claim shown false, not a repeat."""
+    g, inv, lie, retreat = _relapse_record()
+    lie("honest")
+    retreat("honest")
+    lie("honest", 94)
+    s = g.conduct(inv)["honest"]
+    assert s["reasserted"] == 0 and s["shown_false"] == 2 and s["corrected"] == 1, s
+
+
 def test_an_extreme_meets_the_count_of_what_lies_beyond_it(env):
     """The record accepted "the highest total value is 108" with a bound count of 1 of
     1,024 worth more, because the count's name and the sentence shared no stemmed word ("fits" / "fitting", "routes"

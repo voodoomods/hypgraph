@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **A lie said again after a correction is said again.** A refusal that repeats an earlier one the author had since
+  fixed was logged as a new, separate claim shown false, because the repeat check only looked at refusals still open.
+  Found in the spot-the-bad-actor showcase run 2: a paid critic's "the shortest is 55 km" was refused, the true "the
+  route via Quelby measures 55 km" was accepted as its fix, then the same sentence was filed again word for word.
+  Conduct read "did not say it again, and corrected it 2 times", and the tie-breaker reading the record acquitted.
+  `_note_reassertion` now also checks the author's fixed refusals (first refusals only; a third time leads back to
+  the first), so it reads "said it again 1 time after being shown, and corrected it 1 time". A different false claim
+  after a correction is still a new claim shown false. Replaying the showcase logs: two liars per run gain a repeat,
+  one more liar is named (9/10), no honest party changes. Tests: `tests/test_contradictions.py`.
+
 ## 0.8.8 — 2026-11-15: the record tells a liar who keeps at it from one who moved on
 
 No change to the bundle format. One check closes a back door (a link is checked like the claim's create); the
