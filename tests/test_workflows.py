@@ -54,7 +54,7 @@ def test_v2_profiles_carry_workflows_and_v1_is_frozen():
         w = profiles.get(f"{name}@2").workflow
         assert w and w.method and len(w.stages) >= 5 and all(st.gate in __import__("hypgraph.workflow").workflow.GATES
                                                             for st in w.stages)
-        assert profiles.latest(name).version == 2
+        assert profiles.latest(name).version == (3 if name == "trading" else 2)
     d = profiles.describe()
     assert d["software@1"]["workflow"] is None
     assert [s["name"] for s in d["software@2"]["workflow"]["stages"]] == \

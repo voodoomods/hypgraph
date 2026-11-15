@@ -158,6 +158,7 @@ LABELS: dict[str, dict[str, str]] = {
                        "result": "Solution", "claim": "Solution claim", "artifact": "Instance",
                        "review": "Verification", "decision": "Recommendation"},
 }
+LABELS["trading@3"] = LABELS["trading@2"]
 
 
 def _add(p: Profile) -> Profile:
@@ -328,6 +329,20 @@ TRADING2 = _add(Profile(
         # a check of the data or a signal (look-ahead, gaps, a correlation): no thesis to backtest, nothing to position
         measure_skips=("hypothesis_stated", "preregistered", "backtested", "positioned", "still_valid"),
     )))
+
+# ── @3: the claim checks read the values, not only the keys. @2 asks that a result *has* an out-of-sample, after-cost
+# return before "edge" is said; @3 asks what it says. Found in the backtest-bragging showcase probes (2026-11-15):
+# under trading@2, "the strategy has an edge out of sample after costs" was accepted on a −3.1% out-of-sample return,
+# and an in-sample return as the unlabelled headline. Everything else is trading@2 unchanged. ──────────────────────
+
+TRADING3 = _add(Profile(
+    "trading", 3, TRADING2.about + " Edge words are checked against the values: an edge or a profit needs the "
+    "out-of-sample after-cost return to be a gain, beating the benchmark needs it above the benchmark's, and an "
+    "in-sample return is said to be one.",
+    vocabulary=TRADING2.vocabulary, done_when=TRADING2.done_when, predicates=TRADING2.predicates,
+    validators=TRADING2.validators + ("edge_needs_oos_gain", "in_sample_labelled"),
+    completion=TRADING2.completion, seats=TRADING2.seats, workflow=TRADING2.workflow,
+))
 
 KNOWLEDGE2 = _add(Profile(
     "knowledge", 2, KNOWLEDGE.about + " With the source-criticism workflow: the passage that says it, the source's "
@@ -576,10 +591,96 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
             out.append(Problem("CLAIM_WITHOUT_SOURCE", "a knowledge claim must cite a source node (citation, url or doi, "
                                "the passage) — the record holds what was read, not what was recalled",
                                fix="graph_add a source, then link the claim with {\"rel\": \"cites\", \"to\": <source>}"))
+    if "edge_needs_oos_gain" in p.validators:
+        out += _edge_contradicted(s, stmt, results)
+    if "in_sample_labelled" in p.validators:
+        out += _in_sample_unlabelled(stmt, body)
     if p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
     return out
+
+
+# ── trading@3: the values behind the edge words ──
+_OOS_KEY = re.compile(r"oos|out_?of_?sample|holdout|(?:^|_)test(?:_|$)", re.I)
+_RETURN_KEY = re.compile(r"return|pnl|profit|cagr", re.I)
+_IS_KEY = re.compile(r"(?:^|_)(?:is|in_?sample|insample|train(?:ing)?)(?:_|$)", re.I)
+_NAMES_BENCHMARK = re.compile(r"buy[\s‐‑-]*(?:and|&)[\s‐‑-]*hold|benchmark|\bthe market\b|\bindex\b|passive|holding", re.I)
+_SAYS_IN_SAMPLE = re.compile(r"in[\s‐‑-]?sample|insample|training|\btrain(?:ed)?\b|fitted|fitting|tuning|tuned|"
+                             r"calibrat\w*|estimation (?:window|period)|optimi[sz]ation (?:window|period)|"
+                             r"first [\d,]+ (?:trading )?days", re.I)
+
+
+def _oos_returns(body: dict) -> tuple[tuple[str, float] | None, tuple[str, float] | None]:
+    """The strategy's out-of-sample return and the benchmark's, from one result's values: (key, value) each, or None
+    when there's none or more than one candidate. The strategy's prefers the after-cost figure (net / after_cost),
+    then one that says neither, then the gross one — costs only lower a return, so a gross loss is a net loss and a
+    gross shortfall to the benchmark a net one. Statistics of returns, counts and benchmarks are not the strategy's."""
+    v, raw = _vals(body), {str(k).lower(): x for k, x in (body.get("values") or {}).items()}
+    strat, bench = [], []
+    for k, x in v.items():
+        if not isinstance(x, (int, float)) or isinstance(x, bool) or not (_OOS_KEY.search(k) and _RETURN_KEY.search(k)):
+            continue
+        if _STAT_OF_RETURNS.search(k) or _a_count(k, raw.get(k)):
+            continue
+        (bench if _BENCHMARK.search(k) else strat).append((k, float(x)))
+
+    def tier(k: str) -> int:
+        return 0 if re.search(r"net|after_?costs?", k) else 2 if re.search(r"gross|before_?costs?", k) else 1
+    pick = None
+    if strat:
+        best = min(tier(k) for k, _ in strat)
+        top = [x for x in strat if tier(x[0]) == best]
+        pick = top[0] if len(top) == 1 else None
+    return pick, (bench[0] if len(bench) == 1 else None)
+
+
+def _edge_contradicted(s: D.Snap, stmt: str, results: list[str]) -> list[Problem]:
+    """EDGE_CONTRADICTED: an edge word the supporting results' values deny. 'profitable' and 'edge' need the
+    out-of-sample after-cost return to be a gain; 'edge', 'alpha' and 'excess return' need it above the benchmark's
+    when one is recorded, and 'beats' / 'outperforms' when the sentence names the benchmark (buy-and-hold, the
+    index, the market). Refused only when every supporting result that says something denies it."""
+    words = [w.lower() for w in L.asserted(_EDGE, stmt)]
+    if not words:
+        return []
+    names = bool(_NAMES_BENCHMARK.search(stmt))
+    need_gain = any(w in ("edge", "profitable") for w in words)
+    need_beat = any(w == "edge" or w.startswith(("alpha", "excess")) or (w.startswith(("outperform", "beat")) and names)
+                    for w in words)
+    if not (need_gain or need_beat):
+        return []
+    denials = []
+    for r in results:
+        strat, bench = _oos_returns(s.nodes[r]["body"])
+        if not strat:
+            continue
+        k, x = strat
+        if need_gain and x <= 0:
+            denials.append(f"{k} = {x:g}, not a gain")
+        elif need_beat and bench and x <= bench[1]:
+            denials.append(f"{k} = {x:g}, not above {bench[0]} = {bench[1]:g}")
+        else:
+            return []
+    if not denials:
+        return []
+    return [Problem("EDGE_CONTRADICTED", f"'{words[0]}' is asserted, but the result it rests on says otherwise: "
+                    f"{denials[0]} — out of sample, after costs, that is no edge",
+                    fix="state the out-of-sample after-cost return (and the benchmark's) without the edge word",
+                    words=words)]
+
+
+def _in_sample_unlabelled(stmt: str, body: dict) -> list[Problem]:
+    """IN_SAMPLE_UNLABELLED: the claim binds an in-sample return (is_*, in_sample_*, train_*) and the sentence
+    doesn't say it is one — "the strategy returned 14.2% after costs" reads as the result, and the in-sample return is
+    the one the configurations were chosen on."""
+    keys = [str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)]
+    is_keys = [k for k in keys if _IS_KEY.search(k) and _RETURN_KEY.search(k)]
+    if not is_keys or _SAYS_IN_SAMPLE.search(stmt or ""):
+        return []
+    return [Problem("IN_SAMPLE_UNLABELLED", f"the claim binds an in-sample return ({', '.join(is_keys[:3])}) but "
+                    "doesn't say it is in sample — it reads as the strategy's result, and it is the figure the "
+                    "configuration was chosen on", fix="say 'in sample' (or 'on the training window') in the sentence",
+                    words=is_keys[:3])]
 
 
 # a statistic *about* returns (a signal's correlation with tomorrow's return, a hit rate, the volatility) isn't a return

@@ -68,6 +68,27 @@ passed without a newer result.
 - `BACKTEST_AFTER_PROTOCOL_EDIT`: an experiment revised after its run (a changed window) — allowed, but the result
   is re-ranked `in_sample`.
 
+## `trading@3` (2026-11-15): the values behind the edge words
+
+`trading@2` checks that a supporting result *has* an out-of-sample, after-cost return and a trials count before
+"edge" is said; it doesn't read what the return is. Under it, "the strategy has an edge out of sample after costs"
+was accepted on a −3.1% out-of-sample return, and an in-sample return could be the unlabelled headline. `trading@3`
+is `trading@2` with two more claim checks; `trading@1` and `@2` are unchanged, and a record keeps the version it
+was pinned with.
+
+- `EDGE_CONTRADICTED`: an asserted edge word the supporting results' values deny. *profitable* and *edge* need the
+  out-of-sample return to be a gain; *edge*, *alpha* and *excess return* need it above the benchmark's when the
+  result records one; *beats* / *outperforms* need that only when the sentence names the benchmark (buy-and-hold,
+  the index, the market). The after-cost figure is read first (`net`, `after_cost`), then one that says neither, then
+  the gross one (costs only lower a return); statistics of returns, counts and two candidates in one tier read as
+  nothing. Refused only when every supporting result that says something denies it. Negated and hedged uses ("no
+  edge") are not assertions.
+- `IN_SAMPLE_UNLABELLED`: the claim binds an in-sample return (`is_*`, `in_sample_*`, `train_*`) and the sentence
+  doesn't say in sample, training, fitted or tuned.
+
+Measured before it was written: re-filing every logged sentence of the backtest-bragging showcase under `trading@3`
+moves 9 of 367 filings, all on trials whose truth is no edge (or behind buy-and-hold), and no true edge.
+
 ## Review questions and decisions (2026-10-26)
 
 1. *Will agents report `trials` honestly?* **Required, and checked like any value**: `backtested` and
