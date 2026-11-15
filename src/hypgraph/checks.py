@@ -901,6 +901,8 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
         out += _superlative_contradicted(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _all_but_contradicted(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _generic_contradicted(stmt, bound)
     return out
 
 
@@ -936,6 +938,64 @@ def _all_but_contradicted(stmt: str, bound: list) -> list[Problem]:
                            f"{k:,} of {n:,} ({m.get('name') or m.get('key')}): correct it, or say '{k:,} of {n:,}'",
                            fix=f"correct the statement, or say '{k:,} of {n:,}'", words=[hit.group(0).lower()]))
     return out
+
+
+# Anything that says how many, or hedges: a sentence holding one of these isn't a bare generic
+_QUALIFIES = re.compile(
+    r"\d|%|\b(?:all|every|each|any|none|no|neither|either|both|most|many|some|several|few|fewer|majority|minority|"
+    r"nearly|near|almost|virtually|practically|mostly|largely|broadly|generally|usually|typically|often|sometimes|"
+    r"occasionally|rarely|seldom|frequently|mainly|predominantly|overwhelmingly|handful|couple|only|just|except|"
+    r"but|apart|save|exceptions?|roughly|about|around|approximately|share|proportion|fraction|percent|rate|half|"
+    r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|single)\b", re.I)
+_GENERIC_CLAUSE = re.compile(r"\s*(?:[;:,|–—]|\s-\s)\s*")
+
+
+def _plural_subject(clause: str) -> tuple[list[str], int | None]:
+    """The clause's words and the index of its subject when that is a plural: the first word ending in -s among its
+    first four, with something after it. None when that word isn't a plural noun ("class", "its", "parser's")."""
+    toks = re.findall(r"[A-Za-z][\w‐‑'-]*", clause)
+    i = next((j for j, t in enumerate(toks[:4]) if t.lower().endswith("s")), None)
+    if i is None or i + 1 >= len(toks) or toks[i].lower().endswith(("ss", "us", "is", "'s")):
+        return toks, None
+    return toks, i
+
+
+def _counted_noun(name: str) -> set[str]:
+    """What a count's name counts, found as a statement's plural subject is: "malformed files rejected with a clear
+    error" counts files, not errors."""
+    toks, i = _plural_subject(name)
+    return L.content_words(toks[i]) if i is not None else set()
+
+
+def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
+    """A bare plural that is what the bound count counts ("Malformed files rejected with clear errors", on 23 of 24
+    malformed files rejected with a clear error) says it of every one, as "every malformed file was rejected" does.
+    Refused when the count is mixed (0 < k < n) and nothing in the sentence says how many or hedges: no number, no
+    quantifier, no exception. Found in the say-no-more-than-the-data showcase (2026-11-15), where ten such headlines
+    went in on counts with exceptions while "every malformed file rejected" on the same counts was refused, and no
+    true headline had this shape. The subject is the first plural in the first four words of a clause; a verb ending
+    in -s before it ("the parser handles files") means it isn't the subject."""
+    if _QUALIFIES.search(stmt):
+        return []
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv)) and 0 < a[0] < a[1]]
+    if not arms:
+        return []
+    for clause in _GENERIC_CLAUSE.split(stmt):
+        toks, i = _plural_subject(clause)
+        if i is None:
+            continue
+        head = L.content_words(toks[i])
+        hits = [(m, a) for m, a in arms if head and head == _counted_noun(str(m.get("name") or ""))]
+        if not hits:
+            continue
+        m, (k, n) = max(hits, key=lambda x: x[1][1])
+        phrase = " ".join(toks[:i + 1])
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' with nothing to say how many reads as every one of them, but the record's own "
+                        f"count is {k:,} of {n:,} ({m.get('name') or m.get('key')}): say '{k:,} of {n:,}', or "
+                        "qualify it ('nearly all', 'most')",
+                        fix=f"say '{k:,} of {n:,}', or 'nearly all'", words=[phrase.lower()])]
+    return []
 
 
 def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float],

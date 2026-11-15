@@ -31,6 +31,15 @@
   run-1 headline, 8 of 9, that had been refused only for its "all"). Replaying the showcase logs: five true
   headlines go in, the false "without a hitch" is refused, no false one goes in; Exp1 unchanged. Over 8,714 claim statements in 3,011 existing records, three change reading, each
   correctly. Tests: `tests/test_implied_absolutes.py`.
+- **A bare plural that is what the count counts says it of every one.** "Malformed files rejected with clear errors"
+  went in on 23 of 24 malformed files rejected with a clear error, while "every malformed file rejected" on the same
+  count was refused: in the say-no-more-than-the-data showcase, eleven false headlines of this shape went in over
+  two runs, and no true one had it (the true ones said "nearly all", "most", a number, or named the exception). Now
+  refused as COUNT_CONTRADICTS when a clause's subject is a plural that is the bound count's own counted noun, the
+  count is mixed (0 < k < n), and nothing in the sentence says how many or hedges. Replaying the showcase logs:
+  those eleven are refused, no true or overreach-labelled headline changes, Exp1 unchanged. Over 7,277 claim
+  versions with bound measurements in 3,011 existing records, the rule fires on 14 statements, all of them those
+  showcase headlines. Tests: `tests/test_generic_plurals.py`.
 
 ## 0.8.8 — 2026-11-15: the record tells a liar who keeps at it from one who moved on
 
