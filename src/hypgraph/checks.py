@@ -105,8 +105,11 @@ _COMPOUND = re.compile(r"(?<![" + _HY + r"\w])(" + "|".join(_TENS) + r")[" + _HY
 _WORDNUM = re.compile(r"(?<![" + _HY + r"])\b(" + "|".join(_WORDS) + r")\b(?![" + _HY + r"])", re.I)
 # what a text mentions, compounds included: a scope or passage saying "a five-year period" accounts for "five years"
 # in the statement (docfinqa: a claim scoped "five‑year cumulative return" was refused for its "five years")
-_COMPOUND_ANY = re.compile(r"\b(" + "|".join(_TENS) + r")[" + _HY + r"](" + "|".join(_UNITS) + r")\b", re.I)
-_WORDANY = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.I)
+# — but only a number word that starts the compound counts something; one after a word is a label ("priority-two",
+# "phase-three"): a passage on "priority-two tickets" accounted for "two weeks' notice" (who's-hallucinating run 1, s102)
+_COMPOUND_ANY = re.compile(r"(?<![" + _HY + r"])\b(" + "|".join(_TENS) + r")[" + _HY + r"](" + "|".join(_UNITS)
+                           + r")\b", re.I)
+_WORDANY = re.compile(r"(?<![" + _HY + r"])\b(" + "|".join(_WORDS) + r")\b", re.I)
 _LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")
 _DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+)?\b")                      # a date is not a measurement
 # identifiers that look like numbers but aren't measurements: a version (1.10.0, v2.0.0-rc.1), inline code, a number a
