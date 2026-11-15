@@ -37,6 +37,15 @@
   figures keep the decimal rule. `check_text` does the same. Found in the say-no-more-than-the-data showcase
   (gpt-oss-20b, BC-250, 2026-11-15). Replaying its 82 headline attempts, 11 that were refused are now accepted, all
   of them correct bounds for their counts, and no other outcome changes.
+- **"Flawlessly" and "without a single error" are absolutes.** They say of how things went what "every" says of
+  how many, and they weren't in `language.ABSOLUTE`. So "Real-world files parsed flawlessly" on 76 of 77 went in,
+  while "every real-world file parsed" on the same count was refused. Added: flawless(ly), without (a single / any /
+  one) error / failure / fault / crash / exception / bug / mistake / glitch / hitch, and error- / failure- / fault- /
+  crash- / bug-free. These words describe the manner of their subject, so they cover every one of it only when the
+  subject does: "nearly all files parsed flawlessly", "72 of 73 parsed without error" and "flawlessly, only a handful
+  slipped" stay true and still go in. Found in the say-no-more-than-the-data showcase (gpt-oss-20b, BC-250,
+  2026-11-15). Replaying its 82 headline attempts, the 4 false drafts that used these words are refused, and no
+  other outcome changes. None of the 2,646 HypSwarm records on hand has a claim using them.
 
 ## 0.8.7 — 2026-11-08: a snapshot is loaded at one moment
 

@@ -29,6 +29,10 @@ ABSOLUTE = re.compile(
     r"\b(never|always|all|every|none|nothing|no one|nobody|impossible|cannot|can't|proves?|proven|proof|certainly|"
     r"certain|guaranteed?|guarantees|eliminat(?:es|ed|ing)|entirely|completely|totally|universally|invariably|"
     r"consistently|without exception|perfect(?:ly)?|solves?|solved|definitively|conclusively|undeniably|"
+    # an absolute with no "all" in it: "files parsed flawlessly" on 62 of 63, "without a single error" on 52 of 55
+    # (both accepted in the say-no-more-than-the-data showcase, 2026-11-15)
+    r"flawless(?:ly)?|without\s+(?:a\s+single\s+|any\s+|one\s+)?(?:error|failure|fault|crash|exception|bug|"
+    r"mistake|glitch|hitch)e?s?|(?:error|failure|fault|crash|bug)-free|"
     r"zero(?!-)"
     # "no route is longer than 26 km": a universal negative comparison, the same claim as "nothing is longer"; only
     # where "no" opens its clause ("routes that visit no town twice" is not one); "no route is 26 km or longer" and
@@ -131,8 +135,29 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
             continue
         if m.group(0).lower() in ("entirely", "wholly", "completely") and _INTERVAL_SIDE.match(text, m.start()):
             continue
+        if _MANNER.fullmatch(m.group(0)) and (_PART_SUBJECT.search(_clause_before(text, m.start()))
+                                              or _EXCEPTIONS.search(text)):
+            continue
         out.append(m.group(0).lower())
     return list(dict.fromkeys(out))
+
+
+# an absolute said of how things went, not of how many: "parsed flawlessly", "without a single error", "error-free".
+# It covers every one of its subject only when the subject does: "nearly all files parsed flawlessly", "72 of 73 files
+# parsed without error" and "flawlessly, only a handful slipped" say so of a part (all four were in the
+# say-no-more-than-the-data showcase, 2026-11-15, and true of their counts)
+_MANNER = re.compile(r"flawless(?:ly)?|without\s.*|\w+-free", re.I | re.S)
+_PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:all|every)|most|mostly|majority|many|"
+                           r"some|several|all\s+but|\d[\d,]*\s+(?:of|out\s+of)\s+\d)", re.I)
+_EXCEPTIONS = re.compile(r"\b(?:except(?:\s+for)?|all\s+but|but\s+(?:one|two|a\s+few)|apart\s+from|save\s+for|"
+                         r"other\s+than)\b|\b(?:only|just)\s+(?:a\s+)?(?:few|handful|couple|one|\d+)\b[^.;]*?\b"
+                         r"(?:slipped|failed|fell|broke|crashed|errored|missed|stumbled|faltered|tripped)\b", re.I)
+
+
+def _clause_before(text: str, start: int) -> str:
+    head = text[:start]
+    s0 = max((m.end() for m in _SENTENCE_END.finditer(head)), default=0)
+    return head[max((m.end() for m in _CLAUSE.finditer(head, s0)), default=s0):]
 
 
 def denied(pattern: re.Pattern, text: str) -> list[str]:
