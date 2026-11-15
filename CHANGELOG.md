@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **A comparison the measurements reverse is refused.** "A net return of 11.60%, outperforming the buy-and-hold
+  benchmark of 12.50%", both figures bound to the backtest's fields, went into the record: `COMPARATIVE_WITHOUT_
+  COMPARISON` counted the measured sides and never read their order. The backtest-bragging showcase published five
+  such sentences, three of them from the seat told to report accurately ("79.32% …, outperforming … 84.33%"). New
+  `COMPARISON_REVERSED`: the figure just after a comparison word and the nearest figure of the same kind before it,
+  in one clause, each matching a bound measurement; words of size ("higher than", "exceeds") compare the values,
+  words of merit ("outperforms", "beats", "better than") only where both keys say which way is better (a return up,
+  an error or a cost down). It stays out of what it can't read: a difference or multiple ("3 points higher than",
+  "twice"), a threshold ("rose to more than", or inside an absolute), a negation ("does not exceed", "without
+  exceeding"), the parts of a fraction, a hyphenated label ("step-1"), figures counting different things ("30
+  parcels … 60 seconds"), and a figure printed without its minus sign against a negative value ("a loss of 4.66% is
+  less than a loss of 56.73%"). Over 3,181 existing records it moves 5 items, all stricter, all these sentences;
+  the first draft also refused five honest sentences in HypSwarm challenge records and one in the Exp6 smoke, which
+  became the exclusions above and the tests. Tests: `tests/test_comparison_reversed.py`.
 - **Saying a source is silent isn't denying what follows.** `SOURCE_CONTRADICTS` took the two words after a negation
   as what a statement denies, so an honest "the handbook does not specify after how many days a staff password must
   be changed", citing the sections it had searched, was refused as denying 'after' because one of them said "rising
