@@ -67,3 +67,42 @@ def test_a_manner_absolute_said_of_a_part_goes_in(env, statement):
     ("The test ran without exception.", ["without exception"])])      # was already an absolute
 def test_which_manner_words_are_asserted(statement, words):
     assert L.asserted(L.ABSOLUTE, statement) == words
+
+
+# The qualified headlines of the same showcase's run 2, all true of their counts and all refused as absolutes:
+# "near-perfect success" (8 of 9), "flawlessly, one exception" (74 of 75), "all but one malformed file flagged" (18 of
+# 19). "All but N" is a count, n - N of n, and is held to the record's own; the run-1 headline "all but one test suite
+# triumphs, our parser stands undefeated" (8 of 9) was false only in its "undefeated".
+@pytest.mark.parametrize("statement", [
+    "All but one real-world file parsed.",
+    "All but 1 real-world file parsed.",
+    "Real-world files parsed with near-perfect success.",
+    "Real-world files parsed with near‑perfect success.",       # the hyphen the model wrote
+    "Real-world files parsed flawlessly, one exception.",
+    "Real-world files parsed flawlessly with a single exception.",
+    "All but a few real-world files parsed."])
+def test_a_qualified_headline_true_of_its_count_goes_in(env, statement):
+    g, inv, r = env
+    write(g, inv, r, statement)
+
+
+@pytest.mark.parametrize("statement", [
+    "All but two real-world files parsed.",
+    "Real-world files parsed without a hitch.",
+    "Real-world files parsed flawlessly, without a single exception.",
+    "All but one real-world file parsed: the parser stands undefeated on real-world files."])
+def test_a_qualified_headline_the_count_contradicts_is_refused(env, statement):
+    g, inv, r = env
+    with pytest.raises(GraphError) as e:
+        write(g, inv, r, statement)
+    assert "COUNT_CONTRADICTS" in [p["code"] for p in e.value.problems], e.value.problems
+
+
+@pytest.mark.parametrize("statement,words", [
+    ("Near-perfect parsing.", []),
+    ("All but one file parsed.", []),
+    ("All files parsed.", ["all"]),
+    ("Files were parsed without a hitch.", ["without a hitch"]),
+    ("The parser stands undefeated.", ["undefeated"])])
+def test_which_qualified_words_are_asserted(statement, words):
+    assert L.asserted(L.ABSOLUTE, statement) == words

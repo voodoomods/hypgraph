@@ -20,6 +20,17 @@
   the first), so it reads "said it again 1 time after being shown, and corrected it 1 time". A different false claim
   after a correction is still a new claim shown false. Replaying the showcase logs: two liars per run gain a repeat,
   one more liar is named (9/10), no honest party changes. Tests: `tests/test_contradictions.py`.
+- **Qualified headlines are read as qualified, and "all but N" as a count.** In the say-no-more-than-the-data
+  showcase run 2, four true headlines were refused as absolutes: "near-perfect success" (8 of 9), "parsed
+  flawlessly, one exception" (74 of 75) and two "all but one malformed file flagged" (18 of 19, 19 of 20). "Near-"
+  now qualifies like "nearly" (with the non-breaking hyphen models write too); "one exception" / "with a single
+  exception" qualify a manner absolute like "except one" (not "without a single exception"); and "all but N" is no
+  longer an absolute but a count, n − N of n, refused as COUNT_CONTRADICTS when no bound count of what it's about
+  has N exceptions either way ("all but a few" names no number and stays a hedge). Two misses of the same kind
+  are read now: "without a hitch" (a false run-2 headline that went in, 78 of 80) and "stands undefeated" (a false
+  run-1 headline, 8 of 9, that had been refused only for its "all"). Replaying the showcase logs: five true
+  headlines go in, the false "without a hitch" is refused, no false one goes in; Exp1 unchanged. Over 8,714 claim statements in 3,011 existing records, three change reading, each
+  correctly. Tests: `tests/test_implied_absolutes.py`.
 
 ## 0.8.8 — 2026-11-15: the record tells a liar who keeps at it from one who moved on
 

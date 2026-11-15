@@ -899,6 +899,42 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
                     if p.code == "COUNT_CONTRADICTS" and p.text() not in {q.text() for q in out}]
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _superlative_contradicted(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _all_but_contradicted(stmt, bound)
+    return out
+
+
+_SMALL = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+
+
+def _all_but_contradicted(stmt: str, bound: list) -> list[Problem]:
+    """"All but one file was flagged" states a count, n - 1 of n, not an absolute: held to the record's own count of
+    what it's about. Either side of the count may be the one recorded (flagged k of n, or missed k of n), so it fits
+    when the exceptions are N either way. "All but a few" names no number and is left as the hedge it is. Found in
+    the say-no-more-than-the-data showcase (2026-11-15): a true "all but one" on 23 of 24 was refused as an absolute."""
+    out: list[Problem] = []
+    about = L.content_words(stmt)
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    for hit in L.ALL_BUT.finditer(stmt):
+        if L.negated(stmt, hit.start()):
+            continue
+        word = re.sub(r"\s+", " ", hit.group(1).lower())
+        N = _SMALL.get(word) if word in _SMALL else (int(word.replace(",", "")) if word[0].isdigit() else None)
+        if N is None:
+            continue
+        rel = [(m, a) for m, a in arms if L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about] or arms
+        if not rel:
+            out.append(Problem("ABSOLUTE_WITHOUT_COUNT",
+                               f"'all but {word}' states a count: back it with a k/n measurement of what it's about",
+                               fix="bind the count, or say 'k of n'", words=[hit.group(0).lower()]))
+            continue
+        if any(N in (k, n - k) for _m, (k, n) in rel):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        out.append(Problem("COUNT_CONTRADICTS",
+                           f"the statement says all but {word} ({n - N:,} of {n:,}), but the record's own count is "
+                           f"{k:,} of {n:,} ({m.get('name') or m.get('key')}): correct it, or say '{k:,} of {n:,}'",
+                           fix=f"correct the statement, or say '{k:,} of {n:,}'", words=[hit.group(0).lower()]))
     return out
 
 
