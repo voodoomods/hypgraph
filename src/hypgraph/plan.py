@@ -344,7 +344,10 @@ def report_markdown(r: dict) -> str:
           f"- claims contested: {', '.join(o['claims_contested']) or 'none'}",
           f"- claims on stale evidence (what they rest on has changed since; a check of them no longer counts): "
           f"{', '.join(o.get('claims_stale') or []) or 'none'}",
-          f"- results no claim carries (their conclusions are unreviewed): {', '.join(o['results_in_no_claim']) or 'none'}",
+          # the instrument's own results are measurements, not conclusions: they need no claim, and aren't listed here
+          # (a run 3 showcase record read "none" right under a table of the instrument's counts marked "NO")
+          f"- results no claim carries (their conclusions are unreviewed; the instrument's own measurements need none, "
+          f"and aren't listed): {', '.join(o['results_in_no_claim']) or 'none'}",
           f"- experiments not preregistered: {', '.join(o['experiments_not_preregistered']) or 'none'}"]
     sp = r["spend"]
     if "error" in sp:

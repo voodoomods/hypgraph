@@ -8,6 +8,11 @@
   investigation's constants), adds "the source it cites doesn't give them" (or "none of the N sources it cites gives
   them") when sources are cited, and offers citing a source whose passage gives them as a fix. Wording only: what is
   refused does not change. Tests: `tests/test_profiles_041.py`.
+- **The report says why the instrument's results aren't open items.** Open items have always left out the
+  instrument's own results (measurements need no claim to carry them), but the line read "results no claim carries:
+  none" right under a results table marking those results "NO" (spot-the-bad-actor showcase, run 3, in the Atlas).
+  It now adds that the instrument's own measurements need none and aren't listed. Wording only. Tests:
+  `tests/test_report_open_items.py`.
 - **A figure denied against the source that gives it.** `SOURCE_CONTRADICTS` read denied words and units, not
   figures: "the Nusk–Corlune road is actually 12 km long, not 10 km as the register indicates", linking as support the
   register item that gives 10 km, was accepted (spot-the-bad-actor showcase run 2, the liar's last word). A figure the
