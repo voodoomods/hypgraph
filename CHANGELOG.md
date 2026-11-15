@@ -11,6 +11,12 @@
   again is a repeat. Across 3,011 existing records only that liar's claim changes; replaying the showcase logs, the
   record rule names 10/10 liars in run 2 with this and the repeat-after-correction fix, and no honest party changes.
   Tests: `tests/test_contradictions.py`.
+- **'A majority' of an even split is refused.** "Parsed a majority of large files within the time budget" went in on
+  3 of 6 (say-no-more-than-the-data showcase run 3): nothing read 'most', 'a majority', 'more than half' or 'nearly
+  all' against the count. Either side of a count may be the one meant ("most settings lose" on 2 of 20 beating), so
+  such a word fits any count but exactly half, where neither side is more than half; there it is now
+  `COUNT_CONTRADICTS`, offering 'k of n' or 'half'. Over 7,265 claim versions with bound measurements in 3,031 existing
+  records, it fires on that statement only. Tests: `tests/test_majority_at_half.py`.
 - **A lie said again after a correction is said again.** A refusal that repeats an earlier one the author had since
   fixed was logged as a new, separate claim shown false, because the repeat check only looked at refusals still open.
   Found in the spot-the-bad-actor showcase run 2: a paid critic's "the shortest is 55 km" was refused, the true "the
