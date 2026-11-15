@@ -990,12 +990,22 @@ def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
             continue
         m, (k, n) = max(hits, key=lambda x: x[1][1])
         phrase = " ".join(toks[:i + 1])
+        q = _fitting_qualifier(k, n)
         return [Problem("COUNT_CONTRADICTS",
                         f"'{phrase}' with nothing to say how many reads as every one of them, but the record's own "
                         f"count is {k:,} of {n:,} ({m.get('name') or m.get('key')}): say '{k:,} of {n:,}', or "
-                        "qualify it ('nearly all', 'most')",
-                        fix=f"say '{k:,} of {n:,}', or 'nearly all'", words=[phrase.lower()])]
+                        f"qualify it ('{q}')",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
     return []
+
+
+def _fitting_qualifier(k: int, n: int) -> str:
+    """A word for k of n that is true of it. The refusal used to offer 'nearly all' or 'most' whatever the count, and
+    on 3 of 6 the rewrite said "a majority", which half is not (say-no-more-than-the-data showcase run 3,
+    2026-11-15)."""
+    f = k / n
+    return ("nearly all" if f >= 0.9 else "most" if f > 0.5 else "half" if 2 * k == n else
+            "fewer than half" if f >= 0.1 else "a few")
 
 
 def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float],
