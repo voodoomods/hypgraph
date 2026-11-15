@@ -50,3 +50,15 @@ def test_hypgraph_demo_dispute(tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["conduct"]["mallory"]["ends_false"] and not out["conduct"]["ada"]["ends_false"]
     assert sum("refused" in s for s in out["story"]) == 3
+
+
+def test_the_overclaims_report_says_what_each_author_did_next():
+    # the Atlas and `hypgraph refusals` showed only how many overclaims were refused; who kept at it, and who moved
+    # on, was in conduct() alone (a showcase record, 2026-11-15)
+    g, inv, _ = dispute.build()
+    r = g.refusal_report(inv=inv)
+    assert r["conduct"]["mallory"]["still_saying"] and not r["conduct"]["ada"]["ends_false"]
+    md = r["markdown"]
+    assert "### After being shown false" in md
+    assert f"- **mallory**: {r['conduct']['mallory']['sentence']}" in md
+    assert f"- **ada**: {r['conduct']['ada']['sentence']}" in md

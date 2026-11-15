@@ -530,6 +530,13 @@ def report(g: "Graph", inv: str = "", since: str = "") -> dict:
            "shape": {"refused": len(shape), "fixed": sum(1 for r in shape if r["fixed_by"]),
                      "by_code": dict(Counter(c for r in shape for c in r["codes"]).most_common()),
                      "by_author": dict(Counter(r["author"] for r in shape).most_common()), "recent": shape[:10]}}
+    # what each author did after the record showed a claim of theirs false: the counts alone can't tell a party who
+    # keeps at a refused figure from one who moved on (a showcase record's Atlas said only "6 overclaims refused")
+    try:
+        out["conduct"] = {a: {k: v for k, v in c.items()} for a, c in conduct(g, inv=inv).items()}
+    except Exception as e:  # noqa: BLE001 - a conduct problem never hides the refusals
+        out["conduct"] = {}
+        out["conduct_error"] = f"{type(e).__name__}: {e}"[:200]
     out["markdown"] = markdown(out)
     return out
 
@@ -557,6 +564,9 @@ def markdown(r: dict) -> str:
         top = ", ".join(f"{c} ×{n}" for c, n in list(v["codes"].items())[:3])
         L_.append(f"| {a} | {v['refused']} | {v['fixed']} | {v['open']} | {top} |")
     L_ += ["", "| rule | times |", "|---|---|"] + [f"| `{c}` | {n} |" for c, n in r["by_code"].items()]
+    if r.get("conduct"):
+        L_ += ["", "### After being shown false", ""]
+        L_ += [f"- **{a}**: {c['sentence']}" for a, c in r["conduct"].items()]
     L_ += ["", "### Latest", ""]
     for x in r["recent"][:10]:
         fix = f" → fixed as {x['fixed_by']['code'] or x['fixed_by']['node']}" if x["fixed_by"] else " → not fixed"

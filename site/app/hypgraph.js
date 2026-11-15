@@ -805,7 +805,7 @@
     "alert.noverify": "The record does not verify: {problem}", "alert.noverify.at": "The record does not verify at event #{n}: {problem}",
     "alert.stale": "{n} node(s) rest on evidence that changed: {codes}", "alert.contested": "{n} {noun}(s) contested: {codes}",
     "alert.at_risk": "{n} node(s) at risk — a premise fell: {codes}", "alert.lease": "{task} held by {who} past its lease",
-    "alert.returned": "{n} work order(s) returned, waiting on the record: {codes}", "alert.refused": "{n} overclaim(s) refused by the record",
+    "alert.returned": "{n} work order(s) returned, waiting on the record: {codes}", "alert.refused": "{n} overclaim(s) refused by the record", "alert.conduct": "{who}: {s}",
     "lvl.bad": "action", "lvl.warn": "check", "lvl.info": "note", "raised.tip": "raised {n} times", "open": "open",
     "alerts.none": "Nothing needs attention.",
     "tel.repeat.refused": "{seat}'s {tool} was refused 3 times in a row: {error}",
@@ -1246,6 +1246,9 @@
       if (returned.length) out.push(['info', T('alert.returned', { n: returned.length, codes: returned.map((o) => o.code).join(', ') })]);
       const r = m.refusals && (m.refusals.refused ?? m.refusals.total);
       if (r) out.push(['info', T('alert.refused', { n: r })]);
+      // what each author did after being shown false: a party still saying it is a warning, the rest are facts
+      Object.entries((m.refusals && m.refusals.conduct) || {}).forEach(([who, c]) =>
+        out.push([c.still_saying || c.ends_false ? 'warn' : 'info', T('alert.conduct', { who, s: c.sentence })]));
       if (m.tel.length) out.push(...telAlerts(m.tel));
       return out;
     }

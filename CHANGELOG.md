@@ -57,6 +57,14 @@
   (say-no-more-than-the-data showcase run 3). It now offers one word that fits k of n: 'nearly all' (90 % or more),
   'most' (over half), 'half', 'fewer than half', or 'a few' (under 10 %). Wording only. Tests:
   `tests/test_generic_plurals.py`.
+- **The overclaims report and the Atlas say what each author did after being shown false.** They showed only how
+  many overclaims were refused: a showcase record's Atlas read "6 overclaim(s) refused by the record", while the line
+  that tells a liar from an honest mistake, `conduct()`'s, was printed only by `hypgraph demo dispute`.
+  `refusal_report` (and `GET /api/graph/refusals`, `hypgraph refusals`) now carries `conduct` per author and an
+  "After being shown false" section. The Atlas's Needs attention lists each author's line, flagged when its last word
+  still says the claim or was contradicted: "quin: … said it again 5 times after being shown, and never corrected it;
+  its last word still says it" beside "uma: … said it again 1 time after being shown, and corrected it 1 time; its
+  last word no longer says it". Facts, not a verdict. Tests: `tests/test_demo_dispute.py`.
 
 ## 0.8.8 — 2026-11-15: the record tells a liar who keeps at it from one who moved on
 
