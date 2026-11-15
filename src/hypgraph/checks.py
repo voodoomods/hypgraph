@@ -1382,11 +1382,24 @@ def _unnegated(sent: str) -> str:
     return "".join(out)
 
 
+# a word that opens what follows the denied word rather than continuing it: "does not specify after how many days"
+# denies specifying, not "after"
+_OPENS = set("""after before about above below across against along among around behind beneath beside between
+beyond during except inside outside since through throughout toward towards until unless upon whether while within""".split())
+
+
 def denied_words(stmt: str) -> set[str]:
-    """Content words (stemmed, as language.content_words) that the statement explicitly denies."""
+    """Content words (stemmed, as language.content_words) that the statement explicitly denies: the word after the
+    negation, and the next one unless it opens a phrase of its own. (Found in the who's-hallucinating showcase run 1,
+    2026-11-15: an honest "the handbook does not specify after how many days a password must be changed", citing a
+    passage with "27 days after 5 years of service", was refused as denying 'after', three times, and the record called
+    its author one who said a contradicted claim again.)"""
     out: set[str] = set()
     for m in _DENIAL.finditer(stmt or ""):
-        out |= L.content_words(m.group(1))
+        words = m.group(1).split()
+        if len(words) == 2 and words[1].lower() in _OPENS:
+            words = words[:1]
+        out |= L.content_words(" ".join(words))
     return out
 
 
