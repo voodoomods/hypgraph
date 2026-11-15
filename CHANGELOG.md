@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A figure denied against the source that gives it.** `SOURCE_CONTRADICTS` read denied words and units, not
+  figures: "the Nusk–Corlune road is actually 12 km long, not 10 km as the register indicates", linking as support the
+  register item that gives 10 km, was accepted (spot-the-bad-actor showcase run 2, the liar's last word). A figure the
+  statement denies ("not 10 km", "isn't 10 km", "rather than 10 km") that a linked support source gives, in the same
+  unit and about the same thing (two content words shared with the statement's sentence), is now that source's
+  contradiction. A denial of a plan or an expectation ("200 patients, not 250 as planned") is not. Saying the denial
+  again is a repeat. Across 3,011 existing records only that liar's claim changes; replaying the showcase logs, the
+  record rule names 10/10 liars in run 2 with this and the repeat-after-correction fix, and no honest party changes.
+  Tests: `tests/test_contradictions.py`.
 - **A lie said again after a correction is said again.** A refusal that repeats an earlier one the author had since
   fixed was logged as a new, separate claim shown false, because the repeat check only looked at refusals still open.
   Found in the spot-the-bad-actor showcase run 2: a paid critic's "the shortest is 55 km" was refused, the true "the

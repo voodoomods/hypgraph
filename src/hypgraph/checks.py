@@ -1229,6 +1229,47 @@ def denied_words(stmt: str) -> set[str]:
     return out
 
 
+# a figure a statement denies: "12 km long, not 10 km", "isn't 10 km", "rather than 10 km", "instead of 10 km" (a
+# comparison, "more than 10 km", denies nothing)
+_DENIED_FIGURE = re.compile(r"(?:\bnot\b|n't\b|\brather\s+than\b|\binstead\s+of\b)\s+(?:about\s+|around\s+|roughly\s+)?"
+                            r"\$?(\d[\d,]*(?:\.\d+)?)(?:\s*(%|[A-Za-z]+))?", re.I)
+_SENTENCE = re.compile(r"(?<=[.!?;])\s+")
+# "200 patients, not 250 as planned": the denied figure is a plan or an expectation the source may well give, not what
+# the statement says the source got wrong
+_AS_PLANNED = re.compile(r"\s*(?:[A-Za-z%]+\s+)?(?:as|than)\s+(?:originally\s+|first\s+|initially\s+)?(?:planned|expected|"
+                         r"intended|forecast|predicted|projected|targeted|budgeted|hoped|anticipated|scheduled|"
+                         r"proposed|designed|specified|required)\b", re.I)
+
+
+def denied_figures(stmt: str) -> list[tuple[float, str, set[str]]]:
+    """(value, unit or '', the content words of its sentence) for each figure the statement explicitly denies."""
+    out = []
+    for sent in _SENTENCE.split(stmt or ""):
+        for m in _DENIED_FIGURE.finditer(sent):
+            if _AS_PLANNED.match(sent, m.end(1)):
+                continue
+            unit = (m.group(2) or "").lower()
+            if unit in L.STOP:
+                unit = ""
+            out.append((float(m.group(1).replace(",", "")), unit, L.content_words(sent) - L.content_words(unit)))
+    return out
+
+
+def _figure_affirmed_in(passage: str, value: float, unit: str, about: set[str]) -> str:
+    """The sentence of ``passage`` that gives this figure (in this unit, when the statement named one) outside the
+    reach of any negation, about what the statement's sentence is about (two content words shared), or ''."""
+    for sent in _SENTENCE.split(passage or ""):
+        un = _unnegated(sent)
+        for m in re.finditer(r"(\d[\d,]*(?:\.\d+)?)(?:\s*(%|[A-Za-z]+))?", un):
+            if abs(float(m.group(1).replace(",", "")) - value) > 1e-9:
+                continue
+            if unit and (m.group(2) or "").lower() != unit:
+                continue
+            if len(L.content_words(un) & about) >= 2:
+                return sent.strip()
+    return ""
+
+
 # casting doubt on a word rather than denying it: "is not independently established that they are kilograms", "the
 # only note calling them kilometres", "conflicts with any pound reading" (a party can cite a note as support and doubt
 # it in these words, which SOURCE_CONTRADICTS' denial check doesn't see)
@@ -1449,14 +1490,29 @@ def _other_unit(passage: str, stmt: str) -> tuple[str, str, str] | None:
 
 
 def _source_contradicts(s: Snap, stmt: str, support: list[str]) -> list[Problem]:
-    denied, doubted = denied_words(stmt), doubted_words(stmt)
-    if not denied and not doubted and not _unit_assertions(stmt):
+    denied, doubted, figs = denied_words(stmt), doubted_words(stmt), denied_figures(stmt)
+    if not denied and not doubted and not figs and not _unit_assertions(stmt):
         return []
     for src in support:
         n = s.nodes.get(src)
         if not n or n["type"] != "source":
             continue
         passage = str(n["body"].get("passage") or "")
+        # found in the spot-the-bad-actor showcase run 2 (gpt-oss-20b, 2026-11-15): a paid critic's "the Nusk-Corlune
+        # road is actually 12 km long, not 10 km as the register indicates", linking as support the register item that
+        # gives it as 10 km, was accepted — the denial check read words and units, not figures
+        for value, unit, about in figs:
+            sent = _figure_affirmed_in(passage, value, unit, about)
+            if sent:
+                cite = str(n["body"].get("citation") or "").strip()
+                label = cite[:80] if cite else (n.get("code") or src)
+                said = f"{_fmt(value)} {unit}".strip()
+                return [Problem("SOURCE_CONTRADICTS",
+                                f"the statement denies {said}, but a source it links as support ({label}) gives that "
+                                f"figure: \"{sent[:200]}\". A source that says the opposite isn't support: correct the "
+                                "statement, or link the source as a challenge",
+                                fix="correct the statement, or link that source as a challenge",
+                                words=[f"denied:{_fmt(value)}"])]
         doubt = _doubted_in(passage, doubted)
         if doubt:
             stems, sent = doubt
