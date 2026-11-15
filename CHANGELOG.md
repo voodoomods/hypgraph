@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Saying a source is silent isn't denying what follows.** `SOURCE_CONTRADICTS` took the two words after a negation
+  as what a statement denies, so an honest "the handbook does not specify after how many days a staff password must
+  be changed", citing the sections it had searched, was refused as denying 'after' because one of them said "rising
+  to 27 days after 5 years of service". The seat filed it three times, and the refusal log called it an author who
+  said a contradicted claim again and never corrected it (who's-hallucinating showcase run 1: the only conduct warning
+  in 30 records, on an honest seat). The second word no longer counts when it opens a phrase of its own ('after',
+  'whether', 'during', …); the word denied still does, even one of those ("before 5 years, not after"). Over 3,125
+  existing records only 13 logged refusals move, all this sentence from that showcase and its smokes; no live claim
+  or result moves. Tests: `tests/test_denied_words.py`.
 - **An unbound number's refusal names the sources the claim cites.** `UNBOUND_NUMBER` advised binding a result field
   only, even when the claim cited a source: an agent whose cited passage didn't give the number had no way to read
   that from the refusal. It now says what accounts for numbers (bound measurements, cited sources, the scope, the
@@ -25,15 +34,6 @@
   a pasted passage of ward figures written as words ("fifty-seven", "eighty-six") that nothing binds; 126 refusals
   lose an `UNBOUND_NUMBER` their scope or passage accounts for, and 55 gain one, all claims citing no source that
   write "thirty-two" (they were already refused for that). Tests: `tests/test_number_word_hyphens.py`.
-- **Saying a source is silent isn't denying what follows.** `SOURCE_CONTRADICTS` took the two words after a negation
-  as what a statement denies, so an honest "the handbook does not specify after how many days a staff password must
-  be changed", citing the sections it had searched, was refused as denying 'after' because one of them said "rising
-  to 27 days after 5 years of service". The seat filed it three times, and the refusal log called it an author who
-  said a contradicted claim again and never corrected it (who's-hallucinating showcase run 1: the only conduct warning
-  in 30 records, on an honest seat). The second word no longer counts when it opens a phrase of its own ('after',
-  'whether', 'during', …); the word denied still does, even one of those ("before 5 years, not after"). Over 3,125
-  existing records only 13 logged refusals move, all this sentence from that showcase and its smokes; no live claim
-  or result moves. Tests: `tests/test_denied_words.py`.
 - **A figure denied against the source that gives it.** `SOURCE_CONTRADICTS` read denied words and units, not
   figures: "the Nusk–Corlune road is actually 12 km long, not 10 km as the register indicates", linking as support the
   register item that gives 10 km, was accepted (spot-the-bad-actor showcase run 2, the liar's last word). A figure the
