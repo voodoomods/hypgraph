@@ -11,6 +11,14 @@
   and the profile's claim checks with and without the link. The link is refused only for problems it brings; one the
   claim already had doesn't block an unrelated link. The refusal is logged as `op=link` on the claim. Replayed over
   270 swarm records on the released profiles, 0 of 5,079 later links would be refused.
+- **A lie said again beside a figure it denies or compares is a repeat.** A count contradiction stored every number
+  in the refused statement as part of the lie, including a denied or compared one ("40 km, **not 38 km**", "31 km,
+  since the true total **exceeds 30 km**"). `refusals.carried` never counts those as asserted, so the same sentence
+  said again was logged as moving off it, not as a repeat. The refusal now stores only the figures the statement
+  asserts (`checks.asserted_figures`, one pattern for both sides), and `carried` reads refusals logged before this
+  through the refused statement. Found in the spot-the-bad-actor showcase (gpt-oss-20b, BC-250, 2026-11-15): replaying
+  its 20 record-arm disputes, one paid critic goes from 0 repeats and 5 moves off to 3 repeats, still saying it at
+  the end. No other party's conduct changes.
 
 ## 0.8.7 — 2026-11-08: a snapshot is loaded at one moment
 
