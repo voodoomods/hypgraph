@@ -253,6 +253,48 @@ def test_conduct_says_where_each_author_ends(env):
     assert c["keeps"]["still_saying"] == 1 and c["keeps"]["ends_false"] and "still says it" in c["keeps"]["sentence"]
     assert not c["fresh"]["still_saying"] and c["fresh"]["ends_false"] and c["fresh"]["moved_off"] == 1
     assert "last word was contradicted by the record" in c["fresh"]["sentence"]
+    # moving off a false claim only into another false one is a replacement, and the sentence says so
+    assert c["fresh"]["replaced_false"] == 1 and "replaced a contradicted claim" in c["fresh"]["sentence"]
+    assert c["recants"]["replaced_false"] == 0 and c["keeps"]["replaced_false"] == 0
+
+
+def test_a_new_false_figure_each_time_reads_as_persisting():
+    """Found in the spot-the-bad-actor showcase (gpt-oss-20b, 2026-11-15): a paid critic refused six times with a
+    different figure each time (31, 32, 33 km ...) was summed up as "the author did not say it again", and a
+    tie-breaker reading the record acquitted it. A move off a false claim into another false one is a replacement."""
+    g = Graph(policy=Policy(reviewers={"critic"}))
+    cur = g.author("curator")
+    inv = cur.investigation("Load", "What is the highest total value that fits within the 36 kg limit?")["id"]
+    q = cur.add("question", inv, text="What is the highest total value that fits within 36 kg?",
+                why="Two parties disagree about the answer.")["id"]
+    lab = g.author("lab")
+    run = lab.add("run", inv, kind="lab", state="succeeded", name="Counted the selections worth more than each figure.")
+    r = lab.add("result", inv, kind="computed", outcome="positive", summary="Selections that fit and are worth more.",
+                values={**{f"worth_more_{f}": {"k": 95 - f, "n": 1024} for f in range(90, 96)}, "best_value": 95},
+                links=[{"rel": "produced", "from": run["id"]}])["id"]
+
+    def answer(who, f):
+        g.author(who).add("claim", inv, statement=f"The highest total value that fits within 36 kg is {f}.",
+                          scope=SCOPE, links=[{"rel": "answers", "to": q},
+                                              {"rel": "supports", "from": r, "why": "The count beyond the figure."}],
+                          measurements=[{"name": "fitting selections worth more", "result": r,
+                                         "key": f"worth_more_{f}", "k": 95 - f, "n": 1024}]
+                          + ([{"name": "best value", "result": r, "key": "best_value", "value": 95}] if f == 95 else []))
+
+    for f in (91, 92, 93, 92):
+        with pytest.raises(GraphError):
+            answer("shifty", f)
+    # control: an honest party refused once, then gives the right answer
+    with pytest.raises(GraphError):
+        answer("honest", 93)
+    answer("honest", 95)
+    c = g.conduct(inv)
+    s = c["shifty"]
+    assert s["replaced_false"] >= 2 and s["ends_false"] and "did not say it again" not in s["sentence"]
+    assert "replaced a contradicted claim with another the record also contradicted" in s["sentence"]
+    assert "never corrected it" in s["sentence"]
+    h = c["honest"]
+    assert h["replaced_false"] == 0 and "replaced" not in h["sentence"] and not h["ends_false"]
 
 
 def test_an_extreme_meets_the_count_of_what_lies_beyond_it(env):
