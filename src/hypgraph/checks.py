@@ -1143,8 +1143,24 @@ def _fmt(v: float) -> str:
 
 def _subject_numbers(stmt: str, k: int, n: int) -> list[float]:
     """The figures a contradicted statement asserts, other than the count itself: what it would have to change to be
-    corrected (refusals.conduct reads them to tell a correction from the same claim said again)."""
-    return [v for v, *_ in numbers(stmt) if v not in (0, k, n)]
+    corrected (refusals.conduct reads them to tell a correction from the same claim said again). Only figures it
+    asserts (``asserted_figures``): in "the shortest route is 40 km, not 38 km" or "... is 31 km, since the true total
+    exceeds 30 km" the lie is 40 or 31. Storing 38 or 30 with it meant the same sentence said again never counted as a
+    repeat, because a repeat must assert every stored figure and refusals.carried never counts a denied or compared
+    one as asserted. A statement whose every figure is denied or compared keeps them all."""
+    said = asserted_figures(stmt) or {v for v, *_ in numbers(stmt)}
+    return [v for v, *_ in numbers(stmt) if v not in (0, k, n) and v in said]
+
+
+# a figure the statement doesn't assert but denies or compares against: "not 38", "isn't 38", "instead of 38",
+# "than 26", "exceeds 30", "above 90" (refusals.carried reads statements through the same pattern)
+NOT_ASSERTED = re.compile(r"(?:\b(?:not|never|than|above|below|over|under|beyond|exceed(?:s|ing|ed)?|except|"
+                          r"instead\s+of)|n't)\s+(?:about\s+|around\s+|roughly\s+)?\$?\d[\d,]*(?:\.\d+)?", re.I)
+
+
+def asserted_figures(stmt: str) -> set[float]:
+    """The figures a statement asserts: every number it gives, less those it denies or compares against."""
+    return {v for v, *_ in numbers(NOT_ASSERTED.sub(" ", stmt or ""))}
 
 
 # a word a statement denies: "not kilograms", "doesn't apply", "never reached" (the one or two words after it)

@@ -125,17 +125,15 @@ def _contradicted(detail: str) -> list[dict]:
 
 
 _CLAUSE = re.compile(r"[;!?]|\.(?!\d)")       # a full stop inside a number (3.5) ends no clause
-_NOT_ASSERTED = re.compile(r"\b(?:not|than|above|below|over|under|beyond|exceed(?:s|ing)?|except)\s+"
-                           r"(?:about\s+|around\s+)?\d[\d,]*(?:\.\d+)?", re.I)
 
 
-def carried(problems: list[dict], statement: str, atoms: list | None = None) -> bool:
+def carried(problems: list[dict], statement: str, atoms: list | None = None, was: str = "") -> bool:
     """Does ``statement`` say again what these contradiction problems showed false? A count contradiction is
     carried when one clause holds every figure it named (the '=…' words) again AND still asserts an extreme or an
     absolute about them ("the highest value is 93", "nothing beats 93"): mentioning the old figure in a correction
     ("1 of 82 routes is shorter than 26 km") is not saying it again. A source contradiction is carried when the
     statement still denies or doubts the same word, or still says the unit the source ruled out. A typed atom shown
-    false is carried when ``atoms`` (the new write's) asserts it again."""
+    false is carried when ``atoms`` (the new write's) asserts it again. ``was`` is the refused statement."""
     from . import assertions, checks
     keys = {assertions.key(a) for a in atoms or []}
     denied = checks.denied_words(statement or "")
@@ -150,11 +148,15 @@ def carried(problems: list[dict], statement: str, atoms: list | None = None) -> 
         if p.get("code") == "ASSERTION_CONTRADICTED" and {w[5:] for w in words if w.startswith("atom:")} & keys:
             return True
         figs = [float(w[1:]) for w in words if w.startswith("=") and w[1:].replace(".", "", 1).isdigit()]
+        # only the figures the refused statement asserted: refusals logged before 0.8.8 also stored the ones it denied
+        # or compared against ("40 km, not 38 km" gave =40 and =38), so that sentence said again never read as a repeat
+        if was and (said := checks.asserted_figures(was)):
+            figs = [f for f in figs if any(abs(f - s) < 1e-9 for s in said)] or figs
         if p.get("code") != "COUNT_CONTRADICTS" or not figs:
             continue
         for c in clauses:
             # a figure the clause negates or compares ("20 km, not 26 km", "greater than 130") isn't asserted
-            nums = [v for v, *_ in checks.numbers(_NOT_ASSERTED.sub(" ", c))]
+            nums = list(checks.asserted_figures(c))
             # nor is an extreme the clause denies ("the highest value is not 130") or a count's own domain ("a count
             # of every route finds 1 of 74 shorter"): both used to be logged as the lie said again
             if all(any(abs(x - f) < 1e-9 for x in nums) for f in figs) and checks.claimed_extremes(c):
@@ -181,7 +183,7 @@ def _note_reassertion(g: "Graph", *, author: str, inv: str, node: str, op: str, 
     con = g._connect()
     since = (datetime.fromisoformat(g.clock()) - FIX_WINDOW).isoformat(timespec="seconds")
     opened = _open_contradictions(con, author, inv, since, before=refusal)
-    hits = [r[0] for r in opened if carried(_contradicted(r[3]), statement, atoms)]
+    hits = [r[0] for r in opened if carried(_contradicted(r[3]), statement, atoms, was=r[2])]
     dropped = _moved_off(con, opened, hits, node=node, statement=statement, answers=answers)
     if not hits and not dropped:
         return
@@ -282,13 +284,13 @@ def match_fix(g: "Graph", *, author: str, inv: str, node: str, statement: str, o
         hits = [r for r in rows if (op == "revise" and r[1] == node) or _overlap(r[2], statement) >= FIX_OVERLAP
                 or _keys_again(r[3], values) or _same_pair(r[2], pair)]
         # a claim shown false and accepted later saying the same false thing is a re-assertion, not a fix
-        again = [r[0] for r in hits if carried(_contradicted(r[3]), statement, atoms)]
+        again = [r[0] for r in hits if carried(_contradicted(r[3]), statement, atoms, was=r[2])]
         hits = [r[0] for r in hits if r[0] not in again]
         # a contradiction this write is about but neither fixes nor says again: the author moved off it
         opened = [r for r in rows if _contradicted(r[3]) and r[0] not in hits]
         again += [r[0] for r in opened if r[0] not in again and _addresses(r, node=node, statement=statement,
                                                                            answers=answers)
-                  and carried(_contradicted(r[3]), statement, atoms)]
+                  and carried(_contradicted(r[3]), statement, atoms, was=r[2])]
         dropped = _moved_off(con, opened, again, node=node, statement=statement, answers=answers)
         if not hits and not again and not dropped:
             return []
