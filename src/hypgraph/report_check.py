@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING
 from . import derive as D
 from . import language as L
 from . import stats
-from .checks import _matches, _matches_stat, derived_numbers, numbers
+from .checks import _matches, _matches_bound, _matches_stat, derived_numbers, numbers, split_bounds
 
 if TYPE_CHECKING:
     from .graph import Graph
@@ -269,11 +269,12 @@ def check(g: "Graph", text: str, inv: str = "") -> dict:
             if asks:                     # a question, or the question's own words: citations checked, nothing asserted
                 continue
             # numbers
-            for p in numbers(sent):
+            rest, labelled = split_bounds(sent)     # '95% upper bound 31%': a bound the sentence names as one
+            for p, is_bound in [(p, False) for p in numbers(rest)] + [(p, True) for p in labelled]:
                 if _skip_number(p, sent) or re.search(rf"(?<![\w-])[A-Z]{{1,3}}{re.escape(p[3])}(?![\w-])", sent):
                     continue
                 counted["numbers"] += 1
-                if not _matches(p, plain) and not _matches_stat(p, stat):
+                if not _matches(p, plain) and not _matches_stat(p, stat) and not (is_bound and _matches_bound(p, stat)):
                     add(ln, "warning", "REPORT_UNSOURCED_NUMBER", sent,
                         f"{p[3]} isn't in any result, measurement, claim, scope or constant in the record, and doesn't "
                         "follow from them. Bind it to a result, or take it out.")

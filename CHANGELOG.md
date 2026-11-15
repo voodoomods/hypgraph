@@ -28,6 +28,15 @@
   from the log, so existing records read the new way. Found in the spot-the-bad-actor showcase (gpt-oss-20b, BC-250,
   2026-11-15), where a tie-breaker reading the record acquitted such a critic. Replaying its 20 record-arm disputes:
   6 of 10 paid critics get a replacement count, no honest party does, and no verdict of the record rule changes.
+- **The honest wording a refusal suggests is accepted.** `ABSOLUTE_UNDERPOWERED` suggests "no occurrences in 8
+  trials (95% upper bound 31%)", and `bound()` prints "at most 31%". The record then refused that figure as unbound,
+  for two reasons. Statistical figures had to be written to a decimal place, and for k = n the printed bound
+  (1 − lower bound) wasn't among the derived numbers at all. A percentage the statement itself labels as a bound
+  ("upper bound", "at most", "no more than" …) now matches a bound count's 95% bounds, or their complements, as
+  printed. The match is by position, so a labelled bound vouches for nothing else in the sentence. Unlabelled
+  figures keep the decimal rule. `check_text` does the same. Found in the say-no-more-than-the-data showcase
+  (gpt-oss-20b, BC-250, 2026-11-15). Replaying its 82 headline attempts, 11 that were refused are now accepted, all
+  of them correct bounds for their counts, and no other outcome changes.
 
 ## 0.8.7 — 2026-11-08: a snapshot is loaded at one moment
 
