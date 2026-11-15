@@ -609,6 +609,12 @@ _NAMES_BENCHMARK = re.compile(r"buy[\s‐‑-]*(?:and|&)[\s‐‑-]*hold|benchma
 _SAYS_IN_SAMPLE = re.compile(r"in[\s‐‑-]?sample|insample|training|\btrain(?:ed)?\b|fitted|fitting|tuning|tuned|"
                              r"calibrat\w*|estimation (?:window|period)|optimi[sz]ation (?:window|period)|"
                              r"first [\d,]+ (?:trading )?days", re.I)
+# A sentence that denies something isn't a bare edge claim: honest audits name the edge to refute it ("there is no
+# out-of-sample, after-cost edge", "the in-sample edge did not carry over", "only 2 of the 20 settings beat buy and
+# hold", "it underperforms buy and hold"). 27 of 34 corpus sentences the value check alone refused were these.
+_EDGE_DENIED = re.compile(r"\b(?:no|not|never|none|neither|nor|without|cannot|fail(?:s|ed)?|los(?:e|es|t|ing)|"
+                          r"trail(?:s|ed|ing)?|underperform\w*|shortfall|worse|negative|declin(?:e|es|ed)|beaten|"
+                          r"revers\w*)\b|n't\b|\b\d+\s+of\s+(?:the\s+)?\d+\b", re.I)
 
 
 def _oos_returns(body: dict) -> tuple[tuple[str, float] | None, tuple[str, float] | None]:
@@ -639,9 +645,10 @@ def _edge_contradicted(s: D.Snap, stmt: str, results: list[str]) -> list[Problem
     """EDGE_CONTRADICTED: an edge word the supporting results' values deny. 'profitable' and 'edge' need the
     out-of-sample after-cost return to be a gain; 'edge', 'alpha' and 'excess return' need it above the benchmark's
     when one is recorded, and 'beats' / 'outperforms' when the sentence names the benchmark (buy-and-hold, the
-    index, the market). Refused only when every supporting result that says something denies it."""
+    index, the market). Refused only when every supporting result that says something denies it, and never in a
+    sentence that denies something itself (_EDGE_DENIED): precision over recall."""
     words = [w.lower() for w in L.asserted(_EDGE, stmt)]
-    if not words:
+    if not words or _EDGE_DENIED.search(stmt):
         return []
     names = bool(_NAMES_BENCHMARK.search(stmt))
     need_gain = any(w in ("edge", "profitable") for w in words)
@@ -670,12 +677,14 @@ def _edge_contradicted(s: D.Snap, stmt: str, results: list[str]) -> list[Problem
 
 
 def _in_sample_unlabelled(stmt: str, body: dict) -> list[Problem]:
-    """IN_SAMPLE_UNLABELLED: the claim binds an in-sample return (is_*, in_sample_*, train_*) and the sentence
-    doesn't say it is one — "the strategy returned 14.2% after costs" reads as the result, and the in-sample return is
-    the one the configurations were chosen on."""
+    """IN_SAMPLE_UNLABELLED: the claim's only bound returns are in sample (is_*, in_sample_*, train_*) and the
+    sentence doesn't say so — "the strategy returned 14.2% after costs" reads as the result, and the in-sample return
+    is the one the configurations were chosen on. A claim that also binds an out-of-sample return has its headline
+    (the in-sample figure bound beside it is context)."""
     keys = [str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)]
-    is_keys = [k for k in keys if _IS_KEY.search(k) and _RETURN_KEY.search(k)]
-    if not is_keys or _SAYS_IN_SAMPLE.search(stmt or ""):
+    returns = [k for k in keys if _RETURN_KEY.search(k)]
+    is_keys = [k for k in returns if _IS_KEY.search(k) and not _OOS_KEY.search(k)]
+    if not is_keys or any(_OOS_KEY.search(k) for k in returns) or _SAYS_IN_SAMPLE.search(stmt or ""):
         return []
     return [Problem("IN_SAMPLE_UNLABELLED", f"the claim binds an in-sample return ({', '.join(is_keys[:3])}) but "
                     "doesn't say it is in sample — it reads as the strategy's result, and it is the figure the "
