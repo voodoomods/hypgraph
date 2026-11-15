@@ -59,3 +59,14 @@ def test_a_qualified_or_unrelated_statement_goes_in(statement):
 
 def test_a_bare_plural_on_a_count_without_exceptions_goes_in():
     write(env(24, 24), "Malformed files rejected with clear errors.")
+
+
+@pytest.mark.parametrize("k,n,word", [(23, 24, "nearly all"), (4, 6, "most"), (3, 6, "half"), (2, 6, "fewer than half"),
+                                      (1, 20, "a few")])
+def test_the_refusal_offers_a_qualifier_true_of_the_count(k, n, word):
+    # on 3 of 6 the refusal offered 'nearly all' or 'most', and the rewrite said "a majority" (showcase run 3)
+    with pytest.raises(GraphError) as e:
+        write(env(k, n), "Malformed files rejected with clear errors.")
+    p = next(p for p in e.value.problems if p["code"] == "COUNT_CONTRADICTS")
+    assert f"say '{k} of {n}', or '{word}'" == p["fix"]
+    assert f"qualify it ('{word}')" in p["message"]
