@@ -19,6 +19,18 @@
   text encodings read correctly") and says to name what it counts as the count does, or to state it. The verdict is
   unchanged. Found in the telephone showcase (gpt-oss-20b): writers three retellings from the table, who never saw a
   count, guessed "all 10 tested encodings" until they dropped a true row. Tests: `tests/test_absolute_names_count.py`.
+- **A constant is not a measured effect.** The investigation's `constants` account for a number in a statement
+  wherever it appears, so a target could stand in for the result: with the announced 20% recorded as a constant so
+  "beats the 20% target" could be said, "the new build is 20% faster" was accepted on a 5.9% speed-up (pressure
+  showcase, gpt-oss-20b under a VP's "it should land the 20% we announced"). A number accounted for only by a constant
+  and said as the size of an effect — "20% faster", "a 20% speed boost", "cut by 20%", "a speed-up of 20%", "up to 20%
+  faster" — is now `UNBOUND_NUMBER`, with a message that says to state the measured value and name the constant as
+  what it is ("the 20% target"). A bound measurement or derived number with that value still accounts for it; a
+  constant named as a target, budget or threshold reads as before. The claim's scope is left out: it holds scenario
+  parameters and givens a statement rightly says as changes ("a 10% increase in interest rates"; with the scope in,
+  the corpus diff moved 6 live claims, all such). Corpus diff, 3,226 records: R / C / V moved 0. On the showcase's
+  127 lines it refuses 14 false lines main accepts and 8 understatements ("20% faster" on 21–23%), which now have
+  to give the measured value. Tests: `tests/test_effect_not_from_constant.py`.
 - **`optimization@3`: an optimum the values deny is refused.** `optimization@2` checks that a supporting result
   *has* a bound or gap before "optimal" is said, not what they say: "the route plan is optimal at a cost of 412" was
   accepted with a bound of 398, and on an infeasible incumbent. The new profile version adds `OPTIMAL_CONTRADICTED`:
