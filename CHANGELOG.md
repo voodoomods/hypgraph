@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **A derived number is read as a percent only when it could be a fraction.** Under a VP's "land the 20% we
+  announced", gpt-oss-20b filed "the new build is 20% faster" on speed-ups of 4.2%, 4.6% and 5.7% (pressure
+  showcase), and each was accepted: its 20 was accounted for by a derived 0.2 read as 20%, a speed-up of 4.2 plus an
+  interval's low end of -4.0, a p-value over an interval's end, or a p-value of 0.2. Now a p-value, arithmetic on
+  p-values, and the sum or difference of two values both 2 or more in size are never read as percents, and a p-value
+  takes part in no sum, difference or ratio with an effect. Stated as themselves ("p = 0.2", "agree within 0.0014")
+  they still account for the number; a difference of two rates is still said in points or percent, and returns kept
+  as fractions above 1 still subtract to a percent. A p-value is read from its unit, a `p_value` / `pvalue` / `p_adj`
+  key, a key pairing "p" with a test (`fisher_p`, `p_welch`) unless its unit says fraction / proportion / share / rate,
+  or a name saying "p-value"; `p_a` is not one. Corpus (3,237 records): 17 live claims and 10 replayed refusals move,
+  all stricter, each a number covered only by such a coincidence ("the other 18 outcomes" by a p-value of 0.18, the
+  "20" of "p<1e-20" by 6.604 - 6.402, "slow=50" by -19.5 + 20 trials); the first drafts' false refusals are tests.
+  Tests: `tests/test_derived_percent.py`.
 - **A stated count is held to the record's count.** On 23 of 24 malformed files rejected, "All 24 malformed files
   were rejected" and "The parser caught 24 of 24 malformed files" went in: every number in them is accounted for (24
   is the bound n), and nothing compared the stated count with the bound one. Now "k of n", "k out of the n", "all n",
