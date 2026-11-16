@@ -4,7 +4,8 @@ Every check that compared a printed figure with a bound value used ``round()``, 
 halves to even: 4.85 (stored as 4.8499...) gives 4.8 and 0.125 gives 0.12. So "95% CI 4.9 to 11.3" on an interval
 from 4.85 to 11.27 was refused as a number nothing accounts for (live label probe, gpt-oss on the BC-250s, 2026-11-16:
 6 of the 12 true lines refused on both engines). A printed figure now stands when it is the value rounded half up or
-half to even, and nothing further away.
+half to even, and nothing further away — except a single-digit whole number, which keeps round(): there an exact half
+is most often a ratio of round numbers (0.5 covered the "1" of "over 1 GB", 2.5 the "3" of "field 3").
 """
 import pytest
 
@@ -14,13 +15,14 @@ from hypgraph.report_check import _eq
 
 
 @pytest.mark.parametrize("x, v, dec", [(4.85, 4.9, 1), (4.85, 4.8, 1), (0.125, 0.13, 2), (0.125, 0.12, 2),
-                                       (2.5, 3, 0), (2.5, 2, 0), (11.27, 11.3, 1), (1.005, 1.01, 2)])
+                                       (2.5, 2, 0), (12.5, 13, 0), (2812.5, 2813, 0), (11.27, 11.3, 1),
+                                       (1.005, 1.01, 2)])
 def test_a_half_rounds_either_way(x, v, dec):
     assert _shows(x, v, dec)
 
 
 @pytest.mark.parametrize("x, v, dec", [(4.86, 4.8, 1), (4.84, 4.9, 1), (0.1251, 0.12, 2), (2.51, 2, 0),
-                                       (11.27, 11.2, 1)])
+                                       (11.27, 11.2, 1), (2.5, 3, 0), (0.5, 1, 0)])
 def test_anything_further_is_not_the_value(x, v, dec):
     assert not _shows(x, v, dec)
 

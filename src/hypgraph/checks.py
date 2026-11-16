@@ -236,7 +236,12 @@ def _shows(x: float, v: float, dec: int) -> bool:
     """Whether ``v``, written to ``dec`` decimal places, is ``x`` rounded, half up or half to even as people round.
     ``round()`` alone rounds the binary value, halves to even: 4.85 (stored as 4.8499...) gave 4.8 and 0.125 gave
     0.12, so an honest "95% CI 4.9 to 11.3" on an interval from 4.85 was refused (live label probe, BC-250s,
-    2026-11-16: 6 of the 12 true lines refused)."""
+    2026-11-16: 6 of the 12 true lines refused). A single-digit whole number keeps ``round()``: there an exact half is
+    most often a ratio of round numbers (3 / 6, 50 / 20), and taking it half up let 0.5 cover the "1" of "over 1 GB"
+    and 2.5 the "3" of "field 3" — five replayed refusals in the corpus, one an overreach line (corpus diff,
+    2026-11-16). "2813 Hz" for 2812.5 and "13%" for 12.5% still stand."""
+    if dec == 0 and v < 10:
+        return round(x) == round(v)
     return abs(x - v) <= 0.5 * 10.0 ** -dec * (1 + 1e-9)
 
 
