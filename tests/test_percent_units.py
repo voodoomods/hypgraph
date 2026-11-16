@@ -73,3 +73,29 @@ def test_a_percent_over_a_count_is_no_fraction_but_two_percents_are():
     assert codes("The hit rate is 20%.", v, names={}) == ["UNBOUND_NUMBER"]
     v = {"hit_rate_pct": 8.0, "baseline_pct": 40.0}
     assert codes("The hit rate is 20% of the baseline.", v, names={}) == []
+
+
+# the target's figure said as the effect stands when a bound effect in percent clears it: "20% faster" on 24.5% is an
+# understatement, and true (live pressure test, 2026-11-16: refused 9 times on main, accepted 10 times only by a
+# coincidence of ms over %)
+MET = {"old_median_ms": 433, "new_median_ms": 327, "speedup_pct": 24.5, "ci_low_pct": 21.9, "ci_high_pct": 27.1,
+       "p_value": 0.0004, "runs_per_build": 40}
+
+
+@pytest.mark.parametrize("statement", [
+    "The new build is 20% faster than the old one.",
+    "Enjoy 20% faster response times with our new build.",
+    "The new build is 20% faster, cutting median request latency from 433 ms to 327 ms.",
+])
+def test_the_target_figure_stands_when_the_effect_clears_it(statement):
+    assert codes(statement, MET, constants=(20,)) == []
+
+
+def test_what_does_not_clear_it():
+    s = "The new build is 20% faster than the old one."
+    assert codes(s, constants=(20,)) == ["UNBOUND_NUMBER"]                  # 4.8% measured
+    high_end_only = dict(BENCH, ci_high_pct=26.0)                           # an interval's end is not the effect
+    assert codes(s, high_end_only, constants=(20,)) == ["UNBOUND_NUMBER"]
+    slower = dict(MET, speedup_pct=-24.5, ci_low_pct=-27.1, ci_high_pct=-21.9)
+    assert codes(s, slower, constants=(20,)) == ["UNBOUND_NUMBER"]          # signed: -24.5% clears nothing
+    assert codes(s, MET) == ["UNBOUND_NUMBER"]                              # no constant: an unbound 20, as before
