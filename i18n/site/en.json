@@ -347,6 +347,12 @@
    "24468cae27": "<1/> checked · <2/> contested",
    "0bc6644174": "<1/> events · <2/> nodes · <3/> writes refused",
    "35fc06681a": "<1>See who gets called out</1>",
+   "0451f54f75": "A withdrawn source",
+   "bfa0a746e7": "A decision rests on a vendor benchmark. The vendor withdraws it. Nobody re-reads the memo: the record finds every result, claim and decision computed from it, and leaves the team's own load test standing.",
+   "39ec48fa41": "at risk",
+   "5ba5509a0b": "<1/> nodes when the benchmark is withdrawn · <2/> untouched",
+   "61179642d8": "<1/> events · <2/> nodes · decision flagged REVISIT, then superseded",
+   "67fdfe4280": "<1>See what rested on it</1>",
    "7898c8e89d": "Linked records",
    "5c9830f3f5": "Three records, each with its own chain and board, joined by pinned references. A synthesis pins claims in two other records, and one of those pins the third, so the graph draws all three together, each verified on its own.",
    "86761b63a7": "records",
@@ -477,6 +483,16 @@
    "20a6f53018": "<1>A disputed answer</1> · two parties answer one question from the same road register. <2>Ada</2> makes an honest mistake: 30 km, when the instrument counts 1 of 4 routes shorter. The record refuses it (<3/>) and she corrects it to 29 km. <4>Mallory</4> says the register is in miles, citing the register’s own units note, which says kilometres. The record refuses it (<5/>), she says it again, then files it without the note. An independent reviewer reads both against the register. Nobody labels anyone: the standing below is derived on read, and so is the conduct log, which says Ada corrected what she was shown and Mallory said it again 2 times, never corrected it, and still says it.",
    "f8519659b3": "An honest mistake and a lie about one question: the HypGraph record checks one answer, contests the other, and says which author kept saying it.",
    "adc6131df2": "A disputed answer"
+  },
+  "examples/cascade/index.html": {
+   "e5630fe7e6": "A withdrawn source — HypGraph",
+   "eb01bf04c9": "Examples",
+   "ca91a81413": "What happened next",
+   "0361e73a41": "Download bundle",
+   "1783de2360": "Verify it",
+   "7aa8c0e97d": "<1>A withdrawn source</1> · an illustration: the engine, the vendor and the team are made up. A search team decides to move to a new index engine and retire 4 of its 12 servers. Two of the three claims behind the decision are computed from the vendor’s benchmark; the third is from the team’s own load test. Then the vendor withdraws the benchmark: the cache was warm. Nobody re-reads the memo. This is the record at that moment: it marks <2>at risk</2> every result, claim and decision computed from the benchmark, derived on read from the links that say what each one rests on, and leaves the load-test claim standing. <3>What happened next</3> opens the whole record: the team re-measures on its own corpus, revises both claims, the old decision is flagged <4>REVISIT</4> because the claims it was based on changed, and the new decision retires 3 servers, not 4.",
+   "f8a73e7dff": "A vendor withdraws the benchmark a decision rested on: the HypGraph record finds every result, claim and decision computed from it.",
+   "0451f54f75": "A withdrawn source"
   },
   "explore/index.html": {
    "578f7edbb0": "Explore a record — HypGraph",
