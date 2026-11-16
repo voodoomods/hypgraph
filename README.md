@@ -185,7 +185,9 @@ profiles stay exactly as they were. `completion(inv)` reports each criterion; `h
 `/api/graph/completion` and `/api/graph/profiles`. The method each workflow is taken from is quoted, one page each,
 in [docs/workflows/](docs/workflows/). Adding a discipline is one `Profile` with a `Workflow`. `trading@3` is
 `trading@2` that also reads the values: *"edge"* on an out-of-sample loss, or behind the benchmark it
-records, is refused, and an in-sample return must say so.
+records, is refused, and an in-sample return must say so. `optimization@3` is
+`optimization@2` that also reads the values: *"optimal"* on an infeasible incumbent, or with a gap above
+1e-4, is refused.
 
 ## Connect your agent
 

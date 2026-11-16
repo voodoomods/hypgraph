@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **`optimization@3`: an optimum the values deny is refused.** `optimization@2` checks that a supporting result
+  *has* a bound or gap before "optimal" is said, not what they say: "the route plan is optimal at a cost of 412" was
+  accepted with a bound of 398, and on an infeasible incumbent. The new profile version adds `OPTIMAL_CONTRADICTED`:
+  optimal / optimum / best possible said of the solution when every supporting result that says something has an
+  infeasible incumbent or a relative gap above 1e-4 (from objective and bound when both are given, else the recorded
+  gap, when it is a fraction). Reference uses ("within 0.72% of the theoretical optimum", "the gap to the optimum")
+  and sentences that deny something (an audit measuring a plan against the optimum) are not claims of optimality.
+  `optimization@1` and `@2` are frozen and unchanged; no existing record moves. Checked as if pinned `@3`, the 348
+  live claims in existing optimization records give 1 refusal (a true optimum on a result whose bound is 0; the first
+  draft also refused 5 audits and a gap in value units, now tests). Re-filing the optimal-plan showcase's 126 logged sentences moves none.
+  Tests: `tests/test_optimization_v3.py`.
 - **`trading@3`: an edge the values deny is refused.** `trading@2` checks that a supporting result *has* an
   out-of-sample, after-cost return and a trials count before "edge" is said, not what the return is: "the strategy
   has an edge out of sample after costs" was accepted on a −3.1% out-of-sample return, and the backtest-bragging
