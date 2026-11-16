@@ -25,6 +25,9 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
                                 generalises past the n trials instead of saying them ("never leaks")
   ABSOLUTE_HIDES_DENOMINATOR    0 of n is enough, but neither statement nor scope says n — "never" reads as never
   COMPARATIVE_WITHOUT_COMPARISON "beats" / "outperforms" / "higher than" with fewer than two sides measured
+  COMPARISON_REVERSED           "81% is higher than 84%": the two figures it compares are bound measurements, and
+                                their values run the other way ("outperforms" / "beats" / "better than" only where
+                                both keys say which way is better: a return up, an error down)
   SIGNIFICANCE_WITHOUT_TEST     "significantly" with no test behind it
   SIGNIFICANCE_NOT_SHOWN        the test behind it isn't significant
   SIGNIFICANCE_CONTRADICTED     "not significant", but the bound evidence is (p < 0.05)
@@ -1771,8 +1774,175 @@ def _thresholds(stmt: str, comp: list[str]) -> set[str]:
                                    for h in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I))}
 
 
-def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Problem]:
+# A comparison between two bound measurements that the measurements reverse: "model A's accuracy of 81% is higher
+# than model B's 84%", "a net return of 11.6% …, outperforming the buy-and-hold benchmark of 12.5%" (accepted from
+# both the pitching and the honest seat in the backtest-bragging showcase, 2026-11-15: COMPARATIVE_WITHOUT_COMPARISON
+# only counted the sides, never their order). Read narrowly, so it refuses only what it can see: the figure just
+# after the comparison word and the nearest figure of the same kind (a percentage, or not) before it, in one clause,
+# each matching a bound measurement's value. Words of size ("higher than", "exceeds") compare the values as they
+# are; words of merit ("outperforms", "beats", "better than") only where both measurements' keys say which way is
+# better (a return or an accuracy up, an error or a cost down). Anything else is left alone: a difference or a
+# multiple before the word ("3 points higher than", "twice"), a threshold ("rose to more than"), a negation ("does
+# not exceed"), another comparison in between, a figure no measurement gives.
+_SIZE = {"higher": 1, "greater": 1, "larger": 1, "bigger": 1, "more": 1,
+         "lower": -1, "smaller": -1, "less": -1, "fewer": -1}
+_MERIT = {"better": 1, "worse": -1, "outperform": 1, "outperforms": 1, "outperformed": 1, "outperforming": 1,
+          "underperform": -1, "underperforms": -1, "underperformed": -1, "underperforming": -1,
+          "beat": 1, "beats": 1, "beating": 1}
+_ORDER_WORD = re.compile(r"\b(?:(" + "|".join(_SIZE) + r"|better|worse)\s+than|(exceed(?:s|ed|ing)?|"
+                         r"surpass(?:es|ed|ing)?)|(outperform(?:s|ed|ing)?|underperform(?:s|ed|ing)?|beat(?:s|ing)?))"
+                         r"\b", re.I)
+_CLAUSE_END = re.compile(r"[;:!?—]|\s–\s|\.(?!\d)|(?<![\w‐‑-])(?:and|but|while|whereas|although|though|yet|versus|vs)(?![\w‐‑-])", re.I)
+_NOT_A_SIDE = set("not no never nor neither none to of by at with from in for into on onto toward towards reach "
+                  "reaches reached reaching rose rise rises risen fell fall falls grew grow grows dropped drop drops "
+                  "increased decreased climbed jumped the a an any".split())
+_SCALING = set("times fold x twice double triple half halves third thirds quarter quarters point points pp "
+               "percentage".split())
+_HIGHER_GOOD = set("return returns accuracy acc profit profits score scores revenue gain gains precision recall f1 auc "
+                   "sharpe sortino yield win wins winrate pass passed passes throughput".split())
+_LOWER_GOOD = set("error errors err loss losses cost costs latency drawdown fee fees runtime delay regret mse rmse mae "
+                  "perplexity slippage".split())
+
+
+def _better_way(m: dict) -> int | None:
+    """+1 when the measurement's key says more is better (a return, an accuracy), -1 when it says less is (an error,
+    a cost), None when it doesn't say or says both ("return_after_fees"). The name is read only when the key is
+    silent."""
+    for text in (str(m.get("key") or ""), str(m.get("name") or "")):
+        toks = set(re.split(r"[^a-z0-9]+", text.lower()))
+        up, down = bool(toks & _HIGHER_GOOD), bool(toks & _LOWER_GOOD)
+        if up or down:
+            return None if up and down else (1 if up else -1)
+    return None
+
+
+def _sides(printed: tuple, bound: list) -> list[tuple[float, int | None]]:
+    """(value, which way is better) for each bound measurement whose value the printed figure matches, scaled as
+    printed (0.84 printed as 84% is 84). A figure printed without a minus sign doesn't match a negative value: "a
+    net loss of 4.66% is less than buy-and-hold's loss of 56.73%" compares sizes of losses, and "outperforming a
+    buy-and-hold that fell 16.86%" a gain with a fall — which one a bare figure means isn't for the check to guess
+    (backtest-bragging diagnostic, 2026-11-15)."""
+    v, dec, pct, _ = printed
+    neg, v = v < 0, abs(v)
     out = []
+    for m, rv in bound:
+        # a value and a count are different kinds of side: 0.781 is a rate, 580 the count behind another one
+        cands = [(c, kind) for c, kind in ((_primary(rv), "value"), ((_arm(rv) or (None,))[0], "count"))
+                 if c is not None]
+        for c, kind in cands:
+            for x in ((c, c * 100) if pct or abs(c) <= 1 else (c,)):
+                a = abs(x)
+                if x and (x < 0) != neg:
+                    continue
+                if round(a, dec) == v or (dec == 0 and abs(a - v) < 0.5 and round(a) == v):
+                    out.append((float(x), _better_way(m), kind))
+    return out
+
+
+def _figures_at(text: str) -> list[tuple[int, int, tuple]]:
+    """(start, end, printed) for each figure written in digits that can be one side of a comparison: identifiers and
+    dates skipped, and so are the parts of a fraction ("580/1000") and a number joined by a hyphen to a word ("step-1",
+    "5-day") — a label or an adjective, not a figure compared (HypSwarm challenge records: "p 0.0134 exceeds the Holm
+    step-1 threshold" read as 0.0134 against 1). A minus sign is kept."""
+    masked = _DATE.sub(lambda m: " " * len(m.group(0)), _NOT_A_FIGURE.sub(lambda m: " " * len(m.group(0)), text))
+    out = []
+    for m in _NUM.finditer(masked):
+        if re.search(r"\d\s?/\s?$", masked[max(0, m.start() - 2):m.start()]) or re.match(r"\s?/\s?\d", masked[m.end():]) \
+                or re.search(r"[A-Za-z][-‐‑]$", masked[max(0, m.start() - 2):m.start()]) \
+                or re.match(r"[-‐‑][A-Za-z]", masked[m.end():]):
+            continue
+        whole, frac, pct = m.group(1), m.group(2), m.group(3)
+        v = float(whole.replace(",", "") + ("." + frac if frac else ""))
+        neg = bool(re.search(r"(?:^|[^\w.])[-−–]\s?$", masked[max(0, m.start() - 3):m.start()]))
+        out.append((m.start(), m.end(), (-v if neg else v, len(frac or ""), bool(pct), m.group(0).strip())))
+    return out
+
+
+_UNIT_SKIP = set("of in on at for to by over after before during out and or the a an per each from with than is was "
+                 "are were vs versus".split())
+
+
+def _unit_after(stmt: str, i: int) -> str:
+    """The noun a figure counts, when one follows it ("30 parcels", "60 seconds"); empty when none does."""
+    w = re.match(r"\s*([A-Za-z]+)", stmt[i:])
+    return "" if not w or w.group(1).lower() in _UNIT_SKIP else w.group(1).lower()
+
+
+def _reversed(stmt: str, bound: list) -> list[Problem]:
+    if len(bound) < 2:
+        return []
+    out = []
+    figs = _figures_at(stmt)
+    for h in _ORDER_WORD.finditer(stmt):
+        word = h.group(0)
+        head = (h.group(1) or h.group(2) or h.group(3)).lower()
+        if h.group(2):
+            sign, merit = 1, False
+        elif head in _SIZE:
+            sign, merit = _SIZE[head], False
+        else:
+            sign, merit = _MERIT[head], True
+        start = max([e.end() for e in _CLAUSE_END.finditer(stmt, 0, h.start())] or [0])
+        end = min([e.start() for e in _CLAUSE_END.finditer(stmt, h.end())] or [len(stmt)])
+        # inside an absolute the word sets a threshold ("none of those 2790 costs less than 112"): the absolute checks
+        # settle that with a count
+        if L.asserted(L.ABSOLUTE, stmt[start:end]):
+            continue
+        before = re.findall(r"[\w’'%]+", stmt[start:h.start()].lower())
+        # a figure just before "higher than" is the difference ("3% higher than"); before a verb, it's the subject
+        if before and (before[-1] in _NOT_A_SIDE | _SCALING or h.group(1) and any(c.isdigit() for c in before[-1])
+                       or any(w in ("not", "no", "never", "nor", "neither", "without") or w.endswith(("n't", "n’t"))
+                              for w in before[-3:])):
+            continue
+        right = [f for f in figs if h.end() <= f[0] < end]
+        if not right:
+            continue
+        rf = right[0]
+        gap = re.findall(r"[\w’']+", stmt[h.end():rf[0]].lower())
+        after = re.findall(r"[\w’']+", stmt[rf[1]:rf[1] + 24].lower())[:1]
+        # a figure named as a difference or a multiple after the word ("smaller than 0.1 percentage points") is no side
+        if set(gap) & _SCALING or set(after) & _SCALING or len(gap) > 10 or _ORDER_WORD.search(stmt, h.end(), rf[0]) \
+                or L.COMPARATIVE.search(stmt[h.end():rf[0]]):
+            continue
+        left = [f for f in figs if start <= f[0] and f[1] <= h.start() and f[2][2] == rf[2][2]]
+        if not left:
+            continue
+        lf = left[-1]
+        if L.COMPARATIVE.search(stmt[lf[1]:h.start()]) or re.search(r"\bthan\b", stmt[lf[1]:h.start()], re.I) \
+                or len(re.findall(r"[\w’']+", stmt[lf[1]:h.start()])) > 15:
+            continue
+        # two figures counting different things are not compared: "30 parcels … the time limit of 60 seconds"
+        units = [_unit_after(stmt, f[1]) for f in (lf, rf)]
+        if all(units) and units[0][:4] != units[1][:4]:
+            continue
+        a_sides, b_sides = _sides(lf[2], bound), _sides(rf[2], bound)
+        if not a_sides or not b_sides:
+            continue
+        verdicts = set()
+        for a, wa, ka in a_sides:
+            for b, wb, kb in b_sides:
+                if ka != kb:
+                    verdicts.add(None)
+                elif merit:
+                    way = wa if wa == wb else None
+                    verdicts.add(None if way is None else sign * way * (a - b) < 0)
+                else:
+                    verdicts.add(sign * (a - b) < 0)
+        if verdicts != {True}:
+            continue
+        a, b = a_sides[0][0], b_sides[0][0]
+        unit = "%" if rf[2][2] else ""
+        out.append(Problem("COMPARISON_REVERSED",
+                           f"'{word}' puts {lf[2][3]} {'ahead of' if sign > 0 else 'behind'} {rf[2][3]}, but the bound "
+                           f"measurements are {a:g}{unit} and {b:g}{unit}: the comparison runs the other way — say "
+                           "which is "
+                           + ("better" if merit else "higher") + " as measured",
+                           fix="reverse the comparison, or state both figures without one", words=[word]))
+    return out
+
+
+def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Problem]:
+    out = _reversed(stmt, bound)
     comp = L.asserted(L.COMPARATIVE, stmt)
     comp = [w for w in comp if w not in _thresholds(stmt, comp)]
     tested = any(isinstance(rv.get("p"), (int, float)) or rv.get("interval") for _m, rv in bound)
