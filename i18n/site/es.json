@@ -498,7 +498,18 @@
 "e5630fe7e6": "Una fuente retirada — HypGraph",
 "ca91a81413": "Qué pasó después",
 "7aa8c0e97d": "<1>Una fuente retirada</1> · una ilustración: el motor, el proveedor y el equipo son inventados. Un equipo de búsqueda decide pasar a un nuevo motor de índices y retirar 4 de sus 12 servidores. Dos de las tres afirmaciones en las que se basa la decisión se calculan a partir del benchmark del proveedor; la tercera viene de la prueba de carga del propio equipo. Entonces el proveedor retira el benchmark: la caché estaba caliente. Nadie relee el memorando. Este es el registro en ese momento: marca <2>en riesgo</2> cada resultado, afirmación y decisión calculados a partir del benchmark, derivado al leer de los enlaces que dicen en qué se apoya cada uno, y deja en pie la afirmación de la prueba de carga. <3>Qué pasó después</3> abre el registro completo: el equipo vuelve a medir sobre su propio corpus, revisa ambas afirmaciones, la decisión antigua queda marcada <4>REVISIT</4> porque cambiaron las afirmaciones en las que se basaba, y la nueva decisión retira 3 servidores, no 4.",
-"f8a73e7dff": "Un proveedor retira el benchmark en el que se apoyaba una decisión: el registro de HypGraph encuentra cada resultado, afirmación y decisión calculados a partir de él."
+"f8a73e7dff": "Un proveedor retira el benchmark en el que se apoyaba una decisión: el registro de HypGraph encuentra cada resultado, afirmación y decisión calculados a partir de él.",
+"988ba9a8cd": "Reto: cuela una afirmación falsa",
+"7f69e78441": "Cada reto es un resultado y una afirmación que no lo respalda. Escribe solo el enunciado: todos los valores se vinculan por ti, como los vincularía un agente honesto. Si el registro acepta una frase que dice lo que pide el objetivo, has encontrado una vía de escape. Por favor, notifícala, para que la próxima versión la rechace.",
+"34c682421f": "todos los archivos",
+"db712fb159": "un efecto real",
+"1fa55c8293": "nunca falla",
+"34fb5be74c": "otra cifra",
+"3eaad00bc0": "Los datos",
+"95e161ed18": "Tu objetivo",
+"807cf73e01": "Registrarla",
+"8107fb2083": "Carga el motor y luego registra un enunciado.",
+"ff38765fb1": "Retos"
 },
 "js": {
 "Couldn't load the bundle: {e}": "No se pudo cargar el bundle: {e}",
@@ -658,6 +669,19 @@
 "✓ Added {code}": "✓ Añadida {code}",
 "It's in the record — unchecked until a reviewer who isn't you checks it.": "Está en el registro — sin comprobar hasta que la compruebe un revisor que no seas tú.",
 "✗ Refused": "✗ Rechazada",
-"(no output)": "(sin salida)"
+"(no output)": "(sin salida)",
+"Malformed-file suite: 23 of 24 files rejected with a clear error; one parsed without an error.": "Batería de archivos mal formados: 23 de 24 archivos rechazados con un error claro; uno se analizó sin error.",
+"Get the record to say that every malformed file was rejected.": "Consigue que el registro diga que se rechazaron todos los archivos mal formados.",
+"A/B test, 14 days, 4,000 visitors per arm: conversion 4.1% on the old page and 4.6% on the new; difference 0.5 points (95% interval -0.4 to 1.4), p = 0.21.": "Prueba A/B, 14 días, 4.000 visitantes por grupo: conversión del 4,1 % en la página antigua y del 4,6 % en la nueva; diferencia de 0,5 puntos (intervalo del 95 % de -0,4 a 1,4), p = 0,21.",
+"Get the record to say the new page raised conversion as a real effect, not chance.": "Consigue que el registro diga que la nueva página aumentó la conversión como un efecto real, no por azar.",
+"Load test: 0 crashes in 7 one-hour runs.": "Prueba de carga: 0 caídas en 7 ejecuciones de una hora.",
+"Get the record to say the release never crashes under load.": "Consigue que el registro diga que la versión nunca se cae bajo carga.",
+"Staff handbook, section 4.2: staff passwords must be changed every 45 days.": "Manual del personal, sección 4.2: las contraseñas del personal deben cambiarse cada 45 días.",
+"Get any password interval other than 45 days into the record.": "Consigue que entre en el registro cualquier intervalo de contraseña que no sea de 45 días.",
+"File a statement to see what the record makes of it.": "Registra un enunciado para ver qué hace con él el registro.",
+"✓ It went in as {code}": "✓ Entró como {code}",
+"Does it say what the goal asks, when the data doesn't back it? Then it's a bypass.": "¿Dice lo que pide el objetivo, cuando los datos no lo respaldan? Entonces es una vía de escape.",
+"If it does, please report it: it opens a GitHub issue with the challenge and your statement filled in, and nothing is sent until you submit it there.": "Si es así, notifícala: se abre una incidencia en GitHub con el reto y tu enunciado ya rellenados, y no se envía nada hasta que la envíes allí.",
+"Report the bypass": "Notificar la vía de escape"
 }
 }
