@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>被撤回的来源 — HypGraph</title>
+<meta name="description" content="供应商撤回了一项决定所依赖的基准测试：HypGraph 记录找出了由它计算得出的每个结果、论断和决定。">
+<link rel="icon" href="../../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../assets/site.css">
+<link rel="stylesheet" href="../../../app/hypgraph.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('hg-theme')||'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+<!--i18n:strings--><script src="../../../assets/strings.zh-Hans.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/examples/cascade/" data-rel="../../../examples/cascade/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/examples/cascade/" data-rel="../../../es/examples/cascade/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/examples/cascade/" data-rel="../../../fr/examples/cascade/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/examples/cascade/" data-rel="../../../de/examples/cascade/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/examples/cascade/" data-rel="../../../zh-Hans/examples/cascade/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/examples/cascade/"><!--/i18n:alt-->
+</head>
+<body class="apppage">
+<header class="appbar"><a class="brand" href="../../"><img src="../../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a>
+<a class="crumb" href="../">示例</a><span class="sp"></span><a class="act" href="../../explore/?bundle=../data/examples/cascade.bundle.json#view=graph&amp;focus=D1&amp;lens=why">后来发生了什么</a><a class="act hide-sm" href="../../../data/examples/cascade.bundle.json" download>下载记录包</a><a class="act hide-sm" href="../../verify/">验证它</a><!--i18n:menu--><details class="langs"><summary aria-label="语言" title="语言">中文</summary><div class="langs-menu"><a href="../../../examples/cascade/" hreflang="en" lang="en">English</a><a href="../../../es/examples/cascade/" hreflang="es" lang="es">Español</a><a href="../../../fr/examples/cascade/" hreflang="fr" lang="fr">Français</a><a href="../../../de/examples/cascade/" hreflang="de" lang="de">Deutsch</a><a href="../../../zh-Hans/examples/cascade/" hreflang="zh-Hans" lang="zh-Hans" aria-current="page">简体中文</a></div></details><!--/i18n:menu--></header>
+<!--i18n:note--><p class="i18n-note appnote">本页为译文。以英文版为准： <a href="../../../examples/cascade/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<p class="appnote"><b>被撤回的来源</b> · 一个示例：引擎、供应商和团队都是虚构的。一个搜索团队决定迁移到新的索引引擎，并下线其 12 台服务器中的 4 台。决定背后的三条论断中，有两条是根据供应商的基准测试计算得出的；第三条来自团队自己的负载测试。随后供应商撤回了基准测试：当时缓存是热的。没有人重读那份备忘录。这是那一刻的记录：它把由基准测试计算得出的每个结果、论断和决定标记为<b>有风险</b>，这是在读取时根据说明各自依赖什么的链接推导出来的，而负载测试的论断不受影响。<b>后来发生了什么</b>打开完整的记录：团队在自己的语料上重新测量，修订了两条论断，旧决定因其依据的论断已改变而被标记为 <b>REVISIT</b>，新决定下线 3 台服务器，而不是 4 台。</p><div class="appfull"><div data-hypgraph data-bundle="../../../data/examples/cascade-withdrawn.bundle.json" data-hash="on" data-view="graph" aria-label="被撤回的来源"></div></div>
+<script src="../../../app/vendor/cytoscape.min.js"></script>
+<script src="../../../app/vendor/layout-base.js"></script>
+<script src="../../../app/vendor/cose-base.js"></script>
+<script src="../../../app/vendor/cytoscape-fcose.js"></script>
+<script src="../../../app/hypgraph.js"></script>
+<script src="../../../assets/site.js"></script>
+<script src="../../../assets/embed.js"></script>
+</body>
+</html>

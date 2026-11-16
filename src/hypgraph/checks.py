@@ -1084,10 +1084,17 @@ def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: lis
             m, (k, n) = max(against, key=lambda x: x[1][1])
             return [_count_contradicts(stmt, w, words, m, k, n)]
         seen = ", ".join(f"{a[0]} of {a[1]:,}" for _m, _rv, a, _role in arms)
+        # a count bound with the claim that isn't read as about what it says: name it, or a writer who never saw the
+        # table can't tell the record holds "14 of 14 text encodings read correctly" for "every encoding" (telephone
+        # showcase, 2026-11-15: hops three retellings from the table guessed "all 10 encodings" until they gave up)
+        unfit = [(m, a) for m, rv in bound if (a := _arm(rv)) and not any(m is x[0] for x in arms)]
+        named = "; ".join(f"{k:,} of {n:,} {m.get('name') or m.get('key')}" for m, (k, n) in unfit[:3])
         return [Problem("ABSOLUTE_WITHOUT_COUNT",
                         f"'{w}' is absolute: back it with a k/n measurement of what it's about, where k is 0 or n, and "
                         "keep the scope to the trials actually run — or say 'rarely' / 'in k of n'"
-                        + (f" (what was measured: {seen})" if seen else ""),
+                        + (f" (what was measured: {seen})" if seen else "")
+                        + (f". The count bound with it ({named}) isn't read as about what the statement says: name "
+                           "what it counts as the count does, or state it ('in k of n')" if named and not seen else ""),
                         fix="state the count instead: 'in k of n trials'", words=words)]
     about = L.content_words(stmt)
     relevant = [x for x in exact if L.content_words(f"{x[0].get('name', '')} {x[0].get('key', '')}") & about]

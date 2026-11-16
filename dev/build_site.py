@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from hypgraph import __version__  # noqa: E402
-from hypgraph.demos import broad_street, dispute, linked  # noqa: E402
+from hypgraph.demos import broad_street, cascade, dispute, linked  # noqa: E402
 from hypgraph.schema import describe  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "dev"))
@@ -256,7 +256,7 @@ def example_stats(path: Path) -> dict:
             "stopped": end.get("stopped", ""), "head": b["head"], "size": path.stat().st_size}
 
 
-def write_examples(lk: dict, dp: dict) -> None:
+def write_examples(lk: dict, dp: dict, cs: dict) -> None:
     data = SITE / "data" / "examples"
     stats = {k: example_stats(data / f"{k}.bundle.json") for k, *_ in EXAMPLES if (data / f"{k}.bundle.json").is_file()}
     if len(stats) != len(EXAMPLES):
@@ -305,6 +305,15 @@ def write_examples(lk: dict, dp: dict) -> None:
     <dt>record</dt><dd>{v(dp["events"])} events · {v(dp["nodes"])} nodes · {v(dp["refused"])} writes refused</dd></dl>
   <div class="codes"><code>COUNT_CONTRADICTS</code> <code>SOURCE_CONTRADICTS</code></div>
   <span class="go">See who gets called out</span>
+</a>""")
+    cards.append(f"""<a class="excard excard-linked" href="cascade/#view=graph&amp;focus=S1&amp;lens=impact">
+  <div class="who">A withdrawn source</div>
+  <h2 translate="no">{html.escape(cs["title"])}</h2>
+  <p>A decision rests on a vendor benchmark. The vendor withdraws it. Nobody re-reads the memo: the record finds
+    every result, claim and decision computed from it, and leaves the team's own load test standing.</p>
+  <dl><dt>at risk</dt><dd>{v(cs["at_risk"])} nodes when the benchmark is withdrawn · {v(cs["standing"])} untouched</dd>
+    <dt>record</dt><dd>{v(cs["events"])} events · {v(cs["nodes"])} nodes · decision flagged REVISIT, then superseded</dd></dl>
+  <span class="go">See what rested on it</span>
 </a>""")
     cards.append(f"""<a class="excard excard-linked" href="linked/">
   <div class="who">Linked records</div>
@@ -559,6 +568,47 @@ and the run is reported as it was.</li>
                body, toc, "", kicker="Measured"))
 
 
+def write_cascade() -> dict:
+    """The withdrawn-benchmark demo (hypgraph.demos.cascade). The page opens the record as it stood the moment the
+    benchmark was withdrawn, on the graph with the benchmark's impact in focus; the whole record (re-measurement,
+    revised claims, REVISIT, the new decision) is a download and a link to the explorer, opened on the old decision."""
+    g0, inv0, story0 = cascade.build(until="withdrawn")
+    mid = {n["code"]: n["state"] for n in g0.subgraph(inv0)["nodes"]}
+    at_risk = sorted(c for c, st in mid.items() if st.get("at_risk"))
+    assert at_risk == ["CL1", "CL2", "D1", "RS1", "RS2"], at_risk
+    b0 = g0.export()
+    b0["story"] = story0
+    write(SITE / "data" / "examples" / "cascade-withdrawn.bundle.json",
+          json.dumps(b0, ensure_ascii=False, separators=(",", ":")))
+    g, inv, story = cascade.build()
+    end = {n["code"]: n["state"] for n in g.subgraph(inv)["nodes"]}
+    assert end["D1"].get("basis_changed") and not any(end[c].get("at_risk") for c in ("CL1", "CL2", "D2")), end
+    b = g.export()
+    b["story"] = story
+    write(SITE / "data" / "examples" / "cascade.bundle.json", json.dumps(b, ensure_ascii=False, separators=(",", ":")))
+    bar = ('<a class="crumb" href="../">Examples</a><span class="sp"></span>'
+           '<a class="act" href="../../explore/?bundle=../data/examples/cascade.bundle.json#view=graph&amp;focus=D1'
+           '&amp;lens=why">What happened next</a>'
+           '<a class="act hide-sm" href="../../data/examples/cascade.bundle.json" download>Download bundle</a>'
+           '<a class="act hide-sm" href="../../verify/">Verify it</a>')
+    note = ('<p class="appnote"><b>A withdrawn source</b> · an illustration: the engine, the vendor and the team are '
+            'made up. A search team decides to move to a new index engine and retire 4 of its 12 servers. Two of the '
+            'three claims behind the decision are computed from the vendor’s benchmark; the third is from the '
+            'team’s own load test. Then the vendor withdraws the benchmark: the cache was warm. Nobody re-reads '
+            'the memo. This is the record at that moment: it marks <b>at risk</b> every result, claim and decision '
+            'computed from the benchmark, derived on read from the links that say what each one rests on, and leaves '
+            'the load-test claim standing. <b>What happened next</b> opens the whole record: the team re-measures on '
+            'its own corpus, revises both claims, the old decision is flagged <b>REVISIT</b> because the claims it '
+            'was based on changed, and the new decision retires 3 servers, not 4.</p>')
+    mount = ('<div data-hypgraph data-bundle="../../data/examples/cascade-withdrawn.bundle.json" data-hash="on" '
+             'data-view="graph" aria-label="A withdrawn source"></div>')
+    write(SITE / "examples" / "cascade" / "index.html",
+          app_page("../../", "A withdrawn source", "A vendor withdraws the benchmark a decision rested on: the "
+                   "HypGraph record finds every result, claim and decision computed from it.", bar, note, mount))
+    return {"title": cascade.TITLE, "events": len(b["events"]), "nodes": len(b["nodes"]), "at_risk": len(at_risk),
+            "standing": sum(1 for c in ("CL3", "RS3") if not mid[c].get("at_risk"))}
+
+
 def write_explore() -> None:
     bar = ('<a class="crumb" href="../examples/">Examples</a><span class="sp"></span>'
            '<a class="act" href="../verify/">Verify another bundle</a>')
@@ -599,7 +649,7 @@ def main() -> None:
     shutil.copy2(PKG / "ui" / "hypgraph.svg", SITE / "assets" / "hypgraph.svg")
     print("  site/app/vendor/, site/assets/hypgraph.svg")
     write_explore()
-    write_examples(write_linked(), write_dispute())
+    write_examples(write_linked(), write_dispute(), write_cascade())
     write_results()
 
     py = SITE / "py"
