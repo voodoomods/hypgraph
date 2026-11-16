@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **A hyphen joins a label word to its number as a space does.** "test 4" was already a label, not a figure, but
+  "test-2" — and gpt-oss's "test‑2" (U+2011) — was read as the number 2, so an honest "Tutoring raises test‑2 scores
+  by about 8.99 points (95% CI 6.35 to 11.64)" stood only while a ratio or sum of its bound values happened to round
+  to 2. Now the reader's label words (case, test, line, step, item, row, issue, section, rule, figure, table, question,
+  no.) name their number across a hyphen too; "295-of-400", "1-in-500", "fast-40" and "(F-32)" stay figures. Corpus
+  (vs main, 3,478 records): 228 texts read differently, each dropping only a labelled 1 or 2 (and "spec-case-8");
+  replayed refusals 6 looser, all tutoring-challenge lines refused for the label's 2; no live claim or result moves.
+  Live on gpt-oss-20b (BC-250s, a tutoring-pilot probe that writes "test‑2" unprompted, seeds 2000-2019, main and
+  branch side by side, 91 pooled lines labelled blind and refiled on both): no line moves — on fresh lines a 2 is
+  nearly always covered by some derived number anyway, so the fix removes a dependence on coincidence rather than
+  changing today's verdicts. Tests: `tests/test_label_hyphen.py`.
 - **A count with exceptions proves no absolute.** An absolute in the clause of a stated k-of-n count was taken to
   name the set the count ran over ("a count of every selection finds 2 of 1,024 worth more") and went unchecked; commas
   don't end a clause, so "Parser nailed 7 of 8 tests, proving solid coverage" went in on 7 of 8, and "which proves"
