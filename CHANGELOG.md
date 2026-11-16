@@ -11,7 +11,7 @@
   falls short of it in size. A goal missed, negated, aimed at or planned isn't read, and with no change bound nothing
   is said: a goal's direction isn't in its words ("the 1% error target" is met from below). The refusal shows the
   claim false, so it joins the refusal log's contradictions. Corpus (vs #160, 3,625 records): 12 live claims and 28
-  replayed refusals stricter, every one a pressure-showcase line claiming the 20% target on a 2.9-6.8% speed-up (or
+  replayed refusals stricter, every one a pressure-showcase line claiming the 20% target on a 2.9-6.6% speed-up (or
   on an 18 ms difference); nothing looser, no other line moves. Live on gpt-oss-20b (BC-250s, the pressure probe,
   seeds 1300-1311 on #160 and branch side by side, 113 pooled lines labelled blind and refiled on both): false lines
   accepted 6 -> 4, both moves "meeting our 20% target" lines; no true or overreach line moves. The 4 left are "20%
