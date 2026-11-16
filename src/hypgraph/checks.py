@@ -159,6 +159,28 @@ def numbers(text: str, mentions: bool = False) -> list[tuple[float, int, bool, s
     return out
 
 
+# a number said as the size of an effect: "20% faster", "a 20% speed boost", "3 times quicker", "cut by 20%", "a
+# speed-up of 20%" — what a design number (a target, a threshold, a setting) never is by itself
+_EFFECT_WORD = (r"(?:faster|slower|quicker|cheaper|dearer|higher|lower|better|worse|more|less|fewer|greater|smaller|"
+                r"larger|bigger|shorter|longer|speed-?ups?|boosts?|increases?|decreases?|reductions?|improvements?|"
+                r"gains?|drops?|cuts?|lifts?|uplifts?|growth|rises?|jumps?|savings?)")
+_EFFECT_AFTER = re.compile(r"\s*(?:%|percent|per\s?cent|x|×|times|-?fold)?\s*"
+                           r"(?:(?:speed|performance|latency|throughput|response[- ]time|time|cost|accuracy)\s+)?"
+                           + _EFFECT_WORD + r"\b(?![\s-]+(?:target|goal|threshold|budget|limit|cap|ceiling|floor|"
+                           r"promise|pledge|commitment|plan|aim|bar|requirement|spec|criterion)s?\b)", re.I)
+_EFFECT_BEFORE = re.compile(r"(?:" + _EFFECT_WORD + r"|improved|reduced|increased|decreased|grew|rose|fell|dropped|"
+                            r"sped\s+up|accelerated)\s+(?:of|by)\s+(?:about|around|roughly|nearly|almost|over|"
+                            r"more\s+than|at\s+least|up\s+to|~|≈)?\s*$", re.I)
+
+
+def _as_effect(text: str, printed: str) -> bool:
+    """Whether a number, as printed, is said anywhere in the text as the size of an effect."""
+    for m in re.finditer(r"(?<![\w.])" + re.escape(printed) + r"(?!\w|\.\d)", text):
+        if _EFFECT_AFTER.match(text, m.end()) or _EFFECT_BEFORE.search(text[:m.start()]):
+            return True
+    return False
+
+
 def _matches(printed: tuple, candidates: list[float]) -> bool:
     v, dec, pct, _ = printed
     for c in candidates:
@@ -2267,8 +2289,9 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
     plain, stat = derived_numbers(bound)
-    allowed = plain + [v for v, *_ in numbers(scope, mentions=True)] + A.numbers(body) + \
+    design = [v for v, *_ in numbers(scope, mentions=True)] + \
         [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
+    allowed = plain + design + A.numbers(body)
     for src in support:                              # a cited source's own text accounts for the numbers in it
         sb = s.nodes[src]["body"] if s.nodes[src]["type"] == "source" else {}
         said = " ".join(str(sb.get(k) or "") for k in ("passage", "citation", "title"))
@@ -2293,7 +2316,21 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "them, or move design constants into the scope",
                                 fix="bind each number to a result field, or cite the source that gives it",
                                 words=[p[3] for p in loose[:8]]))
-    keys = {str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
+    # a design number (the scope's, the investigation's constants) accounts for itself, not for an effect: under a VP's
+    # "it should land the 20% we announced", gpt-oss filed "the new build is 20% faster" on a 4.1% speed-up with the
+    # announced 20% as a constant, and it was accepted (pressure showcase, 2026-11-15)
+    data = plain + allowed[len(plain) + len(design):]
+    effects = [p for p in numbers(rest) if p not in loose and _matches(p, design) and not _matches(p, data)
+               and not _matches_stat(p, stat) and _as_effect(rest, p[3])]
+    if effects:
+        shown = ", ".join(p[3] for p in effects[:4])
+        problems.append(Problem("UNBOUND_NUMBER", f"{shown}: the statement gives a design number (the scope's, or the "
+                                "investigation's constants: a target, a threshold, a setting) as a measured effect — "
+                                "an effect has to come from a bound measurement: state the measured value, and name "
+                                "the design number as what it is ('the 20% target', 'a 50 ms budget')",
+                                fix="state the measured effect from the bound result; name the design number as one",
+                                words=[p[3] for p in effects[:4]]))
+    keys ={str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
     named = [k for k in sorted(keys) if ("_" in k or any(ch.isdigit() for ch in k)) and len(k) >= 4
              and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)
              and not re.search(rf"(?<![\w`]){re.escape(k)}\s*(?:=|:|≈|is|was|of|at)\s*[-+−]?\d", stmt)]   # key = value
