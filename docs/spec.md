@@ -325,7 +325,10 @@ in digits or in words ("twenty-four of twenty-four"), is a
 `COUNT_CONTRADICTS` when n is a bound count's n, that count has an exception (k < n), and the stated k is neither
 its k nor n − k nor any other bound number. It isn't checked when the sentence also states the record's count of that n,
 when two counts over the n differ, or when the words are negated, a label or rank ("run 3 of 7"), membership ("one of 20
-settings") or the set ("across all 24").
+settings") or the set ("across all 24"). "All" that counts nothing is not an absolute: an idiom ("all around",
+"above all", "at all", "all in all", "all told") or a compound that names a set ("all-rows accuracy"); "all-passing",
+"all-green" and "all-clear" still are. "Flawlessly" and the other manner words are not absolutes when said of a part
+stated as a count in any form ("64 of 65", "64/65", "sixty-four of sixty-five").
 
 **Exposure.** A claim may set `exposure` (how many uses, users or units it will be applied to) and `exposure_unit`.
 Absolute refusals then state how many failures the bound leaves unruled out at that scale. An accepted claim's

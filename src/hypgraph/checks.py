@@ -1318,17 +1318,19 @@ def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
     went in on counts with exceptions while "every malformed file rejected" on the same counts was refused, and no
     true headline had this shape. The subject is the first plural in the first four words of a clause; a verb ending
     in -s before it ("the parser handles files") means it isn't the subject."""
-    if _QUALIFIES.search(stmt):
+    if _QUALIFIES.search(L.without_idioms(stmt)):            # "solid coverage all around" says nothing of how many
         return []
     arms = [(m, a) for m, rv in bound if (a := _arm(rv)) and 0 < a[0] < a[1]]
     if not arms:
         return []
     for clause in _GENERIC_CLAUSE.split(stmt):
         toks, i = _plural_subject(clause)
-        if i is None:
-            continue
-        head = L.content_words(toks[i])
+        head = L.content_words(toks[i]) if i is not None else set()
         hits = [(m, a) for m, a in arms if head and head == _counted_noun(str(m.get("name") or ""))]
+        if not hits:
+            got = _object_generic(clause, arms)
+            if got:
+                i, hits = got
         if not hits:
             continue
         m, (k, n) = max(hits, key=lambda x: x[1][1])
@@ -1340,6 +1342,54 @@ def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
                         f"qualify it ('{q}')",
                         fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
     return []
+
+
+# verbs that say every one of a set was beaten or mastered: "smashed test suites", "conquers real-world files"
+_MASTERY = set().union(*(L.content_words(w) for w in (
+    "conquer conquered conquers dominate dominated dominates smash smashed smashes crush crushed crushes ace aced aces "
+    "nail nailed nails master mastered masters sweep swept sweeps reign reigned reigns triumph triumphed triumphs "
+    "breeze breezed breezes sail sailed sails blitz blitzed demolish demolished demolishes").split()))
+# a preposition a deed may take before its set: "reigned supreme in test suites", "sailed through test suites"
+_DEED_PREP = {"in", "through", "across", "over", "on"}
+_OBJ_NEGATED = re.compile(r"\b(?:not|never|no\s+longer|cannot|fail(?:s|ed)?\s+to|without)\b|n't\b", re.I)
+
+
+def _object_generic(clause: str, arms: list) -> tuple[int, list] | None:
+    """The counted set as the bare plural object of a deed: the count's own verb ("Parser rejects malformed files", on
+    24 of 25 malformed files rejected) or one of mastery ("Our parser smashed test suites", on 9 of 10 test suites
+    passed; "reigned supreme in test suites"). Said of every one, as the bare plural subject is. Up to four words may
+    come between the deed and the set, none of them a preposition other than in / through / across / over / on.
+    Other verbs aren't read: "accuracy was measured on overlap rows" says nothing of how many. Found in the telephone
+    showcase on merged main (2026-11-16): 9 of the 20 false lines that went in had this shape."""
+    toks = re.findall(r"[A-Za-z][\w‐‑'-]*", clause)
+    for j, t in enumerate(toks):
+        if not t.lower().endswith("s") or t.lower().endswith(("ss", "us", "is", "'s")):
+            continue
+        noun = L.content_words(t)
+        hits = [(m, a) for m, a in arms if noun and noun == _counted_noun(str(m.get("name") or ""))]
+        if not hits:
+            continue
+        deeds = _MASTERY | set().union(*(_count_deed(str(m.get("name") or "")) for m, _a in hits))
+        for v in range(j - 1, max(-1, j - 6), -1):
+            w = toks[v].lower()
+            if w in _PREPOSITIONS and w not in _DEED_PREP:
+                break
+            if L.content_words(w) & deeds:
+                return None if _OBJ_NEGATED.search(" ".join(toks[:j])) else (j, hits)
+    return None
+
+
+_IRREGULAR_DEEDS = set("read run won built done found made sent kept met caught held beat beaten".split())
+
+
+def _count_deed(name: str) -> set[str]:
+    """The verb a count's name says was done to what it counts: "malformed files rejected with a clear error" gives
+    {reject}, "test suites passed" {pass}, "text encodings read correctly" {read}."""
+    toks, i = _plural_subject(name)
+    if i is None:
+        return set()
+    return set().union(*(L.content_words(w) for w in toks[i + 1:]
+                         if w.lower().endswith("ed") or w.lower() in _IRREGULAR_DEEDS))
 
 
 def _fitting_qualifier(k: int, n: int) -> str:

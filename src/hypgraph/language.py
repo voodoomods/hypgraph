@@ -109,6 +109,24 @@ _ALMOST = re.compile(r"(?:\b(almost|nearly|virtually|practically|roughly|about|m
 # "all but one file": a count (n - 1 of n), not an absolute; checks.py holds it to the record's own count
 ALL_BUT = re.compile(r"\ball\s+but\s+(one|two|three|four|five|six|seven|eight|nine|ten|a\s+few|a\s+handful|"
                      r"a\s+couple|\d[\d,]*)\b", re.I)
+# "all" that counts nothing: an idiom ("solid coverage all around", "above all", "at all", "all in all") or the head
+# of a compound that names a set ("all-rows accuracy", "all-orders average", "all-cause"). "Nine of ten test suites
+# passed—solid coverage all around" was refused as "all" on 9 of 10 (telephone showcase, a true line), and
+# "all-rows accuracy" / "any leak at all" in 16 refusals on the corpus of real records, every one honest. A compound
+# that doesn't name a set still counts: "an all-passing run", "all-green", "all-clear" say every one passed.
+_ALL_SET_COMPOUND = r"all[-‐‑](?=(?:[a-z]*[a-rt-z]s|data|sample|cause|time)\b)"
+_ALL_IDIOM = re.compile(r"all(?:\s+(?:around|round|along|told|the\s+same|the\s+while|the\s+more|the\s+better)\b|"
+                        r"\s+in\s+all\b)|" + _ALL_SET_COMPOUND, re.I)
+_ALL_IDIOM_BEFORE = re.compile(r"\b(?:above|at|after|once\s+and\s+for|in\s+all)\s+$", re.I)
+_ALL_IDIOM_SPAN = re.compile(r"\b(?:(?:above|at|after|once\s+and\s+for)\s+all|all\s+in\s+all|all\s+(?:around|round|"
+                             r"along|told|the\s+same|the\s+while|the\s+more|the\s+better)\b|" + _ALL_SET_COMPOUND + ")",
+                             re.I)
+
+
+def without_idioms(text: str) -> str:
+    """The text with "all" idioms blanked, for a check that asks whether anything says how many: "solid coverage all
+    around" says nothing about how many suites passed."""
+    return _ALL_IDIOM_SPAN.sub(lambda m: " " * len(m.group(0)), text or "")
 # "the interval lies entirely below zero": where an interval lies, not a rate of 0 or 1
 _INTERVAL_SIDE = re.compile(r"\b(entirely|wholly|completely)\s+(below|above|on|within|inside|outside|negative|"
                             r"positive|to the|in the|on the|the)\b", re.I)
@@ -139,7 +157,8 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
             continue
         if _ALMOST.search(text[:m.start()]):
             continue
-        if m.group(0).lower() == "all" and ALL_BUT.match(text, m.start()):
+        if m.group(0).lower() == "all" and (ALL_BUT.match(text, m.start()) or _ALL_IDIOM.match(text, m.start())
+                                            or _ALL_IDIOM_BEFORE.search(text[:m.start()])):
             continue
         if m.group(0).lower() in ("entirely", "wholly", "completely") and _INTERVAL_SIDE.match(text, m.start()):
             continue
@@ -155,8 +174,14 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
 # parsed without error" and "flawlessly, only a handful slipped" say so of a part (all four were in the
 # say-no-more-than-the-data showcase, 2026-11-15, and true of their counts)
 _MANNER = re.compile(r"flawless(?:ly)?|without\s.*|\w+-free", re.I | re.S)
+# A part stated as a count is one in any written form: "64 of 65", "64/65", "nine of ten" ("64/65 real-world files
+# parsed flawlessly" on 64 of 65 was refused in the telephone showcase, a true line)
 _PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:all|every)|most|mostly|majority|many|"
-                           r"some|several|all\s+but|\d[\d,]*\s+(?:of|out\s+of)\s+\d)", re.I)
+                           r"some|several|all\s+but|\d[\d,]*\s+(?:of|out\s+of)\s+\d|\d[\d,]*\s?/\s?\d|"
+                           r"(?<!every\s)(?<!each\s)(?<!any\s)"
+                           r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|(?:twenty|thirty|forty|"
+                           r"fifty|sixty|seventy|eighty|ninety)(?:[-‐‑](?:one|two|three|four|five|six|seven|eight|"
+                           r"nine))?)\s+(?:of|out\s+of)\s+(?:the\s+)?[a-z]+)", re.I)
 _EXCEPTIONS = re.compile(r"\b(?:except(?:\s+for)?|all\s+but|but\s+(?:one|two|a\s+few)|apart\s+from|save\s+for|"
                          r"other\s+than)\b|"
                          # "flawlessly, one exception", "with two exceptions"; not "without a single exception"
