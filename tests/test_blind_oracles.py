@@ -147,12 +147,18 @@ def run_case(fn, x):
 
 
 def norm(x, guess):
+    # random ids first: an id that happens to hold the guess's digits ("n48453a1c9e0f" for a guess of 48453) would
+    # otherwise lose them to <X> and no longer read as an id, so the answer would differ for that guess alone (failed
+    # once in CI; about 1 run in 2,500)
     t = repr(x)
-    t = t.replace(f"{guess:,}", "<X>").replace(str(guess), "<X>")
     t = re.sub(r"\bn[0-9a-f]{12}\b", "<N>", t)
     t = re.sub(r"\binv-[0-9a-f]{8}\b", "<INV>", t)
     t = re.sub(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d", "<T>", t)
-    return t
+    return t.replace(f"{guess:,}", "<X>").replace(str(guess), "<X>")
+
+
+def test_norm_blanks_ids_before_the_guess():
+    assert norm("n48453a1c9e0f read 48,453 or 48453", 48453) == "'<N> read <X> or <X>'"
 
 
 @pytest.mark.parametrize("name", list(CASES))
