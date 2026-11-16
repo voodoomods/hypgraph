@@ -773,7 +773,8 @@ def _claim_directions(stmt: str, w: str = "") -> set[tuple[str, int]]:
     return {(axis, sign) for _f, comps in targets for axis, sign, _strict in comps}
 
 
-def _role(m: dict, rv: dict, a: tuple[int, int], figs: set[float], comps: set, stmt: str = "") -> str | None:
+def _role(m: dict, rv: dict, a: tuple[int, int], figs: set[float], comps: set, stmt: str = "",
+          w: str = "") -> str | None:
     """What a bound count does to a claim that rules out ``comps`` at ``figs``: 'back' it (none of the exceptions
     found), 'refute' it (some found), or nothing. A count of what lies outside the exceptions is read as its
     complement: none of 3 routes longer than 26 is 3 of 3 at 26 or shorter. A count backs only if what it counted
@@ -810,6 +811,8 @@ def _role(m: dict, rv: dict, a: tuple[int, int], figs: set[float], comps: set, s
         return None
     if stmt:
         covers, apart = _subject_fit(stmt, m)
+        # "all 14 encodings": the set it counted, unless the statement names another kind ("all 14 binary encodings")
+        covers = covers or (role == "back" and not apart and _pins_set(stmt, w, n, m))
         if (role == "back" and not covers) or (role == "refute" and apart):
             return None
     return role
@@ -839,7 +842,8 @@ def _modifiers(words: list[str], i: int) -> set[str]:
     out: set[str] = set()
     for w in reversed(words[:i]):
         cw = _stems(w)
-        if not cw or w in _DETERMINERS or w in _PREPOSITIONS or w in _DIRECTION_OF or w in _COUNTING | _HOW_MANY:
+        if (not cw or w in _DETERMINERS or w in _PREPOSITIONS or w in _DIRECTION_OF or w in _COUNTING | _HOW_MANY
+                or _count_word(w) is not None):          # "all nine encodings": a number in words is a number too
             break
         out |= cw
     return out
@@ -1135,6 +1139,74 @@ _STATED_ALL = re.compile(rf"(?<![\w-])(all|each|every\s+one)\s+(?:of\s+)?(?:the\
 # decimal or a percent, not a ratio of figures ("3.2/4")
 _STATED_SLASH = re.compile(r"(?<![\w.,/-])(\d[\d,]*)\s?/\s?(\d[\d,]*)(?![\d,]*\.\d)(?![\w%/-])"
                            r"(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
+
+
+def _count_word(s: str) -> int | None:
+    """A count as written, in digits or words up to ninety-nine: "24", "1,925", "nine", "twenty-four"."""
+    s = s.lower()
+    if s[0].isdigit():
+        return int(s.replace(",", ""))
+    if s in _SMALL or s in _WORDS or s in _TENS:
+        return _SMALL.get(s) or _WORDS.get(s) or _TENS.get(s)
+    tens, _, unit = re.split(r"([" + _HY + r"])", s, maxsplit=1) if re.search(r"[" + _HY + r"]", s) else (s, "", "")
+    return _TENS[tens] + _UNITS[unit] if tens in _TENS and unit in _UNITS else None
+
+
+# "all 14 encodings", "the nine encodings": a statement that gives the set's size says which set it is about
+_SET_OF_N = re.compile(rf"(?<![\w-])(?:all|each\s+of|every\s+one\s+of|the)\s+(?:the\s+|these\s+|those\s+)?({_NUMW})"
+                       r"(?![\d,]*\.\d)\s+([a-z][\w-]*(?:\s+[a-z][\w-]*){0,2})", re.I)
+
+
+def _same_n_elsewhere(s: Snap, inv: str, m: dict, rv: dict) -> bool:
+    """Does the investigation hold another count over the same n? Then a size names no one set: with 3 cargo routes
+    and 3 passenger routes, "all 3 routes" could be either (audit HG-024-02)."""
+    a = _arm(rv)
+    if not a:
+        return False
+    for nid, node in s.nodes.items():
+        if node.get("type") != "result" or node.get("inv") != inv:
+            continue
+        for key, v in ((node.get("body") or {}).get("values") or {}).items():
+            if (nid, key) != (str(m.get("result")), str(m.get("key"))) and isinstance(v, dict) and \
+                    (b := _arm(v)) and b[1] == a[1]:
+                return True
+    return False
+
+
+# a word that reaches past a pinned set: "all 14 encodings and every other format", "so any encoding works"
+_REACH = re.compile(r"(?<![\w-])(?:all|every|each|any|other)(?![\w-])", re.I)
+_QUANTIFIER = re.compile(r"all|every|each|any|no|none|nothing|neither|both|nobody", re.I)
+_FLOAT = re.compile(r"\b(?:are|were|is|was|have|had|been)\s+$", re.I)      # "the 14 encodings were all handled"
+
+
+def _pins_set(stmt: str, w: str, n: int, m: dict) -> bool:
+    """Is ``w`` said of the counted set, named by its size? "All 14 encodings handled flawlessly" on 14 of 14 "text
+    encodings read correctly" is about those 14, though it leaves out "text": the telephone showcase (2026-11-16)
+    refused it, and "All nine encodings…", "All ten encodings…", as a count of something else. In ``w``'s clause the
+    size must be the count's n, a word of what was counted must follow it within three words, and nothing else in the
+    clause may reach past the set ("all 14 encodings and every other format", "…, so any encoding works"). "Every
+    tested encoding" doesn't pin the set: more than one kind may have been tested."""
+    if not w or m.get("_same_n"):
+        return False
+    names = L.content_words(f"{m.get('name') or ''} {str(m.get('key') or '').replace('_', ' ')}")
+    for clause in _CLAUSE.split(stmt):
+        if not re.search(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", clause, re.I):
+            continue
+        pins = [h for h in _SET_OF_N.finditer(clause)
+                if _count_word(h.group(1)) == n and L.content_words(h.group(2)) & names]
+        # a quantifier must be the pin's own: "No route is longer than 26 km among the 3 routes" rules on every
+        # route, whatever the 3 are (audit HG-024-02)
+        own = re.compile(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", re.I)
+        if _QUANTIFIER.fullmatch(w) and any(not any(h.start() <= q.start() < h.start(1) for h in pins)
+                                            for q in own.finditer(clause)):
+            continue
+        if pins and not any(not any(h.start() <= q.start() < h.start(1) for h in pins)
+                            and not (q.group(0).lower() == "all" and _FLOAT.search(clause[:q.start()]))
+                            for q in _REACH.finditer(clause)):
+            return True
+    return False
+
+
 _COUNT_LABEL = {"run", "runs", "trial", "fold", "round", "game", "page", "step", "day", "week", "month", "year", "chapter",
                 "part", "item", "no", "number", "phase", "stage", "test", "case", "seed", "batch", "epoch", "iteration",
                 "slide", "question", "level", "rank", "ranked", "ranks", "rated", "scored", "score", "position",
@@ -1178,14 +1250,7 @@ def _stated_count_contradicted(stmt: str, bound: list) -> list[Problem]:
             plain.add(float(v))
     others |= plain
 
-    def num(s: str) -> int | None:
-        s = s.lower()
-        if s[0].isdigit():
-            return int(s.replace(",", ""))
-        if s in _SMALL or s in _WORDS or s in _TENS:
-            return _SMALL.get(s) or _WORDS.get(s) or _TENS.get(s)
-        tens, _, unit = re.split(r"([" + _HY + r"])", s, maxsplit=1) if re.search(r"[" + _HY + r"]", s) else (s, "", "")
-        return _TENS[tens] + _UNITS[unit] if tens in _TENS and unit in _UNITS else None
+    num = _count_word
 
     def before(i: int) -> str:
         # the word just before, with only space between: in "154 users per arm; 22/154 in A" the 22 is no arm label
@@ -1338,7 +1403,8 @@ def _fitting_qualifier(k: int, n: int) -> str:
 
 def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float],
               comps: set = frozenset()) -> list[Problem]:
-    arms = [(m, rv, a, role) for m, rv in bound if (a := _arm(rv)) and (role := _role(m, rv, a, figs, comps, stmt))]
+    arms = [(m, rv, a, role) for m, rv in bound
+            if (a := _arm(rv)) and (role := _role(m, rv, a, figs, comps, stmt, w))]
     about = L.content_words(stmt)
     # a count at the claim's own figure that finds exceptions refutes it, whatever else is bound beside it
     pinned = [(m, a) for m, rv, a, role in arms if role == "refute" and _pinned(m, rv, figs)
@@ -2626,7 +2692,8 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "so the record checks it", fix="replace each key with its number", words=named[:6]))
     problems += assertion_issues(s, body, inv, clean, typed)
     if not typed:                                    # the word interpretation: a heuristic, frozen at 0.7.28
-        problems += _absolutes(clean, scope, body, bound)
+        problems += _absolutes(clean, scope, body, [(dict(m, _same_n=True) if _same_n_elsewhere(s, inv, m, rv) else m, rv)
+                                                    for m, rv in bound])
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
             problems += _unreached(clean, bound)
     if kind not in ("lead", "convention"):

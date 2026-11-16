@@ -336,6 +336,14 @@ standing carries `bounds` (per count: k, n, rate, lo, hi and, with exposure, `un
 "'never' = at most 0.1% (0 of 3,000, 95%), up to 998 of 1,000,000 not ruled out", and a "significantly" claim carries
 `test` (the difference, its interval and p).
 
+**A set named by its size.** A count of one kind ("text encodings read correctly") backs an absolute about that kind
+only (audit HG-024-02), unless the absolute's clause names the counted set by its size: "all 14 encodings handled
+flawlessly" on 14 of 14. The size must be the count's n, followed within three words by a word of what was counted;
+nothing else in the clause may reach past the set ("every other", "any", "each"); a quantifier must be the size's own
+("no route … among the 3 routes" is about every route); the statement must not name another kind ("all 14 binary
+encodings"); and no other count in the investigation may be over the same n (3 cargo routes and 3 passenger routes:
+"all 3 routes" names neither). A number in words is no kind of thing ("all nine encodings").
+
 **Blast radius.** Withdrawing a node, or a verdict that makes it fall, returns `blast_radius`: every node resting on it
 by type, with claims and decisions named and, if a spend meter is connected, the cost of the work behind them.
 

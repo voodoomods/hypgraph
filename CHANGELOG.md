@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **A set named by its size is the set that was counted.** On merged main the telephone showcase refused "All 14
+  encodings handled flawlessly" on 14 of 14 "text encodings read correctly", and "All nine encodings…", as a count of
+  something else: the statement leaves out "text", and a count of one kind backs no claim about every kind (audit
+  HG-024-02). Now an absolute's clause that names the set by the count's n ("all 14 encodings", "each of the 14
+  encodings", "the nine encodings were all…") is about that set, unless something else in the clause reaches past it
+  ("and every other format", "so any encoding works"), its quantifier isn't the size's own ("no route … among the 3
+  routes"), it names another kind ("all 14 binary encodings"), or another count in the investigation has the same n.
+  "Every encoding" and "every tested encoding" stay refused. A number in words no longer reads as a kind ("nine
+  encodings" as if "cargo routes"). Corpus (3,237 records): 2 replayed refusals looser and none stricter, no live
+  claim or result moves. Telephone showcase (each line filed alone): true lines refused 87 → 84, and 3 lines labelled
+  overreach now go in ("All 8 encodings handled flawlessly—full Unicode support"); main refused those only for the
+  missing "text" and accepts each once "text" is added, so the overreach is in "full Unicode support", which no check
+  reads. Pressure showcase, both /play/ attack rounds and the back-test unchanged. Tests:
+  `tests/test_stated_n_pins_set.py`.
 - **The counted set as the object of a deed says it of every one too.** The bare-plural check read only a clause's
   subject, so on merged main the telephone showcase let in "Parser rejects malformed files" on 24 of 25, "Our parser
   smashed test suites" on 9 of 10, "reigned supreme in test suites" on 6 of 7 and "Parser conquers real-world files" on
