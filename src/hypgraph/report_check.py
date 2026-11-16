@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING
 from . import derive as D
 from . import language as L
 from . import stats
-from .checks import _matches, _matches_bound, _matches_stat, derived_numbers, numbers, split_bounds
+from .checks import _matches, _matches_bound, _matches_stat, _shows, derived_numbers, numbers, split_bounds
 
 if TYPE_CHECKING:
     from .graph import Graph
@@ -442,7 +442,7 @@ def _eq(printed: tuple, candidates: list[float]) -> bool:
     v, dec = printed[0], printed[1]
     for c in candidates:
         x = abs(c)
-        if round(x, dec) == v or (dec == 0 and abs(x - v) < 0.5):
+        if _shows(x, v, dec):
             return True
     return False
 
