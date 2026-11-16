@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **An effect said to stand out from the noise is a significance claim.** Once "significantly" was refused on a
+  speed-up whose interval spanned 0, gpt-oss wrote "a measurable improvement", "a noticeable performance boost" and
+  "noticeably quicker responses" on the same benchmarks (p 0.22-0.42), and the record accepted them. "measurable",
+  "noticeable" and "discernible" before a change or a comparative ("a measurable 6.6% reduction", "measurably
+  faster") now read as "significantly" does, in claims and in reports: the bound test has to show it. A kind of thing
+  ("measurable outcomes", "a noticeable share") is not a change, and "detectable" stays out — "no detectable effect at
+  this sample size" is the absence wording the report check recommends. Corpus (vs main, 3,673 records): 2 live
+  claims and 9 replayed refusals stricter (`SIGNIFICANCE_NOT_SHOWN`), every one a pressure-showcase line on p >= 0.05;
+  nothing looser, no other line moves. As if on the four earlier live pressure pools: 4 false lines and 1 overreach
+  line newly refused, and 1 line its labeller read as true ("showing a measurable improvement" at p = 0.38, noted as
+  borderline; other labellers read the same wording as false). Live on gpt-oss-20b (BC-250s, seeds 1400-1411 on main
+  and branch side by side, 120 pooled lines labelled blind and refiled on both): 2 lines move, both "noticeably faster
+  responses" at p >= 0.05 (labelled overreach); no true or false line moves. Tests: `tests/test_stands_out.py`.
 - **A count with exceptions proves no absolute.** An absolute in the clause of a stated k-of-n count was taken to
   name the set the count ran over ("a count of every selection finds 2 of 1,024 worth more") and went unchecked; commas
   don't end a clause, so "Parser nailed 7 of 8 tests, proving solid coverage" went in on 7 of 8, and "which proves"
