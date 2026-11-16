@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **A figure rounded half up is the value rounded.** Every comparison of a printed figure with a bound value used
+  `round()`, which rounds the stored binary value with halves to even: 4.85 (stored as 4.8499…) gives 4.8 and 0.125
+  gives 0.12. So "95% CI 4.9 to 11.3" on an interval from 4.85 to 11.27 was refused as a number nothing accounts for,
+  and a measurement of 4.9 against a result of 4.85 was a mismatch. A printed figure now stands when it is the value
+  rounded half up or half to even, and nothing further away (`_shows`, used by the number reader, the measurement
+  check, the comparison reader and `report_check`). A single-digit whole number keeps `round()`: there an exact half
+  is most often a ratio of round numbers, and half up let 0.5 cover the "1" of "over 1 GB" and 2.5 the "3" of
+  "field 3" (five replayed refusals in a first corpus run, one an overreach line). Corpus (vs main, 3,625 records): no
+  text reads differently, no live claim or result moves; replayed refusals 25 looser, 0 stricter, every one an honest
+  half-up rounding (0.8963 for 717/800, 8.98 for 8.975, 43.3% for 43.25%, 2813 for 2812.5, …). Live on gpt-oss-20b
+  (BC-250s, the tutoring-pilot probe, seeds 2100-2119 on main and branch, 86 pooled lines labelled blind and refiled
+  on both; and the 91 lines of seeds 2000-2019): 3 and 6 lines move, all true lines newly accepted; no false or
+  overreach line moves. Tests: `tests/test_half_up.py`.
 - **A hyphen joins a label word to its number as a space does.** "test 4" was already a label, not a figure, but
   "test-2" — and gpt-oss's "test‑2" (U+2011) — was read as the number 2, so an honest "Tutoring raises test‑2 scores
   by about 8.99 points (95% CI 6.35 to 11.64)" stood only while a ratio or sum of its bound values happened to round
