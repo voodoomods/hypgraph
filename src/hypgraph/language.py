@@ -29,6 +29,11 @@ ABSOLUTE = re.compile(
     r"\b(never|always|all|every|none|nothing|no one|nobody|impossible|cannot|can't|proves?|proven|proof|certainly|"
     r"certain|guaranteed?|guarantees|eliminat(?:es|ed|ing)|entirely|completely|totally|universally|invariably|"
     r"consistently|without exception|perfect(?:ly)?|solves?|solved|definitively|conclusively|undeniably|"
+    # "nearly all test suites passed, proving our parser's reliability": the participle says what "proves" says
+    # (telephone showcase, 2026-11-16: in 27 accepted lines, none of them true). Not "proved": "proved optimal
+    # in-sample" says how something turned out, and "the claim that the test proved them equivalent is not licensed"
+    # reports a claim to deny it; both are honest lines in the corpus of real records.
+    r"proving|"
     # "our parser stands undefeated" on 8 of 9 suites: said of the whole, so a named exception elsewhere doesn't
     # qualify it (say-no-more-than-the-data showcase, 2026-11-15)
     r"undefeated|unbeaten|"
@@ -162,6 +167,8 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
             continue
         if m.group(0).lower() in ("entirely", "wholly", "completely") and _INTERVAL_SIDE.match(text, m.start()):
             continue
+        if m.group(0).lower() == "proving" and _OPENS_SENTENCE.fullmatch(_sentence_before(text, m.start())):
+            continue
         if _MANNER.fullmatch(m.group(0)) and (_PART_SUBJECT.search(_clause_before(text, m.start()))
                                               or _EXCEPTIONS.search(text)):
             continue
@@ -188,6 +195,16 @@ _EXCEPTIONS = re.compile(r"\b(?:except(?:\s+for)?|all\s+but|but\s+(?:one|two|a\s
                          r"(?<!without )(?<!not )\b(?:one|a\s+single|two|three|a\s+few|a\s+handful\s+of|\d+)\s+"
                          r"exceptions?\b|\b(?:only|just)\s+(?:a\s+)?(?:few|handful|couple|one|\d+)\b[^.;]*?\b"
                          r"(?:slipped|failed|fell|broke|crashed|errored|missed|stumbled|faltered|tripped)\b", re.I)
+
+
+# "Proving that P ≠ PSPACE would be a breakthrough": a gerund that opens its sentence is the thing talked about, not a
+# claim that something was proved (five honest lines in the corpus of real records)
+_OPENS_SENTENCE = re.compile(r"[\s\"'“‘(*_\[-]*")
+
+
+def _sentence_before(text: str, start: int) -> str:
+    head = text[:start]
+    return head[max((m.end() for m in _SENTENCE_END.finditer(head)), default=0):]
 
 
 def _clause_before(text: str, start: int) -> str:
