@@ -1,0 +1,32 @@
+{
+ "refused": [
+  {
+   "author": "iris",
+   "statement": "Signed contracts are kept for 3 years after they expire.",
+   "codes": [
+    "EVIDENCE_MISSING",
+    "UNBOUND_NUMBER"
+   ],
+   "fixed": "The handbook does not specify how long signed contracts are kept after they expire."
+  },
+  {
+   "author": "iris",
+   "statement": "The highest temperature for vaccine-line stock is 8 degrees Celsius.",
+   "codes": [
+    "EVIDENCE_MISSING",
+    "UNBOUND_NUMBER"
+   ],
+   "fixed": "The handbook does not specify a maximum temperature for vaccine‑line stock."
+  },
+  {
+   "author": "iris",
+   "statement": "Staff passwords must be changed every 90 days.",
+   "codes": [
+    "EVIDENCE_MISSING",
+    "UNBOUND_NUMBER"
+   ],
+   "fixed": "The handbook does not specify a password change interval for staff accounts."
+  }
+ ],
+ "conduct": {}
+}

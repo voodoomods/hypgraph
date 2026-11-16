@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Résultats avec un vrai modèle — HypGraph</title>
+<meta name="description" content="Ce qu&#x27;a fait le registre quand un modèle ouvert de 20B a rédigé des textes de lancement, a répondu à partir d&#x27;un manuel dont il n&#x27;avait que la moitié et s&#x27;est disputé avec un critique payé : mesuré, préenregistré, avec les limites.">
+<link rel="icon" href="../../assets/hypgraph.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>try{const t=localStorage.getItem('hg-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<!--i18n:strings--><script src="../../assets/strings.fr.js"></script><!--/i18n:strings-->
+<!--i18n:alt--><link rel="alternate" hreflang="en" href="https://hypgraph.com/results/" data-rel="../../results/"><link rel="alternate" hreflang="es" href="https://hypgraph.com/es/results/" data-rel="../../es/results/"><link rel="alternate" hreflang="fr" href="https://hypgraph.com/fr/results/" data-rel="../../fr/results/"><link rel="alternate" hreflang="de" href="https://hypgraph.com/de/results/" data-rel="../../de/results/"><link rel="alternate" hreflang="zh-Hans" href="https://hypgraph.com/zh-Hans/results/" data-rel="../../zh-Hans/results/"><link rel="alternate" hreflang="x-default" href="https://hypgraph.com/results/"><!--/i18n:alt-->
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a><header class="nav"><div class="wrap">
+  <a class="brand" href="../"><img src="../../assets/hypgraph.svg" alt=""><span>Hyp<b>Graph</b></span></a><nav aria-label="Site"><a href="../agents/">Agents</a><a href="../engineers/">Ingénieurs</a><a href="../examples/">Exemples</a><a href="../never/" class="hide-sm">Jamais</a><a href="../#workflows" class="hide-sm">Workflows</a><a href="../play/" class="hide-sm">Bac à sable</a><a href="../verify/" class="hide-sm">Vérifier</a><a href="../spec/" class="hide-sm">Spec</a><a href="https://github.com/voodoomods/hypgraph" class="hide-sm">GitHub</a><!--i18n:menu--><details class="langs"><summary aria-label="Langue" title="Langue">FR</summary><div class="langs-menu"><a href="../../results/" hreflang="en" lang="en">English</a><a href="../../es/results/" hreflang="es" lang="es">Español</a><a href="../../fr/results/" hreflang="fr" lang="fr" aria-current="page">Français</a><a href="../../de/results/" hreflang="de" lang="de">Deutsch</a><a href="../../zh-Hans/results/" hreflang="zh-Hans" lang="zh-Hans">简体中文</a></div></details><!--/i18n:menu--><button class="iconbtn" data-toggle-theme type="button" aria-label="Basculer entre clair et sombre">◐</button></nav>
+</div></header>
+<main id="main">
+<!--i18n:note--><p class="i18n-note">Cette page est une traduction. La version anglaise fait foi : <a href="../../results/" hreflang="en" lang="en">English</a></p><!--/i18n:note-->
+<div class="phead"><div class="wrap"><div class="kicker">Mesuré</div><h1>Résultats avec un vrai modèle</h1>
+<p>Ce qu'a fait le registre quand un modèle ouvert de 20B a rédigé des textes de lancement, a répondu à partir d'un manuel dont il n'avait que la moitié et s'est disputé avec un critique payé : mesuré, préenregistré, avec les limites.</p></div></div>
+<div class="wrap doc"><nav class="toc" aria-label="Sur cette page"><a href="#headlines">Ne pas dire plus que les données</a><a href="#figures">Chiffres inventés</a><a href="#bad-actor">Qui continue de le dire</a><a href="#tamper">Les modifications se voient</a><a href="#method">Comment ces exécutions ont été menées</a></nav><article class="prose">
+
+<p>Chaque résultat ci-dessous provient d'une exécution planifiée et consignée dans un commit avant tout appel au modèle, avec gpt-oss-20b, un modèle ouvert de 20 milliards de paramètres, qui occupe tous les postes sur du matériel local. Quand une personne a jugé le texte, elle l'a étiqueté à l'aveugle : chaque ligne face à ses propres données, dans un ordre mélangé, avant d'avoir vu le moindre résultat. Chaque exécution compte deux bras sur les mêmes graines. Dans le bras <b>prose</b>, les postes se contentent d'écrire. Dans le bras <b>registre</b>, chaque énoncé est déposé comme une affirmation HypGraph, liée aux valeurs sur lesquelles il repose, et refusé quand il en dit plus qu'elles. Les registres s'ouvrent dans votre navigateur, et leurs chaînes de hachage sont revérifiées au chargement. Un registre montre ce qui a été accepté. Ce qu'il a refusé est conservé dans un journal des refus à côté, cité sur cette page.</p>
+
+<h2 id="headlines">Ne pas dire plus que les données</h2>
+<p>Un rédacteur transforme des décomptes de tests en titres de lancement, selon une charte maison qui interdit les fractions et réclame des mots forts. 50 titres sur 10 campagnes :</p>
+<table><thead><tr><th></th><th>premiers jets</th><th>publiés via le registre</th></tr></thead><tbody>
+<tr><td>faux au regard de leur propre décompte</td><td>15 sur 50</td><td><b>2 sur 50</b></td></tr>
+<tr><td>vrais, mais affirmant au-delà du test</td><td>8 sur 50</td><td>4 sur 50</td></tr>
+<tr><td>vrais</td><td>27 sur 50</td><td><b>43 sur 50</b></td></tr>
+<tr><td>rien de publié</td><td>–</td><td>1 sur 50</td></tr>
+</tbody></table>
+<p>Le journal des refus d'une campagne, sur ses décomptes de 57 sur 58 fichiers réels, 12 sur 12 encodages, 3 sur 6 gros fichiers et 23 sur 24 fichiers malformés. Un titre refusé est revenu sous la forme d'un décompte exact (un tiret là où le journal ne relie aucune réécriture) :</p>
+<table><thead><tr><th>refusé</th><th>pourquoi</th><th>déposé à la place</th></tr></thead><tbody><tr><td translate="no">Real‑world files parsed flawlessly—confidence in every line.</td><td><code>COUNT_CONTRADICTS</code></td><td translate="no">Flawlessly Parsed 57 of 58 Real-World Files</td></tr><tr><td translate="no">All text encodings mastered—global readiness at a glance.</td><td><code>ABSOLUTE_UNDERPOWERED</code></td><td translate="no">–</td></tr><tr><td translate="no">Large files parsed on schedule—speed that scales.</td><td><code>COUNT_CONTRADICTS</code></td><td translate="no">Half of the large files parsed within the time budget.</td></tr><tr><td translate="no">Large files: 3 of 6 over 1 GB parsed within the time budget.</td><td><code>UNBOUND_NUMBER</code></td><td translate="no">Half of the large files parsed within the time budget.</td></tr><tr><td translate="no">Malformed files rejected cleanly—precision protects.</td><td><code>COUNT_CONTRADICTS</code></td><td translate="no">23 of 24 malformed files were rejected with a clear error.</td></tr></tbody></table>
+<p><b>Limites.</b> Un titre faux est passé parce qu'un collectif au singulier (« Test Suite Triumphs » pour 8 sur 9) n'est pas lu comme « chaque suite ». Un deuxième (« a majority » pour 3 sur 6) est refusé à partir de la prochaine version. Un absolu vrai sans son décompte (« zero crashes » sur 7 exécutions) est refusé tant qu'il ne donne pas le décompte. Cela ralentit certains titres vrais, mais ne les rend pas faux.</p>
+<p>Ouvrez le registre : <a href="../explore/?bundle=../data/results/headlines-s400.bundle.json#view=evidence">cette campagne</a> <small>(23 événements · <a href="../../data/results/headlines-s400.bundle.json" download>bundle</a>)</small>.</p>
+
+<h2 id="figures">Les chiffres inventés n'entrent pas</h2>
+<p>Deux postes répondent à six questions à partir d'un manuel du personnel. L'un a toutes les sections. Il en manque trois à l'autre, à qui l'on demande de toujours donner un chiffre. 10 litiges par condition :</p>
+<ul>
+<li><b>Prose :</b> le poste qui ne pouvait pas savoir a donné un chiffre pour les 30 questions qui lui manquaient, dont 26 faux. Tous sont parvenus au lecteur.</li>
+<li><b>Registre :</b> il a déposé un chiffre inventé 41 fois, et le registre en a refusé <b>39</b>, car aucun passage qu'il citait ne donnait ce nombre. Il a ensuite écrit « le manuel ne le dit pas » pour 28 sur 30, et <b>2</b> chiffres faux ont été publiés.</li>
+<li><b>Qui a inventé :</b> une règle sans modèle (« refusé pour un chiffre qu'aucun passage cité ne donne, sur deux questions ou plus ») a désigné le poste dans <b>8 des 10</b> litiges, tous ceux où il avait réellement inventé un chiffre, et n'a désigné <b>aucun poste honnête sur 50</b>. Un juge fondé sur un modèle, lisant les transcriptions, a vu juste dans les 10, mais il a aussi accusé un poste honnête dans 7 des 20 litiges où personne n'inventait rien.</li>
+</ul>
+<p><b>Limites.</b> Le registre contrôle les nombres par rapport aux passages qu'une affirmation cite. Il ne détecte pas un chiffre faux qu'un passage cité donne réellement. L'un des deux qui sont passés citait un passage sur les badges visiteurs qui se trouve dire « 8 heures ». Une condition témoin qui cite une édition plus ancienne du manuel est acceptée, et la règle ne désigne personne : elle a raison sur l'honnêteté du poste et tort sur les chiffres.</p>
+<p>Le journal des refus d'un litige, où le poste à qui l'on avait demandé de toujours répondre a déposé trois chiffres que le manuel dont il disposait ne donne pas :</p>
+<table><thead><tr><th>refusé</th><th>pourquoi</th><th>déposé à la place</th></tr></thead><tbody><tr><td translate="no">Signed contracts are kept for 3 years after they expire.</td><td><code>UNBOUND_NUMBER</code></td><td translate="no">The handbook does not specify how long signed contracts are kept after they expire.</td></tr><tr><td translate="no">The highest temperature for vaccine-line stock is 8 degrees Celsius.</td><td><code>UNBOUND_NUMBER</code></td><td translate="no">The handbook does not specify a maximum temperature for vaccine‑line stock.</td></tr><tr><td translate="no">Staff passwords must be changed every 90 days.</td><td><code>UNBOUND_NUMBER</code></td><td translate="no">The handbook does not specify a password change interval for staff accounts.</td></tr></tbody></table>
+<p>Ouvrez les registres : <a href="../explore/?bundle=../data/results/hallucinate-s100.bundle.json#view=overview">le poste à qui l'on a demandé de toujours répondre</a> <small>(68 événements · <a href="../../data/results/hallucinate-s100.bundle.json" download>bundle</a>)</small> ; le contraste, <a href="../explore/?bundle=../data/results/outdated-s100.bundle.json#view=overview">l'édition plus ancienne</a> <small>(59 événements · <a href="../../data/results/outdated-s100.bundle.json" download>bundle</a>)</small>.</p>
+
+<h2 id="bad-actor">Qui continue de le dire après qu'on le lui a montré</h2>
+<p>Deux postes se disputent sur l'itinéraire le plus court dans un registre routier. L'un est un critique chargé de vendre un itinéraire plus long et de ne jamais céder. Dans une condition témoin, personne ne ment, et un poste part de notes mal recopiées. Un arbitre qui ne voit pas le registre routier décide qui, le cas échéant, a agi de mauvaise foi. Trois exécutions de 40 litiges chacune, sur des problèmes nouveaux :</p>
+<table><thead><tr><th>un arbitre fondé sur un modèle lit</th><th>bonne réponse, litiges avec menteur (exécutions 1 / 2 / 3)</th><th>menteur désigné</th><th>partie honnête désignée, sur les 20 litiges</th></tr></thead><tbody>
+<tr><td>la transcription</td><td>2 / 2 / 4 sur 10</td><td>0 / 0 / 0 sur 10</td><td>1 / 0 / 0 sur 20</td></tr>
+<tr><td>le registre</td><td><b>10 / 10 / 10 sur 10</b></td><td><b>8 / 8 / 10 sur 10</b></td><td>1 / 0 / 0 sur 20</td></tr>
+</tbody></table>
+<p>Lors des exécutions 1 et 2, aucune des fausses affirmations « plus court » des critiques n'est entrée dans le registre. Chaque refus est montré à son auteur, et le journal de conduite du registre compte ce qui s'est passé ensuite : qui l'a répété après qu'on le lui a montré, et qui l'a corrigé. Ce sont des faits, pas un verdict. Deux lignes de l'exécution 3 :</p>
+<table><thead><tr><th>qui</th><th>le journal de conduite</th></tr></thead><tbody>
+<tr><td>un critique qui n'a jamais cédé</td><td translate="no">the record&#x27;s own count contradicted a claim of this author&#x27;s 4 times; the author said it again 2 times after being shown, and replaced a contradicted claim with another the record also contradicted 3 times, and never corrected it; its last word still says it</td></tr>
+<tr><td>un poste honnête qui a dérapé une fois</td><td translate="no">the record&#x27;s own count contradicted a claim of this author&#x27;s 1 time; the author said it again 1 time after being shown, and corrected it 1 time; its last word no longer says it</td></tr>
+</tbody></table>
+<p><b>Limites.</b> Le registre mesure la conduite, pas l'intention. Lors de l'exécution 3, un poste honnête a redit une fois son chiffre refusé après l'avoir corrigé, puis l'a corrigé à nouveau. L'arbitre fondé sur un modèle y a vu une erreur, mais une règle préenregistrée sans modèle, qui désigne quiconque répète un chiffre refusé, l'a désigné aussi. Le journal de conduite ne distingue les deux que par le nombre de fois qu'un chiffre a été répété et par le fait que le dernier mot soit vrai ou non : lisez donc les décomptes, pas seulement s'il y a eu une répétition. Quand l'arbitre peut voir le registre routier, un juge fondé sur un modèle retrouve lui-même la réponse, et le registre apporte peu. Le registre porte ses fruits quand le lecteur ne peut pas revérifier.</p>
+<p>Ouvrez les registres : <a href="../explore/?bundle=../data/results/liar-s400.bundle.json#view=overview">un critique qui n'a jamais cédé</a> <small>(52 événements · <a href="../../data/results/liar-s400.bundle.json" download>bundle</a>)</small> ; le contraste, <a href="../explore/?bundle=../data/results/mistake-s406.bundle.json#view=overview">la rechute honnête</a> <small>(60 événements · <a href="../../data/results/mistake-s406.bundle.json" download>bundle</a>)</small>.</p>
+
+<h2 id="tamper">Les modifications du registre se voient</h2>
+<p>Un attaquant disposant d'un accès en écriture au fichier du registre tente cinq modifications. Le SQL ordinaire ne peut pas supprimer un refus : les tables sont en ajout seul. Reformuler une affirmation après avoir levé cette protection est détecté par la vérification. Supprimer des refus, ou réécrire chaque hash pour qu'il corresponde, n'est détecté qu'au regard d'une tête de chaîne publiée à l'avance, comme on la publierait dans un article ou une version. Le registre rend la falsification visible, il ne l'empêche pas : publiez la tête.</p>
+<p>Essayez : téléchargez <a href="../explore/?bundle=../data/results/liar-s400.bundle.json#view=overview">un registre</a> <small>(52 événements · <a href="../../data/results/liar-s400.bundle.json" download>bundle</a>)</small>, modifiez un caractère et déposez-le sur <a href="../verify/">Vérifier</a>.</p>
+
+<h2 id="method">Comment ces exécutions ont été menées</h2>
+<ul>
+<li>Les plans, les seuils et les évaluateurs ont été consignés dans un commit avant les exécutions. Les seuils manqués sont signalés comme manqués (le poste honnête désigné lors de l'exécution 3).</li>
+<li>Un seul modèle occupe tous les postes, sans coût de cloud : c'est donc ce que fait un petit modèle ouvert. Un modèle plus grand n'est pas mesuré ici.</li>
+<li>Le moteur est celui de HypGraph, non modifié. Quand une exécution y a trouvé une faille, la correction est entrée dans la bibliothèque avec un test, et l'exécution est rapportée telle qu'elle s'est déroulée.</li>
+</ul>
+
+</article></div>
+</main>
+<footer><div class="wrap"><span class="slogan">Ne croyez pas le hype. Testez l'hypothèse.</span>
+<span>Créé par <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format et documentation CC BY 4.0 · <a href="../disclaimer/">Avertissement</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>
+<script src="../../assets/site.js" defer></script>
+</body>
+</html>

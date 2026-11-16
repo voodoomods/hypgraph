@@ -1,0 +1,55 @@
+{
+ "refused": [
+  {
+   "author": "iris",
+   "statement": "The shortest road route from Thrane to Gilthorpe is 31 km via Dravik.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": null
+  },
+  {
+   "author": "iris",
+   "statement": "The shortest road route from Thrane to Gilthorpe is 32 km via Dravik.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": null
+  },
+  {
+   "author": "iris",
+   "statement": "The shortest road route from Thrane to Gilthorpe is 35 km via Nusk and Ostrane.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": null
+  },
+  {
+   "author": "iris",
+   "statement": "The shortest road route from Thrane to Gilthorpe is 28 km via Nusk and Corlune.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": null
+  },
+  {
+   "author": "iris",
+   "statement": "The shortest road route from Thrane to Gilthorpe is 31 km via Dravik.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": null
+  },
+  {
+   "author": "iris",
+   "statement": "The shortest road route from Thrane to Gilthorpe is 35 km via Nusk and Ostrane.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": null
+  }
+ ],
+ "conduct": {
+  "iris": "the record's own count contradicted a claim of this author's 4 times; the author said it again 2 times after being shown, and replaced a contradicted claim with another the record also contradicted 3 times, and never corrected it; its last word still says it"
+ }
+}
