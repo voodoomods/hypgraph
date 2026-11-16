@@ -58,6 +58,21 @@ def test_the_width_and_each_end_still_stand(statement):
 def test_ends_of_different_intervals_or_no_interval_still_pair():
     v = {"latency_low_ms": 100, "latency_high_ms": 120}                       # no interval named: not its ends
     assert codes("The high-load latency is 20% above the low-load one.", v, names={}, constants=()) == []
-    v = {"ci_low_pct": 10.0, "pi_high_pct": 12.0}                             # one interval end, one not
-    assert codes("The prediction interval's end is 20% above the confidence interval's.", v, names={},
+    v = {"ci_low_pct": 10.0, "pi_high_pct": 12.0}                             # ends of two different intervals
+    names = {"ci_low_pct": "confidence interval, low end (%)", "pi_high_pct": "prediction interval, high end (%)"}
+    assert codes("The prediction interval's end is 20% above the confidence interval's.", v, names=names,
+                 constants=()) == []
+
+
+def test_an_end_and_the_estimate_make_no_sum():
+    v = dict(BENCH, old_median_ms=419, new_median_ms=396, speedup_pct=5.4, ci_low_pct=-3.3, ci_high_pct=14.1,
+             p_value=0.25)                                                   # 14.1 + 5.4 = 19.5
+    assert codes("Our new build delivers a 20% faster median response time.", v) == ["UNBOUND_NUMBER"]
+    assert codes("The new build is 5.4% faster; the interval's high end is 8.7 points above that.", v) == []
+
+
+def test_a_bound_over_a_threshold_still_stands():
+    v = {"ub_k0_n113": 0.026162575993197205, "target_rate": 0.002}
+    names = {"ub_k0_n113": "CP upper bound, k=0 n=113", "target_rate": "threshold 1 in 500"}
+    assert codes("The upper bound on the leak rate, 0.026, is about 13 times the 0.002 threshold.", v, names=names,
                  constants=()) == []

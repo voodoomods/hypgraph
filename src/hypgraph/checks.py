@@ -382,8 +382,10 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
 
     plain        the values themselves; for a count k of n the rate, its complement and n - k; for each pair of
                  measurements the difference, both ratios, the relative change and the sum (a p-value pairs only
-                 with another p-value; two ends of one interval make only its width, never read as a percent). May be rounded. A p-value, arithmetic on p-values, and the sum or difference
-                 of two values both 2 or more in size are ``_NotFraction``: never read as a percent.
+                 with another p-value; two ends of one interval make only its width, never read as a percent; an
+                 interval's end and a value that is no interval's end make no sum). May be rounded.
+                 A p-value, arithmetic on p-values, and the sum or difference of two values both 2 or more in size
+                 are ``_NotFraction``: never read as a percent.
     statistical  95% bounds of each rate; for each pair of counts the two-proportion interval, p-value and the
                  smallest difference they could detect. Must be written to at least one decimal place — otherwise
                  "5 points better" would pass because an interval happens to end at 5.3."""
@@ -425,7 +427,11 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
             # (a return of 101% kept as 1.01 still is: 1.01 - 1.2479 is a buy-and-hold of -23.79%)
             # a sum or difference with a value in a unit that isn't a percent is in that unit, and a ratio of two
             # different units (or of a percent to something that isn't one) is no fraction: neither is ever a percent
-            sums = (_cancel(a - b, a, b), _cancel(a + b, a, b))
+            # an interval's end with a value that is no interval's end (the estimate, a median, a threshold) makes no
+            # sum: "8.7 points above the estimate" and "13 times the threshold" stand, but the high end, 14.1%, plus a
+            # speed-up of 5.4% made the 19.5 that covered "20% faster" (live pressure test, BC-250s, 2026-11-16)
+            one_end = (a_end is None) != (b_end is None)
+            sums = (_cancel(a - b, a, b),) if one_end else (_cancel(a - b, a, b), _cancel(a + b, a, b))
             big = min(abs(a), abs(b)) >= 2
             if {a_u, b_u} - {None, "%"}:
                 plain += [(_NeitherPercentNorFraction if big else _NotPercent)(d) for d in sums]
