@@ -84,6 +84,7 @@ applied to — and the refusal (and the claim's standing) then says how many fai
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -92,7 +93,13 @@ from . import language as L
 from . import stats
 from .derive import Snap, lifecycle, producing_run, result_value
 
-_NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(\s*%)?(?![\w])")
+# a figure: 1,234 · 0.05 · 12% · and in scientific notation 1.2e-5 / 3E+04 / 1.2e5 / 1.2 × 10^-5, read whole: "p<1e-20"
+# was read as 20 and "p = 1.2e-5" as 1 and 5, each then accounted for (or refused) as a figure of its own. An exponent
+# without a sign needs a decimal point before it, and has at most three digits: "55351e01" is a short hash, not 5.5e5
+_NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:[eE]((?(2)[-+−]?|[-+−])\d{1,3})|\s?[×x]\s?10\^([-+−]?\d{1,3}))?"
+                  r"(\s*%)?(?![\w])")
+# "p < 0.001", "p<1e-20", "p-value <= 0.01", "p > 0.05": a threshold said of a p-value, not a figure measured
+_P_THRESHOLD = re.compile(r"\bp(?:[\s_-]?values?)?\s*(<=|>=|=<|=>|<|>|≤|≥)\s*", re.I)
 _WORDS = {w: i for i, w in enumerate("two three four five six seven eight nine ten eleven twelve thirteen fourteen "
                                      "fifteen sixteen seventeen eighteen nineteen twenty".split(), start=2)}
 # 'one' is left out: too common as a pronoun. A number word joined to another word is part of a compound adjective
@@ -140,6 +147,17 @@ class Problem:
         return {"code": self.code, "message": self.message, "fix": self.fix, "words": self.words}
 
 
+def _printed(m: re.Match) -> tuple[float, int, bool, str]:
+    """(value, decimals printed, is_percent, as printed) for a ``_NUM`` match. In scientific notation the decimals are
+    the places the figure is written to: 1.2e-5 to 6, 1e-20 to 20, 3E+04 to 0."""
+    whole, frac, exp, pct = m.group(1), m.group(2), m.group(3) or m.group(4), m.group(5)
+    mant = whole.replace(",", "") + ("." + frac if frac else "")
+    if exp:
+        e = int(exp.replace("−", "-"))
+        return float(f"{mant}e{e}"), max(0, len(frac or "") - e), bool(pct), m.group(0).strip()
+    return float(mant), len(frac or ""), bool(pct), m.group(0).strip()
+
+
 def numbers(text: str, mentions: bool = False) -> list[tuple[float, int, bool, str]]:
     """(value, decimals printed, is_percent, as printed) for each number in a text. Versions and inline code are
     identifiers, not figures, and are skipped. ``mentions``: every number the text names, number words inside a
@@ -148,9 +166,7 @@ def numbers(text: str, mentions: bool = False) -> list[tuple[float, int, bool, s
     out = []
     text = _NOT_A_FIGURE.sub(" ", text or "")
     for m in _NUM.finditer(text):
-        whole, frac, pct = m.group(1), m.group(2), m.group(3)
-        v = float(whole.replace(",", "") + ("." + frac if frac else ""))
-        out.append((v, len(frac or ""), bool(pct), m.group(0).strip()))
+        out.append(_printed(m))
     compound, word = (_COMPOUND_ANY, _WORDANY) if mentions else (_COMPOUND, _WORDNUM)
     for m in compound.finditer(text):
         out.append((float(_TENS[m.group(1).lower()] + _UNITS[m.group(2).lower()]), 0, False, m.group(0)))
@@ -253,6 +269,12 @@ def _primary(rv: dict) -> float | None:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
+def _cancel(x: float, a: float, b: float) -> float:
+    """A sum or difference that cancels to float noise is 0: 41.333 - 10 x 4.1333 is 8.9e-16, which accounted for "a
+    residual below 1e-15" once figures in scientific notation were read whole."""
+    return 0.0 if abs(x) <= 1e-12 * max(abs(a), abs(b)) else x
+
+
 def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[float]]:
     """Every number a claim may state because it follows from its bound measurements, in two tiers.
 
@@ -286,15 +308,15 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
             if a_p != b_p:                                  # a p-value with an effect makes nothing anyone states
                 continue
             if a_p:                                         # two p-values: "agree within 0.0014", "10x smaller"
-                plain += [_NotFraction(x) for x in (a - b, a + b) + ((a / b,) if b else ()) + ((b / a,) if a else ())]
+                plain += [_NotFraction(x) for x in (_cancel(a - b, a, b), _cancel(a + b, a, b)) + ((a / b,) if b else ()) + ((b / a,) if a else ())]
                 continue
             # a sum or difference of two values both 2 or more in size is no fraction, so it is never read as a percent
             # (a return of 101% kept as 1.01 still is: 1.01 - 1.2479 is a buy-and-hold of -23.79%)
-            plain += [_NotFraction(a - b), _NotFraction(a + b)] if min(abs(a), abs(b)) >= 2 else [a - b, a + b]
+            plain += [_NotFraction(d) for d in (_cancel(a - b, a, b), _cancel(a + b, a, b))] if min(abs(a), abs(b)) >= 2 else [_cancel(a - b, a, b), _cancel(a + b, a, b)]
             if b:
-                plain += [a / b, (a - b) / b]
+                plain += [a / b, _cancel(a - b, a, b) / b]
             if a:
-                plain += [b / a, (b - a) / a]
+                plain += [b / a, _cancel(b - a, a, b) / a]
     for i, (k1, n1) in enumerate(arms):
         for k2, n2 in arms[i + 1:]:
             t = stats.two_proportions(k1, n1, k2, n2)
@@ -1941,6 +1963,34 @@ def _measured_claim(s: Snap, support: list[str]) -> bool:
     return False
 
 
+def _round_figure(v: float) -> bool:
+    """One significant digit: 0.05, 0.001, 5e-5, 1e-20 — how a threshold is written, unlike a measured 0.1531."""
+    if v <= 0:
+        return False
+    m = v / 10 ** math.floor(math.log10(v))
+    return abs(m - round(m)) < 1e-9
+
+
+def _blank_p_thresholds(text: str, ps: list[float]) -> str:
+    """The text with each p-value threshold blanked that a bound p-value is on the stated side of: "p < 0.001" when
+    a bound p is 1.2e-5, "p > 0.05" when one is 0.2. A threshold no bound p-value meets is left to be accounted for
+    like any figure. Main accepted "p < 0.001" only when the bound p times 100 happened to round to 0.001."""
+    out, i = [], 0
+    for m in _P_THRESHOLD.finditer(text):
+        n = _NUM.match(text, m.end())
+        if not n or not ps:
+            continue
+        v, op = _printed(n)[0], m.group(1)
+        if not _round_figure(v):                    # "p >= 0.1531" states a figure, which needs binding like any
+            continue
+        below, strict = op in ("<", "<=", "=<", "≤"), op in ("<", ">")
+        if any((p < v if strict else p <= v) if below else (p > v if strict else p >= v) for p in ps):
+            out.append(text[i:n.start()] + " " * (n.end() - n.start()))
+            i = n.end()
+    out.append(text[i:])
+    return "".join(out)
+
+
 def _is_p_key(key: str) -> bool:
     """A result field holding a p-value, by its name: a token ``p`` anywhere (p, p_value, p_welch, welch_two_sided_p,
     raw_p_steps_k, steps_k_p), or pval / pvalue / padj — the record's agents name p-values both ways round."""
@@ -2056,10 +2106,9 @@ def _figures_at(text: str) -> list[tuple[int, int, tuple]]:
                 or re.search(r"[A-Za-z][-‐‑]$", masked[max(0, m.start() - 2):m.start()]) \
                 or re.match(r"[-‐‑][A-Za-z]", masked[m.end():]):
             continue
-        whole, frac, pct = m.group(1), m.group(2), m.group(3)
-        v = float(whole.replace(",", "") + ("." + frac if frac else ""))
+        v, dec, pct, printed = _printed(m)
         neg = bool(re.search(r"(?:^|[^\w.])[-−–]\s?$", masked[max(0, m.start() - 3):m.start()]))
-        out.append((m.start(), m.end(), (-v if neg else v, len(frac or ""), bool(pct), m.group(0).strip())))
+        out.append((m.start(), m.end(), (-v if neg else v, dec, pct, printed)))
     return out
 
 
@@ -2471,6 +2520,9 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     bound, bad = _bound(s, body.get("measurements") or [], stmt, words=not typed)
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
+    arms_ = [a for _m, rv in bound if (a := _arm(rv))]
+    clean = _blank_p_thresholds(clean, _p_values(s, bound, []) + [
+        stats.two_proportions(*a, *b)["p"] for i, a in enumerate(arms_) for b in arms_[i + 1:]])
     plain, stat = derived_numbers(bound)
     design = [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
     allowed = plain + design + [v for v, *_ in numbers(scope, mentions=True)] + A.numbers(body)
