@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A stated count is read in its other forms.** The stated-count check read "24 of 24" and "all 24" but not
+  "24/24" or a count in words, so on 23 of 24 malformed files rejected "The parser rejected malformed files 24/24",
+  "Twenty-four of twenty-four malformed files were rejected" and "The parser rejected all twenty-four malformed files"
+  went in (a second /play/ attack round). Now "k/n" (not a date, path, decimal or percent) and number words up to
+  ninety-nine, compounds whole whichever hyphen joins them, are held to the record's count with `COUNT_CONTRADICTS`,
+  under the same exclusions. A label word ("run 3 of 7", "arm 2/3") now counts only when nothing but space separates it
+  from the count. Corpus (3,237 records): 182 statements with a slash count and 57 with a count in words reach the
+  comparison and none moves; the first draft refused one ("154 users per arm; 22/154 in A vs 31/154 in B" read the 22
+  as an arm label across the semicolon), now a test. Tests: `tests/test_stated_count_forms.py`.
 - **A stated count is held to the record's count.** On 23 of 24 malformed files rejected, "All 24 malformed files
   were rejected" and "The parser caught 24 of 24 malformed files" went in: every number in them is accounted for (24
   is the bound n), and nothing compared the stated count with the bound one. Now "k of n", "k out of the n", "all n",

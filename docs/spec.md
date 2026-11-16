@@ -320,7 +320,8 @@ counterexample, extreme, unreached-figure and stated-count checks behind it) doe
 before. Outside one, rule 5 and those checks are heuristics, frozen as of 0.7.28: they read a claim's words for what a
 count measured, what the claim asserts and which clause a count belongs to, and the claimant writes those words.
 Additions since are refusals of sentences the record's own counts contradict, each run against the corpus of real
-records before it ships. One is the stated count: "k of n", "all n", "each of the n" or "every one of the n" is a
+records before it ships. One is the stated count: "k of n", "k/n", "all n", "each of the n" or "every one of the n",
+in digits or in words ("twenty-four of twenty-four"), is a
 `COUNT_CONTRADICTS` when n is a bound count's n, that count has an exception (k < n), and the stated k is neither
 its k nor n − k nor any other bound number. It isn't checked when the sentence also states the record's count of that n,
 when two counts over the n differ, or when the words are negated, a label or rank ("run 3 of 7"), membership ("one of 20
