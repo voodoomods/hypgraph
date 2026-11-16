@@ -1474,8 +1474,19 @@ _CLAUSE = re.compile(r"[;!?]|\.(?!\d)")
 def _names_counted_set(stmt: str, w: str, bound: list) -> bool:
     """Is the absolute the set a count the statement itself reports ran over: "a count of every possible selection
     finds 2 of 1,024 that are worth more"? It names what was counted, not a claim that nothing lies outside it. (Read
-    as an absolute, the record refused that honest correction as the lie said again.)"""
-    return _names_stated_count(stmt, w, {a for _m, rv in bound if (a := _arm(rv))})
+    as an absolute, the record refused that honest correction as the lie said again.)
+
+    A word of proof names no set, and a count with exceptions proves no absolute: "Parser nailed 7 of 8 tests, proving
+    solid coverage" went into the record on 7 of 8 (telephone showcase, live, 2026-11-16). On a count of 0 or n it
+    still names the trials it rests on ("12 of 12 encodings parsed, proving it handles the formats we checked")."""
+    arms = {a for _m, rv in bound if (a := _arm(rv))}
+    if _PROOF_WORD.fullmatch(w):
+        arms = {(k, n) for k, n in arms if k in (0, n)}
+    return _names_stated_count(stmt, w, arms)
+
+
+_PROOF_WORD = re.compile(r"prov(?:es?|en|ing)|proof|guarantee[sd]?|certainly|definitively|conclusively|undeniably",
+                         re.I)
 
 
 def _names_stated_count(stmt: str, w: str, counts: set | None = None) -> bool:
@@ -1555,6 +1566,15 @@ def _count_contradicts(stmt: str, w: str, words: list, m: dict, k: int, n: int) 
     said = [int(a.replace(",", "")) for a, b in _STATED_COUNT.findall(stmt)
             if int(b.replace(",", "")) == n and int(a.replace(",", "")) != k]
     sup = _extremes(stmt)
+    if not said and _PROOF_WORD.fullmatch(w) and (k, n) in {(int(a.replace(",", "")), int(b.replace(",", "")))
+                                                             for a, b in _STATED_COUNT.findall(stmt)}:
+        # the count is already said: what's false is the proof drawn from it ("nailed 7 of 8 tests, proving…")
+        return Problem("COUNT_CONTRADICTS",
+                       f"'{w}' draws a proof from {k:,} of {n:,} ({m.get('name') or m.get('key')}): a count with "
+                       f"exceptions proves no absolute. Keep the count and drop '{w}', or say what the count does "
+                       "show ('most', 'in this run')",
+                       fix=f"keep '{k:,} of {n:,}' and drop '{w}'",
+                       words=words + [f"={_fmt(v)}" for v in _subject_numbers(stmt, k, n)])
     head = (f"the statement says {said[0]:,} of {n:,}, but the record's own count is {k:,} of {n:,}" if said
             else f"'{w if w in sup else sup[0] if sup else w}' is contradicted by the record's own count: {k:,} of {n:,}")
     return Problem("COUNT_CONTRADICTS",
