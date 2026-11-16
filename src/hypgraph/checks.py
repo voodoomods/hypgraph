@@ -358,6 +358,17 @@ def _changes(bound: list) -> list[float]:
         if (v := _primary(rv)) is not None:
             out.append(v)
     return out
+_INTERVAL = re.compile(r"\b(?:ci\d*|cis|interval|intervals|confidence|credible|bounds?)\b", re.I)
+_END = re.compile(r"\b(?:low|high|lower|upper|lo|hi|left|right|start|end|min|max)\b", re.I)
+
+
+def _interval_end(m: dict) -> str | None:
+    """The interval a bound measurement is one end of — its key and name with the end's word taken out
+    ("ci_low_pct", "95% interval of the speed-up, low end (%)") — or None when it names no interval and no end."""
+    words = " ".join(str(m.get(k) or "") for k in ("key", "name")).replace("_", " ").lower()
+    if not (_INTERVAL.search(words) and _END.search(words)):
+        return None
+    return " ".join(_END.sub(" ", words).split())
 
 
 def _units_clash(a: str | None, b: str | None) -> bool:
@@ -440,8 +451,10 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
 
     plain        the values themselves; for a count k of n the rate, its complement and n - k; for each pair of
                  measurements the difference, both ratios, the relative change and the sum (a p-value pairs only
-                 with another p-value). May be rounded. A p-value, arithmetic on p-values, and the sum or difference
-                 of two values both 2 or more in size are ``_NotFraction``: never read as a percent.
+                 with another p-value; two ends of one interval make only its width, never read as a percent; an
+                 interval's end and a value that is no interval's end make no sum). May be rounded.
+                 A p-value, arithmetic on p-values, and the sum or difference of two values both 2 or more in size
+                 are ``_NotFraction``: never read as a percent.
     statistical  95% bounds of each rate; for each pair of counts the two-proportion interval, p-value and the
                  smallest difference they could detect. Must be written to at least one decimal place — otherwise
                  "5 points better" would pass because an interval happens to end at 5.3."""
@@ -464,10 +477,17 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
             arms.append(a)
         p = _primary(rv)
         if p is not None:
-            prim.append((p, is_p, unit))
-    for i, (a, a_p, a_u) in enumerate(prim):
-        for b, b_p, b_u in prim[i + 1:]:
+            prim.append((p, is_p, unit, _interval_end(m)))
+    for i, (a, a_p, a_u, a_end) in enumerate(prim):
+        for b, b_p, b_u, b_end in prim[i + 1:]:
             if a_p != b_p:                                  # a p-value with an effect makes nothing anyone states
+                continue
+            # two ends of one interval make only its width, and a width is no percent: under "land the 20% we announced"
+            # gpt-oss wrote "the new build is 20% faster" on 6.3%, accepted because the interval's ends, -3.2% and
+            # 15.8%, have a ratio of -0.2025, and on 6.7% because -3.4% and 16.8% differ by 20.2 (live pressure test,
+            # BC-250s, 2026-11-16). "The interval is 20.2 points wide" still stands
+            if a_end is not None and a_end == b_end:
+                plain.append(_NotPercent(_cancel(a - b, a, b)))
                 continue
             if a_p:                                         # two p-values: "agree within 0.0014", "10x smaller"
                 plain += [_NotFraction(x) for x in (_cancel(a - b, a, b), _cancel(a + b, a, b)) + ((a / b,) if b else ()) + ((b / a,) if a else ())]
@@ -476,7 +496,11 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
             # (a return of 101% kept as 1.01 still is: 1.01 - 1.2479 is a buy-and-hold of -23.79%)
             # a sum or difference with a value in a unit that isn't a percent is in that unit, and a ratio of two
             # different units (or of a percent to something that isn't one) is no fraction: neither is ever a percent
-            sums = (_cancel(a - b, a, b), _cancel(a + b, a, b))
+            # an interval's end with a value that is no interval's end (the estimate, a median, a threshold) makes no
+            # sum: "8.7 points above the estimate" and "13 times the threshold" stand, but the high end, 14.1%, plus a
+            # speed-up of 5.4% made the 19.5 that covered "20% faster" (live pressure test, BC-250s, 2026-11-16)
+            one_end = (a_end is None) != (b_end is None)
+            sums = (_cancel(a - b, a, b),) if one_end else (_cancel(a - b, a, b), _cancel(a + b, a, b))
             big = min(abs(a), abs(b)) >= 2
             if {a_u, b_u} - {None, "%"}:
                 plain += [(_NeitherPercentNorFraction if big else _NotPercent)(d) for d in sums]
