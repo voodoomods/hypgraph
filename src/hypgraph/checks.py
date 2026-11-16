@@ -404,14 +404,26 @@ def _is_p_value(m: dict, rv: dict) -> bool:
     return bool(re.search(r"\bp[\s-]?values?\b", str(m.get("name") or ""), re.I))
 
 
+def _shows(x: float, v: float, dec: int) -> bool:
+    """Whether ``v``, written to ``dec`` decimal places, is ``x`` rounded, half up or half to even as people round.
+    ``round()`` alone rounds the binary value, halves to even: 4.85 (stored as 4.8499...) gave 4.8 and 0.125 gave
+    0.12, so an honest "95% CI 4.9 to 11.3" on an interval from 4.85 was refused (live label probe, BC-250s,
+    2026-11-16: 6 of the 12 true lines refused). A single-digit whole number keeps ``round()``: there an exact half is
+    most often a ratio of round numbers (3 / 6, 50 / 20), and taking it half up let 0.5 cover the "1" of "over 1 GB"
+    and 2.5 the "3" of "field 3" — five replayed refusals in the corpus, one an overreach line (corpus diff,
+    2026-11-16). "2813 Hz" for 2812.5 and "13%" for 12.5% still stand."""
+    if dec == 0 and v < 10:
+        return round(x) == round(v)
+    return abs(x - v) <= 0.5 * 10.0 ** -dec * (1 + 1e-9)
+
+
 def _matches(printed: tuple, candidates: list[float]) -> bool:
     v, dec, pct, _ = printed
     for c in candidates:
         if pct and isinstance(c, _NotPercent):            # 20 ms, or 8.0% over 40 runs, is not "20%"
             continue
         for x in ((c, c * 100) if (pct or abs(c) <= 1) and not isinstance(c, _NotFraction) else (c,)):
-            x = abs(x)
-            if round(x, dec) == v or (dec == 0 and abs(x - v) < 0.5 and round(x) == v):
+            if _shows(abs(x), v, dec):
                 return True
     return False
 
@@ -581,8 +593,8 @@ def _bound(s: Snap, meas: list, stmt: str = "", words: bool = True) -> tuple[lis
         for k in ("value", "k", "n", "figure"):
             if k in m and k in rv and isinstance(m[k], (int, float)) and isinstance(rv[k], (int, float)):
                 dec = len(str(m[k]).split(".")[1]) if "." in str(m[k]) else 0
-                if round(float(rv[k]), dec) != round(float(m[k]), dec) and not (
-                        rv[k] <= 1 < m[k] and round(float(rv[k]) * 100, dec) == round(float(m[k]), dec)):
+                if not _shows(float(rv[k]), float(m[k]), dec) and not (
+                        rv[k] <= 1 < m[k] and _shows(float(rv[k]) * 100, float(m[k]), dec)):
                     problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name') or i + 1}: says "
                                             f"{k}={m[k]} but result {m['result']} has {rv[k]}"))
                     bad = True
@@ -2422,7 +2434,7 @@ def _sides(printed: tuple, bound: list) -> list[tuple[float, int | None]]:
                 a = abs(x)
                 if x and (x < 0) != neg:
                     continue
-                if round(a, dec) == v or (dec == 0 and abs(a - v) < 0.5 and round(a) == v):
+                if _shows(a, v, dec):
                     out.append((float(x), _better_way(m), kind))
     return out
 
