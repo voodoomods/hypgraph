@@ -159,6 +159,28 @@ def numbers(text: str, mentions: bool = False) -> list[tuple[float, int, bool, s
     return out
 
 
+# a number said as the size of an effect: "20% faster", "a 20% speed boost", "3 times quicker", "cut by 20%", "a
+# speed-up of 20%" — what a design number (a target, a threshold, a setting) never is by itself
+_EFFECT_WORD = (r"(?:faster|slower|quicker|cheaper|dearer|higher|lower|better|worse|more|less|fewer|greater|smaller|"
+                r"larger|bigger|shorter|longer|speed-?ups?|boosts?|increases?|decreases?|reductions?|improvements?|"
+                r"gains?|drops?|cuts?|lifts?|uplifts?|growth|rises?|jumps?|savings?)")
+_EFFECT_AFTER = re.compile(r"\s*(?:%|percent|per\s?cent|x|×|times|-?fold)?\s*"
+                           r"(?:(?:speed|performance|latency|throughput|response[- ]time|time|cost|accuracy)\s+)?"
+                           + _EFFECT_WORD + r"\b(?![\s-]+(?:target|goal|threshold|budget|limit|cap|ceiling|floor|"
+                           r"promise|pledge|commitment|plan|aim|bar|requirement|spec|criterion)s?\b)", re.I)
+_EFFECT_BEFORE = re.compile(r"(?:" + _EFFECT_WORD + r"|improved|reduced|increased|decreased|grew|rose|fell|dropped|"
+                            r"sped\s+up|accelerated)\s+(?:of|by)\s+(?:about|around|roughly|nearly|almost|over|"
+                            r"more\s+than|at\s+least|up\s+to|~|≈)?\s*$", re.I)
+
+
+def _as_effect(text: str, printed: str) -> bool:
+    """Whether a number, as printed, is said anywhere in the text as the size of an effect."""
+    for m in re.finditer(r"(?<![\w.])" + re.escape(printed) + r"(?!\w|\.\d)", text):
+        if _EFFECT_AFTER.match(text, m.end()) or _EFFECT_BEFORE.search(text[:m.start()]):
+            return True
+    return False
+
+
 def _matches(printed: tuple, candidates: list[float]) -> bool:
     v, dec, pct, _ = printed
     for c in candidates:
@@ -927,6 +949,8 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _all_but_contradicted(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _stated_count_contradicted(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _generic_contradicted(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _majority_at_half(stmt, bound)
@@ -1023,6 +1047,114 @@ def _counted_noun(name: str) -> set[str]:
     error" counts files, not errors."""
     toks, i = _plural_subject(name)
     return L.content_words(toks[i]) if i is not None else set()
+
+
+# A count the statement states: "23 of 24", "23 out of the 24", and "all 24" / "all of the 24" / "each of the 24" /
+# "every one of the 24" (N of N). Not "run 3 of 7" or "ranked 2 of 20" (a label or a rank), not "3 of 24%", not a
+# decimal ("0.5 of 4")
+_NUMW = r"\d[\d,]*|one|two|three|four|five|six|seven|eight|nine|ten"
+_STATED_OF = re.compile(rf"(?<![\w.,/-])({_NUMW})\s+(?:out\s+)?of\s+(?:the\s+|all\s+|all\s+the\s+)?(\d[\d,]*)"
+                        r"(?![\d,]*\.\d)(?![\w%])(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
+_STATED_ALL = re.compile(r"(?<![\w-])(all|each|every\s+one)\s+(?:of\s+)?(?:the\s+|these\s+|those\s+)?(\d[\d,]*)"
+                         r"(?![\d,]*\.\d)(?![\w%])(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
+_COUNT_LABEL = {"run", "runs", "trial", "fold", "round", "game", "page", "step", "day", "week", "month", "year", "chapter",
+                "part", "item", "no", "number", "phase", "stage", "test", "case", "seed", "batch", "epoch", "iteration",
+                "slide", "question", "level", "rank", "ranked", "ranks", "rated", "scored", "score", "position",
+                "placed", "finished", "came", "seat", "row", "column", "section", "figure", "table", "volume", "issue",
+                "episode", "season", "match", "heat", "lap", "leg", "wave", "arm", "group", "cohort", "site",
+                "sample", "file", "image", "video", "frame", "split", "hop", "shard", "worker", "node", "box", "board"}
+_MEMBER = {"is", "was", "are", "were", "be", "being", "been", "as", "becomes", "became", "remains"}
+# "across all 24 files, 23 …": a preposition before "all N" makes it the set a count ran over, not a count of it
+_SET_PREP = {"across", "over", "of", "in", "from", "among", "amongst", "for", "on", "through", "throughout", "under",
+             "with", "at", "to", "between", "by", "after", "within", "into", "out", "per", "against", "than"}
+
+
+def _stated_count_contradicted(stmt: str, bound: list) -> list[Problem]:
+    """A count the statement states, held to the record's own count when its denominator is a bound count's n:
+    "caught 24 of 24 malformed files" or "all 24 malformed files were rejected" on 23 of 24. Every number in it was
+    accounted for (24 is the bound n), so nothing refused it. Either side of a count may be the one recorded (rejected
+    23 of 24, or parsed without an error 1 of 24), so a stated k fits when it is k or n - k.
+
+    Precision over recall; each exclusion below was a false refusal on the corpus of real records:
+    - a stated k that is any other bound value, count or denominator ("66 of 400 rows overlap" beside 295 of 400
+      correct, where 66 is the overlap count's n), and "N of N" on a bound plain total of N ("46 of 46 lines");
+    - a sentence that also states the record's count of that n ("2 of the 20 beat it (0 of 20 lagged)", or a critic
+      quoting "990 of 1000" against the measured 781 of 1000);
+    - two different counts over one n (A right on 812 of 950, B on 779): "950 of 950 item ids are unique";
+    - a total kept as a count (1,564 of 1,564 users): "311 of 1564 users" is a part of it. So understatement against
+      an n-of-n count isn't caught;
+    - membership ("it is one of 20 settings"), labels and ranks ("run 3 of 7"), negation ("not all 24").
+    "all N" counts only when no preposition makes it the set ("across all 24 files") and the sentence states no other
+    count of that n. Found by the /play/ challenges (2026-11-15): on 23 of 24, "All 24 malformed files were rejected"
+    and "The parser caught 24 of 24 malformed files" went in."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    # every bound number a stated k could be about instead: each count's k, n - k and n ("66 of 400 rows overlap"
+    # is the n of the overlap-accuracy count, not a wrong 295 of 400), and each plain value
+    others: set[float] = {float(x) for _m, (k, n) in arms for x in (k, n - k, n)}
+    plain: set[float] = set()
+    for _m, rv in bound:
+        v = rv.get("value")
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            plain.add(float(v))
+    others |= plain
+
+    def num(s: str) -> int | None:
+        s = s.lower()
+        return _SMALL.get(s) if s in _SMALL else (int(s.replace(",", "")) if s[0].isdigit() else None)
+
+    def before(i: int) -> str:
+        w = re.findall(r"[\w.]+", stmt[:i])
+        return w[-1].lower().rstrip(".") if w else ""
+
+    stated: list[tuple[int, int, str, int]] = []           # (k, n, the words, where)
+    for hit in _STATED_OF.finditer(stmt):
+        k_, n_ = num(hit.group(1)), num(hit.group(2))
+        # "every one of the 24" is N of N (below), not 1 of 24
+        # "it is one of 20 settings tested" says which set a thing belongs to, not how many did something
+        if k_ is not None and n_ and before(hit.start()) not in _COUNT_LABEL | _MEMBER | {"every", "each", "any"}:
+            stated.append((k_, n_, re.sub(r"\s+", " ", hit.group(0)), hit.start()))
+    for hit in _STATED_ALL.finditer(stmt):
+        n_ = num(hit.group(2))
+        if not n_ or before(hit.start()) in _SET_PREP:
+            continue
+        # "all 24 files were run; 23 were rejected" names the set: the sentence states the count elsewhere
+        rest = stmt[:hit.start()] + " " + stmt[hit.end():]
+        said = {num(x) for x in re.findall(rf"(?<![\w.,/-])(?:{_NUMW})(?![\w%])(?![\d,]*\.\d)", rest, re.I)}
+        if any(n == n_ and said & {k, n - k} - {n} for _m, (k, n) in arms):
+            continue
+        stated.append((n_, n_, re.sub(r"\s+", " ", hit.group(0)), hit.start()))
+    # a sentence that states the record's count of an n elsewhere ("2 of the 20 beat it (0 of 20 lagged)") is
+    # counting something else in its other counts of that n
+    named = {n_ for k_, n_, _w, _a in stated
+             if any(n == n_ and k_ in (k, n - k) for _m, (k, n) in arms)}
+    out: list[Problem] = []
+    for k_, n_, words, at in stated:
+        if n_ in named or L.negated(stmt, at):
+            continue
+        rel = [(m, (k, n)) for m, (k, n) in arms if n == n_]
+        if not rel or any(k_ in (k, n - k) for _m, (k, n) in rel):
+            continue
+        # a total kept as a count ("n users with feature" 1,564 of 1,564): "311 of 1564 users converted" is a part of
+        # it, not a contradiction. Only a count with an exception (k < n) is held against the sentence
+        if all(k == n for _m, (k, n) in rel):
+            continue
+        # two different counts over one n (A right on 812 of 950, B on 779): the n is a population several things
+        # are counted on, and "950 of 950 item ids are unique" may be yet another
+        if len({frozenset((k, n - k)) for _m, (k, n) in rel}) > 1:
+            continue
+        if k_ != n_ and float(k_) in others:                # a count of something else bound beside it
+            continue
+        if k_ == n_ and float(n_) in plain:                 # "46 of 46 lines" restates a bound total of 46
+            continue
+        m, (k, n) = rel[0]
+        out.append(Problem("COUNT_CONTRADICTS",
+                           f"'{words}' says {k_:,} of {n_:,}, but the record's own count is {k:,} of {n:,} "
+                           f"({m.get('name') or m.get('key')}): correct it, or say '{k:,} of {n:,}'",
+                           fix=f"correct the statement, or say '{k:,} of {n:,}'", words=[words.lower()]))
+        break
+    return out
 
 
 def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
@@ -2274,8 +2406,8 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
     plain, stat = derived_numbers(bound)
-    allowed = plain + [v for v, *_ in numbers(scope, mentions=True)] + A.numbers(body) + \
-        [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
+    design = [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
+    allowed = plain + design + [v for v, *_ in numbers(scope, mentions=True)] + A.numbers(body)
     for src in support:                              # a cited source's own text accounts for the numbers in it
         sb = s.nodes[src]["body"] if s.nodes[src]["type"] == "source" else {}
         said = " ".join(str(sb.get(k) or "") for k in ("passage", "citation", "title"))
@@ -2300,6 +2432,22 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "them, or move design constants into the scope",
                                 fix="bind each number to a result field, or cite the source that gives it",
                                 words=[p[3] for p in loose[:8]]))
+    # the investigation's constants (a target, a threshold, a setting the curator recorded) account for themselves, not
+    # for an effect: under a VP's "it should land the 20% we announced", gpt-oss filed "the new build is 20% faster" on
+    # a 5.9% speed-up with the announced 20% as a constant, and it was accepted (pressure showcase, 2026-11-15). The
+    # claim's own scope is left out: it holds scenario parameters ("a 10% increase in interest rates") and givens ("the
+    # 9-point gain") that statements rightly say as changes (corpus diff, 2026-11-15)
+    data = plain + allowed[len(plain) + len(design):]
+    effects = [p for p in numbers(rest) if p not in loose and _matches(p, design) and not _matches(p, data)
+               and not _matches_stat(p, stat) and _as_effect(rest, p[3])]
+    if effects:
+        shown = ", ".join(p[3] for p in effects[:4])
+        problems.append(Problem("UNBOUND_NUMBER", f"{shown}: the statement gives one of the investigation's constants (a "
+                                "target, a threshold, a setting) as a measured effect — an effect has to come from a "
+                                "bound measurement: state the measured value, and name the constant as what it is "
+                                "('the 20% target', 'a 50 ms budget')",
+                                fix="state the measured effect from the bound result; name the constant as one",
+                                words=[p[3] for p in effects[:4]]))
     keys = {str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
     named = [k for k in sorted(keys) if ("_" in k or any(ch.isdigit() for ch in k)) and len(k) >= 4
              and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)

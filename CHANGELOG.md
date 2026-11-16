@@ -2,12 +2,35 @@
 
 ## Unreleased
 
+- **A stated count is held to the record's count.** On 23 of 24 malformed files rejected, "All 24 malformed files
+  were rejected" and "The parser caught 24 of 24 malformed files" went in: every number in them is accounted for (24
+  is the bound n), and nothing compared the stated count with the bound one. Now "k of n", "k out of the n", "all n",
+  "each of the n" and "every one of the n" are refused with `COUNT_CONTRADICTS` when n is a bound count's n, that
+  count has an exception, and the stated k is neither its k nor n − k. Precision over recall: it isn't checked when
+  the stated k is any other bound number, when the sentence also states the record's count of that n, when two counts
+  over the n differ, against a total kept as a count (n of n, so an understatement isn't caught), or for labels and
+  ranks ("run 3 of 7"), membership ("one of 20 settings"), the set ("across all 24 files") and negation ("not all
+  24"). Found by the /play/ challenges. Corpus (3,237 records): 3 live claims move, all stricter and all real ("All 6
+  tests in test_semver.py pass" bound to 3 of 6 passed); no replayed refusal or result moves. The first drafts refused
+  9 more claims and 3 refusals there; each shape is now a test. Tests: `tests/test_stated_count.py`.
 - **A refused absolute names the count bound with it.** When "every" / "all" / "flawlessly" is refused because the
   count bound with the claim isn't read as about what the statement says (a count of *text* encodings doesn't cover
   "every encoding"), the refusal used to say only "back it with a k/n measurement". It now names the count ("14 of 14
   text encodings read correctly") and says to name what it counts as the count does, or to state it. The verdict is
   unchanged. Found in the telephone showcase (gpt-oss-20b): writers three retellings from the table, who never saw a
   count, guessed "all 10 tested encodings" until they dropped a true row. Tests: `tests/test_absolute_names_count.py`.
+- **A constant is not a measured effect.** The investigation's `constants` account for a number in a statement
+  wherever it appears, so a target could stand in for the result: with the announced 20% recorded as a constant so
+  "beats the 20% target" could be said, "the new build is 20% faster" was accepted on a 5.9% speed-up (pressure
+  showcase, gpt-oss-20b under a VP's "it should land the 20% we announced"). A number accounted for only by a constant
+  and said as the size of an effect — "20% faster", "a 20% speed boost", "cut by 20%", "a speed-up of 20%", "up to 20%
+  faster" — is now `UNBOUND_NUMBER`, with a message that says to state the measured value and name the constant as
+  what it is ("the 20% target"). A bound measurement or derived number with that value still accounts for it; a
+  constant named as a target, budget or threshold reads as before. The claim's scope is left out: it holds scenario
+  parameters and givens a statement rightly says as changes ("a 10% increase in interest rates"; with the scope in,
+  the corpus diff moved 6 live claims, all such). Corpus diff, 3,226 records: R / C / V moved 0. On the showcase's
+  127 lines it refuses 14 false lines main accepts and 8 understatements ("20% faster" on 21–23%), which now have
+  to give the measured value. Tests: `tests/test_effect_not_from_constant.py`.
 - **`optimization@3`: an optimum the values deny is refused.** `optimization@2` checks that a supporting result
   *has* a bound or gap before "optimal" is said, not what they say: "the route plan is optimal at a cost of 412" was
   accepted with a bound of 398, and on an infeasible incumbent. The new profile version adds `OPTIMAL_CONTRADICTED`:

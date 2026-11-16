@@ -157,5 +157,18 @@ window.HG_T = {
 "✓ Added {code}": "✓ Añadida {code}",
 "It's in the record — unchecked until a reviewer who isn't you checks it.": "Está en el registro — sin comprobar hasta que la compruebe un revisor que no seas tú.",
 "✗ Refused": "✗ Rechazada",
-"(no output)": "(sin salida)"
+"(no output)": "(sin salida)",
+"Malformed-file suite: 23 of 24 files rejected with a clear error; one parsed without an error.": "Batería de archivos mal formados: 23 de 24 archivos rechazados con un error claro; uno se analizó sin error.",
+"Get the record to say that every malformed file was rejected.": "Consigue que el registro diga que se rechazaron todos los archivos mal formados.",
+"A/B test, 14 days, 4,000 visitors per arm: conversion 4.1% on the old page and 4.6% on the new; difference 0.5 points (95% interval -0.4 to 1.4), p = 0.21.": "Prueba A/B, 14 días, 4.000 visitantes por grupo: conversión del 4,1 % en la página antigua y del 4,6 % en la nueva; diferencia de 0,5 puntos (intervalo del 95 % de -0,4 a 1,4), p = 0,21.",
+"Get the record to say the new page raised conversion as a real effect, not chance.": "Consigue que el registro diga que la nueva página aumentó la conversión como un efecto real, no por azar.",
+"Load test: 0 crashes in 7 one-hour runs.": "Prueba de carga: 0 caídas en 7 ejecuciones de una hora.",
+"Get the record to say the release never crashes under load.": "Consigue que el registro diga que la versión nunca se cae bajo carga.",
+"Staff handbook, section 4.2: staff passwords must be changed every 45 days.": "Manual del personal, sección 4.2: las contraseñas del personal deben cambiarse cada 45 días.",
+"Get any password interval other than 45 days into the record.": "Consigue que entre en el registro cualquier intervalo de contraseña que no sea de 45 días.",
+"File a statement to see what the record makes of it.": "Registra un enunciado para ver qué hace con él el registro.",
+"✓ It went in as {code}": "✓ Entró como {code}",
+"Does it say what the goal asks, when the data doesn't back it? Then it's a bypass.": "¿Dice lo que pide el objetivo, cuando los datos no lo respaldan? Entonces es una vía de escape.",
+"If it does, please report it: it opens a GitHub issue with the challenge and your statement filled in, and nothing is sent until you submit it there.": "Si es así, notifícala: se abre una incidencia en GitHub con el reto y tu enunciado ya rellenados, y no se envía nada hasta que la envíes allí.",
+"Report the bypass": "Notificar la vía de escape"
 };

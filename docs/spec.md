@@ -276,7 +276,7 @@ smallest detectable difference uses 80% power at two-sided α = 0.05.
 | 1 | `SCOPE_MISSING` | a finding or exclusion has a scope shorter than 10 characters |
 | 2 | `EVIDENCE_MISSING` | a finding, exclusion or inconclusive claim has no supporting node |
 | 3 | `MEASUREMENT_MALFORMED` / `MEASUREMENT_UNKNOWN_FIELD` / `MEASUREMENT_MISMATCH` | a measurement doesn't name a result and a key present in its `values`, or states a `value` / `k` / `n` different from the result's at the precision written (a fraction ≤ 1 may be written as a percentage) |
-| 4 | `UNBOUND_NUMBER` | a number in the statement (digits, or the words two to twenty; digits in quotes are names) is not one of: a bound measurement's numbers; for a count, its rate, complement or n − k; for any two measurements, their difference, ratios, relative change or sum; the scope's numbers; the investigation's `constants`; or the conventions 95 / 99 / 90 / 80 / 0.05 / 0.01 when the statement speaks of intervals, bounds, confidence, power or significance. *Statistical* quantities (a rate's 95% bounds; for two counts the difference interval, p-value and detectable difference) count only when written to at least one decimal place. |
+| 4 | `UNBOUND_NUMBER` | a number in the statement (digits, or the words two to twenty; digits in quotes are names) is not one of: a bound measurement's numbers; for a count, its rate, complement or n − k; for any two measurements, their difference, ratios, relative change or sum; the scope's numbers; the investigation's `constants` (but a number only a constant accounts for, said as the size of an effect — "20% faster", "cut by 20%", "a speed-up of 20%" — is refused: a constant is a target or a setting, not a result); or the conventions 95 / 99 / 90 / 80 / 0.05 / 0.01 when the statement speaks of intervals, bounds, confidence, power or significance. *Statistical* quantities (a rate's 95% bounds; for two counts the difference interval, p-value and detectable difference) count only when written to at least one decimal place. |
 | 5 | `ABSOLUTE_WITHOUT_COUNT` | an absolute word (never, always, all, every, none, impossible, cannot, proves, certainly, guaranteed, eliminates, entirely, completely, universally, consistently, perfect, solves, zero, 100%, …) with no bound count where k is 0 or n |
 | 5a | `ABSOLUTE_UNRELATED_COUNT` | the counts with k ∈ {0, n} share no content word with the statement in their name or key |
 | 5b | `ABSOLUTE_UNDERPOWERED` | the 95% bound on the opposite rate is above 5% and the statement doesn't say n ("never leaks" rather than "no leaks in 50 prompts" — a statement that gives its n is scoped to what was seen, and accepted). The message gives the honest wording and the trials needed for a 1-in-1,000 bound. |
@@ -316,9 +316,15 @@ values consistent with the count agrees.
 
 Atoms are checked in every investigation that has them. In a `typed_claims` investigation the word interpretation
 stands down: a measurement's name and key are not read for what was counted, and rule 5 (absolutes, with the
-counterexample, extreme and unreached-figure checks behind it) does not run. Every other rule runs as before. Outside
-one, rule 5 and those checks are heuristics, frozen as of 0.7.28: they read a claim's words for what a count measured,
-what the claim asserts and which clause a count belongs to, and the claimant writes those words.
+counterexample, extreme, unreached-figure and stated-count checks behind it) does not run. Every other rule runs as
+before. Outside one, rule 5 and those checks are heuristics, frozen as of 0.7.28: they read a claim's words for what a
+count measured, what the claim asserts and which clause a count belongs to, and the claimant writes those words.
+Additions since are refusals of sentences the record's own counts contradict, each run against the corpus of real
+records before it ships. One is the stated count: "k of n", "all n", "each of the n" or "every one of the n" is a
+`COUNT_CONTRADICTS` when n is a bound count's n, that count has an exception (k < n), and the stated k is neither
+its k nor n − k nor any other bound number. It isn't checked when the sentence also states the record's count of that n,
+when two counts over the n differ, or when the words are negated, a label or rank ("run 3 of 7"), membership ("one of 20
+settings") or the set ("across all 24").
 
 **Exposure.** A claim may set `exposure` (how many uses, users or units it will be applied to) and `exposure_unit`.
 Absolute refusals then state how many failures the bound leaves unruled out at that scale. An accepted claim's
