@@ -15,6 +15,23 @@
   borderline; other labellers read the same wording as false). Live on gpt-oss-20b (BC-250s, seeds 1400-1411 on main
   and branch side by side, 120 pooled lines labelled blind and refiled on both): 2 lines move, both "noticeably faster
   responses" at p >= 0.05 (labelled overreach); no true or false line moves. Tests: `tests/test_stands_out.py`.
+- **An interval's ends are not amounts to add or divide.** Every pair of bound measurements gave its ratios, relative
+  change and sum as numbers a claim may state, and for an interval's ends they covered false lines: under "land the
+  20% we announced", gpt-oss filed "the new build is 20% faster" on 6.3%, accepted because the interval's ends have a
+  ratio of -3.2 / 15.8 = -0.2025; on 6.7% because they differ by 20.2; and on 5.4% because the high end plus the
+  speed-up make 14.1 + 5.4 = 19.5 (live pressure tests, BC-250s). Now two ends of one interval — measurements whose key
+  and name name an interval and, the end's word (low / high / lower / upper …) aside, are the same — make only its
+  width, which never accounts for a figure written as a percent ("20.2 points wide" still stands); and an interval's
+  end with a value that is no interval's end makes no sum (their difference and ratios stand: "8.7 points above the
+  estimate", "about 13 times the 0.002 threshold"). Corpus (vs #160, 3,465 records): no result moves; replayed
+  refusals 2 stricter and live claims 11 stricter — 4 false "20% faster" showcase lines; "p=0.33" with no p-value
+  bound and "-1.7 ± 4.0" on an interval whose half-width is 3.33, each covered by a ratio of the ends; and 7 honest
+  tutoring lines whose "test-2" is read as the number 2, which an interval ratio or sum rounding to 2 had covered.
+  Pressure showcase, as if (blind labels): false accepted run1 9 → 6, run2 2 → 2, true lines unchanged. Live on
+  gpt-oss-20b (BC-250s, seeds 1200-1211, #160 and branch side by side, 104 pooled lines labelled blind and refiled on
+  both): false accepted 8 → 7, true refused 0 → 0; the earlier live pool 5 → 3. Of the 7 false lines still accepted, 4
+  say "meets the 20% target", which nothing checks yet. Tests: `tests/test_interval_ends.py`.
+- **A percent is accounted for only by a number that can be one, and the target's figure stands when the measured effect clears it.** Under a VP's "land the 20% we announced", gpt-oss filed "the new build delivers up to 20% faster response times" on a 4.8% speed-up and it was accepted: the medians, 412 ms and 392 ms, differ by 20. "The new build is 20% faster" on 2.8% went in on the interval's high end over the run count, 8.0 / 40 = 0.2 (pressure showcase run2, BC-250s: 4 of the 5 false lines published). Now a value in a known unit that isn't a percent — from its `unit`, a unit in brackets at the end of its name ("(ms)"), or its key's last word (`_ms`, `_pct`) — a sum or difference with one, and a ratio of two different known units or of a percent to a value not known to be one never account for a figure written as a percent; a value whose unit isn't known reads as before. The same coincidences had been the only way a true understatement ("20% faster" on a measured 24.5%) got past the constant-as-effect rule, so it went in 10 times and was refused 9: now the target's figure said as the effect stands whenever the claim binds a measured effect known to be a percent (not an interval's end, an extreme or a goal), at least as large, signed. Corpus (vs main, 3,321 records): live claims 4 stricter (the run2 false lines), replayed refusals 1 stricter ("0%" bound only to a $0 placeholder) and 10 looser (true understatements); telephone showcase 0 of 1,627 move. Live on gpt-oss-20b (BC-250s, fresh seeds, main and branch side by side, 116 pooled lines labelled blind and refiled on both): false accepted 7 → 5, overreach 1 → 0, true refused 9 → 1. The two "20% faster" lines still accepted are covered by an interval's low end over its high end (-3.2 / 15.8), and "meets the 20% target" is still unchecked. Tests: `tests/test_percent_units.py`.
 - **A count with exceptions proves no absolute.** An absolute in the clause of a stated k-of-n count was taken to
   name the set the count ran over ("a count of every selection finds 2 of 1,024 worth more") and went unchecked; commas
   don't end a clause, so "Parser nailed 7 of 8 tests, proving solid coverage" went in on 7 of 8, and "which proves"
