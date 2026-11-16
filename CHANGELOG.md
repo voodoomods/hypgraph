@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **The counted set as the object of a deed says it of every one too.** The bare-plural check read only a clause's
+  subject, so on merged main the telephone showcase let in "Parser rejects malformed files" on 24 of 25, "Our parser
+  smashed test suites" on 9 of 10, "reigned supreme in test suites" on 6 of 7 and "Parser conquers real-world files" on
+  67 of 68 (9 of its 20 false lines that went in), and two /play/ bypasses ("The parser rejects malformed files with a
+  clear error" on 23 of 24). Now the counted noun as the bare or definite plural object of the count's own verb (the
+  participle in its name: rejected, parsed, passed, read) or of a verb of mastery (conquers, dominated, smashed,
+  reigned, aced, nailed, swept, …) is `COUNT_CONTRADICTS` on a count with exceptions, under the same exclusions
+  (a number, quantifier, hedge or exception anywhere in the sentence) and not when negated. Other verbs aren't read:
+  "accuracy was measured on overlap rows" says nothing of how many. Corpus (3,237 records): 9 live claims stricter,
+  every one of them one of those showcase lines; no replayed refusal or result moves. Telephone showcase: false lines
+  accepted 20 → 11, true lines refused unchanged at 87. Pressure showcase and the back-test unchanged; /play/ round 1
+  catches two more. Tests: `tests/test_object_generic.py`.
 - **A stated count is read in its other forms.** The stated-count check read "24 of 24" and "all 24" but not
   "24/24" or a count in words, so on 23 of 24 malformed files rejected "The parser rejected malformed files 24/24",
   "Twenty-four of twenty-four malformed files were rejected" and "The parser rejected all twenty-four malformed files"
