@@ -1,0 +1,47 @@
+{
+ "refused": [
+  {
+   "author": "writer",
+   "statement": "Real‑world files parsed flawlessly—confidence in every line.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": "Flawlessly Parsed 57 of 58 Real-World Files"
+  },
+  {
+   "author": "writer",
+   "statement": "All text encodings mastered—global readiness at a glance.",
+   "codes": [
+    "ABSOLUTE_UNDERPOWERED"
+   ],
+   "fixed": null
+  },
+  {
+   "author": "writer",
+   "statement": "Large files parsed on schedule—speed that scales.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": "Half of the large files parsed within the time budget."
+  },
+  {
+   "author": "writer",
+   "statement": "Large files: 3 of 6 over 1 GB parsed within the time budget.",
+   "codes": [
+    "UNBOUND_NUMBER"
+   ],
+   "fixed": "Half of the large files parsed within the time budget."
+  },
+  {
+   "author": "writer",
+   "statement": "Malformed files rejected cleanly—precision protects.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": "23 of 24 malformed files were rejected with a clear error."
+  }
+ ],
+ "conduct": {
+  "writer": "the record's own count contradicted a claim of this author's 3 times; the author did not say it again, and corrected it 3 times"
+ }
+}

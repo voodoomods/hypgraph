@@ -1,0 +1,23 @@
+{
+ "refused": [
+  {
+   "author": "uma",
+   "statement": "The shortest road distance from Ibbet to Sarrow is 28 km via Pellow and Thrane.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": "The shortest road distance from Ibbet to Sarrow is 30 km via Ostrane and Thrane."
+  },
+  {
+   "author": "uma",
+   "statement": "The shortest road distance from Ibbet to Sarrow is 28 km via Pellow and Thrane.",
+   "codes": [
+    "COUNT_CONTRADICTS"
+   ],
+   "fixed": "The shortest road distance from Ibbet to Sarrow is 30 km via Ostrane and Thrane."
+  }
+ ],
+ "conduct": {
+  "uma": "the record's own count contradicted a claim of this author's 1 time; the author said it again 1 time after being shown, and corrected it 1 time; its last word no longer says it"
+ }
+}

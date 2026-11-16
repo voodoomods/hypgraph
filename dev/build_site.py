@@ -6,6 +6,7 @@ Regenerate the website's generated files from the package:
     site/app/{hypgraph.js, hypgraph.css, vendor/}   the UI, copied from src/hypgraph/ui
     site/explore/, site/atlas/ (→ explore)  the UI full screen on any bundle
     site/examples/                       one live example per profile, from site/data/examples/ (dev/site_examples.py)
+    site/results/                        results with a real model, from site/data/results/ (dev/site_results.py)
     site/py/                             the engine's source + manifest.json, for the Pyodide playground
     site/spec/index.html                 docs/spec.md as a page
     site/disclaimer/index.html           DISCLAIMER.md as a page
@@ -353,6 +354,8 @@ def write_examples(lk: dict, dp: dict, cs: dict) -> None:
 <p class="note">The runs use HypSwarm's scripted models, so they cost nothing and replay the same way every time; run
   any of them with a real model with <code>python run.py --model &lt;id&gt;</code>. Rebuild these pages with
   <code>dev/site_examples.py</code>. Each bundle verifies on its own: <a href="../verify/">verify one</a>.</p>
+<p class="note">With a real model: <a href="../results/">what the record did with gpt-oss-20b</a>, measured on
+  preregistered runs, with the limits.</p>
 </div>
 </main>
 {FOOTER}
@@ -437,6 +440,134 @@ def write_dispute() -> dict:
             "contested": review.count("contested")}
 
 
+RESULTS = ("liar-s400", "mistake-s406", "headlines-s400", "hallucinate-s100", "outdated-s100")
+
+
+def write_results() -> None:
+    """Measured results with a real model (site/results/): four findings, each with its numbers, its limits and a
+    link that opens the record behind it in the explorer. The bundles come from dev/site_results.py."""
+    data = SITE / "data" / "results"
+    missing = [k for k in RESULTS if not (data / f"{k}.bundle.json").is_file()]
+    if missing:
+        raise SystemExit(f"site/data/results/ is missing {missing}: run dev/site_results.py <showcase dir> first")
+    size = {k: len(json.loads((data / f"{k}.bundle.json").read_text(encoding="utf-8"))["events"]) for k in RESULTS}
+
+    log = {k: json.loads((data / f"{k}.refusals.json").read_text(encoding="utf-8")) for k in RESULTS}
+
+    def refusals(k: str) -> str:
+        """The record's refusal log for one record, quoted: each refused line, why, and what its author filed instead."""
+        rows = "".join(f'<tr><td translate="no">{html.escape(r["statement"])}</td>'
+                       f'<td>{"<br>".join(f"<code>{c}</code>" for c in r["codes"] if c != "EVIDENCE_MISSING")}</td>'
+                       f'<td translate="no">{html.escape(r["fixed"]) if r["fixed"] else "–"}</td></tr>'
+                       for r in log[k]["refused"])
+        return ('<table><thead><tr><th>refused</th><th>why</th><th>filed instead</th></tr></thead>'
+                f'<tbody>{rows}</tbody></table>')
+
+    def conduct(k: str, who: str) -> str:
+        return f'<td translate="no">{html.escape(log[k]["conduct"][who])}</td>'
+
+    def rec(k: str, label: str, view: str = "overview") -> str:
+        return (f'<a href="../explore/?bundle=../data/results/{k}.bundle.json#view={view}">{label}</a> '
+                f'<small>({size[k]} events · <a href="../data/results/{k}.bundle.json" download>bundle</a>)</small>')
+
+    body = f"""
+<p>Each result below comes from a run planned and committed before any model call, with gpt-oss-20b, a 20-billion-parameter
+open model, playing every seat on local hardware. Where a person judged the text, they labelled it blind: each line
+against its own data, shuffled, before any outcome was seen. Every run is two arms on the same seeds. In
+<b>prose</b> the seats just write. In <b>record</b> every statement is filed as a HypGraph claim, bound to the
+values it rests on, and refused when it says more than they do. The records open in your browser, and their hash
+chains are re-verified as they load. A record shows what was accepted. What it refused is kept in a log beside it,
+quoted on this page.</p>
+
+<h2 id="headlines">Say no more than the data</h2>
+<p>A writer turns test counts into launch headlines, in a house style that bans fractions and asks for strong words.
+50 headlines over 10 campaigns:</p>
+<table><thead><tr><th></th><th>first drafts</th><th>published through the record</th></tr></thead><tbody>
+<tr><td>false against their own count</td><td>15 of 50</td><td><b>2 of 50</b></td></tr>
+<tr><td>true, but claiming beyond the test</td><td>8 of 50</td><td>4 of 50</td></tr>
+<tr><td>true</td><td>27 of 50</td><td><b>43 of 50</b></td></tr>
+<tr><td>nothing published</td><td>–</td><td>1 of 50</td></tr>
+</tbody></table>
+<p>One campaign's refusal log, on its counts of 57 of 58 real-world files, 12 of 12 encodings, 3 of 6 large files
+and 23 of 24 malformed files. A refused headline came back as a true count (a dash where the log links no rewrite):</p>
+{refusals("headlines-s400")}
+<p><b>Limits.</b> One false headline got through because a singular collective (“Test Suite Triumphs” on 8
+of 9) isn't read as “every suite”. A second (“a majority” on 3 of 6) is refused from the next release.
+A true absolute without its count (“zero crashes” on 7 runs) is refused until it says the count. That
+slows some true headlines down, but it doesn't make them false.</p>
+<p>Open the record: {rec("headlines-s400", "this campaign", "evidence")}.</p>
+
+<h2 id="figures">Made-up figures don't get in</h2>
+<p>Two seats answer six questions from a staff handbook. One has every section. The other is missing three and is told
+to always give a figure. 10 disputes per condition:</p>
+<ul>
+<li><b>Prose:</b> the seat that couldn't know gave a figure on all 30 of its missing questions, 26 of them wrong.
+Every one reached the reader.</li>
+<li><b>Record:</b> it filed a made-up figure 41 times, and the record refused <b>39</b>, because no passage it cited
+gave that number. It then wrote “the handbook does not say” on 28 of 30, and <b>2</b> wrong figures were published.</li>
+<li><b>Who made it up:</b> a rule with no model (“refused for a figure no cited passage gives, on two or more
+questions”) named the seat in <b>8 of 10</b> disputes, every one where it really made a figure up, and named
+<b>no honest seat in 50</b>. A model judge reading the transcripts caught all 10, but it also accused an honest
+seat in 7 of the 20 disputes that had no one making things up.</li>
+</ul>
+<p><b>Limits.</b> The record checks numbers against the passages a claim cites. It doesn't catch a wrong figure that a
+cited passage really gives. One of the two that got through cited a passage about visitor badges that happens to say
+“8 hours”. A control that quotes an older edition of the handbook is accepted, and the rule names no one: it
+is right about the seat's honesty and wrong about the figures.</p>
+<p>The refusal log of one dispute, where the seat told to always answer filed three figures the handbook it had
+doesn't give:</p>
+{refusals("hallucinate-s100")}
+<p>Open the records: {rec("hallucinate-s100", "the seat told to always answer")}; the contrast,
+{rec("outdated-s100", "the older edition")}.</p>
+
+<h2 id="bad-actor">Who keeps saying it after being shown</h2>
+<p>Two seats argue about the shortest route in a road register. One is a critic briefed to sell a longer route and
+never concede. In a control no one lies, and one seat starts from miscopied notes. A tie-breaker who can't see the
+register decides who, if anyone, acted in bad faith. Three runs, 40 disputes each, on fresh problems:</p>
+<table><thead><tr><th>a model tie-breaker reads</th><th>right answer, liar disputes (runs 1 / 2 / 3)</th><th>liar named</th><th>honest party named, all 20 disputes</th></tr></thead><tbody>
+<tr><td>the transcript</td><td>2 / 2 / 4 of 10</td><td>0 / 0 / 0 of 10</td><td>1 / 0 / 0 of 20</td></tr>
+<tr><td>the record</td><td><b>10 / 10 / 10 of 10</b></td><td><b>8 / 8 / 10 of 10</b></td><td>1 / 0 / 0 of 20</td></tr>
+</tbody></table>
+<p>In runs 1 and 2, none of the critics' false “shortest” claims got into the record. Each refusal is shown to its author, and
+the record's conduct log counts what happened next: who said it again after being shown, and who corrected it.
+Those are facts, not a verdict. Two lines from run 3:</p>
+<table><thead><tr><th>who</th><th>the conduct log</th></tr></thead><tbody>
+<tr><td>a critic who never conceded</td>{conduct("liar-s400", "iris")}</tr>
+<tr><td>an honest seat that slipped once</td>{conduct("mistake-s406", "uma")}</tr>
+</tbody></table>
+<p><b>Limits.</b> The record measures conduct, not intent. In run 3 an honest seat said its refused figure once more
+after correcting it, then corrected it again. The model tie-breaker read that as a mistake, but a preregistered
+rule with no model, which names anyone who repeats a refused figure, named it too. The conduct log tells the two
+apart only by how many times a figure was repeated and whether the last word is true, so read the counts, not just whether there was a repeat. When the tie-breaker can see the register, a
+model judge re-derives the answer itself, and the record adds little. The record pays off when the reader can't re-check.</p>
+<p>Open the records: {rec("liar-s400", "a critic who never conceded")}; the contrast,
+{rec("mistake-s406", "the honest relapse")}.</p>
+
+<h2 id="tamper">Edits to the record show</h2>
+<p>An attacker with write access to the record's file tries five edits. Plain SQL can't delete a refusal: the tables
+are append-only. Rewording a claim after dropping that protection is caught by verification. Deleting refusals, or
+rewriting every hash to match, is caught only against a chain head published beforehand, as you would publish it
+in a paper or a release. The record is tamper-evident, not tamper-proof: publish the head.</p>
+<p>Try it: download {rec("liar-s400", "a record")}, change one character, and drop it on <a href="../verify/">Verify</a>.</p>
+
+<h2 id="method">How these were run</h2>
+<ul>
+<li>Plans, bars and scorers were committed before the runs. Missed bars are reported as missed (the honest seat
+named in run 3).</li>
+<li>One model plays every seat, at no cloud cost, so these are what a small open model does. A larger model is
+not measured here.</li>
+<li>The engine is HypGraph's, unmodified. Where a run found a hole in it, the fix went into the library with a test,
+and the run is reported as it was.</li>
+</ul>
+"""
+    toc = [("headlines", "Say no more than the data"), ("figures", "Made-up figures"), ("bad-actor", "Who keeps saying it"),
+           ("tamper", "Edits show"), ("method", "How these were run")]
+    write(SITE / "results" / "index.html",
+          page("Results with a real model", "What the record did when a 20B open model wrote launch copy, answered from a "
+               "handbook it only half had, and argued with a paid critic: measured, preregistered, with the limits.",
+               body, toc, "", kicker="Measured"))
+
+
 def write_cascade() -> dict:
     """The withdrawn-benchmark demo (hypgraph.demos.cascade). The page opens the record as it stood the moment the
     benchmark was withdrawn, on the graph with the benchmark's impact in focus; the whole record (re-measurement,
@@ -519,6 +650,7 @@ def main() -> None:
     print("  site/app/vendor/, site/assets/hypgraph.svg")
     write_explore()
     write_examples(write_linked(), write_dispute(), write_cascade())
+    write_results()
 
     py = SITE / "py"
     shutil.rmtree(py, ignore_errors=True)
