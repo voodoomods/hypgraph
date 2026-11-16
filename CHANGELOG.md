@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **"Proving" says what "proves" says.** "proves", "proven" and "proof" were absolutes but the participle wasn't, so
+  "Nearly all test suites passed, proving our parser's reliability" on 9 of 10 went in. On merged main the telephone
+  showcase accepted 27 lines with it (25 overreach, 2 false) and refused none of its true lines for want of it. Now
+  "proving" is read as "proves" is, with the same exclusions, and not when it opens its sentence ("Proving that
+  P ≠ PSPACE would be a breakthrough" is about proving, not a claim that anything was). "proved" stays out: "proved
+  optimal in-sample" says how something turned out, and "the claim that the test proved them equivalent is not
+  licensed" reports a claim to deny it; both are honest lines in the corpus. Corpus (3,237 records): 17 live claims
+  stricter, every one a showcase overreach line; no replayed refusal or result moves. Telephone showcase, as if:
+  false lines accepted 11 → 9, overreach 188 → 171, true lines refused unchanged. Live on gpt-oss-20b (12 chains on
+  each engine, labelled blind): see the PR. Tests: `tests/test_proving.py`.
 - **A set named by its size is the set that was counted.** On merged main the telephone showcase refused "All 14
   encodings handled flawlessly" on 14 of 14 "text encodings read correctly", and "All nine encodings…", as a count of
   something else: the statement leaves out "text", and a count of one kind backs no claim about every kind (audit
