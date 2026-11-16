@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **A refused absolute names the count bound with it.** When "every" / "all" / "flawlessly" is refused because the
+  count bound with the claim isn't read as about what the statement says (a count of *text* encodings doesn't cover
+  "every encoding"), the refusal used to say only "back it with a k/n measurement". It now names the count ("14 of 14
+  text encodings read correctly") and says to name what it counts as the count does, or to state it. The verdict is
+  unchanged. Found in the telephone showcase (gpt-oss-20b): writers three retellings from the table, who never saw a
+  count, guessed "all 10 tested encodings" until they dropped a true row. Tests: `tests/test_absolute_names_count.py`.
 - **A constant is not a measured effect.** The investigation's `constants` account for a number in a statement
   wherever it appears, so a target could stand in for the result: with the announced 20% recorded as a constant so
   "beats the 20% target" could be said, "the new build is 20% faster" was accepted on a 5.9% speed-up (pressure

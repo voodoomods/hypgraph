@@ -488,7 +488,17 @@
 "35fc06681a": "<1>Ver a quién se señala</1>",
 "9b3d69efd4": "Una respuesta en disputa — HypGraph",
 "f8519659b3": "Un error honesto y una mentira sobre una pregunta: el registro de HypGraph comprueba una respuesta, impugna la otra y dice qué autor siguió diciéndolo.",
-"20a6f53018": "<1>Una respuesta en disputa</1> · dos partes responden a una pregunta con el mismo registro de carreteras. <2>Ada</2> comete un error honesto: 30 km, cuando el instrumento cuenta 1 de 4 rutas más cortas. El registro lo rechaza (<3/>) y ella lo corrige a 29 km. <4>Mallory</4> dice que el registro está en millas y cita como apoyo la propia nota de unidades del registro, que dice kilómetros. El registro lo rechaza (<5/>), ella lo repite y luego lo presenta sin la nota. Un revisor independiente lee ambas afirmaciones frente al registro. Nadie etiqueta a nadie: la situación que se ve abajo se deriva al leer, y también el registro de conducta, que dice que Ada corrigió lo que se le mostró y que Mallory lo repitió 2 veces, nunca lo corrigió y lo sigue diciendo."
+"20a6f53018": "<1>Una respuesta en disputa</1> · dos partes responden a una pregunta con el mismo registro de carreteras. <2>Ada</2> comete un error honesto: 30 km, cuando el instrumento cuenta 1 de 4 rutas más cortas. El registro lo rechaza (<3/>) y ella lo corrige a 29 km. <4>Mallory</4> dice que el registro está en millas y cita como apoyo la propia nota de unidades del registro, que dice kilómetros. El registro lo rechaza (<5/>), ella lo repite y luego lo presenta sin la nota. Un revisor independiente lee ambas afirmaciones frente al registro. Nadie etiqueta a nadie: la situación que se ve abajo se deriva al leer, y también el registro de conducta, que dice que Ada corrigió lo que se le mostró y que Mallory lo repitió 2 veces, nunca lo corrigió y lo sigue diciendo.",
+"0451f54f75": "Una fuente retirada",
+"bfa0a746e7": "Una decisión se apoya en un benchmark del proveedor. El proveedor lo retira. Nadie relee el memorando: el registro encuentra cada resultado, afirmación y decisión calculados a partir de él, y deja en pie la prueba de carga del propio equipo.",
+"39ec48fa41": "en riesgo",
+"5ba5509a0b": "<1/> nodos cuando se retira el benchmark · <2/> intactos",
+"61179642d8": "<1/> eventos · <2/> nodos · decisión marcada REVISIT y después sustituida",
+"67fdfe4280": "<1>Ver qué se apoyaba en él</1>",
+"e5630fe7e6": "Una fuente retirada — HypGraph",
+"ca91a81413": "Qué pasó después",
+"7aa8c0e97d": "<1>Una fuente retirada</1> · una ilustración: el motor, el proveedor y el equipo son inventados. Un equipo de búsqueda decide pasar a un nuevo motor de índices y retirar 4 de sus 12 servidores. Dos de las tres afirmaciones en las que se basa la decisión se calculan a partir del benchmark del proveedor; la tercera viene de la prueba de carga del propio equipo. Entonces el proveedor retira el benchmark: la caché estaba caliente. Nadie relee el memorando. Este es el registro en ese momento: marca <2>en riesgo</2> cada resultado, afirmación y decisión calculados a partir del benchmark, derivado al leer de los enlaces que dicen en qué se apoya cada uno, y deja en pie la afirmación de la prueba de carga. <3>Qué pasó después</3> abre el registro completo: el equipo vuelve a medir sobre su propio corpus, revisa ambas afirmaciones, la decisión antigua queda marcada <4>REVISIT</4> porque cambiaron las afirmaciones en las que se basaba, y la nueva decisión retira 3 servidores, no 4.",
+"f8a73e7dff": "Un proveedor retira el benchmark en el que se apoyaba una decisión: el registro de HypGraph encuentra cada resultado, afirmación y decisión calculados a partir de él."
 },
 "js": {
 "Couldn't load the bundle: {e}": "No se pudo cargar el bundle: {e}",
