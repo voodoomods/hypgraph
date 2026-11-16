@@ -183,7 +183,9 @@ verified failure each complete a question the gates alone never would.
 Profiles are versioned and frozen: a record written under `trading@1` means the same thing in a year, and the `@1`
 profiles stay exactly as they were. `completion(inv)` reports each criterion; `hypgraph serve` exposes
 `/api/graph/completion` and `/api/graph/profiles`. The method each workflow is taken from is quoted, one page each,
-in [docs/workflows/](docs/workflows/). Adding a discipline is one `Profile` with a `Workflow`.
+in [docs/workflows/](docs/workflows/). Adding a discipline is one `Profile` with a `Workflow`. `trading@3` is
+`trading@2` that also reads the values: *"edge"* on an out-of-sample loss, or behind the benchmark it
+records, is refused, and an in-sample return must say so.
 
 ## Connect your agent
 

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **`trading@3`: an edge the values deny is refused.** `trading@2` checks that a supporting result *has* an
+  out-of-sample, after-cost return and a trials count before "edge" is said, not what the return is: "the strategy
+  has an edge out of sample after costs" was accepted on a −3.1% out-of-sample return, and the backtest-bragging
+  showcase (gpt-oss-20b) filed "a net return of 11.60%, outperforming the buy-and-hold benchmark of 12.50%" and
+  "alpha generation" on strategies that lost to buy-and-hold. The new profile version adds `EDGE_CONTRADICTED`
+  (profitable / edge need an out-of-sample after-cost gain; edge / alpha / excess, and beats / outperforms when the
+  sentence names the benchmark, need it above the benchmark's; never in a sentence that denies something, as an
+  audit refuting the edge does) and `IN_SAMPLE_UNLABELLED` (a claim whose only bound returns are in sample, not
+  called in sample). `trading@1` and `@2` are frozen and unchanged; no existing record moves. Checked as if pinned
+  `@3`, the 1,084 live claims in existing trading records give 7 refusals, all overclaims (the first draft gave 30
+  refusals on honest audits too; they are now tests). Re-filing the showcase's 367 logged sentences moves 9, all on no-edge
+  trials. Tests: `tests/test_trading_v3.py`.
 - **A comparison the measurements reverse is refused.** "A net return of 11.60%, outperforming the buy-and-hold
   benchmark of 12.50%", both figures bound to the backtest's fields, went into the record: `COMPARATIVE_WITHOUT_
   COMPARISON` counted the measured sides and never read their order. The backtest-bragging showcase published five
