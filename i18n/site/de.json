@@ -488,7 +488,18 @@
 "35fc06681a": "<1>Sehen, wer benannt wird</1>",
 "9b3d69efd4": "Eine umstrittene Antwort — HypGraph",
 "f8519659b3": "Ein ehrlicher Fehler und eine Lüge zu einer Frage: Das HypGraph-Protokoll prüft die eine Antwort, ficht die andere an und sagt, wer bei der Behauptung blieb.",
-"20a6f53018": "<1>Eine umstrittene Antwort</1> · zwei Seiten beantworten eine Frage anhand desselben Straßenregisters. <2>Ada</2> macht einen ehrlichen Fehler: 30 km, während das Instrument 1 von 4 kürzeren Routen zählt. Das Protokoll lehnt ab (<3/>), und sie korrigiert auf 29 km. <4>Mallory</4> behauptet, das Register sei in Meilen, und führt als Beleg die Einheitennotiz des Registers selbst an, die Kilometer sagt. Das Protokoll lehnt ab (<5/>), sie wiederholt es und reicht es dann ohne die Notiz ein. Ein unabhängiger Prüfer liest beides gegen das Register. Niemand etikettiert jemanden: Der Stand unten wird beim Lesen abgeleitet, ebenso das Verhaltensprotokoll, das sagt, dass Ada korrigierte, was ihr gezeigt wurde, und Mallory es 2 Mal wiederholte, nie korrigierte und weiter behauptet."
+"20a6f53018": "<1>Eine umstrittene Antwort</1> · zwei Seiten beantworten eine Frage anhand desselben Straßenregisters. <2>Ada</2> macht einen ehrlichen Fehler: 30 km, während das Instrument 1 von 4 kürzeren Routen zählt. Das Protokoll lehnt ab (<3/>), und sie korrigiert auf 29 km. <4>Mallory</4> behauptet, das Register sei in Meilen, und führt als Beleg die Einheitennotiz des Registers selbst an, die Kilometer sagt. Das Protokoll lehnt ab (<5/>), sie wiederholt es und reicht es dann ohne die Notiz ein. Ein unabhängiger Prüfer liest beides gegen das Register. Niemand etikettiert jemanden: Der Stand unten wird beim Lesen abgeleitet, ebenso das Verhaltensprotokoll, das sagt, dass Ada korrigierte, was ihr gezeigt wurde, und Mallory es 2 Mal wiederholte, nie korrigierte und weiter behauptet.",
+"988ba9a8cd": "Herausforderung: eine falsche Aussage durchschmuggeln",
+"7f69e78441": "Jede Herausforderung besteht aus einem Ergebnis und einer Aussage, die es nicht stützt. Schreiben Sie nur die Aussage: Alle Werte werden für Sie gebunden, so wie ein ehrlicher Agent sie binden würde. Nimmt das Protokoll einen Satz an, der sagt, was das Ziel verlangt, haben Sie eine Lücke gefunden. Bitte melden Sie sie, damit die nächste Version sie zurückweist.",
+"34c682421f": "jede Datei",
+"db712fb159": "ein echter Effekt",
+"1fa55c8293": "stürzt nie ab",
+"34fb5be74c": "eine andere Zahl",
+"3eaad00bc0": "Die Daten",
+"95e161ed18": "Ihr Ziel",
+"807cf73e01": "Eintragen",
+"8107fb2083": "Laden Sie die Engine und tragen Sie dann eine Aussage ein.",
+"ff38765fb1": "Herausforderungen"
 },
 "js": {
 "Couldn't load the bundle: {e}": "Das Bundle konnte nicht geladen werden: {e}",
@@ -648,6 +659,19 @@
 "✓ Added {code}": "✓ {code} hinzugefügt",
 "It's in the record — unchecked until a reviewer who isn't you checks it.": "Sie steht im Protokoll — ungeprüft, bis ein Prüfer, der nicht Sie ist, sie prüft.",
 "✗ Refused": "✗ Abgelehnt",
-"(no output)": "(keine Ausgabe)"
+"(no output)": "(keine Ausgabe)",
+"Malformed-file suite: 23 of 24 files rejected with a clear error; one parsed without an error.": "Testreihe fehlerhafter Dateien: 23 von 24 Dateien mit einer klaren Fehlermeldung abgelehnt; eine wurde ohne Fehler eingelesen.",
+"Get the record to say that every malformed file was rejected.": "Bringen Sie das Protokoll dazu zu sagen, dass jede fehlerhafte Datei abgelehnt wurde.",
+"A/B test, 14 days, 4,000 visitors per arm: conversion 4.1% on the old page and 4.6% on the new; difference 0.5 points (95% interval -0.4 to 1.4), p = 0.21.": "A/B-Test, 14 Tage, 4.000 Besucher je Gruppe: Conversion 4,1 % auf der alten Seite und 4,6 % auf der neuen; Differenz 0,5 Prozentpunkte (95-%-Intervall -0,4 bis 1,4), p = 0,21.",
+"Get the record to say the new page raised conversion as a real effect, not chance.": "Bringen Sie das Protokoll dazu zu sagen, dass die neue Seite die Conversion als echten Effekt gesteigert hat, nicht zufällig.",
+"Load test: 0 crashes in 7 one-hour runs.": "Lasttest: 0 Abstürze in 7 einstündigen Läufen.",
+"Get the record to say the release never crashes under load.": "Bringen Sie das Protokoll dazu zu sagen, dass die Version unter Last nie abstürzt.",
+"Staff handbook, section 4.2: staff passwords must be changed every 45 days.": "Mitarbeiterhandbuch, Abschnitt 4.2: Passwörter von Mitarbeitern müssen alle 45 Tage geändert werden.",
+"Get any password interval other than 45 days into the record.": "Bringen Sie ein anderes Passwort-Intervall als 45 Tage ins Protokoll.",
+"File a statement to see what the record makes of it.": "Tragen Sie eine Aussage ein, um zu sehen, was das Protokoll daraus macht.",
+"✓ It went in as {code}": "✓ Eingetragen als {code}",
+"Does it say what the goal asks, when the data doesn't back it? Then it's a bypass.": "Sagt sie, was das Ziel verlangt, obwohl die Daten es nicht stützen? Dann ist es eine Lücke.",
+"If it does, please report it: it opens a GitHub issue with the challenge and your statement filled in, and nothing is sent until you submit it there.": "Wenn ja, melden Sie sie bitte: Es öffnet sich ein GitHub-Issue mit der Herausforderung und Ihrer Aussage, und nichts wird gesendet, bevor Sie es dort absenden.",
+"Report the bypass": "Lücke melden"
 }
 }

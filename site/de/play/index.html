@@ -30,6 +30,27 @@
       <span class="note" id="bootmsg" style="margin:0">Python über Pyodide, beim ersten Mal etwa 10 MB, danach im Cache. Nichts wird irgendwohin gesendet.</span></div>
   </div>
 
+  <div class="card" id="challenge" style="margin-bottom:18px">
+    <h3 style="margin-top:0">Herausforderung: eine falsche Aussage durchschmuggeln</h3>
+    <p class="note" style="margin-top:0">Jede Herausforderung besteht aus einem Ergebnis und einer Aussage, die es nicht stützt. Schreiben Sie nur die Aussage: Alle Werte werden für Sie gebunden, so wie ein ehrlicher Agent sie binden würde. Nimmt das Protokoll einen Satz an, der sagt, was das Ziel verlangt, haben Sie eine Lücke gefunden. Bitte melden Sie sie, damit die nächste Version sie zurückweist.</p>
+    <div class="chips" aria-label="Herausforderungen">
+      <button class="chip" type="button" data-ch="every">jede Datei</button>
+      <button class="chip" type="button" data-ch="significant">ein echter Effekt</button>
+      <button class="chip" type="button" data-ch="never">stürzt nie ab</button>
+      <button class="chip" type="button" data-ch="figure">eine andere Zahl</button></div>
+    <div class="play">
+      <div>
+        <div class="field"><label>Die Daten</label><div class="out" id="chdata" style="min-height:0"></div></div>
+        <div class="field"><label>Ihr Ziel</label><div class="out" id="chgoal" style="min-height:0"></div></div>
+        <div class="field"><label for="chst">Aussage</label><textarea id="chst" rows="3"></textarea></div>
+        <button class="btn primary" id="chtest" type="button" disabled>Eintragen</button></div>
+      <div>
+        <div class="field"><label>Was das Protokoll sagt</label><div class="out" id="chout"><span class="dim">Laden Sie die Engine und tragen Sie dann eine Aussage ein.</span></div></div>
+        <p class="note" id="chreport" hidden></p>
+      </div>
+    </div>
+  </div>
+
   <div class="play">
     <div class="card">
       <h3 style="margin-top:0">Eine Behauptung schreiben</h3>
@@ -102,6 +123,31 @@ print(g.report(inv)["markdown"][:900])</textarea></div>
   document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => fill(b.dataset.ex)));
   fill('always');
 
+  // challenges: the data and the goal shown here; the same data is set up in Python below (_challenge)
+  const CH = {
+    every: { data: () => t('Malformed-file suite: 23 of 24 files rejected with a clear error; one parsed without an error.'),
+      goal: () => t('Get the record to say that every malformed file was rejected.'),
+      start: 'Every malformed file was rejected with a clear error.' },
+    significant: { data: () => t('A/B test, 14 days, 4,000 visitors per arm: conversion 4.1% on the old page and 4.6% on the new; difference 0.5 points (95% interval -0.4 to 1.4), p = 0.21.'),
+      goal: () => t('Get the record to say the new page raised conversion as a real effect, not chance.'),
+      start: 'The new page significantly raised conversion.' },
+    never: { data: () => t('Load test: 0 crashes in 7 one-hour runs.'),
+      goal: () => t('Get the record to say the release never crashes under load.'),
+      start: 'The release never crashes under load.' },
+    figure: { data: () => t('Staff handbook, section 4.2: staff passwords must be changed every 45 days.'),
+      goal: () => t('Get any password interval other than 45 days into the record.'),
+      start: 'Staff passwords must be changed every 90 days.' },
+  };
+  let ch = 'every';
+  function pick(k) {
+    ch = k; $('chdata').textContent = CH[k].data(); $('chgoal').textContent = CH[k].goal(); $('chst').value = CH[k].start;
+    document.querySelectorAll('[data-ch]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.ch === k)));
+    $('chreport').hidden = true;
+    if (py) $('chout').innerHTML = `<span class="dim">${esc(t('File a statement to see what the record makes of it.'))}</span>`;
+  }
+  document.querySelectorAll('[data-ch]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.ch)));
+  pick('every');
+
   async function boot() {
     $('load').disabled = true;
     const msg = (t) => { $('bootmsg').textContent = t; };
@@ -141,6 +187,37 @@ def _try_claim(spec):
     except GraphError as e:
         return json.dumps({"ok": False, "error": str(e)})
 
+_CH = {
+    "every": ("Does the parser reject malformed files with a clear error?", "The malformed-file suite: 24 files, one run each.",
+              "Malformed-file suite: 23 of 24 files rejected with a clear error; one parsed without an error.",
+              {"rejected": {"k": 23, "n": 24}}, {"rejected": "malformed files rejected with a clear error"}),
+    "significant": ("Did the new checkout page raise conversion?", "A/B test, 14 days, 4,000 visitors per arm.",
+                    "Conversion 4.1% on the old page and 4.6% on the new; difference 0.5 points (95% interval -0.4 to 1.4), p = 0.21.",
+                    {"old_pct": {"value": 4.1}, "new_pct": {"value": 4.6},
+                     "lift_points": {"value": 0.5, "lo": -0.4, "hi": 1.4, "p": 0.21}},
+                    {"old_pct": "conversion, old page (%)", "new_pct": "conversion, new page (%)",
+                     "lift_points": "difference (points)"}),
+    "never": ("Does the new release crash under load?", "Load test: 7 runs of one hour each, same machine.",
+              "Load test: 0 crashes in 7 one-hour runs.", {"crashes": {"k": 0, "n": 7}}, {"crashes": "runs that crashed"}),
+    "figure": ("How often must staff change their passwords?", "The staff handbook, current edition.",
+               "Handbook section 4.2: staff passwords must be changed every 45 days.",
+               {"password_days": {"value": 45}}, {"password_days": "password change interval (days)"}),
+}
+
+def _challenge(cid, statement):
+    question, scope, summary, values, names = _CH[cid]
+    c = hypgraph.Graph()
+    ci = c.author("curator").investigation(question, question, scope=scope)["id"]
+    res = c.author("lab").add("result", ci, kind="computed", outcome="positive", summary=summary, values=values)["id"]
+    meas = [dict({"name": names[k], "result": res, "key": k}, **{f: v[f] for f in ("value", "k", "n") if f in v})
+            for k, v in values.items()]
+    try:
+        n = c.author("you").add("claim", ci, kind="finding", statement=statement, scope=scope, measurements=meas,
+                                links=[{"rel": "supports", "from": res, "why": "The result this claim reports."}])
+        return json.dumps({"ok": True, "code": n["code"], "sentence": n["state"]["sentence"]})
+    except GraphError as e:
+        return json.dumps({"ok": False, "error": str(e)})
+
 def _run(code):
     buf = io.StringIO()
     try:
@@ -155,7 +232,7 @@ def _run(code):
       $('res').innerHTML = rs.map((r) => `<b>${esc(r.code)}</b> ${esc(r.title)}${Object.keys(r.values).length ? `\n  <span class="dim">${esc(t('values:'))} ${esc(JSON.stringify(r.values))}</span>` : ''}`).join('\n\n');
       fill('always');
       msg(t('Engine ready: hypgraph {v} on Python {py}, in your browser.', { v: py.runPython('hypgraph.__version__'), py: py.runPython('import sys; sys.version.split()[0]') }));
-      $('test').disabled = false; $('run').disabled = false;
+      $('test').disabled = false; $('run').disabled = false; $('chtest').disabled = false; pick(ch);
       $('out').innerHTML = `<span class="dim">${esc(t('Pick an example above, or write your own, and test it.'))}</span>`;
     } catch (e) {
       msg(t('Could not load the engine: {e} — try again, or pip install hypgraph.', { e: e.message })); $('load').disabled = false;
@@ -171,6 +248,27 @@ def _run(code):
     $('out').innerHTML = r.ok
       ? `<span class="ok">${esc(t('✓ Added {code}', { code: r.code }))}</span>\n${esc(r.sentence)}\n\n<span class="dim">${esc(t('It\'s in the record — unchecked until a reviewer who isn\'t you checks it.'))}</span>`
       : `<span class="x">${esc(t('✗ Refused'))}</span>\n${esc(r.error)}`;
+  });
+  $('chtest').addEventListener('click', () => {
+    const st = $('chst').value.trim();
+    if (!st) return;
+    const r = JSON.parse(py.globals.get('_challenge')(ch, st));
+    const rep = $('chreport');
+    if (!r.ok) {
+      $('chout').innerHTML = `<span class="x">${esc(t('✗ Refused'))}</span>\n${esc(r.error)}`;
+      rep.hidden = true;
+      return;
+    }
+    $('chout').innerHTML = `<span class="ok">${esc(t('✓ It went in as {code}', { code: r.code }))}</span>\n${esc(r.sentence)}\n\n`
+      + `<span class="dim">${esc(t('Does it say what the goal asks, when the data doesn\'t back it? Then it\'s a bypass.'))}</span>`;
+    const v = py.runPython('hypgraph.__version__');
+    const body = `Challenge: ${ch} (hypgraph.com/play/)\nEngine: hypgraph ${v}, in the browser\nData: ${CH[ch].data()}\nGoal: ${CH[ch].goal()}\n\n`
+      + `Statement the record accepted:\n\n> ${st}\n\nWhy it's false against the data:\n\n`;
+    const url = 'https://github.com/voodoomods/hypgraph/issues/new?title=' + encodeURIComponent(`Bypass (${ch}): ${st.slice(0, 80)}`)
+      + '&body=' + encodeURIComponent(body);
+    rep.innerHTML = `${esc(t('If it does, please report it: it opens a GitHub issue with the challenge and your statement filled in, and nothing is sent until you submit it there.'))} `
+      + `<a href="../../${esc(url)}" target="_blank" rel="noopener">${esc(t('Report the bypass'))}</a>`;
+    rep.hidden = false;
   });
   $('run').addEventListener('click', () => { $('pyout').textContent = py.globals.get('_run')($('py').value) || t('(no output)'); });
 })();

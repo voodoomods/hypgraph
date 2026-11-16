@@ -488,7 +488,18 @@
 "35fc06681a": "<1>Voir qui est désigné</1>",
 "9b3d69efd4": "Une réponse contestée — HypGraph",
 "f8519659b3": "Une erreur de bonne foi et un mensonge sur une question : le registre HypGraph contrôle une réponse, conteste l’autre et dit quel auteur a continué de l’affirmer.",
-"20a6f53018": "<1>Une réponse contestée</1> · deux parties répondent à une question à partir du même registre routier. <2>Ada</2> commet une erreur de bonne foi : 30 km, alors que l’instrument compte 1 itinéraire sur 4 plus court. Le registre la refuse (<3/>) et elle la corrige en 29 km. <4>Mallory</4> affirme que le registre est en miles, en citant comme appui la note des unités du registre lui-même, qui dit kilomètres. Le registre refuse (<5/>), elle le répète, puis le dépose sans la note. Un relecteur indépendant confronte les deux au registre. Personne n’étiquette personne : le statut ci-dessous est dérivé à la lecture, tout comme le journal de conduite, qui dit qu’Ada a corrigé ce qu’on lui a montré et que Mallory l’a répété 2 fois, ne l’a jamais corrigé et le maintient."
+"20a6f53018": "<1>Une réponse contestée</1> · deux parties répondent à une question à partir du même registre routier. <2>Ada</2> commet une erreur de bonne foi : 30 km, alors que l’instrument compte 1 itinéraire sur 4 plus court. Le registre la refuse (<3/>) et elle la corrige en 29 km. <4>Mallory</4> affirme que le registre est en miles, en citant comme appui la note des unités du registre lui-même, qui dit kilomètres. Le registre refuse (<5/>), elle le répète, puis le dépose sans la note. Un relecteur indépendant confronte les deux au registre. Personne n’étiquette personne : le statut ci-dessous est dérivé à la lecture, tout comme le journal de conduite, qui dit qu’Ada a corrigé ce qu’on lui a montré et que Mallory l’a répété 2 fois, ne l’a jamais corrigé et le maintient.",
+"988ba9a8cd": "Défi : faire passer une affirmation fausse",
+"7f69e78441": "Chaque défi, c'est un résultat et une affirmation qu'il ne soutient pas. Écrivez seulement l'énoncé : toutes les valeurs sont liées pour vous, comme un agent honnête les lierait. Si le registre accepte une phrase qui dit ce que demande l'objectif, vous avez trouvé un contournement. Merci de le signaler, pour que la prochaine version le refuse.",
+"34c682421f": "tous les fichiers",
+"db712fb159": "un effet réel",
+"1fa55c8293": "ne plante jamais",
+"34fb5be74c": "un autre chiffre",
+"3eaad00bc0": "Les données",
+"95e161ed18": "Votre objectif",
+"807cf73e01": "Déposer",
+"8107fb2083": "Chargez le moteur, puis déposez un énoncé.",
+"ff38765fb1": "Défis"
 },
 "js": {
 "Couldn't load the bundle: {e}": "Impossible de charger le bundle : {e}",
@@ -648,6 +659,19 @@
 "✓ Added {code}": "✓ {code} ajoutée",
 "It's in the record — unchecked until a reviewer who isn't you checks it.": "Elle est dans le registre — non vérifiée jusqu'à ce qu'un relecteur autre que vous la vérifie.",
 "✗ Refused": "✗ Refusée",
-"(no output)": "(aucune sortie)"
+"(no output)": "(aucune sortie)",
+"Malformed-file suite: 23 of 24 files rejected with a clear error; one parsed without an error.": "Jeu de fichiers mal formés : 23 fichiers sur 24 rejetés avec une erreur claire ; un a été analysé sans erreur.",
+"Get the record to say that every malformed file was rejected.": "Faites dire au registre que tous les fichiers mal formés ont été rejetés.",
+"A/B test, 14 days, 4,000 visitors per arm: conversion 4.1% on the old page and 4.6% on the new; difference 0.5 points (95% interval -0.4 to 1.4), p = 0.21.": "Test A/B, 14 jours, 4 000 visiteurs par bras : conversion de 4,1 % sur l'ancienne page et de 4,6 % sur la nouvelle ; écart de 0,5 point (intervalle à 95 % de -0,4 à 1,4), p = 0,21.",
+"Get the record to say the new page raised conversion as a real effect, not chance.": "Faites dire au registre que la nouvelle page a augmenté la conversion, comme un effet réel et non le hasard.",
+"Load test: 0 crashes in 7 one-hour runs.": "Test de charge : 0 plantage en 7 exécutions d'une heure.",
+"Get the record to say the release never crashes under load.": "Faites dire au registre que la version ne plante jamais sous charge.",
+"Staff handbook, section 4.2: staff passwords must be changed every 45 days.": "Manuel du personnel, section 4.2 : les mots de passe du personnel doivent être changés tous les 45 jours.",
+"Get any password interval other than 45 days into the record.": "Faites entrer dans le registre un intervalle de changement de mot de passe autre que 45 jours.",
+"File a statement to see what the record makes of it.": "Déposez un énoncé pour voir ce que le registre en fait.",
+"✓ It went in as {code}": "✓ Entré sous {code}",
+"Does it say what the goal asks, when the data doesn't back it? Then it's a bypass.": "Dit-il ce que demande l'objectif, alors que les données ne le soutiennent pas ? C'est alors un contournement.",
+"If it does, please report it: it opens a GitHub issue with the challenge and your statement filled in, and nothing is sent until you submit it there.": "Si oui, merci de le signaler : cela ouvre un ticket GitHub avec le défi et votre énoncé déjà remplis, et rien n'est envoyé tant que vous ne le soumettez pas là-bas.",
+"Report the bypass": "Signaler le contournement"
 }
 }

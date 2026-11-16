@@ -488,7 +488,18 @@
 "35fc06681a": "<1>看看谁被点名</1>",
 "9b3d69efd4": "一个有争议的答案 — HypGraph",
 "f8519659b3": "一个问题上的一个诚实错误和一个谎言：HypGraph 记录核查了一个答案，对另一个提出争议，并指出哪位作者一直坚持。",
-"20a6f53018": "<1>一个有争议的答案</1> · 两方根据同一份道路登记册回答同一个问题。<2>Ada</2> 犯了一个诚实的错误：30 公里，而仪器统计出 4 条路线中有 1 条更短。记录拒绝了它（<3/>），她改正为 29 公里。<4>Mallory</4> 说登记册用的是英里，并引用登记册自己的单位说明作为支持，而说明写的是公里。记录拒绝了它（<5/>），她又说了一遍，然后去掉说明再次提交。一位独立评审将两者与登记册逐一对照。没有人给任何人贴标签：下面的状态是读取时推导出来的，行为记录也是，它指出 Ada 改正了被指出的错误，而 Mallory 又说了 2 次，从未改正，至今仍在坚持。"
+"20a6f53018": "<1>一个有争议的答案</1> · 两方根据同一份道路登记册回答同一个问题。<2>Ada</2> 犯了一个诚实的错误：30 公里，而仪器统计出 4 条路线中有 1 条更短。记录拒绝了它（<3/>），她改正为 29 公里。<4>Mallory</4> 说登记册用的是英里，并引用登记册自己的单位说明作为支持，而说明写的是公里。记录拒绝了它（<5/>），她又说了一遍，然后去掉说明再次提交。一位独立评审将两者与登记册逐一对照。没有人给任何人贴标签：下面的状态是读取时推导出来的，行为记录也是，它指出 Ada 改正了被指出的错误，而 Mallory 又说了 2 次，从未改正，至今仍在坚持。",
+"988ba9a8cd": "挑战：让一条虚假论断蒙混过关",
+"7f69e78441": "每个挑战是一个结果和一条它不支持的论断。只需写出陈述：所有数值都已替你绑定，就像一个诚实的智能体会做的那样。如果记录接受了一句说出目标所要求内容的话，你就找到了一个漏洞。请报告它，让下一个版本拒绝它。",
+"34c682421f": "每个文件",
+"db712fb159": "真实效应",
+"1fa55c8293": "从不崩溃",
+"34fb5be74c": "另一个数字",
+"3eaad00bc0": "数据",
+"95e161ed18": "你的目标",
+"807cf73e01": "提交",
+"8107fb2083": "先加载引擎，然后提交一条陈述。",
+"ff38765fb1": "挑战"
 },
 "js": {
 "Couldn't load the bundle: {e}": "无法加载记录包：{e}",
@@ -648,6 +659,19 @@
 "✓ Added {code}": "✓ 已添加 {code}",
 "It's in the record — unchecked until a reviewer who isn't you checks it.": "它已在记录中 — 在一名不是你的审查者核查之前，处于未核查状态。",
 "✗ Refused": "✗ 被拒绝",
-"(no output)": "（无输出）"
+"(no output)": "（无输出）",
+"Malformed-file suite: 23 of 24 files rejected with a clear error; one parsed without an error.": "格式错误文件测试集：24 个文件中有 23 个被拒绝并给出清晰的错误；有一个被解析而没有报错。",
+"Get the record to say that every malformed file was rejected.": "让记录说出每个格式错误的文件都被拒绝了。",
+"A/B test, 14 days, 4,000 visitors per arm: conversion 4.1% on the old page and 4.6% on the new; difference 0.5 points (95% interval -0.4 to 1.4), p = 0.21.": "A/B 测试，14 天，每组 4,000 名访客：旧页面转化率 4.1%，新页面 4.6%；差异 0.5 个百分点（95% 区间 -0.4 至 1.4），p = 0.21。",
+"Get the record to say the new page raised conversion as a real effect, not chance.": "让记录说出新页面提高了转化率，而且是真实效应，而非偶然。",
+"Load test: 0 crashes in 7 one-hour runs.": "负载测试：7 次各一小时的运行中崩溃 0 次。",
+"Get the record to say the release never crashes under load.": "让记录说出该版本在负载下从不崩溃。",
+"Staff handbook, section 4.2: staff passwords must be changed every 45 days.": "员工手册第 4.2 节：员工密码必须每 45 天更换一次。",
+"Get any password interval other than 45 days into the record.": "让记录收下 45 天以外的任何密码更换间隔。",
+"File a statement to see what the record makes of it.": "提交一条陈述，看看记录如何处理它。",
+"✓ It went in as {code}": "✓ 已作为 {code} 收入",
+"Does it say what the goal asks, when the data doesn't back it? Then it's a bypass.": "它是否说出了目标所要求的内容，而数据并不支持？那就是一个漏洞。",
+"If it does, please report it: it opens a GitHub issue with the challenge and your statement filled in, and nothing is sent until you submit it there.": "如果是，请报告：会打开一个 GitHub issue，其中已填好挑战和你的陈述；在你于那里提交之前，不会发送任何内容。",
+"Report the bypass": "报告漏洞"
 }
 }
