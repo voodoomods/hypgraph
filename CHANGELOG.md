@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **A count with exceptions proves no absolute.** An absolute in the clause of a stated k-of-n count was taken to
+  name the set the count ran over ("a count of every selection finds 2 of 1,024 worth more") and went unchecked; commas
+  don't end a clause, so "Parser nailed 7 of 8 tests, proving solid coverage" went in on 7 of 8, and "which proves"
+  read the same. A word of proof (proves, proving, proof, guarantees, certainly, conclusively, …) names no set: on a
+  count with exceptions it is now `COUNT_CONTRADICTS`, with a message that keeps the count and drops the proof. On a
+  count of 0 or n the stated n still scopes it, as before. Corpus: 13 live claims stricter, every one a showcase
+  overreach line. Telephone run1, as if: overreach accepted 171 → 166, true and false unchanged. LIVE_PLACEHOLDER
+  Tests: `tests/test_proof_from_a_part.py`.
 - **"Proving" says what "proves" says.** "proves", "proven" and "proof" were absolutes but the participle wasn't, so
   "Nearly all test suites passed, proving our parser's reliability" on 9 of 10 went in. On merged main the telephone
   showcase accepted 27 lines with it (25 overreach, 2 false) and refused none of its true lines for want of it. Now
