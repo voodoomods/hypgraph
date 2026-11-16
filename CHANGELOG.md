@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **A p-value is checked as it is written.** Scientific notation was read in pieces: "p = 1.57e-06" as 1 and 06,
+  "p<1e-20" as 20. An honest p-value bound to the claim was refused over the stray "06" (29 McNemar claims in the
+  harmony runs), and an unbound one went in when its exponent happened to be accounted for. Figures like 1.2e-5,
+  3E+04, 1.2e5 and 1.2 × 10^-5 are now read whole, to the places written (1.2e-5 to 6); an exponent without a sign
+  needs a decimal point before it, so a short hash like "55351e01" stays a name. A p-value threshold written with one
+  significant digit ("p < 0.001", "p<1e-20", "p > 0.05") is accounted for when a bound p-value is on the stated side of
+  it; main took "p < 0.001" only when the bound p times 100 rounded to 0.001. A figure such as "p >= 0.1531" still
+  needs binding. A derived sum or difference that cancels to float noise is 0, so 8.9e-16 accounts for nothing.
+  Corpus (3,237 records): 472 texts read differently, every change a scientific-notation figure; 60 replayed
+  refusals looser (each a p-value bound to its claim, or "at p<0.05" with a bound p below it), 9 live claims and 6
+  refusals stricter (each a p-value no measurement binds), and one refusal now reaches a false
+  `COUNT_CONTRADICTS` on "all-rows accuracy" that main already gives its sister claim. Tests:
+  `tests/test_p_as_written.py`.
 - **A stated count is held to the record's count.** On 23 of 24 malformed files rejected, "All 24 malformed files
   were rejected" and "The parser caught 24 of 24 malformed files" went in: every number in them is accounted for (24
   is the bound n), and nothing compared the stated count with the bound one. Now "k of n", "k out of the n", "all n",
