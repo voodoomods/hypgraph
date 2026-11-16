@@ -1029,6 +1029,8 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
         out += _generic_contradicted(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _majority_at_half(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _majority_under_half(stmt, bound)
     return out
 
 
@@ -1060,6 +1062,75 @@ def _majority_at_half(stmt: str, bound: list) -> list[Problem]:
                         f"'{w}' says more than half, but the record's own count is {k:,} of {n:,} "
                         f"({m.get('name') or m.get('key')}), an even split: say '{k:,} of {n:,}' or 'half'",
                         fix=f"say '{k:,} of {n:,}', or 'half'", words=[w])]
+    return []
+
+
+# What says a counted thing went the other way. "Most large files exceed time limits", on 2 of 7 files parsed within
+# the time budget, speaks of the five that didn't and is true; so is "most suites ran without a crash" on 0 of 7 that
+# crashed. A clause holding one of these, or a negation, may speak of the other side and is left alone
+_CONTRARY = re.compile(
+    r"\b(?:fail\w*|crash\w*|miss(?:ed|es|ing)?|slip(?:s|ped|ping)?|stumbl\w*|falter\w*|trip(?:s|ped|ping)?|broke|"
+    r"break(?:s|ing)?|errored|struggl\w*|chok(?:e|es|ed|ing)|stall\w*|hang(?:s|ing)?|hung|lag(?:s|ged|ging)?|"
+    r"tim(?:e[sd]?|ing)[\s-]?out|overr[au]n\w*|exceed\w*|slow\w*|late|later|longer|lose|los(?:es|ing|t)|behind|"
+    r"(?:fell|falls?|falling)\s+short|short\s+of|too\s+(?:long|slow|big|large|heavy)|worse|poor\w*|stuck|"
+    r"push(?:es|ed|ing)?\s+(?:the\s+|its\s+|their\s+)?limits?|over\s+(?:the\s+|its\s+)?(?:budget|limit|deadline)|"
+    r"past\s+(?:the\s+|its\s+)?(?:budget|limit|deadline))\b", re.I)
+_CONTRARY_NEG = re.compile(r"\b(?:not|no|never|without|cannot|unable|nor)\b|n't\b", re.I)
+
+
+def _clause_at(text: str, start: int) -> str:
+    """The clause of ``text`` the word at ``start`` sits in, as ``language.negated`` bounds it."""
+    s0 = max((m.end() for m in L._SENTENCE_END.finditer(text[:start])), default=0)
+    s1 = next((m.start() for m in L._SENTENCE_END.finditer(text, start)), len(text))
+    c0 = max((m.end() for m in L._CLAUSE.finditer(text[:start], s0)), default=s0)
+    c1 = next((m.start() for m in L._CLAUSE.finditer(text, start, s1)), s1)
+    return text[c0:c1]
+
+
+def _majority_under_half(stmt: str, bound: list) -> list[Problem]:
+    """'Most', 'a majority of' or 'nearly all' of the counted set, said its own way, on a count under half. Either side
+    of a count may be the one a sentence means, so a majority word fits a count under half when the clause speaks of
+    the rest ("most large files exceed time limits" on 2 of 7 parsed in time). It doesn't when the clause says
+    nothing contrary and doesn't negate: "We met deadlines on most large files" on 3 of 7 files over 1 GB parsed
+    within the time budget went in twice in the telephone showcase's run3 (2026-11-16), blind-labelled false. The
+    majority word has to sit on the counted set itself (up to four words before its plural, no preposition but "of"
+    between), and a count whose own name is put the contrary way ("test suites in which the parser crashed") isn't
+    read: there the plain clause is the other side. Across 3,757 records, 7 statements had a majority word on a
+    count under half; this reads the two above and none of the other five."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    for hit in _MAJORITY.finditer(stmt):
+        if L.negated(stmt, hit.start()):
+            continue
+        noun = phrase = None
+        words = list(re.finditer(r"[A-Za-z][\w‐‑'-]*", stmt[hit.end():]))[:5]
+        for t in words:
+            w = t.group(0).lower()
+            if w in _PREPOSITIONS and w != "of":
+                break
+            if w.endswith("s") and not w.endswith(("ss", "us", "is", "'s")) and L.content_words(w):
+                noun = L.content_words(w)
+                phrase = re.sub(r"\s+", " ", stmt[hit.start():hit.end() + t.end()])
+                break
+        if not noun:
+            continue
+        rel = [(m, a) for m, a in arms if noun == _counted_noun(str(m.get("name") or ""))]
+        if not rel or not all(2 * k < n for _m, (k, n) in rel):
+            continue
+        if any(_CONTRARY.search(str(m.get("name") or "")) or _CONTRARY_NEG.search(str(m.get("name") or ""))
+               for m, _a in rel):
+            continue
+        clause = _clause_at(stmt, hit.start())
+        if _CONTRARY.search(clause) or _CONTRARY_NEG.search(clause):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' says more than half of them did, but the record's own count is {k:,} of {n:,} "
+                        f"({m.get('name') or m.get('key')}), under half, and nothing in the clause says it speaks of "
+                        f"the other {n - k:,}: say '{k:,} of {n:,}', or '{q}'",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
     return []
 
 
