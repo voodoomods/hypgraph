@@ -130,7 +130,7 @@ res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced
 
 <h2 id="workflows">Profiles &amp; workflows</h2>
 <p>Pin a profile on the investigation and the record enforces that discipline's rules — and, with the <code>@2</code>
-  profiles, its <a href="../#workflows">workflow</a>: stages with gates, what invalidates evidence, the typed shapes a
+  profiles and later, its <a href="../#workflows">workflow</a>: stages with gates, what invalidates evidence, the typed shapes a
   diff, an instance, a source or a position must have. The stage is derived on every read, like standing.</p>
 <div class="code"><pre>inv = g.create(author="operator", type="investigation",
                fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@2"})["id"]

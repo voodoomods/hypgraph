@@ -294,7 +294,7 @@ def report(g: "Graph", inv: str) -> dict:
            "state": n["body"].get("state") or "active", "objective": n["body"].get("objective", ""),
            "claims": claims, "results": results, "hypotheses": hyps, "experiments": exps,
            "open": open_items, "spend": spend, "seq": s.seq}
-    # the workflow's view (@2 profiles): each question's derived stage, and the evidence that has gone stale
+    # the workflow's view (@2 and later profiles): each question's derived stage, and the evidence that has gone stale
     from . import profiles, workflow
     prof = profiles.profile_of(s, inv)
     if prof and prof.workflow:

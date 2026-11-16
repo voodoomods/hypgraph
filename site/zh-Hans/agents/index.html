@@ -69,7 +69,7 @@ claude mcp add hypgraph -- hypgraph --db study.hypgraph --as claude mcp</pre></d
   <li><b><code>report()</code></b> 放在每份摘要的开头；解释写在下面 — 然后在交付前对报告运行 <b><code>check_report(text)</code></b>。修正每一个错误。</li>
 </ol>
 <h3>在工作流配置下</h3>
-<p>设为 <code>scientific@2</code>、<code>software@2</code>、<code>trading@2</code>、<code>knowledge@2</code> 或 <code>optimization@2</code> 的调查会带上其学科的<a href="../#workflows">工作流</a>。调用 <code>stage(question)</code>：它会给出问题所处的阶段 — 由记录推导，从不设定 — 以及每个关卡已满足或未满足，附带满足它所需的内容。按顺序写下下一个关卡（带预测的假设；运行<i>之前</i>写好预期结果的实验；作为工件的 diff 或实例及其 <code>kind</code>；<code>uses</code> 它的那次运行）。修正后的文件、更新的提交、改变的实例或被撤回的来源会使先前的证据<b>过时</b>；回复会指出这一点，基于过时证据的核查不算数。如果诚实的答案是“无法回答”，就记录你确实发现的内容，并据此写一条类型为 <code>inconclusive</code> 的主张 — 核查通过后，它就解决了这个问题。</p>
+<p>设为 <code>scientific@2</code>、<code>software@2</code>、<code>trading@3</code>、<code>knowledge@2</code> 或 <code>optimization@3</code> 的调查会带上其学科的<a href="../#workflows">工作流</a>。调用 <code>stage(question)</code>：它会给出问题所处的阶段 — 由记录推导，从不设定 — 以及每个关卡已满足或未满足，附带满足它所需的内容。按顺序写下下一个关卡（带预测的假设；运行<i>之前</i>写好预期结果的实验；作为工件的 diff 或实例及其 <code>kind</code>；<code>uses</code> 它的那次运行）。修正后的文件、更新的提交、改变的实例或被撤回的来源会使先前的证据<b>过时</b>；回复会指出这一点，基于过时证据的核查不算数。如果诚实的答案是“无法回答”，就记录你确实发现的内容，并据此写一条类型为 <code>inconclusive</code> 的主张 — 核查通过后，它就解决了这个问题。</p>
 
 <h2 id="tools">工具</h2>
 <table>

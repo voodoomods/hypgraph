@@ -127,7 +127,7 @@ Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
 <section class="block" id="workflows"><div class="wrap">
   <div class="kicker">Ein Protokoll, fünf Workflows</div>
   <h2 class="h">Die Methode jeder Disziplin, vom Protokoll durchgesetzt.</h2>
-  <p class="sub">Ein Profil trägt die Phasen seiner Disziplin, die Ausgangsschranke jeder Phase und was als erledigt gilt. Die Phase wird aus dem Protokoll abgeleitet, <span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">nie von einem Agenten gesetzt</span>. Jede Zeile hat ein Live-Beispiel.</p>
+  <p class="sub">Ein Profil trägt die Phasen seiner Disziplin, die Ausgangsschranke jeder Phase und was als erledigt gilt. Die Phase wird aus dem Protokoll abgeleitet, <span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">nie von einem Agenten gesetzt</span>. Jede Version ist eingefroren: Eine Untersuchung behält die Regeln der Version, die sie festgelegt hat. Jede Zeile hat ein Live-Beispiel.</p>
   <div class="tbl-wrap"><table class="tbl">
     <thead><tr><th>Profil</th><th>der Weg einer Frage</th><th>das Protokoll lehnt ab</th><th>erledigt, wenn</th><th></th></tr></thead>
     <tbody>
@@ -135,12 +135,12 @@ Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
         <td>Zahlen, die kein Ergebnis erklärt; <span data-quote>„nie“</span> ohne die Zählung; <span data-quote>„signifikant“</span> ohne den Test; eine Prüfung auf veralteten Belegen</td><td>jede Frage beantwortet</td><td><a href="examples/scientific/">Ansehen</a></td></tr>
       <tr><td><code>software@2</code></td><td>spezifiziert → implementiert (ein Diff per Hash) → vom Instrument auf diesem Head verifiziert → behauptet → geprüft</td>
         <td><span data-quote>„es besteht“</span> ohne einen Lauf des Instruments oder auf einem ersetzten Head; der Autor des Diffs als sein Prüfer</td><td>die Behauptung jeder Anforderung stützt sich auf einen bestandenen Lauf auf dem aktuellen Head</td><td><a href="examples/software/">Ansehen</a></td></tr>
-      <tr><td><code>trading@2</code></td><td>gestellt → mit These → präregistriert → Out-of-Sample-Backtest nach Kosten → behauptet → Risikoprüfung → Position eingegangen → überwacht</td>
-        <td>ein Backtest ohne seine Kosten; <span data-quote>„Vorteil“</span> ohne beides oder ohne die getesteten Konfigurationen; eine Position ohne Größe, Stop und Prüfdatum; eine echte Order</td><td>Fragen beantwortet; eine Position eingegangen oder verworfen</td><td><a href="examples/trading/">Ansehen</a></td></tr>
+      <tr><td><code>trading@3</code></td><td>gestellt → mit These → präregistriert → Out-of-Sample-Backtest nach Kosten → behauptet → Risikoprüfung → Position eingegangen → überwacht</td>
+        <td>ein Backtest ohne seine Kosten; <span data-quote>„Vorteil“</span> ohne beides, ohne die getesteten Konfigurationen oder gegen die Zahlen (ein Verlust oder hinter der Benchmark); eine In-Sample-Rendite, die nicht als solche benannt ist; eine Position ohne Größe, Stop und Prüfdatum; eine echte Order</td><td>Fragen beantwortet; eine Position eingegangen oder verworfen</td><td><a href="examples/trading/">Ansehen</a></td></tr>
       <tr><td><code>knowledge@2</code></td><td>gestellt → belegt (die Passage, abgerufen, ihre Art) → behauptet → geprüft</td>
         <td>eine Behauptung ohne Quelle; eine Quelle ohne ihre Passage</td><td>jede Behauptung zitiert eine Quelle und ist geprüft</td><td><a href="examples/knowledge/">Ansehen</a></td></tr>
-      <tr><td><code>optimization@2</code></td><td>gestellt (die Instanz per Hash) → modelliert → konfiguriert → gelöst → verifiziert → behauptet → geprüft</td>
-        <td>ein Zielwert ohne Zulässigkeit; <span data-quote>„optimal“</span> ohne Schranke oder auf einer geänderten Instanz</td><td>eine zulässige, beschränkte beste Lösung, verifiziert auf der aktuellen Instanz</td><td><a href="examples/optimization/">Ansehen</a></td></tr>
+      <tr><td><code>optimization@3</code></td><td>gestellt (die Instanz per Hash) → modelliert → konfiguriert → gelöst → verifiziert → behauptet → geprüft</td>
+        <td>ein Zielwert ohne Zulässigkeit; <span data-quote>„optimal“</span> ohne Schranke, mit einer Lücke, die die Schranke offen lässt, auf einer unzulässigen Lösung oder auf einer geänderten Instanz</td><td>eine zulässige, beschränkte beste Lösung, verifiziert auf der aktuellen Instanz</td><td><a href="examples/optimization/">Ansehen</a></td></tr>
     </tbody></table></div>
 </div></section>
 

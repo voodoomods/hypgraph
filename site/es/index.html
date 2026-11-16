@@ -127,7 +127,7 @@ Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
 <section class="block" id="workflows"><div class="wrap">
   <div class="kicker">Un registro, cinco flujos de trabajo</div>
   <h2 class="h">El método de cada disciplina, aplicado por el registro.</h2>
-  <p class="sub">Un perfil lleva las etapas de su disciplina, la compuerta de salida de cada una y lo que cuenta como terminado. La etapa se deriva del registro, <span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">nunca la fija un agente</span>. Cada fila tiene un ejemplo en directo.</p>
+  <p class="sub">Un perfil lleva las etapas de su disciplina, la compuerta de salida de cada una y lo que cuenta como terminado. La etapa se deriva del registro, <span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">nunca la fija un agente</span>. Cada versión queda congelada: una investigación conserva las reglas de la versión que fijó. Cada fila tiene un ejemplo en directo.</p>
   <div class="tbl-wrap"><table class="tbl">
     <thead><tr><th>perfil</th><th>por dónde pasa una pregunta</th><th>el registro rechaza</th><th>terminado cuando</th><th></th></tr></thead>
     <tbody>
@@ -135,12 +135,12 @@ Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
         <td>números que ningún resultado explica; <span data-quote>«nunca»</span> sin el recuento; <span data-quote>«significativo»</span> sin la prueba; una comprobación sobre evidencia desactualizada</td><td>cada pregunta resuelta</td><td><a href="examples/scientific/">Ver</a></td></tr>
       <tr><td><code>software@2</code></td><td>especificada → implementada (un diff por hash) → verificada por el instrumento en esa cabeza → afirmada → revisada</td>
         <td><span data-quote>«pasa»</span> sin una ejecución del instrumento, o sobre una cabeza sustituida; el autor del diff como su revisor</td><td>la afirmación de cada requisito se apoya en una ejecución superada sobre la cabeza actual</td><td><a href="examples/software/">Ver</a></td></tr>
-      <tr><td><code>trading@2</code></td><td>planteada → con tesis → prerregistrada → backtest fuera de muestra, tras costes → afirmada → revisión de riesgo → posición tomada → vigilada</td>
-        <td>un backtest sin sus costes; <span data-quote>«ventaja»</span> sin ambos, o sin las configuraciones probadas; una posición sin tamaño, stop y fecha de revisión; una orden real</td><td>preguntas resueltas; una posición tomada o descartada</td><td><a href="examples/trading/">Ver</a></td></tr>
+      <tr><td><code>trading@3</code></td><td>planteada → con tesis → prerregistrada → backtest fuera de muestra, tras costes → afirmada → revisión de riesgo → posición tomada → vigilada</td>
+        <td>un backtest sin sus costes; <span data-quote>«ventaja»</span> sin ambos, sin las configuraciones probadas, o contra las cifras (una pérdida, o por detrás del índice de referencia); un rendimiento dentro de muestra no presentado como tal; una posición sin tamaño, stop y fecha de revisión; una orden real</td><td>preguntas resueltas; una posición tomada o descartada</td><td><a href="examples/trading/">Ver</a></td></tr>
       <tr><td><code>knowledge@2</code></td><td>planteada → con fuente (el pasaje, recuperado, su tipo) → afirmada → comprobada</td>
         <td>una afirmación sin fuente; una fuente sin su pasaje</td><td>cada afirmación cita una fuente y se comprueba</td><td><a href="examples/knowledge/">Ver</a></td></tr>
-      <tr><td><code>optimization@2</code></td><td>planteado (la instancia por hash) → modelado → configurado → resuelto → verificado → afirmado → comprobado</td>
-        <td>un objetivo sin factibilidad; <span data-quote>«óptimo»</span> sin una cota, o sobre una instancia cambiada</td><td>una solución incumbente factible y acotada, verificada sobre la instancia actual</td><td><a href="examples/optimization/">Ver</a></td></tr>
+      <tr><td><code>optimization@3</code></td><td>planteado (la instancia por hash) → modelado → configurado → resuelto → verificado → afirmado → comprobado</td>
+        <td>un objetivo sin factibilidad; <span data-quote>«óptimo»</span> sin una cota, con una brecha que la cota deja abierta, sobre una solución no factible, o sobre una instancia cambiada</td><td>una solución incumbente factible y acotada, verificada sobre la instancia actual</td><td><a href="examples/optimization/">Ver</a></td></tr>
     </tbody></table></div>
 </div></section>
 

@@ -110,7 +110,7 @@ res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced
 <p>Artefakte werden über ihren Inhalt adressiert (gleiche Bytes, ein Knoten), daher verschmelzen zwei Ergebnisse aus denselben Daten automatisch zu einer Beleglinie. Ein erneuter Lauf verknüpft <code>replicates</code> mit <code>data.differs</code> (<code>new_seed</code>, <code>new_impl</code>, <code>new_data</code> …) und hebt das Belegprofil an.</p>
 
 <h2 id="workflows">Profile und Workflows</h2>
-<p>Setzen Sie ein Profil auf die Untersuchung, und das Protokoll setzt die Regeln dieser Disziplin durch — und mit den Profilen <code>@2</code> ihren <a href="../#workflows">Workflow</a>: Phasen mit Schranken, was Belege ungültig macht, die typisierten Formen, die ein Diff, eine Instanz, eine Quelle oder eine Position haben müssen. Die Phase wird bei jedem Lesen abgeleitet, wie der Stand.</p>
+<p>Setzen Sie ein Profil auf die Untersuchung, und das Protokoll setzt die Regeln dieser Disziplin durch — und ab den Profilen <code>@2</code> ihren <a href="../#workflows">Workflow</a>: Phasen mit Schranken, was Belege ungültig macht, die typisierten Formen, die ein Diff, eine Instanz, eine Quelle oder eine Position haben müssen. Die Phase wird bei jedem Lesen abgeleitet, wie der Stand.</p>
 <div class="code"><pre>inv = g.create(author="operator", type="investigation",
                fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@2"})["id"]
 q = g.create(author="operator", type="question", inv=inv, fields={"text": "Does the importer keep quoted commas?"})["id"]

@@ -127,7 +127,7 @@ Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
 <section class="block" id="workflows"><div class="wrap">
   <div class="kicker">一份记录，五种工作流</div>
   <h2 class="h">每个学科的方法，由记录来执行。</h2>
-  <p class="sub">一种配置包含其学科的各个阶段、每个阶段的出口关卡，以及什么算完成。阶段由记录推导，<span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">从不由智能体设定</span>。每一行都有一个在线示例。</p>
+  <p class="sub">一种配置包含其学科的各个阶段、每个阶段的出口关卡，以及什么算完成。阶段由记录推导，<span data-ok="design: no write sets a stage; Graph.stage() derives it on read (workflow.py)">从不由智能体设定</span>。每个版本都是冻结的：一项调查保留它所固定版本的规则。每一行都有一个在线示例。</p>
   <div class="tbl-wrap"><table class="tbl">
     <thead><tr><th>配置</th><th>一个问题经过的路径</th><th>记录拒绝</th><th>完成条件</th><th></th></tr></thead>
     <tbody>
@@ -135,12 +135,12 @@ Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
         <td>没有结果支撑的数字；没有计数的<span data-quote>“从不”</span>；没有检验的<span data-quote>“显著”</span>；基于过时证据的核查</td><td>每个问题都已解决</td><td><a href="examples/scientific/">查看</a></td></tr>
       <tr><td><code>software@2</code></td><td>规定 → 实现（按哈希的 diff）→ 仪器在该链头上验证 → 主张 → 审查</td>
         <td>没有仪器运行，或基于已被取代的链头，就宣称<span data-quote>“通过”</span>；diff 的作者充当其审查者</td><td>每项需求的主张都建立在当前链头上一次通过的运行之上</td><td><a href="examples/software/">查看</a></td></tr>
-      <tr><td><code>trading@2</code></td><td>提出 → 形成论点 → 预注册 → 计入成本的样本外回测 → 主张 → 风险审查 → 建仓 → 监控</td>
-        <td>没有成本的回测；两者都没有、或没有列出尝试过的配置就宣称<span data-quote>“优势”</span>；没有规模、止损和复审日期的仓位；真实下单</td><td>问题已解决；仓位已建立或已放弃</td><td><a href="examples/trading/">查看</a></td></tr>
+      <tr><td><code>trading@3</code></td><td>提出 → 形成论点 → 预注册 → 计入成本的样本外回测 → 主张 → 风险审查 → 建仓 → 监控</td>
+        <td>没有成本的回测；两者都没有、没有列出尝试过的配置、或与数字相悖（亏损或落后于基准）却宣称<span data-quote>“优势”</span>；未注明为样本内的样本内收益；没有规模、止损和复审日期的仓位；真实下单</td><td>问题已解决；仓位已建立或已放弃</td><td><a href="examples/trading/">查看</a></td></tr>
       <tr><td><code>knowledge@2</code></td><td>提出 → 有出处（段落、获取时间、类型）→ 主张 → 核查</td>
         <td>没有来源的主张；没有段落的来源</td><td>每条主张都引用来源并经过核查</td><td><a href="examples/knowledge/">查看</a></td></tr>
-      <tr><td><code>optimization@2</code></td><td>提出（按哈希的实例）→ 建模 → 配置 → 求解 → 验证 → 主张 → 核查</td>
-        <td>没有可行性的目标值；没有界、或基于已改变实例的<span data-quote>“最优”</span></td><td>一个可行且有界的当前最优解，在当前实例上验证</td><td><a href="examples/optimization/">查看</a></td></tr>
+      <tr><td><code>optimization@3</code></td><td>提出（按哈希的实例）→ 建模 → 配置 → 求解 → 验证 → 主张 → 核查</td>
+        <td>没有可行性的目标值；没有界、界仍留有差距、基于不可行解、或基于已改变实例的<span data-quote>“最优”</span></td><td>一个可行且有界的当前最优解，在当前实例上验证</td><td><a href="examples/optimization/">查看</a></td></tr>
     </tbody></table></div>
 </div></section>
 
