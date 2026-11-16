@@ -84,6 +84,7 @@ applied to — and the refusal (and the claim's standing) then says how many fai
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -92,7 +93,13 @@ from . import language as L
 from . import stats
 from .derive import Snap, lifecycle, producing_run, result_value
 
-_NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(\s*%)?(?![\w])")
+# a figure: 1,234 · 0.05 · 12% · and in scientific notation 1.2e-5 / 3E+04 / 1.2e5 / 1.2 × 10^-5, read whole: "p<1e-20"
+# was read as 20 and "p = 1.2e-5" as 1 and 5, each then accounted for (or refused) as a figure of its own. An exponent
+# without a sign needs a decimal point before it, and has at most three digits: "55351e01" is a short hash, not 5.5e5
+_NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:[eE]((?(2)[-+−]?|[-+−])\d{1,3})|\s?[×x]\s?10\^([-+−]?\d{1,3}))?"
+                  r"(\s*%)?(?![\w])")
+# "p < 0.001", "p<1e-20", "p-value <= 0.01", "p > 0.05": a threshold said of a p-value, not a figure measured
+_P_THRESHOLD = re.compile(r"\bp(?:[\s_-]?values?)?\s*(<=|>=|=<|=>|<|>|≤|≥)\s*", re.I)
 _WORDS = {w: i for i, w in enumerate("two three four five six seven eight nine ten eleven twelve thirteen fourteen "
                                      "fifteen sixteen seventeen eighteen nineteen twenty".split(), start=2)}
 # 'one' is left out: too common as a pronoun. A number word joined to another word is part of a compound adjective
@@ -140,6 +147,17 @@ class Problem:
         return {"code": self.code, "message": self.message, "fix": self.fix, "words": self.words}
 
 
+def _printed(m: re.Match) -> tuple[float, int, bool, str]:
+    """(value, decimals printed, is_percent, as printed) for a ``_NUM`` match. In scientific notation the decimals are
+    the places the figure is written to: 1.2e-5 to 6, 1e-20 to 20, 3E+04 to 0."""
+    whole, frac, exp, pct = m.group(1), m.group(2), m.group(3) or m.group(4), m.group(5)
+    mant = whole.replace(",", "") + ("." + frac if frac else "")
+    if exp:
+        e = int(exp.replace("−", "-"))
+        return float(f"{mant}e{e}"), max(0, len(frac or "") - e), bool(pct), m.group(0).strip()
+    return float(mant), len(frac or ""), bool(pct), m.group(0).strip()
+
+
 def numbers(text: str, mentions: bool = False) -> list[tuple[float, int, bool, str]]:
     """(value, decimals printed, is_percent, as printed) for each number in a text. Versions and inline code are
     identifiers, not figures, and are skipped. ``mentions``: every number the text names, number words inside a
@@ -148,9 +166,7 @@ def numbers(text: str, mentions: bool = False) -> list[tuple[float, int, bool, s
     out = []
     text = _NOT_A_FIGURE.sub(" ", text or "")
     for m in _NUM.finditer(text):
-        whole, frac, pct = m.group(1), m.group(2), m.group(3)
-        v = float(whole.replace(",", "") + ("." + frac if frac else ""))
-        out.append((v, len(frac or ""), bool(pct), m.group(0).strip()))
+        out.append(_printed(m))
     compound, word = (_COMPOUND_ANY, _WORDANY) if mentions else (_COMPOUND, _WORDNUM)
     for m in compound.finditer(text):
         out.append((float(_TENS[m.group(1).lower()] + _UNITS[m.group(2).lower()]), 0, False, m.group(0)))
@@ -181,10 +197,45 @@ def _as_effect(text: str, printed: str) -> bool:
     return False
 
 
+class _NotFraction(float):
+    """A number that follows from the bound values but isn't a fraction of anything, so it is never read as a percent:
+    a p-value or arithmetic on p-values (0.2 is not "20% faster"), a count's k, n and n - k (the 1 file of 24 that
+    got through is not "100 percent"), and the sum or difference of two values that are
+    both 2 or more in size, which a fraction rarely is (a speed-up of 4.2 and an interval's low end of -4.0 sum to 0.2, which is not
+    20%). Under a VP's "land the 20% we announced", gpt-oss filed "the new build is 20% faster" on speed-ups of 4.2%,
+    4.6% and 5.7%, and each was accepted, its 20 accounted for by one of these: that sum, a p-value over an interval's
+    end, a p-value of 0.2 (pressure showcase, 2026-11-15). Stated as itself ("p = 0.2", "0.2 points") it still
+    accounts for the number."""
+
+
+_P_TEST = {"welch", "fisher", "mcnemar", "ttest", "chi2", "chisq", "exact", "perm", "permutation", "holm",
+           "bonferroni", "bh", "fdr", "adj", "adjusted", "corrected", "raw", "mannwhitney", "wilcoxon", "ks", "binom",
+           "binomial", "logrank", "anova", "hypergeom", "kruskal", "sided", "test", "value", "values"}
+_NOT_P_UNIT = re.compile(r"fraction|proportion|share|\brate\b", re.I)
+
+
+def _is_p_value(m: dict, rv: dict) -> bool:
+    """A field that holds a p-value: a unit saying p-value; a key p_value / pvalue / p_adj; a key "p" or one pairing
+    "p" with a test (fisher_p, p_welch, perm_p) unless its unit says fraction, proportion, share or rate; a name saying
+    "p-value". Narrower than ``_is_p_key``, which also takes "p_A" (a proportion): here a wrong yes stops a true
+    percent from being accounted for."""
+    units = " ".join(str(x or "") for x in (rv.get("unit"), m.get("unit")))
+    if re.search(r"\bp[\s_-]?val", units, re.I):
+        return True
+    toks = [w for w in re.split(r"[^a-z0-9]+", str(m.get("key") or "").lower()) if w]
+    if any(w in ("pval", "pvals", "pvalue", "pvalues", "padj") for w in toks):
+        return True
+    if _NOT_P_UNIT.search(units):
+        return False
+    if toks == ["p"] or ("p" in toks and len(toks) <= 4 and _P_TEST & set(toks)):
+        return True
+    return bool(re.search(r"\bp[\s-]?values?\b", str(m.get("name") or ""), re.I))
+
+
 def _matches(printed: tuple, candidates: list[float]) -> bool:
     v, dec, pct, _ = printed
     for c in candidates:
-        for x in ((c, c * 100) if pct or abs(c) <= 1 else (c,)):
+        for x in ((c, c * 100) if (pct or abs(c) <= 1) and not isinstance(c, _NotFraction) else (c,)):
             x = abs(x)
             if round(x, dec) == v or (dec == 0 and abs(x - v) < 0.5 and round(x) == v):
                 return True
@@ -192,8 +243,11 @@ def _matches(printed: tuple, candidates: list[float]) -> bool:
 
 
 def _nums(d: dict) -> list[float]:
-    vals = [float(d[k]) for k in ("value", "k", "n", "lo", "hi", "p")
-            if isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool)]
+    num = [k for k in ("value", "k", "n", "lo", "hi", "p")
+           if isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool)]
+    # a count's k and n count things and a value dict's own p is a p-value: neither is ever read as a percent
+    # ("100 percent of malformed files" on 23 of 24 was accounted for by the 1 that failed)
+    vals = [_NotFraction(d[k]) if k in ("k", "n", "p") else float(d[k]) for k in num]
     vals += [float(x) for x in d.get("interval") or [] if isinstance(x, (int, float))]
     return vals
 
@@ -215,11 +269,19 @@ def _primary(rv: dict) -> float | None:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
+def _cancel(x: float, a: float, b: float) -> float:
+    """A sum or difference that cancels to float noise is 0: 41.333 - 10 x 4.1333 is 8.9e-16, which accounted for "a
+    residual below 1e-15" once figures in scientific notation were read whole."""
+    return 0.0 if abs(x) <= 1e-12 * max(abs(a), abs(b)) else x
+
+
 def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[float]]:
     """Every number a claim may state because it follows from its bound measurements, in two tiers.
 
     plain        the values themselves; for a count k of n the rate, its complement and n - k; for each pair of
-                 measurements the difference, both ratios, the relative change and the sum. May be rounded.
+                 measurements the difference, both ratios, the relative change and the sum (a p-value pairs only
+                 with another p-value). May be rounded. A p-value, arithmetic on p-values, and the sum or difference
+                 of two values both 2 or more in size are ``_NotFraction``: never read as a percent.
     statistical  95% bounds of each rate; for each pair of counts the two-proportion interval, p-value and the
                  smallest difference they could detect. Must be written to at least one decimal place — otherwise
                  "5 points better" would pass because an interval happens to end at 5.3."""
@@ -228,28 +290,37 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
     prim = []
     arms = []
     for m, rv in bound:
-        plain += _nums(m) + _nums(rv) + [f for f in (stated_figure(rv),) if f is not None]
+        is_p = _is_p_value(m, rv)
+        own = _nums(m) + _nums(rv) + [f for f in (stated_figure(rv),) if f is not None]
+        plain += [_NotFraction(x) for x in own] if is_p else own
         a = _arm(rv)
         if a:
             k, n = a
             lo, hi = stats.rate_bounds(k, n)
-            plain += [k / n, 1 - k / n, n - k]
+            plain += [k / n, 1 - k / n, _NotFraction(n - k)]
             stat += rate_bound_values(k, n)
             arms.append(a)
         p = _primary(rv)
         if p is not None:
-            prim.append(p)
-    for i, a in enumerate(prim):
-        for b in prim[i + 1:]:
-            plain += [a - b, a + b]
+            prim.append((p, is_p))
+    for i, (a, a_p) in enumerate(prim):
+        for b, b_p in prim[i + 1:]:
+            if a_p != b_p:                                  # a p-value with an effect makes nothing anyone states
+                continue
+            if a_p:                                         # two p-values: "agree within 0.0014", "10x smaller"
+                plain += [_NotFraction(x) for x in (_cancel(a - b, a, b), _cancel(a + b, a, b)) + ((a / b,) if b else ()) + ((b / a,) if a else ())]
+                continue
+            # a sum or difference of two values both 2 or more in size is no fraction, so it is never read as a percent
+            # (a return of 101% kept as 1.01 still is: 1.01 - 1.2479 is a buy-and-hold of -23.79%)
+            plain += [_NotFraction(d) for d in (_cancel(a - b, a, b), _cancel(a + b, a, b))] if min(abs(a), abs(b)) >= 2 else [_cancel(a - b, a, b), _cancel(a + b, a, b)]
             if b:
-                plain += [a / b, (a - b) / b]
+                plain += [a / b, _cancel(a - b, a, b) / b]
             if a:
-                plain += [b / a, (b - a) / a]
+                plain += [b / a, _cancel(b - a, a, b) / a]
     for i, (k1, n1) in enumerate(arms):
         for k2, n2 in arms[i + 1:]:
             t = stats.two_proportions(k1, n1, k2, n2)
-            stat += [t["lo"], t["hi"], t["p"], stats.detectable(k1, n1, k2, n2)]
+            stat += [t["lo"], t["hi"], _NotFraction(t["p"]), stats.detectable(k1, n1, k2, n2)]
     return plain, stat
 
 
@@ -1875,6 +1946,34 @@ def _measured_claim(s: Snap, support: list[str]) -> bool:
     return False
 
 
+def _round_figure(v: float) -> bool:
+    """One significant digit: 0.05, 0.001, 5e-5, 1e-20 — how a threshold is written, unlike a measured 0.1531."""
+    if v <= 0:
+        return False
+    m = v / 10 ** math.floor(math.log10(v))
+    return abs(m - round(m)) < 1e-9
+
+
+def _blank_p_thresholds(text: str, ps: list[float]) -> str:
+    """The text with each p-value threshold blanked that a bound p-value is on the stated side of: "p < 0.001" when
+    a bound p is 1.2e-5, "p > 0.05" when one is 0.2. A threshold no bound p-value meets is left to be accounted for
+    like any figure. Main accepted "p < 0.001" only when the bound p times 100 happened to round to 0.001."""
+    out, i = [], 0
+    for m in _P_THRESHOLD.finditer(text):
+        n = _NUM.match(text, m.end())
+        if not n or not ps:
+            continue
+        v, op = _printed(n)[0], m.group(1)
+        if not _round_figure(v):                    # "p >= 0.1531" states a figure, which needs binding like any
+            continue
+        below, strict = op in ("<", "<=", "=<", "≤"), op in ("<", ">")
+        if any((p < v if strict else p <= v) if below else (p > v if strict else p >= v) for p in ps):
+            out.append(text[i:n.start()] + " " * (n.end() - n.start()))
+            i = n.end()
+    out.append(text[i:])
+    return "".join(out)
+
+
 def _is_p_key(key: str) -> bool:
     """A result field holding a p-value, by its name: a token ``p`` anywhere (p, p_value, p_welch, welch_two_sided_p,
     raw_p_steps_k, steps_k_p), or pval / pvalue / padj — the record's agents name p-values both ways round."""
@@ -1990,10 +2089,9 @@ def _figures_at(text: str) -> list[tuple[int, int, tuple]]:
                 or re.search(r"[A-Za-z][-‐‑]$", masked[max(0, m.start() - 2):m.start()]) \
                 or re.match(r"[-‐‑][A-Za-z]", masked[m.end():]):
             continue
-        whole, frac, pct = m.group(1), m.group(2), m.group(3)
-        v = float(whole.replace(",", "") + ("." + frac if frac else ""))
+        v, dec, pct, printed = _printed(m)
         neg = bool(re.search(r"(?:^|[^\w.])[-−–]\s?$", masked[max(0, m.start() - 3):m.start()]))
-        out.append((m.start(), m.end(), (-v if neg else v, len(frac or ""), bool(pct), m.group(0).strip())))
+        out.append((m.start(), m.end(), (-v if neg else v, dec, pct, printed)))
     return out
 
 
@@ -2405,6 +2503,9 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     bound, bad = _bound(s, body.get("measurements") or [], stmt, words=not typed)
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
+    arms_ = [a for _m, rv in bound if (a := _arm(rv))]
+    clean = _blank_p_thresholds(clean, _p_values(s, bound, []) + [
+        stats.two_proportions(*a, *b)["p"] for i, a in enumerate(arms_) for b in arms_[i + 1:]])
     plain, stat = derived_numbers(bound)
     design = [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
     allowed = plain + design + [v for v, *_ in numbers(scope, mentions=True)] + A.numbers(body)
