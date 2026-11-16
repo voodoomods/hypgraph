@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **A stated count is held to the record's count.** On 23 of 24 malformed files rejected, "All 24 malformed files
+  were rejected" and "The parser caught 24 of 24 malformed files" went in: every number in them is accounted for (24
+  is the bound n), and nothing compared the stated count with the bound one. Now "k of n", "k out of the n", "all n",
+  "each of the n" and "every one of the n" are refused with `COUNT_CONTRADICTS` when n is a bound count's n, that
+  count has an exception, and the stated k is neither its k nor n − k. Precision over recall: it isn't checked when
+  the stated k is any other bound number, when the sentence also states the record's count of that n, when two counts
+  over the n differ, against a total kept as a count (n of n, so an understatement isn't caught), or for labels and
+  ranks ("run 3 of 7"), membership ("one of 20 settings"), the set ("across all 24 files") and negation ("not all
+  24"). Found by the /play/ challenges. Corpus (3,237 records): 3 live claims move, all stricter and all real ("All 6
+  tests in test_semver.py pass" bound to 3 of 6 passed); no replayed refusal or result moves. The first drafts refused
+  9 more claims and 3 refusals there; each shape is now a test. Tests: `tests/test_stated_count.py`.
 - **A refused absolute names the count bound with it.** When "every" / "all" / "flawlessly" is refused because the
   count bound with the claim isn't read as about what the statement says (a count of *text* encodings doesn't cover
   "every encoding"), the refusal used to say only "back it with a k/n measurement". It now names the count ("14 of 14
