@@ -14,6 +14,19 @@
   every one of them one of those showcase lines; no replayed refusal or result moves. Telephone showcase: false lines
   accepted 20 → 11, true lines refused unchanged at 87. Pressure showcase and the back-test unchanged; /play/ round 1
   catches two more. Tests: `tests/test_object_generic.py`.
+- **"All" that counts nothing, and a part counted in any written form, are not absolutes.** On merged main the
+  telephone showcase refused two true lines: "Nine of ten test suites passed—solid coverage all around" on 9 of 10
+  ("all around" read as "all") and "64/65 real-world files parsed flawlessly" on 64 of 65 ("flawlessly" was said of a
+  part only when written "64 of 65"). Now "all" in an idiom ("all around", "above all", "at all", "all in all",
+  "all told", "all the same") or at the head of a compound that names a set ("all-rows", "all-orders", "all-cause") is
+  not an absolute and does not qualify a generic plural; "all-passing", "all-green" and "all-clear" still are. A part
+  is stated as a count also as "64/65" and in words ("sixty-four of sixty-five", but not "every one of"). Corpus
+  (3,237 records): 16 replayed refusals looser and none stricter, each an honest "all-rows accuracy", "all-orders
+  average", "any leak at all" or "beat buy and hold at all" (the false `COUNT_CONTRADICTS` noted under the p-value entry
+  below is one); no live claim or result moves. Telephone showcase: true lines refused 87 → 85, false lines accepted
+  unchanged at 20; pressure showcase and both /play/ attack rounds unchanged. A first draft exempted every "all-"
+  compound and let "An all-passing run of the test suites" through on 9 of 10; that and 13 other attack forms are now
+  tests. Tests: `tests/test_not_absolute_forms.py`.
 - **A stated count is read in its other forms.** The stated-count check read "24 of 24" and "all 24" but not
   "24/24" or a count in words, so on 23 of 24 malformed files rejected "The parser rejected malformed files 24/24",
   "Twenty-four of twenty-four malformed files were rejected" and "The parser rejected all twenty-four malformed files"

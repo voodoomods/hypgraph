@@ -1253,7 +1253,7 @@ def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
     went in on counts with exceptions while "every malformed file rejected" on the same counts was refused, and no
     true headline had this shape. The subject is the first plural in the first four words of a clause; a verb ending
     in -s before it ("the parser handles files") means it isn't the subject."""
-    if _QUALIFIES.search(stmt):
+    if _QUALIFIES.search(L.without_idioms(stmt)):            # "solid coverage all around" says nothing of how many
         return []
     arms = [(m, a) for m, rv in bound if (a := _arm(rv)) and 0 < a[0] < a[1]]
     if not arms:
