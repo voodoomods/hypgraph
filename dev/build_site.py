@@ -38,6 +38,7 @@ sys.path.insert(0, str(ROOT / "dev"))
 import site_i18n  # noqa: E402
 
 SITE = ROOT / "site"
+REPO = "https://github.com/voodoomods/hypgraph"
 PKG = ROOT / "src" / "hypgraph"
 
 
@@ -668,10 +669,12 @@ def main() -> None:
     write(py / "manifest.json", json.dumps({"version": __version__, "files": files}, indent=1))
 
     body, toc = markdown((ROOT / "docs" / "spec.md").read_text(encoding="utf-8"))
+    body = doc_links(body, "docs")
     write(SITE / "spec" / "index.html", page("The record format", "Everything needed to write another "
                                                                    "implementation, a verifier or a viewer of HypGraph "
                                                                    "records.", body, toc, "../spec/", translated_body=False))
     body, toc = markdown((ROOT / "DISCLAIMER.md").read_text(encoding="utf-8").split(chr(10), 1)[1])   # drop the title
+    body = doc_links(body, "")
     write(SITE / "disclaimer" / "index.html", page("Disclaimer", "What HypGraph promises, and what it does not: "
                                                                  "provided as is, standing derived rather than "
                                                                  "certified, and no advice.", body, toc, "", kicker="Terms"))
@@ -683,6 +686,38 @@ def main() -> None:
     print("  site/agents.md, site/SKILL.md, skills/hypgraph/SKILL.md")
     site_i18n.build(write)
     check_paths()
+    check_links()
+
+
+def doc_links(body: str, folder: str) -> str:
+    """A page rendered from a Markdown file in the repo keeps that file's relative links ("verification.md" in
+    docs/spec.md), which have no page on the site: point each at the file on GitHub. The /spec/ page linked to a
+    verification.md that 404ed since 0.4 (found checking the merged site, 2026-11-16)."""
+    def fix(m: re.Match) -> str:
+        ref = m.group(1)
+        target = (ROOT / folder / ref.split("#")[0]).resolve()
+        if target.is_file() and ROOT in target.parents:
+            return f'href="{REPO}/blob/main/{target.relative_to(ROOT).as_posix()}"'
+        return m.group(0)
+    return re.sub(r'href="(?![a-z]+:|#|\.\./)([^"]+\.md(?:#[^"]*)?)"', fix, body)
+
+
+def check_links() -> None:
+    """Every relative href / src in a page resolves to a file on the site (a folder with an index.html counts).
+    Template literals in inline scripts ("${esc(url)}") are not links."""
+    bad = []
+    for f in SITE.rglob("*.html"):
+        if f.name == "404.html" or "py" in f.relative_to(SITE).parts:
+            continue
+        for ref in re.findall(r'(?:href|src)="([^"]*)"', f.read_text(encoding="utf-8")):
+            if not ref or "${" in ref or re.match(r"[a-z][a-z0-9+.-]*:|#|//", ref, re.I):
+                continue
+            t = (f.parent / ref.split("#")[0].split("?")[0]).resolve()
+            if not (t.is_file() or (t / "index.html").is_file()):
+                bad.append(f"{f.relative_to(SITE).as_posix()}: {ref}")
+    if bad:
+        raise SystemExit("links to nothing on the site:\n  " + "\n  ".join(sorted(set(bad))[:20]))
+    print("  links: all resolve")
 
 
 def check_paths() -> None:
