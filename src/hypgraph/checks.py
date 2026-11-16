@@ -123,10 +123,13 @@ _WORDANY = re.compile(r"(?<![" + _HY + r"])\b(" + "|".join(_WORDS) + r")\b", re.
 _LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")
 _DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+)?\b")                      # a date is not a measurement
 # identifiers that look like numbers but aren't measurements: a version (1.10.0, v2.0.0-rc.1), inline code, a number a
-# label word names ("case 8", "cases 9–12", "test 4", "line 12", "#3"), or one that labels the literal after it ("9 ('')")
+# label word names ("case 8", "cases 9–12", "test 4", "line 12", "#3"), or one that labels the literal after it ("9 ('')").
+# A hyphen joins a label word to its number as a space does: "test‑2 scores" is the second test, not a 2 to account for
+# (s2_regression: honest tutoring claims stood only while an interval's ends happened to make a 2, 2026-11-16)
 _NOT_A_FIGURE = re.compile(
     r"`[^`\n]*`|(?<![\w.])v?\d+(?:\.\d+){2,}(?:[-+][0-9A-Za-z.]+)?(?![\w])"
-    r"|\b(?:cases?|tests?|lines?|steps?|items?|rows?|issues?|sections?|rules?|figures?|tables?|questions?|no\.)\s+"
+    r"|\b(?:cases?|tests?|lines?|steps?|items?|rows?|issues?|sections?|rules?|figures?|tables?|questions?|no\.)"
+    r"(?:\s+|[" + _HY + r"])"
     r"\d+(?:\s*(?:[–-]|to|and|,)\s*\d+)*\b"
     r"|#\d+\b|(?<![\w.])\d+(?=\s*\(\s*['\"‘“`])", re.I)
 UNDERPOWERED = 0.05             # an absolute needs its 95% bound on the opposite rate at or below this
