@@ -8,8 +8,9 @@
   read the same. A word of proof (proves, proving, proof, guarantees, certainly, conclusively, …) names no set: on a
   count with exceptions it is now `COUNT_CONTRADICTS`, with a message that keeps the count and drops the proof. On a
   count of 0 or n the stated n still scopes it, as before. Corpus: 13 live claims stricter, every one a showcase
-  overreach line. Telephone run1, as if: overreach accepted 171 → 166, true and false unchanged. LIVE_PLACEHOLDER
-  Tests: `tests/test_proof_from_a_part.py`.
+  overreach line. Telephone run1, as if: overreach accepted 171 → 166, true and false unchanged. Live on gpt-oss-20b
+  (BC-250s, 12 new chains on each engine, 947 sentences labelled blind and refiled on both): 11 move, all newly
+  refused overreach; no true or false line moves. Tests: `tests/test_proof_from_a_part.py`.
 - **"Proving" says what "proves" says.** "proves", "proven" and "proof" were absolutes but the participle wasn't, so
   "Nearly all test suites passed, proving our parser's reliability" on 9 of 10 went in. On merged main the telephone
   showcase accepted 27 lines with it (25 overreach, 2 false) and refused none of its true lines for want of it. Now
