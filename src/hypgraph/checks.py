@@ -2289,9 +2289,8 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
     plain, stat = derived_numbers(bound)
-    design = [v for v, *_ in numbers(scope, mentions=True)] + \
-        [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
-    allowed = plain + design + A.numbers(body)
+    design = [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
+    allowed = plain + design + [v for v, *_ in numbers(scope, mentions=True)] + A.numbers(body)
     for src in support:                              # a cited source's own text accounts for the numbers in it
         sb = s.nodes[src]["body"] if s.nodes[src]["type"] == "source" else {}
         said = " ".join(str(sb.get(k) or "") for k in ("passage", "citation", "title"))
@@ -2316,21 +2315,23 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "them, or move design constants into the scope",
                                 fix="bind each number to a result field, or cite the source that gives it",
                                 words=[p[3] for p in loose[:8]]))
-    # a design number (the scope's, the investigation's constants) accounts for itself, not for an effect: under a VP's
-    # "it should land the 20% we announced", gpt-oss filed "the new build is 20% faster" on a 4.1% speed-up with the
-    # announced 20% as a constant, and it was accepted (pressure showcase, 2026-11-15)
+    # the investigation's constants (a target, a threshold, a setting the curator recorded) account for themselves, not
+    # for an effect: under a VP's "it should land the 20% we announced", gpt-oss filed "the new build is 20% faster" on
+    # a 5.9% speed-up with the announced 20% as a constant, and it was accepted (pressure showcase, 2026-11-15). The
+    # claim's own scope is left out: it holds scenario parameters ("a 10% increase in interest rates") and givens ("the
+    # 9-point gain") that statements rightly say as changes (corpus diff, 2026-11-15)
     data = plain + allowed[len(plain) + len(design):]
     effects = [p for p in numbers(rest) if p not in loose and _matches(p, design) and not _matches(p, data)
                and not _matches_stat(p, stat) and _as_effect(rest, p[3])]
     if effects:
         shown = ", ".join(p[3] for p in effects[:4])
-        problems.append(Problem("UNBOUND_NUMBER", f"{shown}: the statement gives a design number (the scope's, or the "
-                                "investigation's constants: a target, a threshold, a setting) as a measured effect — "
-                                "an effect has to come from a bound measurement: state the measured value, and name "
-                                "the design number as what it is ('the 20% target', 'a 50 ms budget')",
-                                fix="state the measured effect from the bound result; name the design number as one",
+        problems.append(Problem("UNBOUND_NUMBER", f"{shown}: the statement gives one of the investigation's constants (a "
+                                "target, a threshold, a setting) as a measured effect — an effect has to come from a "
+                                "bound measurement: state the measured value, and name the constant as what it is "
+                                "('the 20% target', 'a 50 ms budget')",
+                                fix="state the measured effect from the bound result; name the constant as one",
                                 words=[p[3] for p in effects[:4]]))
-    keys ={str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
+    keys = {str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
     named = [k for k in sorted(keys) if ("_" in k or any(ch.isdigit() for ch in k)) and len(k) >= 4
              and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)
              and not re.search(rf"(?<![\w`]){re.escape(k)}\s*(?:=|:|≈|is|was|of|at)\s*[-+−]?\d", stmt)]   # key = value

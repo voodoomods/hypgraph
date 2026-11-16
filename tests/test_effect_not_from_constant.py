@@ -63,12 +63,12 @@ def test_the_measured_effect_and_the_target_together():
     file(g, inv, r, MET, "The new build is 25% faster, beating the announced 20% target.")
 
 
-def test_a_scope_number_is_not_an_effect_either():
-    g, inv, r = env(SHORT, constants=(), scope="40 benchmark runs per build; the build budget is a 35% speed-up.")
-    with pytest.raises(GraphError) as e:
-        file(g, inv, r, SHORT, "The new build is 35% faster.",
-             scope="This benchmark: 40 runs per build; the budget is a 35% speed-up.")
-    assert "as a measured effect" in str(e.value)
+def test_a_scope_number_said_as_a_change_reads_as_before():
+    # the claim's scope holds scenario parameters and givens a statement rightly says as changes (FinQA: "the
+    # difference between a 10% increase and a 10% decrease in interest rates is 68.4 million", corpus diff 2026-11-15)
+    g, inv, r = env(SHORT, constants=())
+    file(g, inv, r, SHORT, "Under a 35% increase in request load, the new build is 5.9% faster.",
+         scope="This benchmark: 40 runs per build; the load scenario is a 35% increase in requests.")
 
 
 def test_a_constant_that_is_also_the_measured_value_is_fine():
