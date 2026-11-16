@@ -70,3 +70,15 @@ def test_a_derived_number_that_is_no_fraction_does_not_make_a_percent(values):
 ])
 def test_a_derived_number_that_can_be_a_fraction_still_makes_a_percent(statement, values):
     assert "UNBOUND_NUMBER" not in codes(statement, values)
+
+
+def count(statement, k, n):
+    return codes(statement, {"rejected": {"k": k, "n": n}})
+
+
+def test_a_count_is_not_a_fraction():
+    # the one file that got through accounted for "100 percent" (1 x 100) on 23 of 24 (/play/ attack round)
+    assert "UNBOUND_NUMBER" in count("The parser rejected 100 percent of the 24 malformed files.", 23, 24)
+    # a count's own rate still makes its percent
+    assert "UNBOUND_NUMBER" not in count("The parser rejected 96% of the 24 malformed files.", 23, 24)
+    assert "UNBOUND_NUMBER" not in count("The parser rejected 100 percent of the 24 malformed files.", 24, 24)

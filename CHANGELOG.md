@@ -6,7 +6,8 @@
   announced", gpt-oss-20b filed "the new build is 20% faster" on speed-ups of 4.2%, 4.6% and 5.7% (pressure
   showcase), and each was accepted: its 20 was accounted for by a derived 0.2 read as 20%, a speed-up of 4.2 plus an
   interval's low end of -4.0, a p-value over an interval's end, or a p-value of 0.2. Now a p-value, arithmetic on
-  p-values, and the sum or difference of two values both 2 or more in size are never read as percents, and a p-value
+  p-values, a count's k, n and n − k ("100 percent" on 23 of 24 was the 1 that failed, times 100), and the sum or
+  difference of two values both 2 or more in size are never read as percents, and a p-value
   takes part in no sum, difference or ratio with an effect. Stated as themselves ("p = 0.2", "agree within 0.0014")
   they still account for the number; a difference of two rates is still said in points or percent, and returns kept
   as fractions above 1 still subtract to a percent. A p-value is read from its unit, a `p_value` / `pvalue` / `p_adj`
