@@ -1123,11 +1123,18 @@ def _counted_noun(name: str) -> set[str]:
 # A count the statement states: "23 of 24", "23 out of the 24", and "all 24" / "all of the 24" / "each of the 24" /
 # "every one of the 24" (N of N). Not "run 3 of 7" or "ranked 2 of 20" (a label or a rank), not "3 of 24%", not a
 # decimal ("0.5 of 4")
-_NUMW = r"\d[\d,]*|one|two|three|four|five|six|seven|eight|nine|ten"
-_STATED_OF = re.compile(rf"(?<![\w.,/-])({_NUMW})\s+(?:out\s+)?of\s+(?:the\s+|all\s+|all\s+the\s+)?(\d[\d,]*)"
+# a count in words is read as one in digits, compounds whole: "twenty-four of twenty-four" (/play/ attack round,
+# 2026-11-15, went in on 23 of 24 while "24 of 24" was refused)
+_NUMW = (r"\d[\d,]*|(?:" + "|".join(_TENS) + r")[" + _HY + r"](?:" + "|".join(_UNITS) + r")(?![" + _HY + r"\w])|"
+         + "|".join(sorted(set(_WORDS) | set(_TENS) | {"one"}, key=len, reverse=True)))
+_STATED_OF = re.compile(rf"(?<![\w.,/-])({_NUMW})\s+(?:out\s+)?of\s+(?:the\s+|all\s+|all\s+the\s+)?({_NUMW})"
                         r"(?![\d,]*\.\d)(?![\w%])(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
-_STATED_ALL = re.compile(r"(?<![\w-])(all|each|every\s+one)\s+(?:of\s+)?(?:the\s+|these\s+|those\s+)?(\d[\d,]*)"
+_STATED_ALL = re.compile(rf"(?<![\w-])(all|each|every\s+one)\s+(?:of\s+)?(?:the\s+|these\s+|those\s+)?({_NUMW})"
                          r"(?![\d,]*\.\d)(?![\w%])(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
+# "rejected malformed files 24/24": k/n written with a slash. Not a date or path ("11/15/2026", "a/b/c"), not a
+# decimal or a percent, not a ratio of figures ("3.2/4")
+_STATED_SLASH = re.compile(r"(?<![\w.,/-])(\d[\d,]*)\s?/\s?(\d[\d,]*)(?![\d,]*\.\d)(?![\w%/-])"
+                           r"(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
 _COUNT_LABEL = {"run", "runs", "trial", "fold", "round", "game", "page", "step", "day", "week", "month", "year", "chapter",
                 "part", "item", "no", "number", "phase", "stage", "test", "case", "seed", "batch", "epoch", "iteration",
                 "slide", "question", "level", "rank", "ranked", "ranks", "rated", "scored", "score", "position",
@@ -1173,11 +1180,17 @@ def _stated_count_contradicted(stmt: str, bound: list) -> list[Problem]:
 
     def num(s: str) -> int | None:
         s = s.lower()
-        return _SMALL.get(s) if s in _SMALL else (int(s.replace(",", "")) if s[0].isdigit() else None)
+        if s[0].isdigit():
+            return int(s.replace(",", ""))
+        if s in _SMALL or s in _WORDS or s in _TENS:
+            return _SMALL.get(s) or _WORDS.get(s) or _TENS.get(s)
+        tens, _, unit = re.split(r"([" + _HY + r"])", s, maxsplit=1) if re.search(r"[" + _HY + r"]", s) else (s, "", "")
+        return _TENS[tens] + _UNITS[unit] if tens in _TENS and unit in _UNITS else None
 
     def before(i: int) -> str:
-        w = re.findall(r"[\w.]+", stmt[:i])
-        return w[-1].lower().rstrip(".") if w else ""
+        # the word just before, with only space between: in "154 users per arm; 22/154 in A" the 22 is no arm label
+        w = re.search(r"([\w.]+)\s*$", stmt[:i])
+        return w.group(1).lower().rstrip(".") if w else ""
 
     stated: list[tuple[int, int, str, int]] = []           # (k, n, the words, where)
     for hit in _STATED_OF.finditer(stmt):
@@ -1186,6 +1199,10 @@ def _stated_count_contradicted(stmt: str, bound: list) -> list[Problem]:
         # "it is one of 20 settings tested" says which set a thing belongs to, not how many did something
         if k_ is not None and n_ and before(hit.start()) not in _COUNT_LABEL | _MEMBER | {"every", "each", "any"}:
             stated.append((k_, n_, re.sub(r"\s+", " ", hit.group(0)), hit.start()))
+    for hit in _STATED_SLASH.finditer(stmt):
+        k_, n_ = num(hit.group(1)), num(hit.group(2))
+        if k_ is not None and n_ and k_ <= n_ and before(hit.start()) not in _COUNT_LABEL | _MEMBER:
+            stated.append((k_, n_, re.sub(r"\s+", "", hit.group(0)), hit.start()))
     for hit in _STATED_ALL.finditer(stmt):
         n_ = num(hit.group(2))
         if not n_ or before(hit.start()) in _SET_PREP:

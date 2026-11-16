@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A stated count is read in its other forms.** The stated-count check read "24 of 24" and "all 24" but not
+  "24/24" or a count in words, so on 23 of 24 malformed files rejected "The parser rejected malformed files 24/24",
+  "Twenty-four of twenty-four malformed files were rejected" and "The parser rejected all twenty-four malformed files"
+  went in (a second /play/ attack round). Now "k/n" (not a date, path, decimal or percent) and number words up to
+  ninety-nine, compounds whole whichever hyphen joins them, are held to the record's count with `COUNT_CONTRADICTS`,
+  under the same exclusions. A label word ("run 3 of 7", "arm 2/3") now counts only when nothing but space separates it
+  from the count. Corpus (3,237 records): 182 statements with a slash count and 57 with a count in words reach the
+  comparison and none moves; the first draft refused one ("154 users per arm; 22/154 in A vs 31/154 in B" read the 22
+  as an arm label across the semicolon), now a test. Tests: `tests/test_stated_count_forms.py`.
 - **A p-value is checked as it is written.** Scientific notation was read in pieces: "p = 1.57e-06" as 1 and 06,
   "p<1e-20" as 20. An honest p-value bound to the claim was refused over the stray "06" (29 McNemar claims in the
   harmony runs), and an unbound one went in when its exponent happened to be accounted for. Figures like 1.2e-5,
