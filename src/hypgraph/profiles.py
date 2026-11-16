@@ -8,12 +8,13 @@ A profile is a named, versioned set of
   predicates     domain predicates the record can check (beyond coord.PREDICATES)
   validators     domain refusals at write time, on claims, results, artifacts, sources and decisions
   completion     what "the investigation is done" means, as criteria the record derives
-  workflow       (@2) the discipline's own method as stages with gates, what invalidates evidence, what "fresh"
+  workflow       (@2 and later) the discipline's own method as stages with gates, what invalidates evidence, what "fresh"
                  means, the typed artifacts — see docs/workflows/ and workflow.py
 
 An investigation pins ``profile: "software@1"``. Without one, nothing changes: ``scientific@1`` is today's behaviour
-and is what the engine does with no profile at all. Rules never change under a version; a changed rule is @2. The
-``@2`` profiles carry a workflow; the ``@1`` profiles are frozen as they were.
+and is what the engine does with no profile at all. Rules never change under a version; a changed rule is a new
+version. The ``@2`` profiles carry a workflow; ``trading@3`` and ``optimization@3`` add checks that read the values;
+every earlier version is frozen as it was.
 
     from hypgraph import profiles
     profiles.get("trading@2").workflow.stages
@@ -70,7 +71,7 @@ class Profile:
     validators: tuple = ()                                # names from _CLAIM_VALIDATORS / _RESULT_VALIDATORS
     completion: tuple = ("questions_settled",)            # names from _CRITERIA
     seats: tuple = ()                                     # suggested seat templates: (name, role, takes...)
-    workflow: Workflow | None = None                      # @2: the discipline's workflow (None = kernel defaults)
+    workflow: Workflow | None = None                      # @2 and later: the discipline's workflow (None = kernel defaults)
     typed_claims: bool = False                            # its investigations check claims as typed atoms
 
     @property
@@ -832,7 +833,7 @@ def W_result_issues(p: "Profile", s: D.Snap, inv: str, body: dict, pending: list
 
 
 def node_issues(s: D.Snap, inv: str, ntype: str, body: dict, pending: list) -> list[Problem]:
-    """Workflow refusals on artifacts, sources and decisions (@2 profiles only)."""
+    """Workflow refusals on artifacts, sources and decisions (profiles with a workflow: @2 and later)."""
     p = profile_of(s, inv)
     if not p or not p.workflow:
         return []

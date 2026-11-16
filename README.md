@@ -161,16 +161,16 @@ version's hash. The UI draws every pinned record beside yours, verifies each one
 The rules above are the scientific case written as code. A **profile** says what a domain means by evidence,
 acceptance and done — and, from 0.5, carries the discipline's own **workflow**: the stages a question passes
 through, the gate out of each, what invalidates evidence, the typed shapes. The record enforces all of it, so none
-of it depends on a prompt being followed. Pin one on the investigation (`"profile": "software@2"`); without one, the
-record behaves exactly as before.
+of it depends on a prompt being followed. Pin one on the investigation (`"profile": "trading@3"`); without one, the
+record behaves exactly as before. For a new investigation, pin the newest version — the ones in the table below.
 
 | profile | the stages a question passes through | the record refuses | done when |
 |---|---|---|---|
 | `scientific@2` | asked → conjectured → preregistered (**before** any run) → run → evidenced → claimed → reviewed | numbers no result accounts for, "never" without the count, "significant" without the test, a check on stale evidence | every question settled |
 | `software@2` | specified → implemented (a diff by hash) → verified (**the instrument ran the tests on that head**) → claimed → reviewed | *"it passes"* without an instrument run, or on a superseded head; the diff's author as its reviewer | every requirement's claim rests on a passing run on the current head |
-| `trading@2` | asked → thesised → preregistered → backtested (**out of sample, after costs, trials declared**) → claimed → risk-reviewed → positioned → monitored | a backtest without its costs; *"edge"* without both, or without the configurations tried; a position without size, stop, review date; any live order | questions settled, a position taken or declined, nothing past its review date |
+| `trading@3` | asked → thesised → preregistered → backtested (**out of sample, after costs, trials declared**) → claimed → risk-reviewed → positioned → monitored | a backtest without its costs; *"edge"* without both, or without the configurations tried; **an edge the numbers deny** (a loss, or behind the benchmark, out of sample after costs); an in-sample return not called one; a position without size, stop, review date; any live order | questions settled, a position taken or declined, nothing past its review date |
 | `knowledge@2` | asked → (searched) → sourced (**the passage**, retrieved, kind) → claimed → checked | a claim with no source; a source without its passage | every claim cites a source and is checked |
-| `optimization@2` | posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked | an objective without feasibility; *"optimal"* without a bound, or on a changed instance; a solve that uses no instance | a feasible bounded incumbent, verified on the current instance |
+| `optimization@3` | posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked | an objective without feasibility; *"optimal"* without a bound, **with a gap the bound leaves open, on an infeasible incumbent**, or on a changed instance; a solve that uses no instance | a feasible bounded incumbent, verified on the current instance |
 
 **The stage is derived, never set**: `g.stage(question)` reads it off the record (the first stage whose gate is not
 met, every gate MET / NOT MET with what would meet it); `GET /api/graph/stages`; MCP tool `stage`. A workflow
@@ -180,14 +180,20 @@ passed. A result whose run names no file it read goes stale when an input file o
 nothing shows it read the new version (name the files with `uses` and only those count). An honest "it can't be answered" (a checked `inconclusive` claim), a declined thesis (`no_position`) and a
 verified failure each complete a question the gates alone never would.
 
-Profiles are versioned and frozen: a record written under `trading@1` means the same thing in a year, and the `@1`
-profiles stay exactly as they were. `completion(inv)` reports each criterion; `hypgraph serve` exposes
-`/api/graph/completion` and `/api/graph/profiles`. The method each workflow is taken from is quoted, one page each,
-in [docs/workflows/](docs/workflows/). Adding a discipline is one `Profile` with a `Workflow`. `trading@3` is
-`trading@2` that also reads the values: *"edge"* on an out-of-sample loss, or behind the benchmark it
-records, is refused, and an in-sample return must say so. `optimization@3` is
-`optimization@2` that also reads the values: *"optimal"* on an infeasible incumbent, or with a gap above
-1e-4, is refused.
+**Profiles are versioned and frozen.** A record written under `trading@2` means the same thing in a year: a
+pinned version's rules never change, and a check is tightened by adding a version, not by editing one. So an
+existing investigation keeps the rules it was pinned with — nothing it holds is refused after the fact — and
+moving to a newer version is a choice you make for new work. From 0.8.9, `trading@3` and `optimization@3` are the
+`@2` workflows plus checks that read the values, not only the fields: `@2` asks that a result *has* an
+out-of-sample after-cost return, or a bound; `@3` asks what it says. *"Edge"* on an out-of-sample loss or behind
+the benchmark is refused, an in-sample return must say so, and *"optimal"* needs a feasible incumbent within 1e-4
+of its bound. Neither value check refuses a sentence that denies something ("there is no edge", "the plan is
+infeasible, whereas the optimum is 112"): an audit names the claim to refute it. `scientific@2`, `software@2` and
+`knowledge@2` are still the newest of theirs; every `@1` and `@2` stays available, exactly as it was.
+
+`completion(inv)` reports each criterion; `hypgraph serve` exposes `/api/graph/completion` and
+`/api/graph/profiles` (every version). The method each workflow is taken from is quoted, one page each, in
+[docs/workflows/](docs/workflows/). Adding a discipline is one `Profile` with a `Workflow`.
 
 ## Connect your agent
 

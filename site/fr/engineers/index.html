@@ -110,7 +110,7 @@ res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced
 <p>Les artefacts sont adressés par contenu (mêmes octets, un nœud), donc deux résultats calculés à partir des mêmes données fusionnent automatiquement en une ligne d'évidence. Une réexécution lie <code>replicates</code> à <code>data.differs</code> (<code>new_seed</code>, <code>new_impl</code>, <code>new_data</code> …) et élève le profil d'évidence.</p>
 
 <h2 id="workflows">Profils et workflows</h2>
-<p>Fixez un profil sur l'enquête et le registre applique les règles de cette discipline — et, avec les profils <code>@2</code>, son <a href="../#workflows">workflow</a> : des étapes avec seuils, ce qui invalide l'évidence, les formes typées que doivent avoir un diff, une instance, une source ou une position. L'étape est dérivée à chaque lecture, comme le statut.</p>
+<p>Fixez un profil sur l'enquête et le registre applique les règles de cette discipline — et, avec les profils <code>@2</code> et suivants, son <a href="../#workflows">workflow</a> : des étapes avec seuils, ce qui invalide l'évidence, les formes typées que doivent avoir un diff, une instance, une source ou une position. L'étape est dérivée à chaque lecture, comme le statut.</p>
 <div class="code"><pre>inv = g.create(author="operator", type="investigation",
                fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@2"})["id"]
 q = g.create(author="operator", type="question", inv=inv, fields={"text": "Does the importer keep quoted commas?"})["id"]

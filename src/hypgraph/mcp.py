@@ -637,7 +637,7 @@ def build(graph: Graph | str, author: Optional[str] = None, files_root: str | No
 
     @tool
     def stage(question: str = "", investigation: str = "") -> str:
-        """Where a question stands in its profile's workflow (@2 profiles: scientific, software, trading, knowledge,
+        """Where a question stands in its profile's workflow (@2 and later profiles: scientific, software, trading, knowledge,
         optimization): the stage it is in — derived from the record, never set — and every gate MET / NOT MET with
         what would meet it. Without a question: every question of the investigation."""
         try:

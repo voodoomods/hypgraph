@@ -834,7 +834,7 @@
     "stage.of": "stage {i} of {of}", "q.settled": "settled", "q.contested": "contested", "q.open": "open",
     "ov.no_questions": "No questions in this investigation yet.", "ov.attention": "Needs attention", "ov.completion": "Completion",
     "ov.kernel": "kernel", "ov.recent": "Recent activity", "ov.no_events": "No events.",
-    "pl.no_workflow": "This investigation has no workflow profile, so its questions have no stages. Start an investigation with a <code>@2</code> profile (scientific, software, trading, knowledge, optimization) to see them move through its workflow.",
+    "pl.no_workflow": "This investigation has no workflow profile, so its questions have no stages. Start an investigation with an <code>@2</code> or later profile (scientific, software, trading, knowledge, optimization) to see them move through its workflow.",
     "pl.no_stages": "This host doesn't serve the workflow stages (<code>/api/graph/stages</code>, hypgraph ≥ 0.5).",
     "pl.lede": "Each {noun} moves through the {name} workflow. The stage is derived from the record, never set by hand, and each gate says what would meet it.",
     "ev.lede": "Every {claim}, {result} and source with its derived standing: checked, stale, contested, at risk.",

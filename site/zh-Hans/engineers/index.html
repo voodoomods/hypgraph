@@ -110,7 +110,7 @@ res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced
 <p>工件按内容寻址（相同字节，一个节点），因此用同样数据算出的两个结果会自动合并为一条证据线。重新运行会把 <code>replicates</code> 链接到 <code>data.differs</code>（<code>new_seed</code>、<code>new_impl</code>、<code>new_data</code> …），并提升证据等级。</p>
 
 <h2 id="workflows">配置与工作流</h2>
-<p>在调查上设置一个配置，记录就会执行该学科的规则 — 对于 <code>@2</code> 配置，还会执行它的<a href="../#workflows">工作流</a>：带关卡的阶段、什么会使证据失效、diff、实例、来源或仓位必须具备的有类型形式。阶段和现状一样，在每次读取时推导。</p>
+<p>在调查上设置一个配置，记录就会执行该学科的规则 — 对于 <code>@2</code> 及更高版本的配置，还会执行它的<a href="../#workflows">工作流</a>：带关卡的阶段、什么会使证据失效、diff、实例、来源或仓位必须具备的有类型形式。阶段和现状一样，在每次读取时推导。</p>
 <div class="code"><pre>inv = g.create(author="operator", type="investigation",
                fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@2"})["id"]
 q = g.create(author="operator", type="question", inv=inv, fields={"text": "Does the importer keep quoted commas?"})["id"]

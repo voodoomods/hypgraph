@@ -161,7 +161,7 @@ def risky(s: Snap, x: str) -> tuple:
 
 
 def workflow_profile(s: Snap, x: str) -> bool:
-    """Whether x's investigation runs a profile with a workflow (the @2 profiles): freshness rules that need the files
+    """Whether x's investigation runs a profile with a workflow (@2 and later): freshness rules that need the files
     to be registered apply only there."""
     inv = s.nodes.get(s.nodes[x]["inv"]) if x in s.nodes else None
     pid = str((inv or {}).get("body", {}).get("profile") or "").lower()
