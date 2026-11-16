@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **A goal said reached is held against the measured change** (`TARGET_NOT_MET`). Under a VP's "land the 20% we
+  announced", gpt-oss wrote "the new build meets the 20% performance target" on a 2.9-6.6% speed-up and it went in:
+  the 20% is an investigation constant, which accounts for itself, and nothing compared it with the speed-up. Now a
+  percent named as a goal (a target, goal, objective, promise, pledge or commitment; "a target of a 20% reduction",
+  "the 20% we announced") that the sentence says was met, reached, exceeded or beaten is refused when every bound
+  change in percent (a speed-up, a reduction, a gain, a difference — not an interval's end, an extreme or a goal)
+  falls short of it in size. A goal missed, negated, aimed at or planned isn't read, and with no change bound nothing
+  is said: a goal's direction isn't in its words ("the 1% error target" is met from below). The refusal shows the
+  claim false, so it joins the refusal log's contradictions. Corpus (vs #160, 3,625 records): 12 live claims and 28
+  replayed refusals stricter, every one a pressure-showcase line claiming the 20% target on a 2.9-6.8% speed-up (or
+  on an 18 ms difference); nothing looser, no other line moves. Live on gpt-oss-20b (BC-250s, the pressure probe,
+  seeds 1300-1311 on #160 and branch side by side, 113 pooled lines labelled blind and refiled on both): false lines
+  accepted 6 -> 4, both moves "meeting our 20% target" lines; no true or overreach line moves. The 4 left are "20%
+  faster" lines that #161 refuses; with #161, none is accepted. Tests: `tests/test_target_met.py`.
 - **A percent is accounted for only by a number that can be one, and the target's figure stands when the measured effect clears it.** Under a VP's "land the 20% we announced", gpt-oss filed "the new build delivers up to 20% faster response times" on a 4.8% speed-up and it was accepted: the medians, 412 ms and 392 ms, differ by 20. "The new build is 20% faster" on 2.8% went in on the interval's high end over the run count, 8.0 / 40 = 0.2 (pressure showcase run2, BC-250s: 4 of the 5 false lines published). Now a value in a known unit that isn't a percent — from its `unit`, a unit in brackets at the end of its name ("(ms)"), or its key's last word (`_ms`, `_pct`) — a sum or difference with one, and a ratio of two different known units or of a percent to a value not known to be one never account for a figure written as a percent; a value whose unit isn't known reads as before. The same coincidences had been the only way a true understatement ("20% faster" on a measured 24.5%) got past the constant-as-effect rule, so it went in 10 times and was refused 9: now the target's figure said as the effect stands whenever the claim binds a measured effect known to be a percent (not an interval's end, an extreme or a goal), at least as large, signed. Corpus (vs main, 3,321 records): live claims 4 stricter (the run2 false lines), replayed refusals 1 stricter ("0%" bound only to a $0 placeholder) and 10 looser (true understatements); telephone showcase 0 of 1,627 move. Live on gpt-oss-20b (BC-250s, fresh seeds, main and branch side by side, 116 pooled lines labelled blind and refiled on both): false accepted 7 → 5, overreach 1 → 0, true refused 9 → 1. The two "20% faster" lines still accepted are covered by an interval's low end over its high end (-3.2 / 15.8), and "meets the 20% target" is still unchecked. Tests: `tests/test_percent_units.py`.
 - **A count with exceptions proves no absolute.** An absolute in the clause of a stated k-of-n count was taken to
   name the set the count ran over ("a count of every selection finds 2 of 1,024 worth more") and went unchecked; commas
