@@ -1404,6 +1404,49 @@ def _counted_noun(name: str) -> set[str]:
     return L.content_words(toks[i]) if i is not None else set()
 
 
+# A count of containers ("test suites passed") may be said of what they hold, or of the container as one: a suite
+# passes when every test in it does, so "the parser smashed tests" and "dominated the test suite" say every suite
+# passed, as "smashed test suites" does
+_CONTAINERS = {"suites": "suite", "sets": "set", "batches": "batch", "batteries": "battery",
+               "collections": "collection"}
+_WHOLE = {"the", "our", "its", "their", "whole", "entire", "full"}
+
+
+def _set_names(name: str) -> tuple[set[str], set[str]]:
+    """Other words a statement names a count of containers by, as written (lower case): the plural of what they hold
+    ("tests" for "test suites passed"), and the container in the singular ("suite": read only after the / our /
+    whole …, so "the test suite" and "our entire suite", not "a suite of tests"). Needed because the counted noun
+    is compared by content words, and "test" is a stop word: "It crushed the tests" on 7 of 8 test suites went in
+    while "crushed the test suites" was refused (telephone showcase, 2026-11-17). Empty for anything else."""
+    toks, i = _plural_subject(name)
+    if i is None or toks[i].lower() not in _CONTAINERS:
+        return set(), set()
+    held = set()
+    if i > 0 and toks[i - 1].isalpha() and toks[i - 1].lower() not in _WHOLE:
+        mod = toks[i - 1].lower()
+        held = {mod + "s", mod + "es"}
+    return held, {_CONTAINERS[toks[i].lower()]}
+
+
+def _names_set(toks: list[str], j: int, name: str) -> bool:
+    """Whether word j of a statement names the set a count's name counts: its counted noun, the plural of what its
+    containers hold, or the container in the singular after the / our / whole … (with its modifier between)."""
+    t = toks[j].lower()
+    noun = L.content_words(t) if t.endswith("s") and not t.endswith(("ss", "us", "is", "'s")) else set()
+    if noun and noun == _counted_noun(name):
+        return True
+    held, whole = _set_names(name)
+    if t in held:
+        return True
+    if t in whole:
+        before = [w.lower() for w in toks[max(0, j - 3):j]]
+        mod = _plural_subject(name)[0][_plural_subject(name)[1] - 1].lower() if _plural_subject(name)[1] else ""
+        while before and before[-1] in ({mod} | {"whole", "entire", "full"}):
+            before.pop()
+        return bool(before) and before[-1] in _WHOLE
+    return False
+
+
 # A count the statement states: "23 of 24", "23 out of the 24", and "all 24" / "all of the 24" / "each of the 24" /
 # "every one of the 24" (N of N). Not "run 3 of 7" or "ranked 2 of 20" (a label or a rank), not "3 of 24%", not a
 # decimal ("0.5 of 4")
@@ -1605,8 +1648,7 @@ def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
         return []
     for clause in _GENERIC_CLAUSE.split(stmt):
         toks, i = _plural_subject(clause)
-        head = L.content_words(toks[i]) if i is not None else set()
-        hits = [(m, a) for m, a in arms if head and head == _counted_noun(str(m.get("name") or ""))]
+        hits = [(m, a) for m, a in arms if i is not None and _names_set(toks, i, str(m.get("name") or ""))]
         if not hits:
             got = _object_generic(clause, arms)
             if got:
@@ -1643,10 +1685,7 @@ def _object_generic(clause: str, arms: list) -> tuple[int, list] | None:
     showcase on merged main (2026-11-16): 9 of the 20 false lines that went in had this shape."""
     toks = re.findall(r"[A-Za-z][\w‐‑'-]*", clause)
     for j, t in enumerate(toks):
-        if not t.lower().endswith("s") or t.lower().endswith(("ss", "us", "is", "'s")):
-            continue
-        noun = L.content_words(t)
-        hits = [(m, a) for m, a in arms if noun and noun == _counted_noun(str(m.get("name") or ""))]
+        hits = [(m, a) for m, a in arms if _names_set(toks, j, str(m.get("name") or ""))]
         if not hits:
             continue
         deeds = _MASTERY | set().union(*(_count_deed(str(m.get("name") or "")) for m, _a in hits))
