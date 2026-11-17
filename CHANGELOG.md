@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **'Half of the counted set' on a count that isn't half is refused.** "Half of the massive files met the deadline"
+  on 2 of 6 files over 1 GB parsed within the time budget, and "Only half of the massive files met deadlines" on 2 of
+  5, went in in the telephone showcase (blind-labelled false). Either side of a count is half only when the count is,
+  so, unlike the majority rules, no side has to be worked out. Read only when "half" sits on the counted set itself and
+  nothing loosens or bounds it ("about half", "more than half", "fewer than half", "half or more", "cut in half"); a
+  count that rounds to 50% (half up) stands. Pooled telephone lines (5,175, the rule's development set): the 2 false
+  lines refused, nothing else moves. Corpus (vs main, 3,853 records): 1 stricter (one of those two lines), nothing
+  looser. Held out (953 labelled live sentences, seeds 1800-1811) and live on gpt-oss-20b (BC-250s, fresh seeds
+  1900-1911, main and branch side by side, 963 pooled sentences labelled blind and refiled on both): no sentence said
+  "half", nothing moves, so neither exercised the rule. Tests: `tests/test_half_off_count.py`.
 - **The target rule rounds as the other number checks do.** `TARGET_NOT_MET` lets a change stand when it rounds to the
   goal as written, but rounded with `round()` (the binary value, halves to even): 20.5% missed "the 21% target",
   12.5% missed "the 13% target" and 4.85% (stored as 4.8499...) missed "the 4.9% target", while every other number

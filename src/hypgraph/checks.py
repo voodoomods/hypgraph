@@ -1361,8 +1361,8 @@ def _half_off_count(stmt: str, bound: list) -> list[Problem]:
     (blind-labelled false). A count is half when it rounds to 50% (half up), so "half" on 99 of 200 stands. Read only
     when "half" sits on the counted set itself (up to four words before its plural, no preposition but "of" between)
     and nothing loosens or bounds it ("about half", "more than half", "fewer than half", "half or more"); a negated
-    "half" ("not half") isn't read. Pooling every blind-labelled telephone line (2026-11-17, 5,175 sentences):
-    "half" stood on a count that isn't half in 4 lines, all false (2 accepted on main), and on an even split in 15."""
+    "half" ("not half") isn't read. Pooling every blind-labelled telephone line (2026-11-17, 5,175 sentences): a bare
+    "half" stood on a count that isn't half in 2 lines, both false and accepted on main, and on an even split in 15."""
     arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
     if not arms:
         return []

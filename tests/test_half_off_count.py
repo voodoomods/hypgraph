@@ -2,8 +2,8 @@
 
 Found pooling every blind-labelled line of the telephone showcase (2026-11-17, 5,175 sentences): "Half of the massive
 files met the deadline" on 2 of 6 and "Only half of the massive files met deadlines" on 2 of 5 went in, both labelled
-false. Either side of a count is half only when the count is, so no side has to be worked out. "half" stood on a count
-that isn't half in 4 lines, all false, and on an even split in 15.
+false. Either side of a count is half only when the count is, so no side has to be worked out. A bare "half" stood on
+a count that isn't half in those 2 lines only, and on an even split in 15.
 """
 import pytest
 
