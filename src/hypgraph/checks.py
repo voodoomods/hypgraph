@@ -1240,6 +1240,8 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
         out += _majority_at_half(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _majority_under_half(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _invented_scale(stmt, bound)
     return out
 
 
@@ -1588,6 +1590,78 @@ def _stated_count_contradicted(stmt: str, bound: list) -> list[Problem]:
                            fix=f"correct the statement, or say '{k:,} of {n:,}'", words=[words.lower()]))
         break
     return out
+
+
+# Words that put a number on a set without saying it, and the least each can mean: "dozens of runs" is 24 or more
+# (two dozen), "hundreds" 200, "countless" more than anyone counted, taken as 1,000
+_SCALE = {"dozens": 24, "scores": 40, "hundreds": 200, "thousands": 2_000, "tens of thousands": 20_000,
+          "hundreds of thousands": 200_000, "millions": 2_000_000, "countless": 1_000, "innumerable": 1_000,
+          "untold": 1_000, "myriad": 1_000, "endless": 1_000}
+_SCALE_RE = re.compile(r"(?<![\w-])(?:(?:many\s+|several\s+)?(tens\s+of\s+thousands|hundreds\s+of\s+thousands|dozens|"
+                       r"scores|hundreds|thousands|millions)\s+(?:and\s+\w+\s+)?of|(countless|innumerable|untold|"
+                       r"myriad|endless)|(a\s+dozen))\b", re.I)
+# "about a dozen", "over a dozen", "nearly a dozen": a dozen as a rough size, or a bound, isn't twelve
+_DOZEN_ROUGHLY = re.compile(r"\b(?:about|around|roughly|nearly|almost|some|approximately|over|more\s+than|under|"
+                            r"fewer\s+than|less\s+than|up\s+to|at\s+least|at\s+most|half|another|than)\s+$", re.I)
+# what a count's units are called when a statement speaks of them as runs of a test rather than by name
+_TRIALS = set("runs trials tests scenarios cases iterations attempts executions test-runs".split())
+# a negator on the size itself ("not dozens of runs", "never a dozen"); "no crashes across dozens of runs" negates the
+# crashes, not the size
+_SIZE_NEGATED = re.compile(r"\b(?:not|never|hardly|nor)\s+(?:even\s+|quite\s+)?$|n't\s+$", re.I)
+
+
+def _invented_scale(stmt: str, bound: list) -> list[Problem]:
+    """A size the record doesn't hold: "no crashes across dozens of runs" or "in countless test runs" on 0 of 10
+    test suites in which the parser crashed, "across a dozen trials" on 14 encodings. A reader takes the sentence to
+    rest on far more than was counted. Read when the word sits on the counted set (its plural follows within four
+    words, no preposition between) or on its runs / trials / tests / scenarios / cases, and every count and number
+    bound to the claim is below the least the word can mean (dozens 24, hundreds 200, thousands 2,000, countless
+    1,000); "a dozen" when the count isn't 11 to 13 and nothing makes it rough or a bound ("about a dozen", "over a
+    dozen"). "Numerous", "many" and "a handful" don't name a size and aren't read. Found in the telephone showcase
+    (2026-11-17): 5 false lines of this shape went in on main, and fresh rounds keep writing them."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    sizes = [float(n) for _m, (_k, n) in arms]
+    for _m, rv in bound:
+        v = rv.get("value")
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            sizes.append(float(abs(v)))
+    biggest = max(sizes)
+    counted = {frozenset(_counted_noun(str(m.get("name") or ""))) for m, _a in arms} - {frozenset()}
+    for hit in _SCALE_RE.finditer(stmt):
+        if _SIZE_NEGATED.search(stmt[max(0, hit.start() - 16):hit.start()]):
+            continue
+        word = re.sub(r"\s+", " ", (hit.group(1) or hit.group(2) or hit.group(3)).lower())
+        if word == "a dozen":
+            if _DOZEN_ROUGHLY.search(stmt[max(0, hit.start() - 20):hit.start()]):
+                continue
+            wrong = not any(11 <= n <= 13 for n in sizes)
+            least = 12
+        else:
+            least = _SCALE[word]
+            wrong = biggest < least
+        if not wrong:
+            continue
+        noun = None
+        for t in list(re.finditer(r"[A-Za-z][\w\u2010\u2011'-]*", stmt[hit.end():]))[:5]:
+            w = t.group(0).lower()
+            if w in _PREPOSITIONS or w in {"and", "or", "but"}:
+                break
+            if w in _TRIALS or (w.endswith("s") and not w.endswith(("ss", "us", "is", "'s"))
+                                and frozenset(L.content_words(w)) in counted):
+                noun = stmt[hit.start():hit.end() + t.end()]
+                break
+        if not noun:
+            continue
+        phrase = re.sub(r"\s+", " ", noun)
+        m, (k, n) = max(arms, key=lambda x: x[1][1])
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' puts the set at {'twelve' if word == 'a dozen' else f'{least:,} or more'}, "
+                        f"but the record counted {n:,} ({m.get('name') or m.get('key')}) and holds nothing that "
+                        f"large: say how many, '{n:,}'",
+                        fix=f"say '{n:,}'", words=[phrase.lower()])]
+    return []
 
 
 def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:

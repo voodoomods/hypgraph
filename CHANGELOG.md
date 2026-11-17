@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **A size the record doesn't hold is refused.** "No crashes emerged in countless test runs" and "In our initial 10
+  trials across dozens of test suites" went in on 0 of 10 test suites in which the parser crashed, "Across a dozen
+  trials" on 14 encodings: a reader takes the claim to rest on far more than was counted. Read when "dozens / scores /
+  hundreds / thousands / millions of", or "countless / innumerable / untold / myriad / endless", sits on the counted
+  set (its plural follows within four words) or on its runs / trials / tests / scenarios / cases, and every count and
+  number bound to the claim is below the least the word can mean (dozens 24, scores 40, hundreds 200, thousands
+  2,000, the countless family 1,000); and "a dozen" when no bound count is 11 to 13 and nothing makes it rough or a
+  bound ("about a dozen", "over a dozen"). A negator on the size itself takes it back ("not dozens of runs"); the
+  clause's own "no crashes" doesn't. "Numerous", "many" and "a handful" name no size and aren't read. Pooled telephone
+  lines (5,175): 5 false and 1 overreach refused, no true line, nothing looser. The three live rounds since (2,868
+  lines, scanned for the shape before the rule was written, so not held out): 2 false and 1 overreach, no true line.
+  Corpus (vs main, 3,877 records): 14 stricter, all telephone-showcase lines of this shape, nothing looser. Live
+  (gpt-oss on the BC-250s, fresh seeds 2200-2211, main vs this branch, 931 lines labelled blind, paired refile): 1
+  false and 1 overreach refused, no true line. Tests: `tests/test_invented_scale.py`.
 - **The target rule rounds as the other number checks do.** `TARGET_NOT_MET` lets a change stand when it rounds to the
   goal as written, but rounded with `round()` (the binary value, halves to even): 20.5% missed "the 21% target",
   12.5% missed "the 13% target" and 4.85% (stored as 4.8499...) missed "the 4.9% target", while every other number
