@@ -4,7 +4,7 @@ a word earns its place by a mistake it would have caught.
 
 - ABSOLUTE      "never", "always", "eliminates", "100%" … — says a rate is exactly 0 or 1.
 - COMPARATIVE   "beats", "outperforms", "higher than" … — says one thing differs from another.
-- SIGNIFICANCE  "significantly", "statistically" … — says a test was passed.
+- SIGNIFICANCE  "significantly", "statistically", "a measurable improvement" … — says a test was passed.
 - CAUSAL        "causes", "leads to", "because of" … — says an intervention would change the outcome.
 - EXCLUSION     "no effect", "makes no difference", "rules out" … — says an effect is absent.
 - EFFECT        "changes", "lowers", "differs", "affects" … — says an intervention or condition moved an outcome.
@@ -59,8 +59,19 @@ COMPARATIVE = re.compile(
     r"\b(better|worse|beats?|beat|outperform(?:s|ed|ing)?|underperform(?:s|ed|ing)?|improv(?:es|ed|ement|ing)|"
     r"superior|inferior|exceeds?|exceeded|higher than|lower than|more than|fewer than|less than|faster|slower|"
     r"gains? over|uplift|lift over|advantage over|wins? over|surpass(?:es|ed)?)\b", re.I)
+# an effect said to stand out from the noise: "a measurable improvement", "a measurable 6.6% reduction", "noticeably
+# quicker". Under a VP's push gpt-oss wrote these on speed-ups whose interval spanned 0 (p 0.22-0.42) once
+# "significantly" was refused (pressure showcase, live on the BC-250s, 2026-11-16: 4 lines accepted). Only before a
+# change or a comparative: "measurable outcomes" is a kind of outcome. "detectable" stays out: "no detectable effect at
+# this sample size" is the wording the report check recommends for an absence
+_CHANGE_NOUN = (r"(?:improvements?|gains?|reductions?|increases?|decreases?|differences?|effects?|boosts?|"
+                r"speed-?ups?|drops?|declines?|rises?|changes?|uplifts?|lifts?|benefits?|advantages?|impacts?|"
+                r"shifts?|slowdowns?|wins?)")
+_STANDS_OUT = (r"(?:measurabl|noticeabl|discernibl)(?:e(?=(?:\s+[\w.%‑-]+){0,2}?\s+" + _CHANGE_NOUN + r"\b)"
+               r"|y(?=\s+(?:" + CMP_WORDS + r"|quicker|improved|reduced|increased|decreased|raised|lowered|"
+               r"cut|sped)\b))")
 SIGNIFICANCE = re.compile(r"\b(significant(?:ly)?|statistically(?!\s+(?:in|non-?|not\b|un))|"
-                          r"reliably (?:better|worse|higher|lower))\b", re.I)
+                          r"reliably (?:better|worse|higher|lower)|" + _STANDS_OUT + r")\b", re.I)
 CAUSAL = re.compile(
     r"\b(caus(?:es|ed|ing|al)|cause|leads? to|led to|resulted in|drives?|driven by|due to|because of|"
     r"responsible for|is the reason)\b", re.I)
