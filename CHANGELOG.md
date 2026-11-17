@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **The counted set as the direct object of any verb says it of every one.** "The parser flags misformatted files" on
+  20 of 21, "Parser snuffs malformed files", "It spotted corrupted files", "Parser wrestles massive files, staying
+  unshaken" on 5 of 7: the bare plural object was read only after the count's own verb or one of mastery, and pooling
+  every blind-labelled telephone line (5,175 sentences, run1-3 and three live rounds) showed it as the largest group of
+  the 106 false lines main still accepted. Any other verb now reads it too, as `COUNT_CONTRADICTS`, when the set is its
+  direct object: no preposition between, an -ed word right before the set is its adjective ("malformed files"), an
+  -ous / -ss / -us / -is word is no verb. A clause that states a count, says the contrary, negates, or puts the verb in
+  a reported question or time clause ("we measured how the parser handles malformed files", "limits surfaced when the
+  parser confronted enormous files") isn't read. On that pool, which the rule was designed from: 23 false and 3
+  overreach lines refused, none of the 2,307 accepted true lines. Corpus (vs main, 3,853 records): 29 stricter, all
+  telephone-showcase claims labelled false or overreach, nothing looser. Live on gpt-oss-20b (BC-250s, fresh seeds
+  1800-1811, main and branch side by side, 953 pooled sentences labelled blind and refiled on both): 1 false and 1
+  overreach line refused, no true line, nothing looser. Tests: `tests/test_object_any_verb.py`.
 - **The target rule rounds as the other number checks do.** `TARGET_NOT_MET` lets a change stand when it rounds to the
   goal as written, but rounded with `round()` (the binary value, halves to even): 20.5% missed "the 21% target",
   12.5% missed "the 13% target" and 4.85% (stored as 4.8499...) missed "the 4.9% target", while every other number
