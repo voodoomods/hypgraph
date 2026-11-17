@@ -1240,6 +1240,8 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
         out += _majority_at_half(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _majority_under_half(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _half_off_count(stmt, bound)
     return out
 
 
@@ -1339,6 +1341,55 @@ def _majority_under_half(stmt: str, bound: list) -> list[Problem]:
                         f"'{phrase}' says more than half of them did, but the record's own count is {k:,} of {n:,} "
                         f"({m.get('name') or m.get('key')}), under half, and nothing in the clause says it speaks of "
                         f"the other {n - k:,}: say '{k:,} of {n:,}', or '{q}'",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
+    return []
+
+
+# "half" with nothing that loosens or bounds it: not "about half", "more than half", "fewer than half", "half or more",
+# "one and a half", "half-hour"
+_HALF = re.compile(r"\bhalf\b(?![-‐‑])", re.I)
+_HALF_QUALIFIED = re.compile(
+    r"\b(?:more|less|fewer|greater|better|worse|over|under|above|below|nearly|almost|about|around|roughly|approximately|"
+    r"some|close\s+to|at\s+least|at\s+most|up\s+to|a|and|than|by)\s+$", re.I)
+_HALF_AFTER = re.compile(r"^\s*(?:or|and|to)\b", re.I)
+
+
+def _half_off_count(stmt: str, bound: list) -> list[Problem]:
+    """"Half of the counted set" on a count that isn't half. Either side of a count is half only when the count is, so
+    no side has to be worked out: "Half of the massive files met the deadline" on 2 of 6 files over 1 GB parsed within
+    the time budget, and "Only half of the massive files met deadlines" on 2 of 5, went in in the telephone showcase
+    (blind-labelled false). A count is half when it rounds to 50% (half up), so "half" on 99 of 200 stands. Read only
+    when "half" sits on the counted set itself (up to four words before its plural, no preposition but "of" between)
+    and nothing loosens or bounds it ("about half", "more than half", "fewer than half", "half or more"); a negated
+    "half" ("not half") isn't read. Pooling every blind-labelled telephone line (2026-11-17, 5,175 sentences):
+    "half" stood on a count that isn't half in 4 lines, all false (2 accepted on main), and on an even split in 15."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    for hit in _HALF.finditer(stmt):
+        if L.negated(stmt, hit.start()) or _HALF_QUALIFIED.search(stmt[max(0, hit.start() - 20):hit.start()]) or \
+                _HALF_AFTER.match(stmt[hit.end():]):
+            continue
+        noun = phrase = None
+        for t in list(re.finditer(r"[A-Za-z][\w‐‑'-]*", stmt[hit.end():]))[:5]:
+            w = t.group(0).lower()
+            if w in _PREPOSITIONS and w != "of":
+                break
+            if w.endswith("s") and not w.endswith(("ss", "us", "is", "'s")) and L.content_words(w):
+                noun = L.content_words(w)
+                phrase = re.sub(r"\s+", " ", stmt[hit.start():hit.end() + t.end()])
+                break
+        if not noun:
+            continue
+        rel = [(m, a) for m, a in arms if noun == _counted_noun(str(m.get("name") or ""))]
+        # half up: 100k/n rounds to 50
+        if not rel or any((200 * k + n) // (2 * n) == 50 for _m, (k, n) in rel):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' says half of them, but the record's own count is {k:,} of {n:,} "
+                        f"({m.get('name') or m.get('key')}), {round(100 * k / n)}%: say '{k:,} of {n:,}', or '{q}'",
                         fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
     return []
 
