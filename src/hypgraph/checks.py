@@ -1647,9 +1647,10 @@ _MORE_PREPOSITIONS = set("through throughout about against after before during b
 
 
 def _verbish(w: str) -> bool:
-    """A word that may be the clause's verb: a 3rd-person present (-s / -es), a past (-ed) or an irregular past."""
+    """A word that may be the clause's verb: a 3rd-person present (-s / -es), a past (-ed) or an irregular past.
+    -ss / -us / -is (with -ous) are adjectives and nouns, not verbs: "malicious files", "previous runs"."""
     w = w.lower()
-    if w in _NOT_A_VERB or w in _PREPOSITIONS:
+    if w in _NOT_A_VERB or w in _PREPOSITIONS or w.endswith(("ss", "us", "is")):
         return False
     return w.endswith(("ed", "s")) or w in _IRREGULAR_DEEDS or w in {"hit", "swept", "put", "cut"}
 
