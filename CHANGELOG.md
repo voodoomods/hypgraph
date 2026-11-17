@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **'Most' of the counted set, said its own way, on a count under half is refused.** "We met deadlines on most large
+  files" went in twice on 3 of 7 files over 1 GB parsed within the time budget (telephone showcase run3, gpt-oss-20b,
+  blind-labelled false). The even-split rule only read majority words at exactly half, because either side of a count
+  may be the one meant. Now a majority word ('most', 'a majority of', 'nearly all', …) that sits on the counted set
+  itself, on a count under half, is `COUNT_CONTRADICTS` when its clause says nothing contrary and doesn't negate.
+  "Most large files missed / overran / fell short of the time budget" speaks of the rest and stands, as does any clause
+  on a count whose own name is put the contrary way ("test suites in which the parser crashed"). Corpus (vs main,
+  3,757 records): 2 stricter (the two run3 lines above), nothing looser; of the 7 statements with a majority word on a
+  count under half, the other five are untouched (one true complement, two about another measure, two about "data"
+  rather than the counted files). Live on gpt-oss-20b (BC-250s, seeds 1700-1711 on main and branch side by side, 941
+  pooled sentences labelled blind and refiled on both): no verdict moves, and no sentence had a majority word on a
+  count under half, so the live round didn't exercise the rule. Tests: `tests/test_majority_under_half.py`.
 - **An effect said to stand out from the noise is a significance claim.** Once "significantly" was refused on a
   speed-up whose interval spanned 0, gpt-oss wrote "a measurable improvement", "a noticeable performance boost" and
   "noticeably quicker responses" on the same benchmarks (p 0.22-0.42), and the record accepted them. "measurable",
