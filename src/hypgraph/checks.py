@@ -2987,10 +2987,11 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     # "the new build meets the 20% performance target" on a 2.9-6.6% speed-up, and nothing compared the two — the 20%
     # is a constant, accounted for as itself (pressure showcase, live on the BC-250s, 2026-11-16: 7 such lines
     # accepted, 4 of them in one pool). Only when every bound change falls short of the goal in size: one that reaches
-    # it (or rounds to it as written) lets the line stand, and with no change bound nothing is said
+    # it (or rounds to it as written, as _shows rounds: half up) lets the line stand, and with no change bound
+    # nothing is said
     changes = _changes(bound)
     short = [p for p in _goals_reached(rest) if changes
-             and not any(abs(v) >= p[0] or round(abs(v), p[1]) == p[0] for v in changes)]
+             and not any(abs(v) >= p[0] or _shows(abs(v), p[0], p[1]) for v in changes)]
     if short:
         shown = ", ".join(p[3] for p in short[:4])
         best = max(changes, key=abs)
