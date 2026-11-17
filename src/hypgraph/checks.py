@@ -1354,9 +1354,10 @@ _MINORITY = re.compile(
 
 
 # Reaching a limit is the slow side too: "only a handful challenged the time limits", "a few stretched its limits",
+# "only a few hit the ceiling",
 # "a minority hit time limits" speak of the files that ran long
 _AT_LIMIT = re.compile(r"\b(?:hit(?:s|ting)?|challeng\w*|stretch\w*|strain\w*|tax\w*|test\w*|reach\w*)\s+"
-                       r"(?:the\s+|its\s+|their\s+|our\s+)?(?:time\s+|speed\s+)?limits?\b", re.I)
+                       r"(?:the\s+|its\s+|their\s+|our\s+)?(?:time\s+|speed\s+)?(?:limits?|ceilings?|caps?|walls?)\b", re.I)
 
 
 def _minority_over_half(stmt: str, bound: list) -> list[Problem]:

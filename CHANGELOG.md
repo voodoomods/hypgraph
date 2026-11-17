@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **'Only a few' of the counted set on a count over half is refused.** The mirror of 'most' on a count under half
+  (#166). "Only a few of our biggest files finish on time" on 4 of 7 files over 1 GB parsed within the time budget,
+  "Only a handful of massive files kept pace" on 3 of 5: a reader takes most of them to have failed, and most passed.
+  Read when a shrinking word ("only / just / merely a few, a handful, a fraction", "a select few", "few", "a minority
+  of") sits on the counted set — its plural follows, or, with nothing following ("only a few finish on time"), the set
+  is named earlier in the sentence — on a count over half, and its clause doesn't speak of the rest (contrary words,
+  negation, reaching a limit: "only a few exceeded the time limit", "only a handful challenged the time limits").
+  Exactly half, plain "a few" and "all but a handful" aren't read. **This one rests on a definition:** blind
+  labellers of the telephone showcase split on it (11 false, 7 true, in the pool), and the showcase's labelling guide
+  now calls it false. Pooled telephone lines (5,175, the development set): exactly those 18 refused, nothing else.
+  Held out (1,916 lines labelled before the guide changed, seeds 1800-1911): 16 refused, 6 labelled false and 10
+  true, all of this shape. Corpus (vs main, 3,877 records): 33 stricter, all telephone-showcase lines of this shape,
+  nothing looser; three that spoke of the slow side ("hit time limits", "stretched its limits") were read until the
+  limit guard went in. Live (gpt-oss on the BC-250s, fresh seeds 2000-2011, main vs this branch, 952 lines labelled
+  blind under the amended guide, paired refile): 4 moved, 3 false refused and 1 true — "Only a few large files hit the
+  ceiling" on 3 of 5, the slow side again; the limit guard now takes ceilings, caps and walls, so it is kept and the
+  live round reads 3 false refused, 0 true (that one case was seen before the guard, so it isn't held out).
+  Tests: `tests/test_minority_over_half.py`.
 - **The target rule rounds as the other number checks do.** `TARGET_NOT_MET` lets a change stand when it rounds to the
   goal as written, but rounded with `round()` (the binary value, halves to even): 20.5% missed "the 21% target",
   12.5% missed "the 13% target" and 4.85% (stored as 4.8499...) missed "the 4.9% target", while every other number

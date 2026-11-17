@@ -50,6 +50,7 @@ def test_a_shrinking_word_on_a_count_over_half_is_refused(statement, k, n, what)
     ("Only a few large files exceeded the time limit.", 4, 7, B),              # the other side
     ("Only a handful of massive files challenged the time limits.", 3, 5, B),
     ("A minority of large files hit time limits, so tweaks are ahead.", 4, 7, B),
+    ("Only a few large files hit the ceiling, so scalability needs a boost.", 3, 5, B),
     ("From a wide array of real-world files, only a handful slipped.", 65, 67, R),
     ("All but a handful of real-world files parsed without error.", 64, 67, R),
     ("Most large files finished on time, with only a few delays.", 5, 7, B),   # another noun
