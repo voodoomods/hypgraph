@@ -1640,6 +1640,10 @@ _NOT_A_VERB = set("is was has does as its this thus plus us his hers ours yours 
 # a verb after these sits in a reported question or a time clause ("we measured how the parser handles malformed
 # files", "limits surfaced when the parser confronted enormous files"): it isn't what the claim says of the set
 _REPORTED = {"how", "whether", "if", "when", "whenever", "while", "until", "once", "what"}
+# prepositions `_PREPOSITIONS` leaves out; a set after any of them isn't the verb's direct object
+_MORE_PREPOSITIONS = set("through throughout about against after before during between toward towards beyond past "
+                         "like upon along around behind below above beside besides despite except inside outside onto "
+                         "via versus amid among than".split())
 
 
 def _verbish(w: str) -> bool:
@@ -1691,7 +1695,7 @@ def _object_generic(clause: str, arms: list) -> tuple[int, list] | None:
             continue
         for v in range(j - 1, max(-1, j - 5), -1):
             w = toks[v].lower()
-            if w in _PREPOSITIONS:
+            if w in _PREPOSITIONS or w in _MORE_PREPOSITIONS:
                 break
             if v == j - 1 and w.endswith("ed"):
                 continue

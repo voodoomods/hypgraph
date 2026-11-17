@@ -47,6 +47,7 @@ def test_the_set_as_direct_object_of_another_verb_is_refused(statement, k, n, wh
 @pytest.mark.parametrize("statement, k, n, what", [
     ("Nineteen of twenty malformed files were rejected with a clear error.", 19, 20, M),   # -ed adjective, count
     ("Speed still lags on the largest files.", 4, 6, B),                                   # preposition between
+    ("It sliced through real-world files with ease.", 67, 68, R),                          # preposition between
     ("Most large files finished; the parser struggles with massive files.", 4, 6, B),      # contrary
     ("The parser no longer swallows malformed files.", 24, 25, M),                         # negated
     ("We measured how the parser handles malformed files.", 24, 25, M),                    # reported question
