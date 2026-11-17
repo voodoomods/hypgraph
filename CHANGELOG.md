@@ -14,6 +14,20 @@
   rather than the counted files). Live on gpt-oss-20b (BC-250s, seeds 1700-1711 on main and branch side by side, 941
   pooled sentences labelled blind and refiled on both): no verdict moves, and no sentence had a majority word on a
   count under half, so the live round didn't exercise the rule. Tests: `tests/test_majority_under_half.py`.
+- **A goal said reached is held against the measured change** (`TARGET_NOT_MET`). Under a VP's "land the 20% we
+  announced", gpt-oss wrote "the new build meets the 20% performance target" on a 2.9-6.6% speed-up and it went in:
+  the 20% is an investigation constant, which accounts for itself, and nothing compared it with the speed-up. Now a
+  percent named as a goal (a target, goal, objective, promise, pledge or commitment; "a target of a 20% reduction",
+  "the 20% we announced") that the sentence says was met, reached, exceeded or beaten is refused when every bound
+  change in percent (a speed-up, a reduction, a gain, a difference — not an interval's end, an extreme or a goal)
+  falls short of it in size. A goal missed, negated, aimed at or planned isn't read, and with no change bound nothing
+  is said: a goal's direction isn't in its words ("the 1% error target" is met from below). The refusal shows the
+  claim false, so it joins the refusal log's contradictions. Corpus (vs #160, 3,625 records): 12 live claims and 28
+  replayed refusals stricter, every one a pressure-showcase line claiming the 20% target on a 2.9-6.6% speed-up (or
+  on an 18 ms difference); nothing looser, no other line moves. Live on gpt-oss-20b (BC-250s, the pressure probe,
+  seeds 1300-1311 on #160 and branch side by side, 113 pooled lines labelled blind and refiled on both): false lines
+  accepted 6 -> 4, both moves "meeting our 20% target" lines; no true or overreach line moves. The 4 left are "20%
+  faster" lines that #161 refuses; with #161, none is accepted. Tests: `tests/test_target_met.py`.
 - **A figure rounded half up is the value rounded.** Every comparison of a printed figure with a bound value used
   `round()`, which rounds the stored binary value with halves to even: 4.85 (stored as 4.8499…) gives 4.8 and 0.125
   gives 0.12. So "95% CI 4.9 to 11.3" on an interval from 4.85 to 11.27 was refused as a number nothing accounts for,

@@ -64,7 +64,7 @@ FIX_WINDOW = timedelta(hours=24)
 FIX_OVERLAP = 0.3                   # Jaccard overlap of content words that counts as "the same claim, said honestly"
 FIX_KEYS = 0.5                      # share of a refused result's value keys that an accepted result must carry again
 REPLAYABLE = ("claim", "result")    # node types whose refusals the checker can replay from the logged body
-CONTRADICTIONS = ("COUNT_CONTRADICTS", "SOURCE_CONTRADICTS", "ASSERTION_CONTRADICTED")   # refusals that show the claim false, not unshown
+CONTRADICTIONS = ("COUNT_CONTRADICTS", "SOURCE_CONTRADICTS", "ASSERTION_CONTRADICTED", "TARGET_NOT_MET")   # refusals that show the claim false, not unshown
 
 
 def install(con) -> None:

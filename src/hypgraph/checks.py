@@ -292,6 +292,75 @@ def _effect_clears(printed: tuple, bound: list) -> bool:
     return False
 
 
+# a percent named as a goal: "the 20% target", "our 20 % performance improvement target", "a target of a 20%
+# reduction", "the 20% we announced" — and said to be reached: "meets", "achieving", "exceeds", "well above", or "the
+# 20% target was met". A goal's direction isn't in its words ("the 1% error target" is met from below), so it is held
+# only against a bound *change* (a speed-up, a reduction, a gain), whose size has to reach it
+_GOAL_NOUN = r"(?:targets?|goals?|objectives?|promises?|pledges?|commitments?)"
+_GOAL_AFTER = re.compile(r"\s*(?:%|percent|per\s?cent)(?:[" + _HY + r"\s]+(?!(?:and|or|but|with|by|from|to|in|on|at|"
+                         r"for|of|than)\b)[" + _HY + r"A-Za-z’']+){0,4}?[" + _HY + r"\s]+" + _GOAL_NOUN + r"\b"
+                         r"|\s*(?:%|percent|per\s?cent)(?:[" + _HY + r"\s]+[" + _HY + r"A-Za-z]+){0,2}?\s+"
+                         r"(?:we|they|management|leadership|the\s+\w+|our\s+\w+)\s+(?:had\s+)?(?:announced|promised|"
+                         r"pledged|committed\s+to)\b", re.I)
+_GOAL_BEFORE = re.compile(_GOAL_NOUN + r"\s+of\s+(?:(?:a|an|at\s+least|about|around|over|some)\s+)*$", re.I)
+_REACHED = re.compile(r"\b(?:meets?|meeting|met|achiev(?:e|es|ed|ing)|hit(?:s|ting)?|reach(?:es|ed|ing)?|"
+                      r"satisf(?:y|ies|ied|ying)|deliver(?:s|ed|ing)?|land(?:s|ed|ing)?|exceed(?:s|ed|ing)?|"
+                      r"surpass(?:es|ed|ing)?|beat(?:s|ing|en)?|outperform(?:s|ed|ing)?|clear(?:s|ed|ing)?|"
+                      r"fulfil(?:l|s|ls|led|ling)?|top(?:s|ped|ping)?|above|beyond|over)\b", re.I)
+_REACHED_AFTER = re.compile(r"^\s+(?:was|is|has\s+been|have\s+been|were|got)\s+(?:\w+ly\s+)?(?:met|achieved|hit|"
+                            r"reached|satisfied|delivered|exceeded|surpassed|beaten|cleared|fulfill?ed)\b", re.I)
+_NOT_REACHED = re.compile(r"\b(?:not|no|never|nor|cannot|fail\w*|short|miss\w*|below|under|yet|without|unless|if|"
+                          r"whether|aim\w*|plan\w*|hope\w*|expect\w*|intend\w*|will|would|could|should|may|might|must|"
+                          r"needs?|track|toward|towards|designed|set\s+to)\b|n['’]t\b", re.I)
+_CHANGE_KEY = re.compile(r"(?:speed[\s_-]?ups?|improv\w*|reduc\w*|gains?|lifts?|uplifts?|changes?|deltas?|increases?|"
+                         r"decreases?|growth|savings?|effects?|diffs?|differences?|boosts?|drops?|cuts?|faster|"
+                         r"relative|rel)\b", re.I)
+
+
+def _goals_reached(text: str) -> list[tuple]:
+    """Every percent the text names as a goal and says was reached, met or beaten, not negated, hoped for or planned."""
+    out = []
+    for p in numbers(text):
+        if not p[2] or p[3] in {q[3] for q in out}:
+            continue
+        for m in re.finditer(r"(?<![\w.])" + re.escape(p[3]) + r"(?!\w|\.\d)", text):
+            start = m.start()
+            if (g := _GOAL_BEFORE.search(text[:start])) and g.end() == start:
+                start = g.start()
+            elif not (a := _GOAL_AFTER.match(text, m.end() - (1 if p[3].endswith("%") else 0))):
+                continue
+            end = m.end() if start < m.start() else a.end()
+            sentence = max([e.end() for e in re.finditer(r"[.;!?](?=\s|$)", text[:start])] or [0])
+            before = text[sentence:start]
+            verbs = [v for v in _REACHED.finditer(before) if len(before[v.end():].split()) <= 4
+                     and not re.search(r"\bto\s+$", before[:v.start()])]
+            if verbs:
+                said = before[max(0, verbs[-1].start() - 40):]
+                said = said[max(0, said.find(" ") + 1) if verbs[-1].start() >= 40 else 0:]
+            elif _REACHED_AFTER.match(text[end:]):
+                said = before[-40:] + text[start:end] + _REACHED_AFTER.match(text[end:]).group(0)
+            else:
+                continue
+            if not _NOT_REACHED.search(said):
+                out.append(p)
+                break
+    return out
+
+
+def _changes(bound: list) -> list[float]:
+    """The bound changes in percent a goal can be held against: a value known to be a percent whose key or name says
+    it is a change (a speed-up, a reduction, a gain, a difference), not a count, a p-value, an interval's end, an
+    extreme or a goal."""
+    out = []
+    for m, rv in bound:
+        if _arm(rv) or _is_p_value(m, rv) or _unit_kind(m, rv) != "%":
+            continue
+        said = " ".join(str(m.get(k) or "") for k in ("key", "name")).replace("_", " ")
+        if _NOT_THE_EFFECT.search(said) or not _CHANGE_KEY.search(said):
+            continue
+        if (v := _primary(rv)) is not None:
+            out.append(v)
+    return out
 _INTERVAL = re.compile(r"\b(?:ci\d*|cis|interval|intervals|confidence|credible|bounds?)\b", re.I)
 _END = re.compile(r"\b(?:low|high|lower|upper|lo|hi|left|right|start|end|min|max)\b", re.I)
 
@@ -2914,6 +2983,21 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "('the 20% target', 'a 50 ms budget')",
                                 fix="state the measured effect from the bound result; name the constant as one",
                                 words=[p[3] for p in effects[:4]]))
+    # a goal said reached is held against the measured change: under a VP's "land the 20% we announced", gpt-oss wrote
+    # "the new build meets the 20% performance target" on a 2.9-6.6% speed-up, and nothing compared the two — the 20%
+    # is a constant, accounted for as itself (pressure showcase, live on the BC-250s, 2026-11-16: 7 such lines
+    # accepted, 4 of them in one pool). Only when every bound change falls short of the goal in size: one that reaches
+    # it (or rounds to it as written) lets the line stand, and with no change bound nothing is said
+    changes = _changes(bound)
+    short = [p for p in _goals_reached(rest) if changes
+             and not any(abs(v) >= p[0] or round(abs(v), p[1]) == p[0] for v in changes)]
+    if short:
+        shown = ", ".join(p[3] for p in short[:4])
+        best = max(changes, key=abs)
+        problems.append(Problem("TARGET_NOT_MET", f"the statement says the {shown} goal was reached, but the bound "
+                                f"change is {best:g}% — say the measured change, and that it falls short of the goal",
+                                fix="state the measured change and that the goal was not reached",
+                                words=[p[3] for p in short[:4]]))
     keys = {str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
     named = [k for k in sorted(keys) if ("_" in k or any(ch.isdigit() for ch in k)) and len(k) >= 4
              and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)
