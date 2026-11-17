@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **The target rule rounds as the other number checks do.** `TARGET_NOT_MET` lets a change stand when it rounds to the
+  goal as written, but rounded with `round()` (the binary value, halves to even): 20.5% missed "the 21% target",
+  12.5% missed "the 13% target" and 4.85% (stored as 4.8499...) missed "the 4.9% target", while every other number
+  check reads them as 21, 13 and 4.9. It now uses `_shows`, half up, single-digit whole numbers kept as `_shows` keeps
+  them (4.5% is not "the 5% target"). Corpus (vs main, 3,781 records): nothing moves. Live on gpt-oss-20b (BC-250s,
+  pressure showcase, seeds 1700-1711 on main and branch side by side, 114 pooled lines refiled on both): nothing moves;
+  no benchmark there sat within half a point of its goal. Tests: `tests/test_target_half_up.py`.
 - **'Most' of the counted set, said its own way, on a count under half is refused.** "We met deadlines on most large
   files" went in twice on 3 of 7 files over 1 GB parsed within the time budget (telephone showcase run3, gpt-oss-20b,
   blind-labelled false). The even-split rule only read majority words at exactly half, because either side of a count
