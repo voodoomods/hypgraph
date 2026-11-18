@@ -1251,10 +1251,11 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     return out
 
 
-# Words that say more than half: "most files", "a majority of", "nearly all". Not "the most" / "at most" (a superlative,
-# a bound), "most likely", or "most" before an -ly word ("most clearly")
-_MAJORITY = re.compile(r"\b(?:(?:a|the)\s+majority\b|more\s+than\s+half\b|(?:nearly|almost|virtually|practically)\s+"
-                       r"(?:all|every)\b|(?<!\bthe )(?<!\bat )most\b(?!\s+(?:likely|\w+ly)\b))", re.I)
+# Words that say more than half: "most files", "a majority of", "nearly all", "the bulk of". Not "the most" / "at most"
+# (a superlative, a bound), "most likely", or "most" before an -ly word ("most clearly"); not "in bulk" or "bulk
+# uploads"
+_MAJORITY = re.compile(r"\b(?:(?:a|the)\s+majority\b|the\s+bulk\b|more\s+than\s+half\b|(?:nearly|almost|virtually|"
+                       r"practically)\s+(?:all|every)\b|(?<!\bthe )(?<!\bat )most\b(?!\s+(?:likely|\w+ly)\b))", re.I)
 
 
 def _majority_at_half(stmt: str, bound: list) -> list[Problem]:
@@ -1514,14 +1515,45 @@ def _all_but_contradicted(stmt: str, bound: list) -> list[Problem]:
     return out
 
 
-# Anything that says how many, or hedges: a sentence holding one of these isn't a bare generic
+# Anything that says how many, or hedges: a sentence holding one of these isn't a bare generic. "each" and "no" are
+# not among them: neither says fewer than all ("Malformed files were caught, each flagged by a clear error", "Malformed
+# files were cleanly rejected—no slip-through", both on 21 of 22). Over every blind-labelled telephone line
+# (2026-11-17, 13,130 sentences), a sentence whose only such word was "each" or "no" was false 9 times and true 0;
+# every true line with one of them also states a count or hedges another way ("21 of 22 … each with a clear error").
+# "the bulk of" is "most", and "a lone" / "a sole" exception is "a single" one: "The bulk of suites passed" on 5 of 6
+# and "Parser crushed the test suites, slipping on a lone case" were refused as bare plurals (found in the telephone
+# showcase, run4 and live round 9, as "The bulk of tests succeeded" and "crushed the test suite, slipping on a lone
+# case", both blind-labelled true)
 _QUALIFIES = re.compile(
-    r"\d|%|\b(?:all|every|each|any|none|no|neither|either|both|most|many|some|several|few|fewer|majority|minority|"
+    r"\d|%|\b(?:all|every|any|none|neither|either|both|most|many|some|several|few|fewer|majority|minority|bulk|"
     r"nearly|near|almost|virtually|practically|mostly|largely|broadly|generally|usually|typically|often|sometimes|"
     r"occasionally|rarely|seldom|frequently|mainly|predominantly|overwhelmingly|handful|couple|only|just|except|"
     r"but|apart|save|exceptions?|roughly|about|around|approximately|share|proportion|fraction|percent|rate|half|"
-    r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|single)\b", re.I)
+    r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|single|lone|"
+    r"sole)\b", re.I)
 _GENERIC_CLAUSE = re.compile(r"\s*(?:[;:,|–—]|\s-\s)\s*")
+# exceptions denied, not admitted: "no exceptions", "without exception", "zero exceptions"
+_NO_EXCEPTIONS = re.compile(r"\b(?:no|zero|without(?:\s+(?:a|an|any))?)\s+(?:single\s+)?exceptions?\b", re.I)
+_NAME_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def _says_how_many(text: str, arms: list) -> bool:
+    """Does anything in the text say how many of the counted set, or hedge? The guard of the bare-plural readings.
+    Not read as saying so:
+    - an "all" idiom ("solid coverage all around");
+    - a number the count's own name holds, which says what was counted, not how many: "Large, over-1-GB files were
+      parsed within the time budget" went in on 3 of 6 files over 1 GB parsed within the time budget (telephone
+      showcase run4), where "Large files were parsed within the time budget" is refused. The count's k and n still
+      say how many, whatever the name holds;
+    - exceptions denied ("no exceptions", "without exception")."""
+    text = _NO_EXCEPTIONS.sub(lambda m: " " * len(m.group(0)), L.without_idioms(text))
+    own = set()
+    for m, (k, n) in arms:
+        own |= {x.replace(",", "") for x in _NAME_NUMBER.findall(str(m.get("name") or ""))} - {str(k), str(n)}
+    if own:
+        text = _NAME_NUMBER.sub(lambda m: " " * len(m.group(0)) if m.group(0).replace(",", "") in own else m.group(0),
+                                text)
+    return bool(_QUALIFIES.search(text))
 
 
 def _plural_subject(clause: str) -> tuple[list[str], int | None]:
@@ -1848,7 +1880,7 @@ def _each_of_the_set(stmt: str, bound: list) -> list[Problem]:
         if not hits:
             continue
         rest = stmt[s0:hit.start()] + " " + stmt[end:s1]
-        if _QUALIFIES.search(L.without_idioms(rest)):
+        if _says_how_many(rest, hits):
             continue
         phrase = re.sub(r"\s+", " ", stmt[hit.start():end])
         m, (k, n) = max(hits, key=lambda x: x[1][1])
@@ -1865,14 +1897,12 @@ def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
     """A bare plural that is what the bound count counts ("Malformed files rejected with clear errors", on 23 of 24
     malformed files rejected with a clear error) says it of every one, as "every malformed file was rejected" does.
     Refused when the count is mixed (0 < k < n) and nothing in the sentence says how many or hedges: no number, no
-    quantifier, no exception. Found in the say-no-more-than-the-data showcase (2026-11-15), where ten such headlines
-    went in on counts with exceptions while "every malformed file rejected" on the same counts was refused, and no
-    true headline had this shape. The subject is the first plural in the first four words of a clause; a verb ending
-    in -s before it ("the parser handles files") means it isn't the subject."""
-    if _QUALIFIES.search(L.without_idioms(stmt)):            # "solid coverage all around" says nothing of how many
-        return []
+    quantifier, no exception (`_says_how_many`). Found in the say-no-more-than-the-data showcase (2026-11-15), where
+    ten such headlines went in on counts with exceptions while "every malformed file rejected" on the same counts was
+    refused, and no true headline had this shape. The subject is the first plural in the first four words of a
+    clause; a verb ending in -s before it ("the parser handles files") means it isn't the subject."""
     arms = [(m, a) for m, rv in bound if (a := _arm(rv)) and 0 < a[0] < a[1]]
-    if not arms:
+    if not arms or _says_how_many(stmt, arms):
         return []
     for clause in _GENERIC_CLAUSE.split(stmt):
         toks, i = _plural_subject(clause)

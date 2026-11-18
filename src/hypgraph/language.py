@@ -194,7 +194,8 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
 _MANNER = re.compile(r"flawless(?:ly)?|without\s.*|\w+-free", re.I | re.S)
 # A part stated as a count is one in any written form: "64 of 65", "64/65", "nine of ten" ("64/65 real-world files
 # parsed flawlessly" on 64 of 65 was refused in the telephone showcase, a true line)
-_PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:all|every)|most|mostly|majority|many|"
+_PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:all|every)|most|mostly|majority|"
+                           r"the\s+bulk|many|"
                            r"some|several|all\s+but|\d[\d,]*\s+(?:of|out\s+of)\s+\d|\d[\d,]*\s?/\s?\d|"
                            r"(?<!every\s)(?<!each\s)(?<!any\s)"
                            r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|(?:twenty|thirty|forty|"
@@ -202,8 +203,10 @@ _PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:a
                            r"nine))?)\s+(?:of|out\s+of)\s+(?:the\s+)?[a-z]+)", re.I)
 _EXCEPTIONS = re.compile(r"\b(?:except(?:\s+for)?|all\s+but|but\s+(?:one|two|a\s+few)|apart\s+from|save\s+for|"
                          r"other\s+than)\b|"
-                         # "flawlessly, one exception", "with two exceptions"; not "without a single exception"
-                         r"(?<!without )(?<!not )\b(?:one|a\s+single|two|three|a\s+few|a\s+handful\s+of|\d+)\s+"
+                         # "flawlessly, one exception", "with two exceptions", "a lone exception"; not "without a
+                         # single exception"
+                         r"(?<!without )(?<!not )\b(?:one|a\s+(?:single|lone|sole)|two|three|a\s+few|a\s+handful\s+of|"
+                         r"\d+)\s+"
                          r"exceptions?\b|\b(?:only|just)\s+(?:a\s+)?(?:few|handful|couple|one|\d+)\b[^.;]*?\b"
                          r"(?:slipped|failed|fell|broke|crashed|errored|missed|stumbled|faltered|tripped)\b", re.I)
 
