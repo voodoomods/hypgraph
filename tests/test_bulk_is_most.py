@@ -40,6 +40,7 @@ def codes(statement, k, n, what):
     ("Malformed files were rejected with clear errors, a sole file aside.", 21, 22, M),
     ("Real-world files parsed flawlessly, with a lone exception.", 60, 61, R),  # as "a single exception" is
     ("Real-world files parsed flawlessly, with a sole exception.", 60, 61, R),
+    ("The parser handled the bulk of real-world files flawlessly.", 62, 65, R),  # flawlessly, of a part
     ("The bulk of large files missed the time budget.", 2, 6, B),             # the other side of the count
     ("Large files arrive in bulk, and 4 of 6 finished on time.", 4, 6, B),    # not "the bulk"
 ])
@@ -53,6 +54,7 @@ def test_the_bulk_and_a_lone_exception_say_how_many(statement, k, n, what):
     ("The bulk of large files finished within the time budget.", 2, 6, B),              # under half, its own side
     ("Malformed files were rejected with clear errors.", 21, 22, M),                    # nothing says how many
     ("Real-world files parsed flawlessly, without a lone exception.", 60, 61, R),      # denied, not admitted
+    ("The parser handled real-world files flawlessly.", 62, 65, R),
 ])
 def test_the_bulk_is_held_to_what_most_is(statement, k, n, what):
     assert "COUNT_CONTRADICTS" in codes(statement, k, n, what)
