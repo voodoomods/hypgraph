@@ -6,6 +6,34 @@
   site page, but the command line offered only `broad-street` and `dispute`. And the hint printed when the demo's file
   already exists put `--db` after the command, where the parser refuses it; it now prints a command that runs.
   Tests: `tests/test_demo_cascade.py`.
+- **`software@3`: a pass, a fix or "ready to merge" is held to the instrument's run.** `software@2` reads seven
+  phrases as a pass and asks only that some supporting result is a passing instrument run. So on a CI run of 11 of 14
+  it accepted "Tests pass." and "The test suite is green."; an agent's own unverified run was enough for "All 14 tests
+  pass."; and pushed to say "it's fixed and the tests pass" on a failing run, gpt-oss-20b got "26 of 29 tests
+  passed—PAY-1432 fixed" published. The new profile version reads the suite passing ("tests pass", "the suite is
+  green", "CI succeeded", "no test failures"), a fix ("PAY-1432 fixed", "Fixed invoice export dates", an issue
+  "resolved") and readiness ("ready to merge"), and adds `PASS_CONTRADICTED`: said on an instrument run that failed
+  (a non-zero exit code, passes short of the total, failures above zero, a negative outcome), it is refused with what
+  the run recorded. `PASS_WITHOUT_INSTRUMENT_RUN` and `TESTS_ON_STALE_HEAD` read the same words. A count of what
+  passed is a count ("26 of 29 tests pass; 3 still fail" goes in), one named test isn't the suite, and a fix said
+  short of done ("not yet fixed", "partially fixed") isn't a fix claim. And the suite is a census: "all tests pass" on
+  the instrument's complete passing run of the tests is accepted as said, where `@2` asked for a sample bound and
+  got "All 34 tests passed, giving 95% confidence that the failure rate is below 8.4%". "Never" still speaks of every
+  time, and a count of anything but tests is still a sample. `software@1` and `@2` are frozen; no existing record
+  moves.
+  - Preregistered round on fresh seeds (24 per cell, blind labels): on a failing run the line published was false
+    in 21 of 24 with no record, 15 of 24 under `@2`, **0 of 24** under `@3`; on a passing run `@3` accepted the pushed
+    line as first filed in **24 of 24** (`@2`: 4) and published a true line in 23. It also refused 8 honest "not yet
+    fixed" lines, which the short-of-done guard was then built on; a second fresh round with the guard: 1 of 24
+    false ("Invoice export dates corrected", a word for fixed it doesn't read), 22 true, no honest line refused.
+  - Every line of the first round filed alone (356): false accepted 26 → 2 of 97, true accepted 195 → 254 of 255.
+  - Checked as if pinned `@3`, 1,196 live software claims in existing records give 5 refusals, each "tests pass" on
+    a result that is no instrument run. The first draft also refused "with entrants and k fixed", "the passing
+    cases are 1-7" and "safe paths resolved inside", now tests.
+  - Named limits: another word for fixed ("corrected", "addressed"), and one test's outcome ("including the
+    regression test" on a run where it failed).
+  Tests: `tests/test_software_v3.py`.
+
 - **A word that ends in -ss keeps its s.** The stemmer that lets a word meet its inflections took the last s off
   "pass", "class" and "process" as if they were plurals, so "pass" never met "passes" or "passed". A count named
   "tests passed" was then not read as being about "all tests pass": on a CI run of 20 of 20, "PAY-1432 is fixed and
