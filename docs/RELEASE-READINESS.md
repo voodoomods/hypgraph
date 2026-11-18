@@ -268,6 +268,20 @@ was taken from a changelog without being checked against the code.*
 > them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
 > `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
 
+> **After 0.8.8 (2026-11-18).** No change to the bundle format. One batch of checks (#127–#176), nearly all found by
+> showcase experiments on gpt-oss-20b (BC-250). A statement bound to a k-of-n count is held to it in more of the ways
+> a sentence says how many: a bare plural as subject or object, "each", "most", "the bulk", "half", "only a few", a
+> count stated in the sentence, a size the record doesn't hold. A percent is accounted for only by a number that can
+> be one, an interval's ends aren't amounts, and a goal said reached is held to the measured change
+> (`TARGET_NOT_MET`). A comparison the measurements reverse is refused (`COMPARISON_REVERSED`). `trading@3` and
+> `optimization@3` refuse an edge or an optimum the values deny (`EDGE_CONTRADICTED`, `OPTIMAL_CONTRADICTED`); earlier
+> profile versions are frozen. The overclaims report carries each author's conduct after being shown false. Measured
+> on 2,451 blind-labelled headline sentences from the last showcase run, each filed alone: false ones accepted 140 →
+> 22 of 276, true ones accepted 1,061 → 1,093 of 1,304 (39 newly accepted, 7 newly refused); three of the changes were
+> built on that run's lines. The 22 false lines still accepted are of ten kinds, the largest a verb, a preposition,
+> then the counted set ("It met deadlines on large files" on 5 of 7), left unread because true lines share the shape.
+> Each change's own numbers are in the changelog. #127–#176 are merged with green CI. Released as 0.8.9.
+
 > **After 0.8.7 (2026-11-15).** No change to the bundle format. A link that adds support to a claim runs the
 > claim checks, so a check can't be stepped round by linking after the create (#121). Four fixes from showcase
 > experiments on gpt-oss-20b (BC-250): a refusal no longer stores a denied or compared figure as part of the lie,

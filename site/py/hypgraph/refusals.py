@@ -64,7 +64,7 @@ FIX_WINDOW = timedelta(hours=24)
 FIX_OVERLAP = 0.3                   # Jaccard overlap of content words that counts as "the same claim, said honestly"
 FIX_KEYS = 0.5                      # share of a refused result's value keys that an accepted result must carry again
 REPLAYABLE = ("claim", "result")    # node types whose refusals the checker can replay from the logged body
-CONTRADICTIONS = ("COUNT_CONTRADICTS", "SOURCE_CONTRADICTS", "ASSERTION_CONTRADICTED")   # refusals that show the claim false, not unshown
+CONTRADICTIONS = ("COUNT_CONTRADICTS", "SOURCE_CONTRADICTS", "ASSERTION_CONTRADICTED", "TARGET_NOT_MET")   # refusals that show the claim false, not unshown
 
 
 def install(con) -> None:
@@ -142,6 +142,10 @@ def carried(problems: list[dict], statement: str, atoms: list | None = None, was
         words = [str(w) for w in p.get("words") or []]
         if p.get("code") == "SOURCE_CONTRADICTS" and set(words) & (denied | checks.doubted_words(statement or "")):
             return True
+        gone = {w[7:] for w in words if w.startswith("denied:")}          # a figure denied against its source
+        if p.get("code") == "SOURCE_CONTRADICTS" and gone & {checks._fmt(v) for v, _u, _a in
+                                                             checks.denied_figures(statement or "")}:
+            return True
         units = {w[5:] for w in words if w.startswith("unit:")}           # the unit a source ruled out
         if p.get("code") == "SOURCE_CONTRADICTS" and units & checks.asserted_units(statement or ""):
             return True
@@ -174,9 +178,20 @@ def _open_contradictions(con, author: str, inv: str, since: str, before: int | N
     return [r for r in con.execute(q + " ORDER BY id", args).fetchall() if _contradicted(r[3])]
 
 
+def _fixed_contradictions(con, author: str, inv: str, since: str, before: int) -> list:
+    """Contradicted refusals of this author's that a later write already fixed, first refusals only (a repeat's own
+    refusal leads back to the one it repeated)."""
+    repeats = _repeat_ids(con)
+    q = ("SELECT id, node, statement, detail FROM refusal_log WHERE kind='refused' AND author=? AND inv=? AND at>=? "
+         "AND id<? AND id IN (SELECT ref FROM refusal_log WHERE kind='fixed' AND ref IS NOT NULL) ORDER BY id")
+    return [r for r in con.execute(q, (author, inv or "", since, before)).fetchall()
+            if r[0] not in repeats and _contradicted(r[3])]
+
+
 def _note_reassertion(g: "Graph", *, author: str, inv: str, node: str, op: str, statement: str,
                       refusal: int, answers: list | None = None, atoms: list | None = None) -> None:
-    """A new refusal that says again what an earlier refusal showed false: log the repetition. One on the same
+    """A new refusal that says again what an earlier refusal showed false: log the repetition — also when that
+    earlier claim was corrected in between (a lie said again after a correction is still said again). One on the same
     claim that no longer says it: log that the author moved off it."""
     if not refusal:
         return
@@ -184,6 +199,11 @@ def _note_reassertion(g: "Graph", *, author: str, inv: str, node: str, op: str, 
     since = (datetime.fromisoformat(g.clock()) - FIX_WINDOW).isoformat(timespec="seconds")
     opened = _open_contradictions(con, author, inv, since, before=refusal)
     hits = [r[0] for r in opened if carried(_contradicted(r[3]), statement, atoms, was=r[2])]
+    # found in the spot-the-bad-actor showcase (gpt-oss-20b, 2026-11-15): "the shortest is 55 km" refused, then the
+    # true "the route via Quelby measures 55 km" accepted as its fix, then "the shortest is 55 km" again, word for
+    # word — logged as a new, separate claim shown false, so conduct read "did not say it again, corrected it 2 times"
+    hits += [r[0] for r in _fixed_contradictions(con, author, inv, since, refusal)
+             if carried(_contradicted(r[3]), statement, atoms, was=r[2])]
     dropped = _moved_off(con, opened, hits, node=node, statement=statement, answers=answers)
     if not hits and not dropped:
         return
@@ -510,6 +530,13 @@ def report(g: "Graph", inv: str = "", since: str = "") -> dict:
            "shape": {"refused": len(shape), "fixed": sum(1 for r in shape if r["fixed_by"]),
                      "by_code": dict(Counter(c for r in shape for c in r["codes"]).most_common()),
                      "by_author": dict(Counter(r["author"] for r in shape).most_common()), "recent": shape[:10]}}
+    # what each author did after the record showed a claim of theirs false: the counts alone can't tell a party who
+    # keeps at a refused figure from one who moved on (a showcase record's Atlas said only "6 overclaims refused")
+    try:
+        out["conduct"] = {a: {k: v for k, v in c.items()} for a, c in conduct(g, inv=inv).items()}
+    except Exception as e:  # noqa: BLE001 - a conduct problem never hides the refusals
+        out["conduct"] = {}
+        out["conduct_error"] = f"{type(e).__name__}: {e}"[:200]
     out["markdown"] = markdown(out)
     return out
 
@@ -537,6 +564,9 @@ def markdown(r: dict) -> str:
         top = ", ".join(f"{c} ×{n}" for c, n in list(v["codes"].items())[:3])
         L_.append(f"| {a} | {v['refused']} | {v['fixed']} | {v['open']} | {top} |")
     L_ += ["", "| rule | times |", "|---|---|"] + [f"| `{c}` | {n} |" for c, n in r["by_code"].items()]
+    if r.get("conduct"):
+        L_ += ["", "### After being shown false", ""]
+        L_ += [f"- **{a}**: {c['sentence']}" for a, c in r["conduct"].items()]
     L_ += ["", "### Latest", ""]
     for x in r["recent"][:10]:
         fix = f" → fixed as {x['fixed_by']['code'] or x['fixed_by']['node']}" if x["fixed_by"] else " → not fixed"

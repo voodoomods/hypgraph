@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 0.8.9 — 2026-11-18: a sentence is held to the count it stands on
+
+No change to the bundle format. Checks only, apart from the overclaims report and a demo, in one batch (#127–#176).
+Nearly all of it was found by small showcase experiments on gpt-oss-20b (BC-250), where a writer retold test counts
+as launch headlines and an analyst reported a change under pressure to hit a target.
+- **Counts.** A statement bound to a k-of-n count is read against it in more of the ways a sentence says how many:
+  a bare plural as subject or object, "each", "most", "the bulk", "half", "only a few", a count stated in the
+  sentence, "dozens of runs" on ten.
+- **Numbers.** A percent is accounted for only by a number that can be one, an interval's ends aren't amounts to
+  add, and a goal said reached is held to the measured change (`TARGET_NOT_MET`).
+- **Comparisons and profiles.** A comparison the measurements reverse is refused (`COMPARISON_REVERSED`). Two new
+  profile versions, `trading@3` and `optimization@3`, refuse an edge or an optimum the values deny; every earlier
+  version is frozen and no existing record moves.
+- **Conduct.** The overclaims report and the Atlas say what each author did after being shown false.
+
+Each entry below gives what was measured for it. Most were checked three ways: on model-written lines labelled blind
+by reviewers who saw no outcome, on every statement in over 4,000 existing records before and after
+(`dev/corpus_regress.py`), and in fresh model rounds run on main and on the change. One measure of the whole batch:
+2,451 headline sentences from the last run, labelled blind and each filed alone against its own count. 0.8.8 accepts
+140 of the 276 false ones, 0.8.9 accepts 22; of the 1,304 true ones, 0.8.8 accepts 1,061 and 0.8.9 accepts 1,093 (39
+newly accepted, 7 newly refused). Three of the changes were built on that run's own lines; the rest never saw them.
+
 - **A size the record doesn't hold is refused.** "No crashes emerged in countless test runs" and "In our initial 10
   trials across dozens of test suites" went in on 0 of 10 test suites in which the parser crashed, "Across a dozen
   trials" on 14 encodings: a reader takes the claim to rest on far more than was counted. Read when "dozens / scores /
