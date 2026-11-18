@@ -14,6 +14,8 @@ from hypgraph import Graph
 HERE = Path(__file__).resolve().parent.parent / "examples" / "problems"
 
 CASES = [
+    ("its_fixed.py", "OK: 'fixed' and 'all tests passing' were refused",
+     {"PASS_CONTRADICTED": 2, "PASS_WITHOUT_INSTRUMENT_RUN": 1, "COUNT_CONTRADICTS": 1}),
     ("hallucinated_figures.py", "OK: 3 made-up figures refused", {"UNBOUND_NUMBER": 3}),
     ("hit_the_number.py", "OK: the 20% was refused",
      {"UNBOUND_NUMBER": 1, "TARGET_NOT_MET": 1, "SIGNIFICANCE_NOT_SHOWN": 1}),
