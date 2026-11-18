@@ -1241,6 +1241,8 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _majority_under_half(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _each_of_the_set(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _minority_over_half(stmt, bound)
     return out
 
@@ -1661,6 +1663,68 @@ def _stated_count_contradicted(stmt: str, bound: list) -> list[Problem]:
                            fix=f"correct the statement, or say '{k:,} of {n:,}'", words=[words.lower()]))
         break
     return out
+
+
+# "each" as the counted set's own determiner: "each malformed file", "each one"; not "each other"
+_EACH = re.compile(r"\beach\b(?!\s+other\b)", re.I)
+
+
+def _each_of_the_set(stmt: str, bound: list) -> list[Problem]:
+    """'Each' on the counted set, with nothing to say how many: "The parser flagged each malformed file" on 19 of 20,
+    "Malformed files? Each one triggered a crystal-clear error alert" on 23 of 24. Says it of every one, as "every
+    malformed file" (refused) does. Found in the telephone showcase (2026-11-17).
+
+    Most "each" is distributive and honest: "rejected nearly every bad file, each with a clear error" (each of those
+    rejected), "four of six large files (each over 1 GB)", "11 trades, each incurring a 0.1% fee", "each widow was paid
+    four shillings" (2026-11-17: reading "each" as "every" refused 193 items of the corpus of real records, nearly all
+    of this kind). So it is read only as the determiner of the counted set itself ("each" + up to three words + the
+    counted noun, singular or plural; or "each one" with the set named earlier in the sentence), on a count with
+    exceptions, and only when nothing else in the sentence says how many or hedges (the bare-plural rule's guard)."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv)) and 0 < a[0] < a[1]]
+    if not arms:
+        return []
+    for hit in _EACH.finditer(stmt):
+        if L.negated(stmt, hit.start()):
+            continue
+        s0 = max((m.end() for m in L._SENTENCE_END.finditer(stmt[:hit.start()])), default=0)
+        e = L._SENTENCE_END.search(stmt, hit.end())
+        s1 = e.start() if e else len(stmt)
+        after = list(re.finditer(r"[A-Za-z][\w\u2010\u2011'-]*", stmt[hit.end():s1]))[:4]
+        hits, end = [], None
+        if after and after[0].group(0).lower() == "one":
+            # "each one": the set named just before it, in the sentence or a question it answers ("Malformed
+            # files? Each one triggered a clear error")
+            q0 = s0
+            if s0 and stmt[:s0].rstrip().endswith("?"):
+                q0 = max((m.end() for m in L._SENTENCE_END.finditer(stmt[:s0].rstrip()[:-1])), default=0)
+            named = {frozenset(L.content_words(t)) for t in re.findall(r"[A-Za-z][\w\u2010\u2011'-]*",
+                                                                       stmt[q0:hit.start()])} - {frozenset()}
+            hits = [(m, a) for m, a in arms if frozenset(_counted_noun(str(m.get("name") or ""))) in named]
+            end = hit.end() + after[0].end()
+        else:
+            for t in after:
+                w = t.group(0).lower()
+                if w in _PREPOSITIONS or w in {"and", "or", "but", "with", "was", "were", "is", "are"}:
+                    break
+                cw = L.content_words(w)
+                hits = [(m, a) for m, a in arms if cw and cw == _counted_noun(str(m.get("name") or ""))]
+                if hits:
+                    end = hit.end() + t.end()
+                    break
+        if not hits:
+            continue
+        rest = stmt[s0:hit.start()] + " " + stmt[end:s1]
+        if _QUALIFIES.search(L.without_idioms(rest)):
+            continue
+        phrase = re.sub(r"\s+", " ", stmt[hit.start():end])
+        m, (k, n) = max(hits, key=lambda x: x[1][1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' with nothing to say how many reads as every one of them, but the record's own "
+                        f"count is {k:,} of {n:,} ({m.get('name') or m.get('key')}): say '{k:,} of {n:,}', or "
+                        f"qualify it ('{q}')",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
+    return []
 
 
 def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
