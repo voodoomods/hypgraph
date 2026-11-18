@@ -4,8 +4,9 @@ Found by re-checking the telephone showcase on merged main (2026-11-16): 9 of th
 shape — "Parser rejects malformed files" on 24 of 25, "Our parser smashed test suites" on 9 of 10, "reigned supreme in
 test suites" on 6 of 7, "Parser conquers real-world files" on 67 of 68 — and so did two /play/ bypasses ("The parser
 rejects malformed files with a clear error" on 23 of 24). The deed is the count's own verb (the participle in its
-name) or one of mastery; other verbs aren't read, so "accuracy was measured on overlap rows" says nothing of how
-many. On the corpus of real records (3,237) the only claims it moves are those nine showcase lines.
+name) or one of mastery, with in / through / across / over / on allowed between; any other verb is read only with the
+set as its direct object (tests/test_object_any_verb.py), so "accuracy was measured on overlap rows" says nothing of
+how many. On the corpus of real records (3,237) the only claims it moves are those nine showcase lines.
 """
 import pytest
 
