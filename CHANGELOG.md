@@ -16,6 +16,21 @@
   Corpus (vs main, 3,877 records): 14 stricter, all telephone-showcase lines of this shape, nothing looser. Live
   (gpt-oss on the BC-250s, fresh seeds 2200-2211, main vs this branch, 931 lines labelled blind, paired refile): 1
   false and 1 overreach refused, no true line. Tests: `tests/test_invented_scale.py`.
+- **A count of containers is read under the names of what they hold and of the whole.** On 7 of 8 test suites
+  passed, "The parser smashed test suites" was refused while "The parser smashed tests" went in, as did "Tests
+  triumph" on 6 of 7 and "Parser dominated the test suite" on 5 of 6: the counted noun is compared by content words,
+  and "test" is a stop word, so "tests" named nothing. A suite passes when every test in it does, so the tests all
+  passing, or the suite as one being beaten, says every suite passed. For a count of suites, sets, batches, batteries
+  or collections, the bare-plural rules (the subject, and the object of the count's own verb or a mastery verb) now
+  also read the plural of what they hold ("tests") and the container in the singular after the / our / whole ("the
+  test suite", "our entire suite"; not "a suite of tests"), with the same guards: a stated count, a quantifier, a
+  hedge or an exception keeps the sentence. Pooled telephone lines (5,175, the development set): 4 false and 5
+  overreach refused, no true line, nothing looser. Held out (the three live rounds since, 2,868 lines): 5 false and
+  2 overreach refused, no true line. Corpus (vs main, 3,877 records): 12 stricter, all telephone-showcase lines of
+  this shape ("Tests confirm the parser's reliability" among them, as main already refuses "Test suites confirm
+  …"), nothing looser. Live (gpt-oss on the BC-250s, fresh seeds 2100-2111, main vs this branch, 973 lines labelled
+  blind, paired refile): nothing moved, since no line of this shape was written; both engines gave every line the
+  same verdict. Tests: `tests/test_set_other_names.py`.
 - **"The bulk of" says most, and "a lone" or "a sole" exception is a single one.** "The bulk of tests succeeded" on 5
   of 6 and "Parser crushed the test suite, slipping on a lone case" on 7 of 8 (telephone showcase, blind-labelled
   true) were refused as bare plurals with nothing to say how many: the guard knew "most" and "a single", and not
