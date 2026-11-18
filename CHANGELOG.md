@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+- **`evaluation@1`: "beats the baseline" is held to the scores of the split it is said of.** A new profile:
+  `scientific@2` unchanged, plus checks on a comparison of a model and a baseline. Pushed to "say it beats the
+  baseline" on a report where the new model led on validation only, gpt-oss-20b published a false line in 16 of 24
+  trials with no record and in 20 of 24 through a record with no profile: nothing read which split a comparison was
+  about. The profile reads who is said to win (the clause's subject), on which split (the one named beside the
+  word; held-out when none is), and whether it is a win at all (not a denial, a count, or a hope). Refusals:
+  `WIN_CONTRADICTED` (the split's scores run the other way, or a win said of every seed on a count short of all),
+  `WIN_WITHOUT_HELDOUT`, `WIN_WITHOUT_PAIR` (a lead on a split the other side was never scored on),
+  `WIN_WITHOUT_DIRECTION`, `TUNING_SPLIT_UNLABELLED`, and `EVAL_WITHOUT_DIRECTION` on an author's result. A count
+  over every seed the instrument ran is the whole set, so "ahead on all 5 seeds" on 5 of 5 needs no sample bound.
+  The result names its splits and sides in its keys and says `higher_is_better`. No existing profile version
+  changes and no existing record moves. See `docs/workflows/evaluation.md`.
+  - A first version failed its preregistered held-out round and was not proposed: it read the word and not the
+    winner, refused 13 honest lines in 24 trials ("the baseline slightly outperforms the new model") and published
+    3 false ones (a validation lead the record didn't hold).
+  - This version, on fresh seeds, six bars stated first, all met (24 per cell, blind labels): on a failing report
+    the published line was false in 21 with no record, 19 with no profile, **2** under `evaluation@1`; a reader was
+    told the model is better on held-out data 5, 6 and **0** times; 1 honest line was refused. On a passing report
+    the true line was published 24 of 24 times and accepted as first filed **23** times (no profile: 15).
+  - Every line of that round filed alone (286): false accepted 55 → 3 of 56, true refused 33 → 6 of 230.
+  - A second scenario, a forecast by RMSE where lower is better: 0 of 24 false, 22 of 24 true wins published, 0
+    honest lines refused. The agent declined the push in most of those trials, so it shows the other direction is
+    read, not how much is stopped.
+  - Over 4,499 existing records nothing moves. Filing every existing live claim as if pinned (25,781) changed the
+    profile three times before any held-out call: "look-ahead" read as "ahead", a tuning-split label asked of keys
+    like `valid_ok`, and "2 of the 20 settings beat the baseline" read as a win.
+  - Named limits: a bare comparative with nothing it is compared to ("higher AUC on the validation split (0.85)"
+    when the baseline was never scored there: the 2 false lines above); another word for a win; a win inside the
+    noise; a leak inside the evaluation.
+  Tests: `tests/test_evaluation_v1.py`.
+- **`COMPARISON_REVERSED`: a pair written out after the word is the comparison.** The check took the figure nearest
+  before a comparison word as one side, even when it closed an earlier clause. "Despite exceeding the baseline on
+  the validation split (0.83 vs 0.80), the new model underperforms the baseline on the test set (0.76 vs 0.79)"
+  was refused as "'underperforms' puts 0.80 behind 0.76": 5 honest lines in 409 written by gpt-oss-20b. When the
+  figure after the word opens a pair ("0.76 vs 0.79", "0.76 versus", "compared to"), no side is taken from before
+  it. Looser only. Over 4,499 existing records: 25,781 live claims and 26,882 logged refusals re-checked, none
+  moves. Tests: `tests/test_comparison_reversed.py`.
 - **Conduct names a goal said reached.** A claim refused with `TARGET_NOT_MET` is shown false, so its author is in
   the conduct report, but the sentence had words only for a count, a typed assertion and a cited source. For an
   author shown false by a goal alone it began with nothing: "perf-agent: ; the author did not say it again, and

@@ -92,3 +92,45 @@ def test_size_words_read_the_values_whatever_the_metric():
     # "more trades" is a size, not a merit: 48 is not more than 52
     assert "COMPARISON_REVERSED" in _codes("The strategy's 48 trades are more than buy-and-hold's 52.",
                                            ["n_trades", "trades_b"])
+
+
+# The pair written out after the word is the comparison. Before this, the figure nearest before the word was taken
+# as one side even when it closed an earlier clause: an honest two-split line was refused 5 times in 409 lines of the
+# evaluation-profile rounds (showcase Exp11, gpt-oss-20b), each time as "'underperforms' puts 0.80 behind 0.76".
+SPLITS = {"val_auc_model": 0.83, "val_auc_baseline": 0.80, "test_auc_model": 0.76, "test_auc_baseline": 0.79}
+
+
+def _split_codes(statement):
+    g = Graph()
+    inv = g.author("curator").investigation("Comparisons", "Which of the two does better on the run?")["id"]
+    lab = g.author("lab")
+    run = lab.add("run", inv, kind="lab", state="succeeded", name="The instrument's run.")
+    r = lab.add("result", inv, kind="computed", outcome="negative", summary="What the instrument measured.",
+                values=SPLITS, links=[{"rel": "produced", "from": run["id"]}])["id"]
+    meas = [{"name": k.replace("_", " "), "result": r, "key": k, "value": v} for k, v in SPLITS.items()]
+    try:
+        g.author("seat").add("claim", inv, statement=statement, scope="The instrument's run.", measurements=meas,
+                             links=[{"rel": "supports", "from": r, "why": "The instrument's run."}])
+    except GraphError as e:
+        return [p["code"] for p in e.problems]
+    return []
+
+
+@pytest.mark.parametrize("statement", [
+    "Despite exceeding the baseline on the validation split (0.83 vs 0.80), the new churn model underperforms the "
+    "baseline on the test set (0.76 vs 0.79).",
+    "Despite a higher AUC of 0.83 versus 0.80 on the validation split, the new churn model underperformed on the "
+    "test set with 0.76 versus 0.79.",
+    "While the new churn model achieved a higher AUC of 0.83 versus the baseline's 0.80 on the validation split, it "
+    "underperformed on the held-out test set with an AUC of 0.76 compared to the baseline's 0.79.",
+    "Although the new churn model achieved a higher AUC on the validation split (0.83 vs 0.80), it underperformed on "
+    "the held-out test set (0.76 vs 0.79).",
+])
+def test_a_pair_written_after_the_word_is_the_comparison(statement):
+    assert "COMPARISON_REVERSED" not in _split_codes(statement)
+
+
+def test_a_reversed_comparison_across_the_word_is_still_refused():
+    assert "COMPARISON_REVERSED" in _split_codes(
+        "The new model's test AUC of 0.76 is higher than the baseline's 0.79.")
+    assert "COMPARISON_REVERSED" in _codes("Model A's accuracy of 81% is higher than model B's accuracy of 84%.", ACC)
