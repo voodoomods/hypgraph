@@ -202,8 +202,10 @@ _PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:a
                            r"nine))?)\s+(?:of|out\s+of)\s+(?:the\s+)?[a-z]+)", re.I)
 _EXCEPTIONS = re.compile(r"\b(?:except(?:\s+for)?|all\s+but|but\s+(?:one|two|a\s+few)|apart\s+from|save\s+for|"
                          r"other\s+than)\b|"
-                         # "flawlessly, one exception", "with two exceptions"; not "without a single exception"
-                         r"(?<!without )(?<!not )\b(?:one|a\s+single|two|three|a\s+few|a\s+handful\s+of|\d+)\s+"
+                         # "flawlessly, one exception", "with two exceptions", "a lone exception"; not "without a
+                         # single exception"
+                         r"(?<!without )(?<!not )\b(?:one|a\s+(?:single|lone|sole)|two|three|a\s+few|a\s+handful\s+of|"
+                         r"\d+)\s+"
                          r"exceptions?\b|\b(?:only|just)\s+(?:a\s+)?(?:few|handful|couple|one|\d+)\b[^.;]*?\b"
                          r"(?:slipped|failed|fell|broke|crashed|errored|missed|stumbled|faltered|tripped)\b", re.I)
 

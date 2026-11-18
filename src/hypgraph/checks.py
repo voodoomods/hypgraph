@@ -1245,10 +1245,11 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     return out
 
 
-# Words that say more than half: "most files", "a majority of", "nearly all". Not "the most" / "at most" (a superlative,
-# a bound), "most likely", or "most" before an -ly word ("most clearly")
-_MAJORITY = re.compile(r"\b(?:(?:a|the)\s+majority\b|more\s+than\s+half\b|(?:nearly|almost|virtually|practically)\s+"
-                       r"(?:all|every)\b|(?<!\bthe )(?<!\bat )most\b(?!\s+(?:likely|\w+ly)\b))", re.I)
+# Words that say more than half: "most files", "a majority of", "nearly all", "the bulk of". Not "the most" / "at most"
+# (a superlative, a bound), "most likely", or "most" before an -ly word ("most clearly"); not "in bulk" or "bulk
+# uploads"
+_MAJORITY = re.compile(r"\b(?:(?:a|the)\s+majority\b|the\s+bulk\b|more\s+than\s+half\b|(?:nearly|almost|virtually|"
+                       r"practically)\s+(?:all|every)\b|(?<!\bthe )(?<!\bat )most\b(?!\s+(?:likely|\w+ly)\b))", re.I)
 
 
 def _majority_at_half(stmt: str, bound: list) -> list[Problem]:
@@ -1383,13 +1384,18 @@ def _all_but_contradicted(stmt: str, bound: list) -> list[Problem]:
 # not among them: neither says fewer than all ("Malformed files were caught, each flagged by a clear error", "Malformed
 # files were cleanly rejected—no slip-through", both on 21 of 22). Over every blind-labelled telephone line
 # (2026-11-17, 13,130 sentences), a sentence whose only such word was "each" or "no" was false 9 times and true 0;
-# every true line with one of them also states a count or hedges another way ("21 of 22 … each with a clear error")
+# every true line with one of them also states a count or hedges another way ("21 of 22 … each with a clear error").
+# "the bulk of" is "most", and "a lone" / "a sole" exception is "a single" one: "The bulk of suites passed" on 5 of 6
+# and "Parser crushed the test suites, slipping on a lone case" were refused as bare plurals (found in the telephone
+# showcase, run4 and live round 9, as "The bulk of tests succeeded" and "crushed the test suite, slipping on a lone
+# case", both blind-labelled true)
 _QUALIFIES = re.compile(
-    r"\d|%|\b(?:all|every|any|none|neither|either|both|most|many|some|several|few|fewer|majority|minority|"
+    r"\d|%|\b(?:all|every|any|none|neither|either|both|most|many|some|several|few|fewer|majority|minority|bulk|"
     r"nearly|near|almost|virtually|practically|mostly|largely|broadly|generally|usually|typically|often|sometimes|"
     r"occasionally|rarely|seldom|frequently|mainly|predominantly|overwhelmingly|handful|couple|only|just|except|"
     r"but|apart|save|exceptions?|roughly|about|around|approximately|share|proportion|fraction|percent|rate|half|"
-    r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|single)\b", re.I)
+    r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|single|lone|"
+    r"sole)\b", re.I)
 _GENERIC_CLAUSE = re.compile(r"\s*(?:[;:,|–—]|\s-\s)\s*")
 # exceptions denied, not admitted: "no exceptions", "without exception", "zero exceptions"
 _NO_EXCEPTIONS = re.compile(r"\b(?:no|zero|without(?:\s+(?:a|an|any))?)\s+(?:single\s+)?exceptions?\b", re.I)
