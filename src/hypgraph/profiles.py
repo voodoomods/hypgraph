@@ -730,23 +730,24 @@ def _run_says(body: dict) -> tuple[bool, str]:
     """(failed, what the run recorded) from a test run's result: a non-zero exit code, a count of passes short of its
     total, a count or number of failures above zero, or an outcome recorded negative."""
     raw = {str(k).lower(): v for k, v in (body.get("values") or {}).items()}
-    failed, said = False, []
+    failed, passes, fails, exits = False, [], [], []
     for k, v in raw.items():
         val = v.get("value") if isinstance(v, dict) and "value" in v else v
         kn = _a_k_of_n(v)
         if re.search(r"pass|succe|(?:^|_)ok(?:_|$)", k) and kn:
-            said.append(f"{kn[0]:g} of {kn[1]:g} passed")
+            passes.append(f"{kn[0]:g} of {kn[1]:g} passed")
             failed = failed or kn[0] < kn[1]
         elif re.search(r"fail|error|broken", k) and not re.search(r"rate|pct|percent|ratio", k):
             n = kn[0] if kn else val
             if isinstance(n, (int, float)) and not isinstance(n, bool) and n > 0:
-                said.append(f"{n:g} failed")
+                fails.append(f"{n:g} failed")
                 failed = True
         elif re.search(r"exit_?code|return_?code|(?:^|_)rc$", k) and isinstance(val, (int, float)) \
                 and not isinstance(val, bool):
             if val != 0:
-                said.append(f"exit code {val:g}")
+                exits.append(f"exit code {val:g}")
                 failed = True
+    said = passes + fails + exits                    # the counts first, as a reader says them
     if body.get("outcome") == "negative":
         failed = True
         said = said or ["its outcome is recorded negative"]
