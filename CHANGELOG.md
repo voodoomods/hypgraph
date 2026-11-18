@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A word that ends in -ss keeps its s.** The stemmer that lets a word meet its inflections took the last s off
+  "pass", "class" and "process" as if they were plurals, so "pass" never met "passes" or "passed". A count named
+  "tests passed" was then not read as being about "all tests pass": on a CI run of 20 of 20, "PAY-1432 is fixed and
+  all tests pass" was refused as leaning on a count of something else, and on 17 of 18 "all tests now pass" was refused
+  for having no count when the count beside it said otherwise. Over 4,155 existing records: 22 logged refusals change
+  their reason and stay refused (12 now `ABSOLUTE_UNDERPOWERED` in place of `ABSOLUTE_UNRELATED_COUNT`, 10 now
+  `COUNT_CONTRADICTS` in place of `ABSOLUTE_WITHOUT_COUNT`); no accepted statement and no live claim moves.
+  Tests: `tests/test_stem_keeps_ss.py`.
+
 ## 0.8.9 — 2026-11-18: a sentence is held to the count it stands on
 
 No change to the bundle format. Checks only, apart from the overclaims report and a demo, in one batch (#127–#176).
