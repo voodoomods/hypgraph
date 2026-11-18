@@ -268,6 +268,20 @@ was taken from a changelog without being checked against the code.*
 > them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
 > `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
 
+> **After 0.8.9 (2026-11-18).** No change to the bundle format. `software@3` (#181): `software@2` read seven
+> phrases as a pass and asked only that some supporting result was a passing instrument run, so "Tests pass." went in
+> on a CI run of 11 of 14 and an agent's own run was enough for "All 14 tests pass." The new version reads the suite
+> passing, a fix and readiness in more of the words people use and refuses them on an instrument run that failed
+> (`PASS_CONTRADICTED`), with what the run recorded; "all tests pass" on the instrument's complete passing run needs
+> no sample bound. `software@1` and `@2` are frozen. Measured in preregistered rounds on gpt-oss-20b (BC-250), fresh
+> seeds, blind labels: on a failing run the published line was false in 21 of 24 with no record, 15 of 24 under
+> `@2`, 0 of 24 under `@3`; the first round also refused 8 honest "not yet fixed" lines, a guard was built on them,
+> and a second fresh round gave 1 of 24 false, no honest line refused. Named limits: another word for fixed
+> ("corrected", "addressed"), and one named test's outcome. A stemmer fix (#180): a word in -ss keeps its s, so
+> "pass" meets "passed"; over 4,155 existing records 22 logged refusals change their reason and stay refused, and no
+> accepted statement moves. Six problem examples under `examples/problems/` (#178, #182), run by the suite, and
+> `hypgraph demo cascade` on the command line (#179). #178–#182 are merged with green CI. Released as 0.8.10.
+
 > **After 0.8.8 (2026-11-18).** No change to the bundle format. One batch of checks (#127–#176), nearly all found by
 > showcase experiments on gpt-oss-20b (BC-250). A statement bound to a k-of-n count is held to it in more of the ways
 > a sentence says how many: a bare plural as subject or object, "each", "most", "the bulk", "half", "only a few", a

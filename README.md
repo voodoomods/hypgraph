@@ -188,8 +188,8 @@ moving to a newer version is a choice you make for new work. From 0.8.9, `tradin
 out-of-sample after-cost return, or a bound; `@3` asks what it says. *"Edge"* on an out-of-sample loss or behind
 the benchmark is refused, an in-sample return must say so, and *"optimal"* needs a feasible incumbent within 1e-4
 of its bound. Neither value check refuses a sentence that denies something ("there is no edge", "the plan is
-infeasible, whereas the optimum is 112"): an audit names the claim to refute it. `software@3` does the same for a
-pass: `@2` knows seven phrases and asks only that some supporting result is a passing instrument run; `@3` reads
+infeasible, whereas the optimum is 112"): an audit names the claim to refute it. From 0.8.10, `software@3` does the
+same for a pass: `@2` knows seven phrases and asks only that some supporting result is a passing instrument run; `@3` reads
 *"tests pass"*, *"the suite is green"*, *"fixed"*, *"resolved"* and *"ready to merge"*, and refuses them on a run that
 failed with what the run recorded ("26 of 29 passed, exit code 1"). A count of what passed is a count ("26 of 29
 tests pass; 3 still fail" goes in), and *"all tests pass"* on the instrument's complete passing run needs no sample
