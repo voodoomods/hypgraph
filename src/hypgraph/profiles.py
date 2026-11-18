@@ -29,6 +29,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import derive as D
+from . import evaluation as E
 from . import language as L
 from .checks import Problem
 
@@ -162,6 +163,7 @@ LABELS: dict[str, dict[str, str]] = {
 LABELS["optimization@3"] = LABELS["optimization@2"]
 LABELS["trading@3"] = LABELS["trading@2"]
 LABELS["software@3"] = LABELS["software@2"]
+LABELS["evaluation@1"] = LABELS["scientific@2"]
 
 
 def _add(p: Profile) -> Profile:
@@ -429,6 +431,19 @@ SOFTWARE3 = _add(Profile(
     completion=SOFTWARE2.completion, seats=SOFTWARE2.seats, workflow=SOFTWARE2.workflow,
 ))
 
+# ── evaluation@1 is scientific@2 with a win over the baseline held to the held-out comparison. Pushed to "say it beats
+# the baseline", gpt-oss-20b published a false result line in 16 of 24 trials with no record and in 20 of 24 through a
+# record with no profile; the checks are in evaluation.py. ───────────────────────────────────────────────────────────
+
+EVALUATION = _add(Profile(
+    "evaluation", 1, "A model scored against a baseline on a tuning split and a held-out one. A win over the "
+    "baseline is held to the held-out comparison, a tuning-split score is said to be one, and a count over every "
+    "seed is the whole set. Otherwise the scientific workflow.",
+    vocabulary=SCIENTIFIC2.vocabulary, done_when=SCIENTIFIC2.done_when, predicates=SCIENTIFIC2.predicates,
+    validators=SCIENTIFIC2.validators + E.VALIDATORS,
+    completion=SCIENTIFIC2.completion, seats=SCIENTIFIC2.seats, workflow=SCIENTIFIC2.workflow,
+))
+
 
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
@@ -629,6 +644,10 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
         out += _edge_contradicted(s, stmt, results)
     if "in_sample_labelled" in p.validators:
         out += _in_sample_unlabelled(stmt, body)
+    if "win_held_to_heldout" in p.validators:
+        out += E.win_issues(stmt, [s.nodes[r]["body"] for r in results])
+    if "tuning_split_labelled" in p.validators:
+        out += E.tuning_issues(stmt, [s.nodes[r]["body"] for r in results])
     if p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
@@ -768,12 +787,17 @@ def _from_instrument(s: D.Snap, rid: str) -> bool:
 _TEST_COUNT = re.compile(r"test|spec|check|suite", re.I)
 
 
-def census_count(s: D.Snap, inv: str, stmt: str, m: dict, rv: dict) -> bool:
+def census_count(s: D.Snap, inv: str, stmt: str, m: dict, rv: dict) -> bool | frozenset:
     """Is this bound count a census the statement's pass claim speaks of? Under software@3, the instrument's run of a
     test suite ran every test: "all tests pass" on its 14 of 14 says what was counted, where "all" on 14 trials of
     something open-ended would be a sample. The count must be of tests, complete (k = n), and from an instrument run
     that passed; the statement must make a pass claim."""
     p = profile_of(s, inv)
+    if p and "win_held_to_heldout" in p.validators:      # evaluation@1: every seed the instrument ran is the set
+        rid = m.get("result")
+        if rid and rid in s.nodes and _from_instrument(s, rid) and E.census(m, rv):
+            return E.CENSUS_WORDS            # truthy; checks.py adds these words to the ones a census answers
+        return False
     if not p or "pass_held_to_run" not in p.validators:
         return False
     k, n = rv.get("k"), rv.get("n")
@@ -1007,6 +1031,8 @@ def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None, 
     if "objective_needs_feasibility" in p.validators and "objective" in v and "feasible" not in v:
         out.append(Problem("OBJECTIVE_WITHOUT_FEASIBILITY", "a result reports an objective value without saying whether "
                            "the solution is feasible", fix="add values.feasible (true/false) and bound or gap"))
+    if "eval_needs_direction" in p.validators:
+        out += E.result_issues(body)
     raw = {str(k).lower(): x for k, x in (body.get("values") or {}).items()}
     earned = [k for k in v if re.search(r"return|sharpe|pnl|cagr|profit", k) and not _STAT_OF_RETURNS.search(k)
               and not _a_count(k, raw.get(k)) and not _BENCHMARK.search(k)]
