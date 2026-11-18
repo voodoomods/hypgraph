@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **"The bulk of" says most, and "a lone" or "a sole" exception is a single one.** "The bulk of tests succeeded" on 5
+  of 6 and "Parser crushed the test suite, slipping on a lone case" on 7 of 8 (telephone showcase, blind-labelled
+  true) were refused as bare plurals with nothing to say how many: the guard knew "most" and "a single", and not
+  these. Now "the bulk" is read wherever "most" is: it stands the bare-plural guard down; it is refused on an even
+  split or on its own side of a count under half ("finishing the bulk on time" on 3 of 6); and "flawlessly" said of
+  the bulk is said of a part ("handled the bulk of real-world files flawlessly" on 62 of 65). "Lone" and "sole" stand
+  the guard down as "single" does, and "a lone / a sole exception" beside "flawlessly" is the exception "a single
+  exception" is. "In bulk" and "bulk uploads" aren't read. Every blind-labelled telephone line (14,992; 84 hold one
+  of the words): 3 true lines and 1 overreach line newly accepted, 3 false lines newly refused (all "the bulk" on 3 of
+  6), nothing else. Corpus (vs the guard change below, 4,129 records): those 3 false lines stricter, and 2 replayed
+  refusals looser, both "the bulk of real files … flawlessly". Live (gpt-oss on the BC-250s, fresh seeds 2700-2711,
+  975 lines labelled blind, before and after this change): nothing moves, as no line of the round turned on these
+  words. Tests: `tests/test_bulk_is_most.py`.
 - **The bare-plural guard stands down only for words that say how many.** A bare plural of the counted set
   ("Malformed files were rejected") on a count with exceptions is refused unless something in the sentence says how
   many or hedges. Three things were taken as doing that and don't, so these went in (telephone showcase run4,
