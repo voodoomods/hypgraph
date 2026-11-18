@@ -9,7 +9,7 @@ In the record the solve is the instrument's result: objective, feasibility, boun
 "optimal" or "best possible" needs a feasible plan whose cost meets its bound. Otherwise the honest sentence is
 "best found, within 3.4% of the bound".
 
-    python optimal_trust_me.py [--db FILE]
+    python optimal_trust_me.py [--db FILE] [--step]
 
 The lines are scripted.
 """

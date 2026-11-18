@@ -8,7 +8,7 @@ it never saw.
 In the record, an answer is a claim that cites the section it relies on. A figure no cited passage gives is refused,
 so the made-up answer never reaches the reader, and "the handbook does not say" is what gets published instead.
 
-    python hallucinated_figures.py [--db FILE]
+    python hallucinated_figures.py [--db FILE] [--step]
 
 The assistant's three made-up answers and the three honest ones it wrote after each refusal are sentences
 gpt-oss-20b wrote in that situation (the "who's hallucinating" runs at hypgraph.com/results).

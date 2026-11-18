@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Problem examples: `--step`.** Each story in `examples/problems/` printed all of its lines at once. With
+  `--step` it shows one part at a time and waits for Enter, so it can be told aloud or recorded. It only waits:
+  the same lines are filed and printed, and with nothing to read (piped, closed) it runs on. Tests:
+  `tests/test_problem_examples.py`.
+
 ## 0.8.10 — 2026-11-18: "it's fixed" is held to the run
 
 No change to the bundle format. One new profile version, one fix to how words are matched, and examples (#178–#182).

@@ -9,7 +9,7 @@ The record is the disputed-answer demo (`hypgraph demo dispute`): Mallory's refu
 attack, the record's two chain heads are published, the way a release tag or a paper would carry them. Every attack
 then runs on a fresh copy of the file.
 
-    python cover_up.py [--db FILE]
+    python cover_up.py [--db FILE] [--step]
 
 What it shows, and what it doesn't: the record is tamper-evident, not tamper-proof. Clumsy edits are blocked or
 caught by the file's own checks. A careful attacker who rewrites every hash leaves a file that checks out on its
@@ -32,6 +32,8 @@ from hypgraph import refusals as R
 from hypgraph import store as S
 from hypgraph.bundle import anchored
 from hypgraph.demos import dispute
+
+from _show import STEP_HELP, Steps
 
 ROGUE = "mallory"
 
@@ -107,15 +109,19 @@ ATTACKS = [
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--db", default="", help="keep the untouched record in this file")
+    ap.add_argument("--step", action="store_true", help=STEP_HELP)
     args = ap.parse_args()
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
+    steps = Steps(args.step)
     title = "The agent that edits the log"
     print(f"\n{title}\n{'=' * len(title)}")
     print(textwrap.fill("A rogue agent was refused twice for the same false claim. It has write access to the "
                         "record's file and tries to clean it up.", 96))
-    print(f"(hypgraph {__version__}; every attack runs on a fresh copy of the record)\n")
+    print(f"(hypgraph {__version__}; every attack runs on a fresh copy of the record)")
+    steps.hint()
+    print()
     with tempfile.TemporaryDirectory() as td:
         src = Path(args.db) if args.db else Path(td) / "dispute.hypgraph"
         g, _inv, _story = dispute.build(path=str(src))
@@ -126,9 +132,11 @@ def main() -> None:
               f"refusal log.")
         print(textwrap.fill(base["conduct"][ROGUE]["sentence"], 96, initial_indent=f"  {ROGUE}: ",
                             subsequent_indent="    "))
-        print(f"Published before the attack:  events head {ev_head[:16]}…   refusals head {rf_head[:16]}…\n")
+        print(f"Published before the attack:  events head {ev_head[:16]}…   refusals head {rf_head[:16]}…")
         ok = True
         for i, (name, attack, expect) in enumerate(ATTACKS, 1):
+            if not steps.wait() and i == 1:               # one attack at a time; an echoed Enter is the blank line
+                print()
             copy = Path(td) / f"copy-{i}.hypgraph"
             shutil.copy(src, copy)
             con = sqlite3.connect(copy)
@@ -164,7 +172,9 @@ def main() -> None:
             ok = ok and outcome == expect
         if args.db:
             print(f"\nThe untouched record is in {args.db}. Open it:  hypgraph --db {args.db} serve")
-    print("\nTamper-evident, not tamper-proof: three of the five are caught only because the head was\n"
+    if not steps.wait():
+        print()
+    print("Tamper-evident, not tamper-proof: three of the five are caught only because the head was\n"
           "published first. Publish it where the agent can't write: a release tag, a paper, a signed commit.")
     if not ok:
         raise SystemExit("an attack did not end the way this example says it does")

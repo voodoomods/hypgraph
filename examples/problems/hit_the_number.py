@@ -9,7 +9,7 @@ In the record, the benchmark is the instrument's result and the announced 20% is
 target, not a measurement. A line that gives the target as the measured effect is refused, and so is a line that
 says the target was met. What gets through is the measured change, and that it falls short.
 
-    python hit_the_number.py [--db FILE]
+    python hit_the_number.py [--db FILE] [--step]
 
 The draft, the two pushed lines and the final honest line are sentences gpt-oss-20b wrote under that push (the
 pressure-test runs; benchmark of seed 2508).

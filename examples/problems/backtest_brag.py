@@ -9,7 +9,7 @@ In the record the backtest is the instrument's result, with in-sample and out-of
 and the number of variants tried. Under trading@3 an in-sample figure has to be called in-sample, "edge" needs an
 out-of-sample gain over the benchmark after costs, and a comparison is held to the numbers on both sides.
 
-    python backtest_brag.py [--db FILE]
+    python backtest_brag.py [--db FILE] [--step]
 
 The lines are scripted. The third follows a sentence gpt-oss-20b filed in the backtest runs: "a net return of
 11.60%, outperforming the buy-and-hold benchmark of 12.50%".

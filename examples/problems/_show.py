@@ -14,25 +14,54 @@ from hypgraph import Graph, __version__
 from hypgraph.graph import GraphError
 
 WIDTH = 96
+STEP_HELP = "show one part at a time: press Enter for the next (for telling the story aloud, or recording it)"
+
+
+class Steps:
+    """``--step``: wait for Enter before each part, so a story can be told at speaking pace. Nothing else changes:
+    the same lines are filed and the same lines are printed."""
+
+    def __init__(self, on: bool):
+        self.on = on
+
+    def hint(self) -> None:
+        if self.on:
+            print("(--step: press Enter for each part)")
+
+    def wait(self) -> bool:
+        """Wait for Enter, if stepping. True when a terminal echoed that Enter, so the blank line a part starts
+        with is already on screen. When there is nothing to read (piped, closed), stop waiting and run on."""
+        if not self.on:
+            return False
+        sys.stdout.flush()
+        if sys.stdin is None or not sys.stdin.readline():
+            self.on = False
+            return False
+        return sys.stdin.isatty()
 
 
 class Show:
     def __init__(self, title: str, problem: str, doc: str = ""):
         ap = argparse.ArgumentParser(description=doc or title, formatter_class=argparse.RawDescriptionHelpFormatter)
         ap.add_argument("--db", default="", help="keep the record in this file, to open with: hypgraph --db FILE serve")
+        ap.add_argument("--step", action="store_true", help=STEP_HELP)
         self.args = ap.parse_args()
         for stream in (sys.stdout, sys.stderr):                      # ✓ and ✗ on a Windows console
             if hasattr(stream, "reconfigure"):
                 stream.reconfigure(encoding="utf-8", errors="replace")
+        self.steps = Steps(self.args.step)
         self.g = Graph(self.args.db or None)
         self.refused: list[tuple[str, list[str]]] = []
         self.accepted: list[str] = []
         print(f"\n{title}\n{'=' * len(title)}")
         print(textwrap.fill(problem, WIDTH))
         print(f"(hypgraph {__version__}; the agent's lines are scripted, the record's answers are not)")
+        self.steps.hint()
 
     def part(self, heading: str) -> None:
-        print(f"\n{heading}\n{'-' * len(heading)}")
+        if not self.steps.wait():
+            print()
+        print(f"{heading}\n{'-' * len(heading)}")
 
     def note(self, who: str, text: str) -> None:
         print(textwrap.fill(text, WIDTH, initial_indent=f"{who:<13} ", subsequent_indent=" " * 14))
