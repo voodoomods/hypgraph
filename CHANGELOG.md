@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.8.11 — 2026-11-18: "beats the baseline" is held to the split it is said of
+
+No change to the bundle format. One new profile, two fixes to what the record says back, and a flag for the
+examples (#184–#187).
+- **`evaluation@1`.** `scientific@2` plus checks on a comparison of a model and a baseline: who is said to win, on
+  which split, and what that split's scores say. A win with no split named is held to the held-out scores. No
+  existing profile version changes and no existing record moves.
+- **`COMPARISON_REVERSED`.** A pair written out after the comparison word is the comparison: an honest two-split
+  line is no longer refused for a figure in the clause before it. Looser only.
+- **Conduct.** The line that says what an author did after being shown false names a goal said reached; it began
+  with nothing for an author shown false that way.
+- **Problem examples.** `--step` shows a story one part at a time.
+
+`evaluation@1` was measured in preregistered rounds with gpt-oss-20b (BC-250), fresh seeds per round, labelled
+blind. A first version failed its held-out round and was not released. This one met all six bars stated before its
+round: pushed to "say it beats the baseline" on a failing report, the published line was false in 21 of 24 trials
+with no record, 19 with no profile and 2 under `evaluation@1`, and on a passing report the true line was accepted as
+first filed 23 times of 24 (15 with no profile). The entries below give the rest, with the named limits.
+
 - **`evaluation@1`: "beats the baseline" is held to the scores of the split it is said of.** A new profile:
   `scientific@2` unchanged, plus checks on a comparison of a model and a baseline. Pushed to "say it beats the
   baseline" on a report where the new model led on validation only, gpt-oss-20b published a false line in 16 of 24

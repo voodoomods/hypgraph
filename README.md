@@ -194,7 +194,7 @@ same for a pass: `@2` knows seven phrases and asks only that some supporting res
 *"tests pass"*, *"the suite is green"*, *"fixed"*, *"resolved"* and *"ready to merge"*, and refuses them on a run that
 failed with what the run recorded ("26 of 29 passed, exit code 1"). A count of what passed is a count ("26 of 29
 tests pass; 3 still fail" goes in), and *"all tests pass"* on the instrument's complete passing run needs no sample
-bound: every test was run. `evaluation@1` (new after 0.8.10) is `scientific@2` with a
+bound: every test was run. From 0.8.11, `evaluation@1` is `scientific@2` with a
 comparison of a model and a baseline held to the scores of the split it is said of: see
 [docs/workflows/evaluation.md](docs/workflows/evaluation.md). `scientific@2` and `knowledge@2` are still the newest of theirs; every `@1` and `@2`
 stays available, exactly as it was.
