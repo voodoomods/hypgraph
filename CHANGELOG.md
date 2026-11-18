@@ -19,6 +19,13 @@
   blind under the amended guide, paired refile): 4 moved, 3 false refused and 1 true — "Only a few large files hit the
   ceiling" on 3 of 5, the slow side again; the limit guard now takes ceilings, caps and walls, so it is kept and the
   live round reads 3 false refused, 0 true (that one case was seen before the guard, so it isn't held out).
+  The limit guard was then a list of verbs (hit, challenge, stretch, test, reach), and on its first held-out run
+  (telephone showcase run4) it missed one: "Only a handful of large files touch the time limit" on 4 of 7 was refused,
+  a true line. It now reads any limit in the shrinking word's clause as the slow side, unless a word puts the few
+  inside it ("staying under the time limit", "met timing limits", "finished within", "beat"). Every blind-labelled
+  telephone line (14,047): the rule fires on 57, that true line no longer among them, and on nothing new; the corpus
+  doesn't move. Live (fresh seeds 2700-2711, 975 lines labelled blind, the rule before and after this change): nothing
+  moves, as no line of the round put a shrinking word on a majority beside a limit.
   Tests: `tests/test_minority_over_half.py`.
 - **"Each" on the counted set, with nothing to say how many, says it of every one.** "The parser flagged each
   malformed file, delivering crystal-clear errors" on 19 of 20 and "Malformed files? Each one triggered a crystal-clear
