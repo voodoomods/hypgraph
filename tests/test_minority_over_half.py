@@ -38,6 +38,11 @@ def codes(statement, k, n, what):
     ("Few large files finished within the time budget.", 5, 7, B),
     ("A minority of test suites passed.", 6, 8, T),
     ("The parser struggles with the largest files, finishing only a few on time.", 4, 7, B),  # still says few
+    # inside the limit is the in-time side
+    ("Only a few large files met timing limits, spotlighting scalability challenges.", 3, 5, B),
+    ("Performance drops on the biggest files, with only a handful staying under the time limit.", 4, 7, B),
+    ("Only a few large files finished within the time limit.", 4, 7, B),
+    ("Only a handful of large files beat the time limit.", 4, 7, B),
 ])
 def test_a_shrinking_word_on_a_count_over_half_is_refused(statement, k, n, what):
     assert "COUNT_CONTRADICTS" in codes(statement, k, n, what)
@@ -51,6 +56,10 @@ def test_a_shrinking_word_on_a_count_over_half_is_refused(statement, k, n, what)
     ("Only a handful of massive files challenged the time limits.", 3, 5, B),
     ("A minority of large files hit time limits, so tweaks are ahead.", 4, 7, B),
     ("Only a few large files hit the ceiling, so scalability needs a boost.", 3, 5, B),
+    # whatever is done to the limit (telephone showcase run4: "touch" was refused on a true line)
+    ("Only a handful of large files touch the time limit—speed for big files is sharpening.", 4, 7, B),
+    ("Only a few large files bumped into the time limit.", 4, 7, B),
+    ("Only a few large files ran past the time limit.", 4, 7, B),
     ("From a wide array of real-world files, only a handful slipped.", 65, 67, R),
     ("All but a handful of real-world files parsed without error.", 64, 67, R),
     ("Most large files finished on time, with only a few delays.", 5, 7, B),   # another noun

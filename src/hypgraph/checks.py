@@ -1356,10 +1356,19 @@ _MINORITY = re.compile(
 
 
 # Reaching a limit is the slow side too: "only a handful challenged the time limits", "a few stretched its limits",
-# "only a few hit the ceiling",
-# "a minority hit time limits" speak of the files that ran long
-_AT_LIMIT = re.compile(r"\b(?:hit(?:s|ting)?|challeng\w*|stretch\w*|strain\w*|tax\w*|test\w*|reach\w*)\s+"
-                       r"(?:the\s+|its\s+|their\s+|our\s+)?(?:time\s+|speed\s+)?(?:limits?|ceilings?|caps?|walls?)\b", re.I)
+# "only a few hit the ceiling", "a minority hit time limits", "only a handful touch the time limit" speak of the files
+# that ran long. A list of verbs missed "touch" on its first held-out round (telephone showcase run4: a true line
+# refused on 4 of 7), so the limit is read whatever is done to it, unless the clause puts the few inside it
+_LIMIT = re.compile(r"\b(?:limits?|ceilings?|caps?|walls?)\b", re.I)
+# "stay under the time limit", "finished within the limit", "met / beat / made / kept to the limit": the in-time side
+_INSIDE_LIMIT = re.compile(
+    r"\b(?:within|under|below|beneath|inside|before|meet(?:s|ing)?|met|beat(?:s|ing)?|ma(?:ke|kes|king|de)|"
+    r"ke(?:ep|eps|eping|pt)|stay(?:s|ed|ing)?|stuck|respect\w*|satisf\w*|clear(?:s|ed|ing)?|honou?r\w*|obey\w*|"
+    r"fit(?:s|ted|ting)?)\b", re.I)
+
+
+def _at_limit(clause: str) -> bool:
+    return bool(_LIMIT.search(clause)) and not _INSIDE_LIMIT.search(clause)
 
 
 def _minority_over_half(stmt: str, bound: list) -> list[Problem]:
@@ -1406,7 +1415,7 @@ def _minority_over_half(stmt: str, bound: list) -> list[Problem]:
                for m, _a in rel):
             continue
         clause = _clause_at(stmt, hit.start())
-        if _CONTRARY.search(clause) or _CONTRARY_NEG.search(clause) or _AT_LIMIT.search(clause):
+        if _CONTRARY.search(clause) or _CONTRARY_NEG.search(clause) or _at_limit(clause):
             continue
         m, (k, n) = max(rel, key=lambda x: x[1][1])
         q = _fitting_qualifier(k, n)
