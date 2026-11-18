@@ -1,3 +1,4 @@
 """Teaching investigations that ship with HypGraph. ``hypgraph demo`` builds one into a file you can explore."""
 
-DEMOS = {"broad-street": "hypgraph.demos.broad_street", "dispute": "hypgraph.demos.dispute"}
+DEMOS = {"broad-street": "hypgraph.demos.broad_street", "dispute": "hypgraph.demos.dispute",
+         "cascade": "hypgraph.demos.cascade"}

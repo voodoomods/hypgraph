@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **`hypgraph demo cascade` runs.** The withdrawn-source demo shipped as a module (`hypgraph.demos.cascade`) and a
+  site page, but the command line offered only `broad-street` and `dispute`. And the hint printed when the demo's file
+  already exists put `--db` after the command, where the parser refuses it; it now prints a command that runs.
+  Tests: `tests/test_demo_cascade.py`.
 - **`software@3`: a pass, a fix or "ready to merge" is held to the instrument's run.** `software@2` reads seven
   phrases as a pass and asks only that some supporting result is a passing instrument run. So on a CI run of 11 of 14
   it accepted "Tests pass." and "The test suite is green."; an agent's own unverified run was enough for "All 14 tests
