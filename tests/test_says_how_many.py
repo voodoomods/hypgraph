@@ -7,7 +7,7 @@ showcase run4, 2026-11-17, each line blind-labelled false and accepted):
 - "no" ("Malformed files were cleanly rejected—no slip-through");
 - a number that belongs to the count's own name ("Large, over-1-GB files were parsed within the time budget", on
   files over 1 GB parsed within the time budget).
-Over every blind-labelled telephone line (12,398), a sentence whose only such word was "each" or "no" was false 9
+Over every blind-labelled telephone line (13,130), a sentence whose only such word was "each" or "no" was false 9
 times and true 0.
 """
 import pytest

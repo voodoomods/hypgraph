@@ -1382,7 +1382,7 @@ def _all_but_contradicted(stmt: str, bound: list) -> list[Problem]:
 # Anything that says how many, or hedges: a sentence holding one of these isn't a bare generic. "each" and "no" are
 # not among them: neither says fewer than all ("Malformed files were caught, each flagged by a clear error", "Malformed
 # files were cleanly rejected—no slip-through", both on 21 of 22). Over every blind-labelled telephone line
-# (2026-11-17, 12,398 sentences), a sentence whose only such word was "each" or "no" was false 9 times and true 0;
+# (2026-11-17, 13,130 sentences), a sentence whose only such word was "each" or "no" was false 9 times and true 0;
 # every true line with one of them also states a count or hedges another way ("21 of 22 … each with a clear error")
 _QUALIFIES = re.compile(
     r"\d|%|\b(?:all|every|any|none|neither|either|both|most|many|some|several|few|fewer|majority|minority|"
