@@ -1242,6 +1242,8 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
         out += _majority_under_half(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _each_of_the_set(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _minority_over_half(stmt, bound)
     return out
 
 
@@ -1340,6 +1342,86 @@ def _majority_under_half(stmt: str, bound: list) -> list[Problem]:
         return [Problem("COUNT_CONTRADICTS",
                         f"'{phrase}' says more than half of them did, but the record's own count is {k:,} of {n:,} "
                         f"({m.get('name') or m.get('key')}), under half, and nothing in the clause says it speaks of "
+                        f"the other {n - k:,}: say '{k:,} of {n:,}', or '{q}'",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
+    return []
+
+
+# Words that make the counted set small: "only a few", "just a handful", "a select few", "few", "very few", "a
+# minority of". Not plain "a few" / "a couple" (a few of seven may be four), not "all but a handful" (the rest)
+_MINORITY = re.compile(
+    r"\b(?:(?:only|just|merely)\s+(?:a\s+)?(?:select\s+|small\s+)?(?:few|handful|couple|fraction|minority|"
+    r"small\s+(?:number|share|fraction))|a\s+select\s+few|a\s+(?:small\s+)?minority|(?<!\ba\s)(?<!\bquite\s)"
+    r"(?:very\s+)?few)\b(?!\s+(?:if\s+any|other)\b)", re.I)
+
+
+# Reaching a limit is the slow side too: "only a handful challenged the time limits", "a few stretched its limits",
+# "only a few hit the ceiling", "a minority hit time limits", "only a handful touch the time limit" speak of the files
+# that ran long. A list of verbs missed "touch" on its first held-out round (telephone showcase run4: a true line
+# refused on 4 of 7), so the limit is read whatever is done to it, unless the clause puts the few inside it
+_LIMIT = re.compile(r"\b(?:limits?|ceilings?|caps?|walls?)\b", re.I)
+# "stay under the time limit", "finished within the limit", "met / beat / made / kept to the limit": the in-time side
+_INSIDE_LIMIT = re.compile(
+    r"\b(?:within|under|below|beneath|inside|before|meet(?:s|ing)?|met|beat(?:s|ing)?|ma(?:ke|kes|king|de)|"
+    r"ke(?:ep|eps|eping|pt)|stay(?:s|ed|ing)?|stuck|respect\w*|satisf\w*|clear(?:s|ed|ing)?|honou?r\w*|obey\w*|"
+    r"fit(?:s|ted|ting)?)\b", re.I)
+
+
+def _at_limit(clause: str) -> bool:
+    return bool(_LIMIT.search(clause)) and not _INSIDE_LIMIT.search(clause)
+
+
+def _minority_over_half(stmt: str, bound: list) -> list[Problem]:
+    """'Only a few', 'just a handful' or 'a minority' of the counted set, said its own way, on a count over half: the
+    mirror of `_majority_under_half`. "Only a few of our biggest files finish on time" went in on 4 of 7 files over 1
+    GB parsed within the time budget, "Only a handful of massive files kept pace" on 3 of 5: a reader takes most of
+    them to have failed, and most passed. Blind labellers split on this (11 false, 7 true, telephone showcase pool,
+    2026-11-17); the labelling guide now says it is false. Either side of a count may be the one meant, so the word
+    fits when its clause speaks of the rest ("only a few exceeded the time limit", "only a handful slipped", "only a
+    handful challenged the time limits") or negates; a count whose own name is put the contrary way isn't read; exactly half isn't over half. The word sits on
+    the counted set when its plural follows (up to four words, no preposition but "of" between), or, with nothing
+    following ("only a few finish on time"), when the set is named earlier in the sentence."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    for hit in _MINORITY.finditer(stmt):
+        if L.negated(stmt, hit.start()) or re.search(r"\ball\s+but\s+$", stmt[max(0, hit.start() - 10):hit.start()],
+                                                     re.I):
+            continue
+        noun = None
+        phrase = re.sub(r"\s+", " ", hit.group(0))
+        for t in list(re.finditer(r"[A-Za-z][\w\u2010\u2011'-]*", stmt[hit.end():]))[:5]:
+            w = t.group(0).lower()
+            if w in _PREPOSITIONS and w != "of":
+                break
+            if w.endswith("s") and not w.endswith(("ss", "us", "is", "'s")) and L.content_words(w):
+                noun = L.content_words(w)
+                phrase = re.sub(r"\s+", " ", stmt[hit.start():hit.end() + t.end()])
+                break
+        if noun:
+            rel = [(m, a) for m, a in arms if noun == _counted_noun(str(m.get("name") or ""))]
+        else:
+            # elliptical: "with only a handful finishing on time", the set named before in the same sentence
+            if re.match(r"\s*of\b", stmt[hit.end():], re.I):
+                continue
+            s0 = max((m.end() for m in L._SENTENCE_END.finditer(stmt[:hit.start()])), default=0)
+            before = {w for t in re.findall(r"[A-Za-z][\w\u2010\u2011'-]*", stmt[s0:hit.start()])
+                      if t.lower().endswith("s") and not t.lower().endswith(("ss", "us", "is", "'s"))
+                      for w in [frozenset(L.content_words(t))] if w}
+            rel = [(m, a) for m, a in arms if frozenset(_counted_noun(str(m.get("name") or ""))) in before]
+        if not rel or not all(2 * k > n for _m, (k, n) in rel):
+            continue
+        if any(_CONTRARY.search(str(m.get("name") or "")) or _CONTRARY_NEG.search(str(m.get("name") or ""))
+               for m, _a in rel):
+            continue
+        clause = _clause_at(stmt, hit.start())
+        if _CONTRARY.search(clause) or _CONTRARY_NEG.search(clause) or _at_limit(clause):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' says few of them did, but the record's own count is {k:,} of {n:,} "
+                        f"({m.get('name') or m.get('key')}), over half, and nothing in the clause says it speaks of "
                         f"the other {n - k:,}: say '{k:,} of {n:,}', or '{q}'",
                         fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
     return []
