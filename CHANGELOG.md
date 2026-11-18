@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **`hypgraph demo cascade` runs.** The withdrawn-source demo shipped as a module (`hypgraph.demos.cascade`) and a
+  site page, but the command line offered only `broad-street` and `dispute`. And the hint printed when the demo's file
+  already exists put `--db` after the command, where the parser refuses it; it now prints a command that runs.
+  Tests: `tests/test_demo_cascade.py`.
+
 ## 0.8.9 — 2026-11-18: a sentence is held to the count it stands on
 
 No change to the bundle format. Checks only, apart from the overclaims report and a demo, in one batch (#127–#176).

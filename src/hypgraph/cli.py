@@ -3,6 +3,7 @@ hypgraph — the command line.
 
     hypgraph demo                       build the Broad Street (1854) teaching investigation into ./research.hypgraph
     hypgraph demo dispute               an honest mistake and a lie: the record checks one and contests the other
+    hypgraph demo cascade               a withdrawn source: everything computed from it is marked at risk
     hypgraph serve                      open the HypGraph UI on http://127.0.0.1:8765
     hypgraph init "Plant growth" --objective "…" --reviewers ada,lin
     hypgraph add hypothesis statement="Blue light grows cress faster." predictions='["taller after 7 days"]'
@@ -357,7 +358,10 @@ def cmd_demo(args) -> int:
     from .demos import DEMOS
     demo = importlib.import_module(DEMOS[args.name])
     if Path(args.db).exists():
-        raise GraphError(f"{args.db} exists — choose another file: hypgraph demo {args.name} --db {args.name}.hypgraph")
+        other = f"{args.name}.hypgraph"
+        if Path(args.db).name == other:
+            other = f"{args.name}-2.hypgraph"
+        raise GraphError(f"{args.db} exists — choose another file: hypgraph --db {other} demo {args.name}")
     g, inv, story = demo.build(path=args.db)
     conduct = g.conduct(inv) if args.name == "dispute" else {}
     if args.json:
@@ -562,9 +566,11 @@ def build_parser() -> argparse.ArgumentParser:
                         "outside the hash chain")
     s = cmd("import", cmd_import, "rebuild a graph file from a complete bundle")
     s.add_argument("bundle")
-    s = cmd("demo", cmd_demo, "build a teaching investigation: Broad Street (1854), or a disputed answer")
-    s.add_argument("name", nargs="?", default="broad-street", choices=["broad-street", "dispute"],
-                   help="broad-street (default), or dispute: an honest mistake and a lie, told apart by the record")
+    s = cmd("demo", cmd_demo, "build a teaching investigation: Broad Street (1854), a disputed answer, or a "
+                              "withdrawn source")
+    s.add_argument("name", nargs="?", default="broad-street", choices=["broad-street", "dispute", "cascade"],
+                   help="broad-street (default); dispute: an honest mistake and a lie, told apart by the record; "
+                        "cascade: a source is withdrawn and everything computed from it is marked at risk")
     cmd("schema", cmd_schema, "the node types and relations")
     s = cmd("refusals", cmd_refusals, "the overclaims the record caught: per author, per rule, fixed or open")
     s.add_argument("--inv", default="")
