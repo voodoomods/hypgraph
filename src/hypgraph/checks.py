@@ -2934,6 +2934,9 @@ def _unit_after(stmt: str, i: int) -> str:
     return "" if not w or w.group(1).lower() in _UNIT_SKIP else w.group(1).lower()
 
 
+_PAIR_AFTER = re.compile(r"\s*%?\s*(?:vs\.?|versus|against|compared\s+(?:to|with))\s", re.I)
+
+
 def _reversed(stmt: str, bound: list) -> list[Problem]:
     if len(bound) < 2:
         return []
@@ -2969,6 +2972,10 @@ def _reversed(stmt: str, bound: list) -> list[Problem]:
         # a figure named as a difference or a multiple after the word ("smaller than 0.1 percentage points") is no side
         if set(gap) & _SCALING or set(after) & _SCALING or len(gap) > 10 or _ORDER_WORD.search(stmt, h.end(), rf[0]) \
                 or L.COMPARATIVE.search(stmt[h.end():rf[0]]):
+            continue
+        # both sides are written out after the word ("underperforms the baseline on the test set (0.76 vs 0.79)"): a
+        # figure before it belongs to what was said earlier ("exceeding it on validation (0.83 vs 0.80), …")
+        if _PAIR_AFTER.match(stmt, rf[1]):
             continue
         left = [f for f in figs if start <= f[0] and f[1] <= h.start() and f[2][2] == rf[2][2]]
         if not left:
