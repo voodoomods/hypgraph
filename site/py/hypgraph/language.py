@@ -245,14 +245,18 @@ def found(pattern: re.Pattern, text: str) -> list[str]:
 
 def content_words(text: str) -> set[str]:
     """Words that say what something is about: 4+ letters, not stop words, crudely stemmed so that a word and its
-    inflections meet: route / routes, value / values, fits / fitting. (A stemmer that turned "routes" into "rout" but
-    left "route" alone kept a count of shorter routes from ever meeting "the shortest route is 31 km", and the record
-    accepted the false extreme.)"""
+    inflections meet: route / routes, value / values, fits / fitting, pass / passes / passed. (A stemmer that turned
+    "routes" into "rout" but left "route" alone kept a count of shorter routes from ever meeting "the shortest route is
+    31 km", and the record accepted the false extreme. One that took the last s off "pass" kept a count of "tests
+    passed" from meeting "all tests pass", and the record refused the true sentence as leaning on a count of something
+    else.)"""
     out = set()
     for w in re.findall(r"[a-z]{4,}", (text or "").lower()):
         if w in STOP:
             continue
         for suf in ("ations", "ation", "ings", "ing", "ies", "es", "ed", "s"):
+            if suf == "s" and w.endswith("ss"):
+                break                                  # pass, class, process: the s is the word's own, not a plural
             if w.endswith(suf) and len(w) - len(suf) >= 3:
                 w = w[: -len(suf)]
                 break

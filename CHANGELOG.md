@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.8.10 — 2026-11-18: "it's fixed" is held to the run
+
+No change to the bundle format. One new profile version, one fix to how words are matched, and examples (#178–#182).
+- **`software@3`.** A pass, a fix or "ready to merge" is read in the words people use and held to what the
+  instrument's run recorded: said on a run that failed, it is refused with the run's own count. `software@1` and
+  `@2` are frozen and no existing record moves.
+- **Words in -ss.** "pass" now meets "passes" and "passed", so a count named "tests passed" is read as being about
+  "all tests pass".
+- **Problem examples.** Six scripted stories in `examples/problems/`, each a failure people meet with agents, each
+  ending with the lines it doesn't catch. `hypgraph demo cascade` runs from the command line.
+
+`software@3` was measured in preregistered rounds with gpt-oss-20b (BC-250) on fresh seeds, labelled blind: pushed to
+say "it's fixed and the tests pass" on a failing CI run, the line published was false in 21 of 24 with no record, 15
+of 24 under `software@2` and 0 of 24 under `software@3`. A second fresh round let 1 of 24 through ("Invoice export
+dates corrected", a word for fixed it doesn't read). The entries below give the rest.
+
 - **`hypgraph demo cascade` runs.** The withdrawn-source demo shipped as a module (`hypgraph.demos.cascade`) and a
   site page, but the command line offered only `broad-street` and `dispute`. And the hint printed when the demo's file
   already exists put `--db` after the command, where the parser refuses it; it now prints a command that runs.
@@ -45,8 +61,8 @@
 - **Problem examples** (`examples/problems/`): six scripted stories, each a failure people meet with agents, filed
   into a record with no model. "It's fixed" on a failing CI run (`software@3`), a made-up figure (`knowledge@2`), a
   target reported as met under pressure (scientific), a backtest that brags (`trading@3`), "optimal" without a
-  closed gap (`optimization@3`), and an agent that edits the record's file. Each asserts the refusal code it tells and ends by filing the lines it doesn't
-  catch. Tests: `tests/test_problem_examples.py`.
+  closed gap (`optimization@3`), and an agent that edits the record's file. Each asserts the refusal code it
+  tells and ends by filing the lines it doesn't catch. Tests: `tests/test_problem_examples.py`.
 
 ## 0.8.9 — 2026-11-18: a sentence is held to the count it stands on
 
