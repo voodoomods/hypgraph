@@ -2114,7 +2114,8 @@ def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: lis
                         "counts — the thing the statement says never (or always) happens — or bind that count",
                         fix="name the k/n measurement after what it counts", words=words)]
     m, rv, (k, n) = max(relevant, key=lambda x: x[2][1])
-    if m.get("_census") and w.lower() in _OVER_THE_SET:
+    census = m.get("_census")
+    if census and (w.lower() in _OVER_THE_SET or (isinstance(census, frozenset) and w.lower() in census)):
         return []          # every member was run: "all tests pass" on the instrument's 14 of 14 is the count, not a sample
     lo, hi = stats.rate_bounds(k, n)
     opposite = hi if k == 0 else 1 - lo               # how often the opposite could still happen
@@ -3417,8 +3418,9 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
             flags = {}
             if _same_n_elsewhere(s, inv, m, rv):
                 flags["_same_n"] = True
-            if profiles.census_count(s, inv, clean, m, rv):
-                flags["_census"] = True
+            census = profiles.census_count(s, inv, clean, m, rv)
+            if census:
+                flags["_census"] = census
             flagged.append((dict(m, **flags) if flags else m, rv))
         problems += _absolutes(clean, scope, body, flagged)
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
