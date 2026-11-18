@@ -93,8 +93,9 @@ _SAYS_HELD = re.compile(r"\b(?:test|held[\s‐‑-]?out|holdout|hold[\s‐‑-]o
 _SPLIT_WORD = (r"(?:validation|val|dev|development|training|train|tuning|test|held[\s‐‑-]?out|holdout|"
                r"out[\s‐‑-]of[\s‐‑-]sample)")
 # a clause ends here; "and" ends one too, unless it joins two splits ("on validation and test")
-# ("not yet superior" is one clause: "yet" ends a clause only when it joins two)
-_CLAUSE = re.compile(rf"[;:—]|\.(?!\d)|\b(?:but|while|whereas|although|though|however|so)\b|"
+# ("not yet superior" is one clause: "yet" ends a clause only when it joins two). "that" opens a clause with its own
+# subject: "…, showing that the production model performs better" is the production model's win.
+_CLAUSE = re.compile(rf"[;:—]|\.(?!\d)|\b(?:but|while|whereas|although|though|however|so|that)\b|"
                      rf"(?<!\bnot )(?<!n't )(?<!n’t )\byet\b|"
                      rf"\band\b(?!\s+(?:on\s+|the\s+|on\s+the\s+)?{_SPLIT_WORD}\b)", re.I)
 # not said of now: "the potential to exceed", "aims to beat", "would outperform", "in order to beat"

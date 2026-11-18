@@ -352,6 +352,8 @@ def test_who_wins_is_read_from_the_subject():
     assert read("The new model is outperformed by the baseline.", True)[0] == [("outperformed", "base", "held")]
     assert read("The model trails on test, so the baseline remains superior.", True)[0] == [("superior", "base", "held")]
     assert read("It is not yet superior to the baseline.", True)[0] == []
+    assert read("On test it scored 0.79 against 0.81, showing that the baseline performs better on unseen data.",
+                True)[0] == [("better", "base", "held")]
     assert read("It underperformed the baseline despite higher validation scores.", True)[0] == []
 
 
