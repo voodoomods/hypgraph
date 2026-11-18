@@ -1822,13 +1822,41 @@ _DEED_PREP = {"in", "through", "across", "over", "on"}
 _OBJ_NEGATED = re.compile(r"\b(?:not|never|no\s+longer|cannot|fail(?:s|ed)?\s+to|without)\b|n't\b", re.I)
 
 
+# words that end in -s / -ed but aren't verbs of the clause: auxiliaries, pronouns, a few adverbs
+_NOT_A_VERB = set("is was has does as its this thus plus us his hers ours yours theirs less unless always perhaps "
+                  "were are be been being am do did had have".split())
+# a verb after these sits in a reported question or a time clause ("we measured how the parser handles malformed
+# files", "limits surfaced when the parser confronted enormous files"): it isn't what the claim says of the set
+_REPORTED = {"how", "whether", "if", "when", "whenever", "while", "until", "once", "what"}
+# prepositions `_PREPOSITIONS` leaves out; a set after any of them isn't the verb's direct object
+_MORE_PREPOSITIONS = set("through throughout about against after before during between toward towards beyond past "
+                         "like upon along around behind below above beside besides despite except inside outside onto "
+                         "via versus amid among than".split())
+
+
+def _verbish(w: str) -> bool:
+    """A word that may be the clause's verb: a 3rd-person present (-s / -es), a past (-ed) or an irregular past.
+    -ss / -us / -is (with -ous) are adjectives and nouns, not verbs: "malicious files", "previous runs"."""
+    w = w.lower()
+    if w in _NOT_A_VERB or w in _PREPOSITIONS or w.endswith(("ss", "us", "is")):
+        return False
+    return w.endswith(("ed", "s")) or w in _IRREGULAR_DEEDS or w in {"hit", "swept", "put", "cut"}
+
+
 def _object_generic(clause: str, arms: list) -> tuple[int, list] | None:
-    """The counted set as the bare plural object of a deed: the count's own verb ("Parser rejects malformed files", on
-    24 of 25 malformed files rejected) or one of mastery ("Our parser smashed test suites", on 9 of 10 test suites
-    passed; "reigned supreme in test suites"). Said of every one, as the bare plural subject is. Up to four words may
-    come between the deed and the set, none of them a preposition other than in / through / across / over / on.
-    Other verbs aren't read: "accuracy was measured on overlap rows" says nothing of how many. Found in the telephone
-    showcase on merged main (2026-11-16): 9 of the 20 false lines that went in had this shape."""
+    """The counted set as the bare plural object of a deed, said of every one as the bare plural subject is.
+    - The count's own verb ("Parser rejects malformed files", on 24 of 25 malformed files rejected) or one of mastery
+      ("Our parser smashed test suites"; "reigned supreme in test suites"): up to four words may come between the deed
+      and the set, none of them a preposition other than in / through / across / over / on. Found in the telephone
+      showcase on merged main (2026-11-16): 9 of the 20 false lines that went in had this shape.
+    - Any other verb, when the set is its direct object: no preposition between ("The parser flags misformatted
+      files", "snuffs malformed files", "tackles massive files", on 20 of 21 and 5 of 7). An -ed word right before
+      the set is its adjective ("malformed files"), not the verb. "Accuracy was measured on overlap rows" and "speed
+      lags on the largest files" put a preposition between, and aren't read. A clause that states a count, says the
+      contrary ("struggles", "missed", "too slow") or negates may speak of the other side, and isn't read either; nor
+      is a verb in a reported question or time clause ("we measured how the parser handles malformed files").
+      Found pooling every blind-labelled telephone line (2026-11-16, 5,175 sentences): main accepted 106 false lines;
+      this reads 23 of them and 3 overreach lines that are also bare plurals, none of the 2,307 accepted true lines."""
     toks = re.findall(r"[A-Za-z][\w‐‑'-]*", clause)
     for j, t in enumerate(toks):
         hits = [(m, a) for m, a in arms if _names_set(toks, j, str(m.get("name") or ""))]
@@ -1841,6 +1869,26 @@ def _object_generic(clause: str, arms: list) -> tuple[int, list] | None:
                 break
             if L.content_words(w) & deeds:
                 return None if _OBJ_NEGATED.search(" ".join(toks[:j])) else (j, hits)
+    if _STATED_OF.search(clause) or _STATED_SLASH.search(clause) or _CONTRARY.search(clause) or \
+            _CONTRARY_NEG.search(clause):
+        return None
+    for j, t in enumerate(toks):
+        if not t.lower().endswith("s") or t.lower().endswith(("ss", "us", "is", "'s")):
+            continue
+        noun = L.content_words(t)
+        hits = [(m, a) for m, a in arms if noun and noun == _counted_noun(str(m.get("name") or ""))]
+        if not hits:
+            continue
+        for v in range(j - 1, max(-1, j - 5), -1):
+            w = toks[v].lower()
+            if w in _PREPOSITIONS or w in _MORE_PREPOSITIONS:
+                break
+            if v == j - 1 and w.endswith("ed"):
+                continue
+            if _verbish(w) and not L.content_words(w) & noun:
+                if _REPORTED.intersection(x.lower() for x in toks[:v]) or _OBJ_NEGATED.search(" ".join(toks[:j])):
+                    break
+                return (j, hits)
     return None
 
 
