@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Problem examples** (`examples/problems/`): five scripted stories, each a failure people meet with agents, filed
+  into a record with no model. A made-up figure (`knowledge@2`), a target reported as met under pressure
+  (scientific), a backtest that brags (`trading@3`), "optimal" without a closed gap (`optimization@3`), and an agent
+  that edits the record's file. Each asserts the refusal code it tells and ends by filing the lines it doesn't
+  catch. Tests: `tests/test_problem_examples.py`.
+
 ## 0.8.9 — 2026-11-18: a sentence is held to the count it stands on
 
 No change to the bundle format. Checks only, apart from the overclaims report and a demo, in one batch (#127–#176).

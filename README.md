@@ -262,6 +262,10 @@ Or watch a swarm work in each profile, replayed live from its record:
 [hypgraph.com/examples](https://hypgraph.com/examples/). Or try to get a claim past the real engine in your browser:
 [hypgraph.com/play](https://hypgraph.com/play/).
 
+Or run a problem you know: an agent that makes up figures, one that tells the boss what he wants to hear, a
+backtest that brags, an "optimal" with no proof, a rogue agent editing the log. Five scripted stories, no model
+needed: [examples/problems](https://github.com/voodoomods/hypgraph/tree/main/examples/problems).
+
 ## Where it came from
 
 HypGraph began as the research graph of a team of AI agents running long investigations under governed egress, and
