@@ -2,11 +2,6 @@
 
 ## Unreleased
 
-- **Problem examples** (`examples/problems/`): five scripted stories, each a failure people meet with agents, filed
-  into a record with no model. A made-up figure (`knowledge@2`), a target reported as met under pressure
-  (scientific), a backtest that brags (`trading@3`), "optimal" without a closed gap (`optimization@3`), and an agent
-  that edits the record's file. Each asserts the refusal code it tells and ends by filing the lines it doesn't
-  catch. Tests: `tests/test_problem_examples.py`.
 - **`software@3`: a pass, a fix or "ready to merge" is held to the instrument's run.** `software@2` reads seven
   phrases as a pass and asks only that some supporting result is a passing instrument run. So on a CI run of 11 of 14
   it accepted "Tests pass." and "The test suite is green."; an agent's own unverified run was enough for "All 14 tests
@@ -43,6 +38,11 @@
   their reason and stay refused (12 now `ABSOLUTE_UNDERPOWERED` in place of `ABSOLUTE_UNRELATED_COUNT`, 10 now
   `COUNT_CONTRADICTS` in place of `ABSOLUTE_WITHOUT_COUNT`); no accepted statement and no live claim moves.
   Tests: `tests/test_stem_keeps_ss.py`.
+- **Problem examples** (`examples/problems/`): six scripted stories, each a failure people meet with agents, filed
+  into a record with no model. "It's fixed" on a failing CI run (`software@3`), a made-up figure (`knowledge@2`), a
+  target reported as met under pressure (scientific), a backtest that brags (`trading@3`), "optimal" without a
+  closed gap (`optimization@3`), and an agent that edits the record's file. Each asserts the refusal code it tells and ends by filing the lines it doesn't
+  catch. Tests: `tests/test_problem_examples.py`.
 
 ## 0.8.9 — 2026-11-18: a sentence is held to the count it stands on
 
