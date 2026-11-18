@@ -2069,6 +2069,11 @@ def _fitting_qualifier(k: int, n: int) -> str:
             "fewer than half" if f >= 0.1 else "a few")
 
 
+# absolutes that speak of every member of a set ("all tests pass", "no test fails"), which a census of the set settles;
+# "never" and "always" speak of every time, which one run doesn't
+_OVER_THE_SET = frozenset("all every each no none zero nothing without".split())
+
+
 def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float],
               comps: set = frozenset()) -> list[Problem]:
     arms = [(m, rv, a, role) for m, rv in bound
@@ -2109,6 +2114,8 @@ def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: lis
                         "counts — the thing the statement says never (or always) happens — or bind that count",
                         fix="name the k/n measurement after what it counts", words=words)]
     m, rv, (k, n) = max(relevant, key=lambda x: x[2][1])
+    if m.get("_census") and w.lower() in _OVER_THE_SET:
+        return []          # every member was run: "all tests pass" on the instrument's 14 of 14 is the count, not a sample
     lo, hi = stats.rate_bounds(k, n)
     opposite = hi if k == 0 else 1 - lo               # how often the opposite could still happen
     seen = f"{k} of {n:,}"
@@ -3397,8 +3404,16 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "so the record checks it", fix="replace each key with its number", words=named[:6]))
     problems += assertion_issues(s, body, inv, clean, typed)
     if not typed:                                    # the word interpretation: a heuristic, frozen at 0.7.28
-        problems += _absolutes(clean, scope, body, [(dict(m, _same_n=True) if _same_n_elsewhere(s, inv, m, rv) else m, rv)
-                                                    for m, rv in bound])
+        from . import profiles
+        flagged = []
+        for m, rv in bound:
+            flags = {}
+            if _same_n_elsewhere(s, inv, m, rv):
+                flags["_same_n"] = True
+            if profiles.census_count(s, inv, clean, m, rv):
+                flags["_census"] = True
+            flagged.append((dict(m, **flags) if flags else m, rv))
+        problems += _absolutes(clean, scope, body, flagged)
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
             problems += _unreached(clean, bound)
     if kind not in ("lead", "convention"):
