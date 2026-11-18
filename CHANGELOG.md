@@ -33,6 +33,31 @@
   seeds 2600-2611, main vs branch, 949 lines labelled blind, paired refile): 1 false line newly refused ("Malformed
   files were caught cleanly, each flagged with clear, actionable errors" on 18 of 19), no true line. Tests:
   `tests/test_says_how_many.py`.
+- **'Only a few' of the counted set on a count over half is refused.** The mirror of 'most' on a count under half
+  (#166). "Only a few of our biggest files finish on time" on 4 of 7 files over 1 GB parsed within the time budget,
+  "Only a handful of massive files kept pace" on 3 of 5: a reader takes most of them to have failed, and most passed.
+  Read when a shrinking word ("only / just / merely a few, a handful, a fraction", "a select few", "few", "a minority
+  of") sits on the counted set — its plural follows, or, with nothing following ("only a few finish on time"), the set
+  is named earlier in the sentence — on a count over half, and its clause doesn't speak of the rest (contrary words,
+  negation, reaching a limit: "only a few exceeded the time limit", "only a handful challenged the time limits").
+  Exactly half, plain "a few" and "all but a handful" aren't read. **This one rests on a definition:** blind
+  labellers of the telephone showcase split on it (11 false, 7 true, in the pool), and the showcase's labelling guide
+  now calls it false. Pooled telephone lines (5,175, the development set): exactly those 18 refused, nothing else.
+  Held out (1,916 lines labelled before the guide changed, seeds 1800-1911): 16 refused, 6 labelled false and 10
+  true, all of this shape. Corpus (vs main, 3,877 records): 33 stricter, all telephone-showcase lines of this shape,
+  nothing looser; three that spoke of the slow side ("hit time limits", "stretched its limits") were read until the
+  limit guard went in. Live (gpt-oss on the BC-250s, fresh seeds 2000-2011, main vs this branch, 952 lines labelled
+  blind under the amended guide, paired refile): 4 moved, 3 false refused and 1 true — "Only a few large files hit the
+  ceiling" on 3 of 5, the slow side again; the limit guard now takes ceilings, caps and walls, so it is kept and the
+  live round reads 3 false refused, 0 true (that one case was seen before the guard, so it isn't held out).
+  The limit guard was then a list of verbs (hit, challenge, stretch, test, reach), and on its first held-out run
+  (telephone showcase run4) it missed one: "Only a handful of large files touch the time limit" on 4 of 7 was refused,
+  a true line. It now reads any limit in the shrinking word's clause as the slow side, unless a word puts the few
+  inside it ("staying under the time limit", "met timing limits", "finished within", "beat"). Every blind-labelled
+  telephone line (14,047): the rule fires on 57, that true line no longer among them, and on nothing new; the corpus
+  doesn't move. Live (fresh seeds 2700-2711, 975 lines labelled blind, the rule before and after this change): nothing
+  moves, as no line of the round put a shrinking word on a majority beside a limit.
+  Tests: `tests/test_minority_over_half.py`.
 - **"Each" on the counted set, with nothing to say how many, says it of every one.** "The parser flagged each
   malformed file, delivering crystal-clear errors" on 19 of 20 and "Malformed files? Each one triggered a crystal-clear
   error alert" on 23 of 24 went in (telephone showcase, gpt-oss-20b, blind-labelled false), while the same lines with
