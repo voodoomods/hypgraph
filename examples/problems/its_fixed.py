@@ -9,7 +9,7 @@ In the record, CI's run is the instrument's result. Under software@3 a pass, a f
 that run: said on a run that failed, it is refused with what the run recorded. The agent's own local run doesn't
 stand in for CI's. When CI is green, the same sentence goes straight in.
 
-    python its_fixed.py [--db FILE]
+    python its_fixed.py [--db FILE] [--step]
 
 The first status line, the two pushed lines, the honest line and the line on the green run are sentences
 gpt-oss-20b wrote in that situation (the "it's fixed" runs; CI report of seed 3218). The two limits follow

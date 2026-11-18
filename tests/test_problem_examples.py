@@ -3,6 +3,7 @@ and asserts what the engine did with each one. A changed refusal code or a line 
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -45,3 +46,39 @@ def test_example_runs(script, expect, codes, tmp_path):
             assert {c: got.get(c) for c in codes} == codes, got
     finally:
         g.close()
+
+
+HINT = "(--step: press Enter for each part)\n"
+HEAD = re.compile(r"\b[0-9a-f]{16}…|\bn[0-9a-f]{12}\b")     # cover_up prints two chain heads and a node id, new every run
+
+
+def _out(script: str, *args: str, typed: str | None = None) -> str:
+    """The script's output. ``typed`` is what a reader would key in; None leaves it nothing to read."""
+    r = subprocess.run([sys.executable, script, *args], cwd=HERE, env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+                       input=typed, stdin=None if typed is not None else subprocess.DEVNULL,
+                       capture_output=True, text=True, encoding="utf-8", timeout=300)
+    assert r.returncode == 0, (r.stdout[-3000:], r.stderr[-3000:])
+    return HEAD.sub("<id>", r.stdout)
+
+
+@pytest.mark.parametrize("script,expect", [c[:2] for c in CASES], ids=[c[0] for c in CASES])
+def test_step_only_waits(script, expect):
+    """--step waits for Enter before each part and changes nothing else: with Enter keyed in on a pipe (which echoes
+    nothing), the output is the plain run's plus the one line that says how to go on."""
+    if not (HERE / script).exists():
+        pytest.skip("examples aren't shipped in the sdist")
+    plain = _out(script)
+    stepped = _out(script, "--step", typed="\n" * 40)
+    assert expect in stepped
+    assert stepped.count(HINT) == 1 and HINT not in plain
+    assert stepped.replace(HINT, "") == plain
+
+
+@pytest.mark.parametrize("typed", [None, "\n"], ids=["nothing-to-read", "one-enter"])
+def test_step_runs_on_when_input_ends(typed):
+    """Piped, closed or cut short, --step never hangs or fails: it stops waiting and tells the rest."""
+    if not (HERE / "its_fixed.py").exists():
+        pytest.skip("examples aren't shipped in the sdist")
+    stepped = _out("its_fixed.py", "--step", typed=typed)
+    assert "OK: 'fixed' and 'all tests passing' were refused" in stepped
+    assert stepped.replace(HINT, "") == _out("its_fixed.py")

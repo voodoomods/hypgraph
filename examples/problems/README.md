@@ -31,6 +31,9 @@ python hallucinated_figures.py --db hallucinated.hypgraph     # keep the record
 hypgraph --db hallucinated.hypgraph serve                     # open it: claims, refusals, sources
 ```
 
+Add `--step` to any of them to show one part at a time and press Enter for the next: for telling the story aloud,
+or recording it. It only waits; the same lines are filed and printed.
+
 If your system blocks the `hypgraph` launcher, `python -m hypgraph` is the same command.
 
 ## What each one doesn't show
