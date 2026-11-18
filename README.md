@@ -170,6 +170,7 @@ record behaves exactly as before. For a new investigation, pin the newest versio
 | `software@3` | specified → implemented (a diff by hash) → verified (**the instrument ran the tests on that head**) → claimed → reviewed | *"it passes"*, *"fixed"* or *"ready to merge"* without an instrument run, **on a run that failed**, or on a superseded head; the diff's author as its reviewer | every requirement's claim rests on a passing run on the current head |
 | `trading@3` | asked → thesised → preregistered → backtested (**out of sample, after costs, trials declared**) → claimed → risk-reviewed → positioned → monitored | a backtest without its costs; *"edge"* without both, or without the configurations tried; **an edge the numbers deny** (a loss, or behind the benchmark, out of sample after costs); an in-sample return not called one; a position without size, stop, review date; any live order | questions settled, a position taken or declined, nothing past its review date |
 | `knowledge@2` | asked → (searched) → sourced (**the passage**, retrieved, kind) → claimed → checked | a claim with no source; a source without its passage | every claim cites a source and is checked |
+| `evaluation@1` | the scientific stages | *"beats the baseline"* when the held-out scores say otherwise, or with no held-out score for both sides; a lead on a split the other side was never scored on; a validation score given as the result | every question settled |
 | `optimization@3` | posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked | an objective without feasibility; *"optimal"* without a bound, **with a gap the bound leaves open, on an infeasible incumbent**, or on a changed instance; a solve that uses no instance | a feasible bounded incumbent, verified on the current instance |
 
 **The stage is derived, never set**: `g.stage(question)` reads it off the record (the first stage whose gate is not
@@ -193,7 +194,9 @@ same for a pass: `@2` knows seven phrases and asks only that some supporting res
 *"tests pass"*, *"the suite is green"*, *"fixed"*, *"resolved"* and *"ready to merge"*, and refuses them on a run that
 failed with what the run recorded ("26 of 29 passed, exit code 1"). A count of what passed is a count ("26 of 29
 tests pass; 3 still fail" goes in), and *"all tests pass"* on the instrument's complete passing run needs no sample
-bound: every test was run. `scientific@2` and `knowledge@2` are still the newest of theirs; every `@1` and `@2`
+bound: every test was run. `evaluation@1` (new after 0.8.10) is `scientific@2` with a
+comparison of a model and a baseline held to the scores of the split it is said of: see
+[docs/workflows/evaluation.md](docs/workflows/evaluation.md). `scientific@2` and `knowledge@2` are still the newest of theirs; every `@1` and `@2`
 stays available, exactly as it was.
 
 `completion(inv)` reports each criterion; `hypgraph serve` exposes `/api/graph/completion` and
