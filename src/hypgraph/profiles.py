@@ -413,6 +413,21 @@ OPTIMIZATION3 = _add(Profile(
     completion=OPTIMIZATION2.completion, seats=OPTIMIZATION2.seats, workflow=OPTIMIZATION2.workflow,
 ))
 
+# ── @3: a pass or a fix is read in the words people use, and held to what the instrument's run recorded. @2 knows seven
+# phrases ("passes", "all tests pass", "is fixed" …) and asks only that some supporting result is a passing instrument
+# run. Found probing 0.8.9 for a demo and in the "it's fixed" showcase's dev round (2026-11-18): under software@2,
+# pushed to say "it's fixed and the tests pass" on a failing CI run, gpt-oss-20b published "26 of 29 tests
+# passed—PAY-1432 fixed" in 9 of 12 trials, and "Tests pass." / "The test suite is green." went in on 11 of 14.
+# Everything else is software@2 unchanged. ────────────────────────────────────────────────────────────────────────────
+
+SOFTWARE3 = _add(Profile(
+    "software", 3, SOFTWARE2.about + " A pass, a fix or 'ready to merge' is read in the words people use and held to "
+    "the instrument's run: said on a run that failed, it is refused with what the run recorded.",
+    vocabulary=SOFTWARE2.vocabulary, done_when=SOFTWARE2.done_when, predicates=SOFTWARE2.predicates,
+    validators=SOFTWARE2.validators + ("pass_held_to_run",),
+    completion=SOFTWARE2.completion, seats=SOFTWARE2.seats, workflow=SOFTWARE2.workflow,
+))
+
 
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
@@ -591,7 +606,9 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
             out.append(Problem("OPTIMAL_WITHOUT_BOUND", "'optimal' is asserted, but no supporting result carries a bound "
                                "or gap — an incumbent without a bound is a solution, not an optimum",
                                fix="bind a result with bound or gap, or say 'best found'"))
-    if "pass_needs_instrument" in p.validators and L.asserted(_PASSES, stmt):
+    if "pass_held_to_run" in p.validators:
+        out += _pass_held_to_run(s, stmt, results)
+    elif "pass_needs_instrument" in p.validators and L.asserted(_PASSES, stmt):
         ok = any(_instrument_backed(s, r) for r in results)
         if not ok:
             out.append(Problem("PASS_WITHOUT_INSTRUMENT_RUN", "'passes' is asserted, but no supporting result comes "
@@ -615,6 +632,168 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
     return out
+
+
+# ── software@3: a pass in the words people use, held to the instrument's run ──
+# The whole suite passing: "tests pass", "all 14 tests passed", "the suite is green", "CI succeeded", "the build passes"
+_SUITE_PASSES = re.compile(
+    r"\b(?:tests|test\s+suite|suite|checks|specs|ci|build|pipeline)\b(?:\s+(?:all|now|have|has|did|do|does|is|are|"
+    r"was|were|run|ran|still|again|finally|successfully|cleanly|completed|finished|went|goes|came\s+back)){0,3}\s+"
+    r"(?:pass(?:es|ed|ing)?|succeed(?:s|ed|ing)?|successfully|green)\b", re.I)
+# … unless the words before say how many: "26 of 29 tests passed", "26 tests passed", "most tests pass". "All 14 tests
+# pass" says all of them
+_COUNTED_BEFORE = re.compile(r"(?:\b(?:most|some|many|several|few|half|part)\b(?:\s+of)?(?:\s+the)?|(?<![\w.#‐‑-])\d[\d,]*"
+                             r"(?:\s*(?:/|of|out\s+of)\s*(?:the\s+)?\d[\d,]*)?)(?:\s+[a-z-]+){0,2}\s*$", re.I)
+_ALL_BEFORE = re.compile(r"\b(?:all|every|each)\b(?:\s+(?:of\s+)?(?:the\s+)?\d[\d,]*)?(?:\s+(?:of\s+)?(?:the\s+)?"
+                         r"[a-z-]+){0,2}\s*$", re.I)
+# No failures: "no test failures", "zero failures", "0 failed", "nothing fails", "without failures"
+_NO_FAILURES = re.compile(r"\b(?:no|zero|0)\s+(?:test\s+|tests\s+)?(?:failures?|failing(?:\s+tests?)?|failed(?:\s+tests?)?"
+                          r"|errors|regressions)\b|\b(?:nothing|none)\s+fail(?:s|ed|ing)?\b|\bwithout\s+(?:any\s+|a\s+"
+                          r"single\s+)?(?:failures?|errors)\b|\ball\s+(?:is\s+|are\s+|now\s+)?(?:green|passing)\b", re.I)
+# A fix: "PAY-1432 fixed", "is fixed", "Fixed invoice export dates". Not "the fixed code" (the code after the fix) or
+# a value held fixed ("fixed at 30 s", "fixed-size", "a fixed seed", "with entrants and k fixed")
+_FIXED = re.compile(r"\bfixed\b(?![-‐‑])(?!\s+(?:at|to|size|width|length|point|seed|value|number|order|"
+                    r"rate|cost|window|interval|set|amount|price|schedule)\b)", re.I)
+_FIXED_ATTRIBUTIVE = re.compile(r"\b(?:the|a|an|this|that|its|our|their|each|every|both|on|of|in|with|for)\s+$", re.I)
+_FIX_HELD = re.compile(r"\b(?:held|kept|keeps?|stays?|stayed|remains?|remained)\s+$|"
+                       r"\bwith\b(?:(?!\b(?:is|are|was|were|been|be|now|got|gets)\b)[^,;:.!?])*$", re.I)
+# "resolved" is a fix only of an issue: "PAY-1432 resolved", "the bug is resolved". Paths, names and imports resolve too
+_RESOLVED = re.compile(r"(?:(?i:\b(?:issues?|bugs?|tickets?|defects?|problems?|regressions?|failures?)\b)|"
+                       r"\b[A-Z]{2,}[-‐‑]\d+|#\d+)"
+                       r"(?i:(?:\s+(?:is|are|was|were|has\s+been|have\s+been|now|fully))*\s+resolved\b)")
+# the old phrases @3 keeps: "passing" is read only of the suite ("all tests passing"), not "the passing cases"
+_PASSES3 = re.compile(r"\b(passes|all tests pass|works correctly|implemented correctly)\b", re.I)
+# "passes 7 of the 12 cases" is a count of what passed
+_PASSES_SOME = re.compile(r"\s+(?:\w+\s+){0,2}?(?:\d|most\b|some\b|only\b|half\b)", re.I)
+_READY = re.compile(r"\b(?:ready|safe|good)\s+(?:to|for)\s+(?:be\s+)?(?:merge[ds]?|merging|ship(?:ped|ping)?|"
+                    r"release[ds]?|releasing|deploy(?:ed|ing|ment)?|production|prod|go[-‐‑\s]live)\b", re.I)
+
+
+def pass_claims(stmt: str) -> list[str]:
+    """The words of a statement that say the change passes, is fixed or is ready, as software@3 reads them. A count
+    of what passed ("26 of 29 tests passed") is a count, not a pass; one test named ("test_parse passed") isn't the
+    suite; a negated or asked one isn't asserted."""
+    if L.interrogative(stmt):
+        return []
+    out = []
+    for m in _PASSES3.finditer(stmt):
+        if L.negated(stmt, m.start()) or (m.group(0).lower() == "passes" and _PASSES_SOME.match(stmt, m.end())):
+            continue
+        out.append(m.group(0).lower())
+    for m in _RESOLVED.finditer(stmt):
+        if not L.negated(stmt, m.end() - len("resolved")):
+            out.append("resolved")
+    for m in _SUITE_PASSES.finditer(stmt):
+        before = L._clause_before(stmt, m.start())
+        if L.negated(stmt, m.start()) or (_COUNTED_BEFORE.search(before) and not _ALL_BEFORE.search(before)):
+            continue
+        out.append(re.sub(r"\s+", " ", m.group(0).lower()))
+    for m in _NO_FAILURES.finditer(stmt):
+        if not L.negated(stmt, m.start()):
+            out.append(re.sub(r"\s+", " ", m.group(0).lower()))
+    for m in _FIXED.finditer(stmt):
+        before = stmt[:m.start()]
+        if L.negated(stmt, m.start()) or _FIXED_ATTRIBUTIVE.search(before) or _FIX_HELD.search(before):
+            continue
+        out.append(m.group(0).lower())
+    for m in _READY.finditer(stmt):
+        if not L.negated(stmt, m.start()):
+            out.append(re.sub(r"\s+", " ", m.group(0).lower()))
+    return list(dict.fromkeys(out))
+
+
+def said_pass(p: "Profile", stmt: str) -> list[str]:
+    """The pass words a profile reads in a statement: software@3's reading, or the seven phrases before it."""
+    return pass_claims(stmt) if "pass_held_to_run" in p.validators else L.asserted(_PASSES, stmt)
+
+
+def _a_k_of_n(v: object) -> tuple[float, float] | None:
+    if isinstance(v, dict) and isinstance(v.get("k"), (int, float)) and isinstance(v.get("n"), (int, float)) \
+            and not isinstance(v.get("k"), bool):
+        return float(v["k"]), float(v["n"])
+    return None
+
+
+def _run_says(body: dict) -> tuple[bool, str]:
+    """(failed, what the run recorded) from a test run's result: a non-zero exit code, a count of passes short of its
+    total, a count or number of failures above zero, or an outcome recorded negative."""
+    raw = {str(k).lower(): v for k, v in (body.get("values") or {}).items()}
+    failed, said = False, []
+    for k, v in raw.items():
+        val = v.get("value") if isinstance(v, dict) and "value" in v else v
+        kn = _a_k_of_n(v)
+        if re.search(r"pass|succe|(?:^|_)ok(?:_|$)", k) and kn:
+            said.append(f"{kn[0]:g} of {kn[1]:g} passed")
+            failed = failed or kn[0] < kn[1]
+        elif re.search(r"fail|error|broken", k) and not re.search(r"rate|pct|percent|ratio", k):
+            n = kn[0] if kn else val
+            if isinstance(n, (int, float)) and not isinstance(n, bool) and n > 0:
+                said.append(f"{n:g} failed")
+                failed = True
+        elif re.search(r"exit_?code|return_?code|(?:^|_)rc$", k) and isinstance(val, (int, float)) \
+                and not isinstance(val, bool):
+            if val != 0:
+                said.append(f"exit code {val:g}")
+                failed = True
+    if body.get("outcome") == "negative":
+        failed = True
+        said = said or ["its outcome is recorded negative"]
+    return failed, ", ".join(dict.fromkeys(said))
+
+
+def _from_instrument(s: D.Snap, rid: str) -> bool:
+    """A result the instrument produced, whatever it found: from a lab run, or from a run a live lab run replicates."""
+    r = _producing_run(s, rid)
+    if not r:
+        return False
+    if s.nodes[r]["body"].get("kind") == "lab":
+        return True
+    return any(s.nodes[e["src"]]["body"].get("kind") == "lab" and _live(s, e["src"])
+               for e in s.inn.get(r, []) if e["rel"] == "replicates")
+
+
+_TEST_COUNT = re.compile(r"test|spec|check|suite", re.I)
+
+
+def census_count(s: D.Snap, inv: str, stmt: str, m: dict, rv: dict) -> bool:
+    """Is this bound count a census the statement's pass claim speaks of? Under software@3, the instrument's run of a
+    test suite ran every test: "all tests pass" on its 14 of 14 says what was counted, where "all" on 14 trials of
+    something open-ended would be a sample. The count must be of tests, complete (k = n), and from an instrument run
+    that passed; the statement must make a pass claim."""
+    p = profile_of(s, inv)
+    if not p or "pass_held_to_run" not in p.validators:
+        return False
+    k, n = rv.get("k"), rv.get("n")
+    if not isinstance(k, (int, float)) or isinstance(k, bool) or not n or k != n:
+        return False
+    if not _TEST_COUNT.search(f"{m.get('name') or ''} {m.get('key') or ''}"):
+        return False
+    rid = m.get("result")
+    if not rid or rid not in s.nodes or not _instrument_backed(s, rid) or _run_says(s.nodes[rid]["body"])[0]:
+        return False
+    return bool(pass_claims(stmt))
+
+
+def _pass_held_to_run(s: D.Snap, stmt: str, results: list[str]) -> list[Problem]:
+    """A pass, a fix or 'ready to merge' needs an instrument run that passed. When the instrument's run is there and
+    failed, the refusal says what it recorded; when no supporting result is the instrument's, it says that."""
+    said = pass_claims(stmt)
+    if not said:
+        return []
+    if any(_instrument_backed(s, r) and not _run_says(s.nodes[r]["body"])[0] for r in results):
+        return []
+    for r in results:
+        failed, what = _run_says(s.nodes[r]["body"])
+        if failed and _from_instrument(s, r):
+            return [Problem("PASS_CONTRADICTED",
+                            f"'{said[0]}' is asserted, but the instrument's run it rests on says otherwise: {what} — "
+                            "say what the run recorded, and that it isn't passing yet",
+                            fix="state the run's counts ('k of n tests pass; the rest fail') and drop the pass or the "
+                                "fix until the instrument's run on this change passes", words=said)]
+    return [Problem("PASS_WITHOUT_INSTRUMENT_RUN", f"'{said[0]}' is asserted, but no supporting result comes "
+                    "from an instrument-recorded run that passed — tests must be run by the instrument, not reported",
+                    fix="register_run with the test command as code; the instrument's re-run is the evidence — write "
+                        "the claim once the re-run has landed (the order's reply names it)", words=said)]
 
 
 # ── optimization@3: the values behind "optimal" ──

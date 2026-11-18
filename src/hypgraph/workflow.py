@@ -25,7 +25,8 @@ from typing import Callable
 from . import derive as D
 from . import language as L
 from .checks import Problem
-from .profiles import (_EDGE, _OPTIMAL, _PASSES, Profile, _cites_source, _has, _instrument_backed, _live, _producing_run, _vals, profile_of)
+from .profiles import (_EDGE, _OPTIMAL, Profile, _cites_source, _has, _instrument_backed, _live, _producing_run, _vals,
+                       profile_of, said_pass)
 from .schema import POSITIVE
 
 _LIVE_ORDER = re.compile(r"\b(live (order|trade|position)|market order|limit order|place[ds]? (an? )?order|"
@@ -620,7 +621,7 @@ def claim_issues(p: Profile, s: D.Snap, inv: str, body: dict, support: list, pen
     stmt = body.get("statement", "")
     results = _supporting_results(s, support)
     out: list[Problem] = []
-    if "pass_needs_current_head" in p.validators and L.asserted(_PASSES, stmt):
+    if "pass_needs_current_head" in p.validators and said_pass(p, stmt):
         backed = [r for r in results if _instrument_backed(s, r)]
         if backed and all(D.stale(s, r) for r in backed):
             out.append(Problem("TESTS_ON_STALE_HEAD", "'passes' is asserted on instrument runs whose change has since "
