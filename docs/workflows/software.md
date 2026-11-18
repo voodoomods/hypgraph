@@ -87,3 +87,39 @@ the claim back with no model call, a moved count leaves it stale and the questio
 checks pass"), `tests_pass_current` can never be met; a checked claim resting on that result settles the
 requirement as a verified failure (`stage()` says so), and `requirements_verified_current` stays unmet. The record
 holds why the change did not ship.
+
+## `software@3` (2026-11-18): a pass in the words people use, held to the run
+
+`software@2` reads seven phrases as a pass ("passes", "passing", "all tests pass", "works correctly", "is fixed",
+"bug is fixed", "implemented correctly") and asks only that some supporting result is a passing instrument run.
+Pushed to say "it's fixed and the tests pass" on a failing CI run, a model's status line went in under it as "26 of
+29 tests passed—PAY-1432 fixed"; "Tests pass." and "The test suite is green." went in on 11 of 14; and an agent's
+own unverified run was enough for "All 14 tests pass." `software@3` is `software@2` with the pass read more widely
+and held to what the run recorded; `software@1` and `@2` are unchanged, and a record keeps the version it was pinned
+with.
+
+**What is read as a pass claim** (`profiles.pass_claims`):
+- the suite passing: "tests pass", "all 14 tests passed", "the suite is green", "CI succeeded", "the build passes",
+  "no test failures", "0 failed";
+- a fix: "PAY-1432 fixed", "is fixed", "Fixed invoice export dates"; "resolved" said of an issue;
+- readiness: "ready to merge", "ready for release", "safe to ship".
+
+**What isn't:** a count of what passed ("26 of 29 tests passed", "26 tests passed, 3 failed", "most tests pass"); one
+named test ("test_parse passed": the record holds the suite's count, not each test's outcome); a negated or asked
+one; "the fixed code" and a value held fixed ("fixed at 30 s", "with k fixed"); paths or names that "resolved".
+
+**Refusals:**
+- `PASS_CONTRADICTED`: a pass claim whose supporting instrument run failed. The run failed when its exit code is
+  not 0, a count of passes is short of its total, a count of failures is above zero, or its outcome is recorded
+  negative. The message says what it recorded.
+- `PASS_WITHOUT_INSTRUMENT_RUN`: as in `@2`, now for every pass claim above: no supporting result is an
+  instrument-recorded run that passed. An agent's own run doesn't count; its count can still be stated as a count.
+- `TESTS_ON_STALE_HEAD` reads the same wider pass claims.
+
+**The suite is a census.** Elsewhere, "all" on 34 of 34 trials is a sample and needs its bound or its n. A test
+run executes every test, so under `software@3` "all tests pass" on the instrument's complete, passing run of the
+tests is accepted as said. "Never" and "always" still speak of every time, which one run doesn't show, and a count
+of anything other than tests (probe paths, random inputs) is still a sample.
+
+**Named limits.** A pass said another way ("the dates are now correct", "the patch works") isn't read. Neither is
+one named test's outcome: "the regression test passed" on a run where it failed goes in beside the count.
