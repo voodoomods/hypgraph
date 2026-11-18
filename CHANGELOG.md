@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **"Each" on the counted set, with nothing to say how many, says it of every one.** "The parser flagged each
+  malformed file, delivering crystal-clear errors" on 19 of 20 and "Malformed files? Each one triggered a crystal-clear
+  error alert" on 23 of 24 went in (telephone showcase, gpt-oss-20b, blind-labelled false), while the same lines with
+  "every" were refused. Now "each" as the counted set's own determiner ("each" and up to three words before the
+  counted noun, or "each one" with the set named earlier in the sentence) on a count with exceptions is
+  `COUNT_CONTRADICTS`, when nothing else in the sentence says how many or hedges and it isn't negated. Most "each" is
+  distributive and honest ("rejected nearly every bad file, each with a clear error", "11 trades, each incurring a
+  0.1% fee", "each other"): a first draft that read "each" as "every" refused 193 items of the corpus, nearly all of
+  that kind, and was dropped. Pooled telephone lines (5,175): 3 false refused, nothing else moves. Corpus (vs main,
+  3,973 records): 4 live claims stricter, every one a telephone line of this shape, nothing looser. The five live
+  rounds since the pool (4,772 lines labelled blind): 3 false refused, no true line. Live on gpt-oss-20b (BC-250s,
+  fresh seeds 2300-2311, main vs branch, 927 lines labelled blind, paired refile): nothing moves, as no line of the
+  round put "each" on the counted set. Tests: `tests/test_each_as_every.py`.
 - **The target rule rounds as the other number checks do.** `TARGET_NOT_MET` lets a change stand when it rounds to the
   goal as written, but rounded with `round()` (the binary value, halves to even): 20.5% missed "the 21% target",
   12.5% missed "the 13% target" and 4.85% (stored as 4.8499...) missed "the 4.9% target", while every other number
