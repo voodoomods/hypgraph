@@ -268,6 +268,22 @@ was taken from a changelog without being checked against the code.*
 > them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
 > `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
 
+> **After 0.8.10 (2026-11-18).** No change to the bundle format. A new profile, `evaluation@1` (#187): `scientific@2`
+> plus checks on a comparison of a model and a baseline. A profile screen had found that, pushed to "say it beats
+> the baseline" on a report where the new model led on validation only, a model published a false line in 16 of 24
+> trials with no record and 20 of 24 through a record with no profile. The profile reads who is said to win, on
+> which split, and whether it is a win at all, and holds it to that split's scores (`WIN_CONTRADICTED`,
+> `WIN_WITHOUT_HELDOUT`, `WIN_WITHOUT_PAIR`, `WIN_WITHOUT_DIRECTION`, `TUNING_SPLIT_UNLABELLED`,
+> `EVAL_WITHOUT_DIRECTION`); a count over every seed the instrument ran is the whole set. A first version failed its
+> preregistered held-out round (13 honest lines refused in 24 trials, 3 false ones published) and was not proposed.
+> The released one met six bars stated first, on fresh seeds with blind labels: false published 21 / 19 / 2 of 24
+> for no record / no profile / `evaluation@1`; a reader misled 5 / 6 / 0 times; 1 honest line refused; the true line
+> accepted as first filed 23 of 24 (no profile: 15). Named limits: a bare comparative with nothing it is compared
+> to, another word for a win, a win inside the noise, a leak inside the evaluation. `COMPARISON_REVERSED` no longer
+> takes a side from the clause before a pair written out after the word (#186; looser only). The conduct line names
+> a goal said reached (#185). The problem examples take `--step` (#184). Over 4,499 existing records nothing moves
+> for any of these. #184–#187 are merged with green CI. Released as 0.8.11.
+
 > **After 0.8.9 (2026-11-18).** No change to the bundle format. `software@3` (#181): `software@2` read seven
 > phrases as a pass and asked only that some supporting result was a passing instrument run, so "Tests pass." went in
 > on a CI run of 11 of 14 and an agent's own run was enough for "All 14 tests pass." The new version reads the suite

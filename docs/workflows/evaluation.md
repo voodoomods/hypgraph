@@ -26,6 +26,8 @@ Scores by key. The profile reads three things from a key:
 And the result says which way is better: `higher_is_better: true` (or `false`, or `lower_is_better`). A count over
 seeds or folds is a k-of-n value (`test_seeds_ahead: {"k": 1, "n": 5}`).
 
+A claim that compares the two sides binds the scores it speaks of, as any comparison claim does.
+
 ```json
 {"val_auc_model": 0.84, "val_auc_baseline": 0.82, "test_auc_model": 0.79, "test_auc_baseline": 0.81,
  "test_seeds_ahead": {"k": 1, "n": 5}, "higher_is_better": true}

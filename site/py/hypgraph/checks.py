@@ -2114,7 +2114,8 @@ def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: lis
                         "counts — the thing the statement says never (or always) happens — or bind that count",
                         fix="name the k/n measurement after what it counts", words=words)]
     m, rv, (k, n) = max(relevant, key=lambda x: x[2][1])
-    if m.get("_census") and w.lower() in _OVER_THE_SET:
+    census = m.get("_census")
+    if census and (w.lower() in _OVER_THE_SET or (isinstance(census, frozenset) and w.lower() in census)):
         return []          # every member was run: "all tests pass" on the instrument's 14 of 14 is the count, not a sample
     lo, hi = stats.rate_bounds(k, n)
     opposite = hi if k == 0 else 1 - lo               # how often the opposite could still happen
@@ -2933,6 +2934,9 @@ def _unit_after(stmt: str, i: int) -> str:
     return "" if not w or w.group(1).lower() in _UNIT_SKIP else w.group(1).lower()
 
 
+_PAIR_AFTER = re.compile(r"\s*%?\s*(?:vs\.?|versus|against|compared\s+(?:to|with))\s", re.I)
+
+
 def _reversed(stmt: str, bound: list) -> list[Problem]:
     if len(bound) < 2:
         return []
@@ -2968,6 +2972,10 @@ def _reversed(stmt: str, bound: list) -> list[Problem]:
         # a figure named as a difference or a multiple after the word ("smaller than 0.1 percentage points") is no side
         if set(gap) & _SCALING or set(after) & _SCALING or len(gap) > 10 or _ORDER_WORD.search(stmt, h.end(), rf[0]) \
                 or L.COMPARATIVE.search(stmt[h.end():rf[0]]):
+            continue
+        # both sides are written out after the word ("underperforms the baseline on the test set (0.76 vs 0.79)"): a
+        # figure before it belongs to what was said earlier ("exceeding it on validation (0.83 vs 0.80), …")
+        if _PAIR_AFTER.match(stmt, rf[1]):
             continue
         left = [f for f in figs if start <= f[0] and f[1] <= h.start() and f[2][2] == rf[2][2]]
         if not left:
@@ -3410,8 +3418,9 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
             flags = {}
             if _same_n_elsewhere(s, inv, m, rv):
                 flags["_same_n"] = True
-            if profiles.census_count(s, inv, clean, m, rv):
-                flags["_census"] = True
+            census = profiles.census_count(s, inv, clean, m, rv)
+            if census:
+                flags["_census"] = census
             flagged.append((dict(m, **flags) if flags else m, rv))
         problems += _absolutes(clean, scope, body, flagged)
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
