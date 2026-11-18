@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **`COMPARISON_REVERSED`: a pair written out after the word is the comparison.** The check took the figure nearest
+  before a comparison word as one side, even when it closed an earlier clause. "Despite exceeding the baseline on
+  the validation split (0.83 vs 0.80), the new model underperforms the baseline on the test set (0.76 vs 0.79)"
+  was refused as "'underperforms' puts 0.80 behind 0.76": 5 honest lines in 409 written by gpt-oss-20b. When the
+  figure after the word opens a pair ("0.76 vs 0.79", "0.76 versus", "compared to"), no side is taken from before
+  it. Looser only. Over 4,499 existing records: 25,781 live claims and 26,882 logged refusals re-checked, none
+  moves. Tests: `tests/test_comparison_reversed.py`.
 - **Conduct names a goal said reached.** A claim refused with `TARGET_NOT_MET` is shown false, so its author is in
   the conduct report, but the sentence had words only for a count, a typed assertion and a cited source. For an
   author shown false by a goal alone it began with nothing: "perf-agent: ; the author did not say it again, and
