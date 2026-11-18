@@ -30,6 +30,11 @@
     regression test" on a run where it failed).
   Tests: `tests/test_software_v3.py`.
 
+- **Problem examples** (`examples/problems/`): five scripted stories, each a failure people meet with agents, filed
+  into a record with no model. A made-up figure (`knowledge@2`), a target reported as met under pressure
+  (scientific), a backtest that brags (`trading@3`), "optimal" without a closed gap (`optimization@3`), and an agent
+  that edits the record's file. Each asserts the refusal code it tells and ends by filing the lines it doesn't
+  catch. Tests: `tests/test_problem_examples.py`.
 - **A word that ends in -ss keeps its s.** The stemmer that lets a word meet its inflections took the last s off
   "pass", "class" and "process" as if they were plurals, so "pass" never met "passes" or "passed". A count named
   "tests passed" was then not read as being about "all tests pass": on a CI run of 20 of 20, "PAY-1432 is fixed and
