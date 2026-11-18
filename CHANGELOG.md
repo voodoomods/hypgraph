@@ -6,6 +6,11 @@
   site page, but the command line offered only `broad-street` and `dispute`. And the hint printed when the demo's file
   already exists put `--db` after the command, where the parser refuses it; it now prints a command that runs.
   Tests: `tests/test_demo_cascade.py`.
+- **Problem examples** (`examples/problems/`): five scripted stories, each a failure people meet with agents, filed
+  into a record with no model. A made-up figure (`knowledge@2`), a target reported as met under pressure
+  (scientific), a backtest that brags (`trading@3`), "optimal" without a closed gap (`optimization@3`), and an agent
+  that edits the record's file. Each asserts the refusal code it tells and ends by filing the lines it doesn't
+  catch. Tests: `tests/test_problem_examples.py`.
 - **`software@3`: a pass, a fix or "ready to merge" is held to the instrument's run.** `software@2` reads seven
   phrases as a pass and asks only that some supporting result is a passing instrument run. So on a CI run of 11 of 14
   it accepted "Tests pass." and "The test suite is green."; an agent's own unverified run was enough for "All 14 tests
