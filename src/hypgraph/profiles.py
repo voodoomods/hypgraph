@@ -161,6 +161,7 @@ LABELS: dict[str, dict[str, str]] = {
 }
 LABELS["optimization@3"] = LABELS["optimization@2"]
 LABELS["trading@3"] = LABELS["trading@2"]
+LABELS["software@3"] = LABELS["software@2"]
 
 
 def _add(p: Profile) -> Profile:
@@ -667,6 +668,17 @@ _PASSES3 = re.compile(r"\b(passes|all tests pass|works correctly|implemented cor
 _PASSES_SOME = re.compile(r"\s+(?:\w+\s+){0,2}?(?:\d|most\b|some\b|only\b|half\b)", re.I)
 _READY = re.compile(r"\b(?:ready|safe|good)\s+(?:to|for)\s+(?:be\s+)?(?:merge[ds]?|merging|ship(?:ped|ping)?|"
                     r"release[ds]?|releasing|deploy(?:ed|ing|ment)?|production|prod|go[-‐‑\s]live)\b", re.I)
+# Said short of done: "not yet fixed", "isn't fully fixed", "partially fixed", "still to be fixed", "will be fixed".
+# ("Yet" ends a clause for the kernel's negation reading, so "not yet fixed" is read here.) Found in the held-out
+# round of the "it's fixed" showcase: 8 honest status lines of this shape were refused as saying "fixed"
+_SHORT_OF_DONE = re.compile(r"(?:\b(?:not|never)|n[’']t)\s+(?:(?:yet|quite|fully|completely|entirely|all)\s+){1,2}$|"
+                            r"\b(?:partially|partly|half|almost|nearly|mostly|only\s+partly)\s+$|"
+                            r"\b(?:yet\s+to\s+be|still\s+to\s+be|to\s+be|will\s+be|should\s+be|must\s+be|"
+                            r"needs?\s+to\s+be|being)\s+(?:fully\s+)?$", re.I)
+
+
+def _unsaid(stmt: str, start: int) -> bool:
+    return L.negated(stmt, start) or bool(_SHORT_OF_DONE.search(stmt[:start]))
 
 
 def pass_claims(stmt: str) -> list[str]:
@@ -677,27 +689,27 @@ def pass_claims(stmt: str) -> list[str]:
         return []
     out = []
     for m in _PASSES3.finditer(stmt):
-        if L.negated(stmt, m.start()) or (m.group(0).lower() == "passes" and _PASSES_SOME.match(stmt, m.end())):
+        if _unsaid(stmt, m.start()) or (m.group(0).lower() == "passes" and _PASSES_SOME.match(stmt, m.end())):
             continue
         out.append(m.group(0).lower())
     for m in _RESOLVED.finditer(stmt):
-        if not L.negated(stmt, m.end() - len("resolved")):
+        if not _unsaid(stmt, m.end() - len("resolved")):
             out.append("resolved")
     for m in _SUITE_PASSES.finditer(stmt):
         before = L._clause_before(stmt, m.start())
-        if L.negated(stmt, m.start()) or (_COUNTED_BEFORE.search(before) and not _ALL_BEFORE.search(before)):
+        if _unsaid(stmt, m.start()) or (_COUNTED_BEFORE.search(before) and not _ALL_BEFORE.search(before)):
             continue
         out.append(re.sub(r"\s+", " ", m.group(0).lower()))
     for m in _NO_FAILURES.finditer(stmt):
-        if not L.negated(stmt, m.start()):
+        if not _unsaid(stmt, m.start()):
             out.append(re.sub(r"\s+", " ", m.group(0).lower()))
     for m in _FIXED.finditer(stmt):
         before = stmt[:m.start()]
-        if L.negated(stmt, m.start()) or _FIXED_ATTRIBUTIVE.search(before) or _FIX_HELD.search(before):
+        if _unsaid(stmt, m.start()) or _FIXED_ATTRIBUTIVE.search(before) or _FIX_HELD.search(before):
             continue
         out.append(m.group(0).lower())
     for m in _READY.finditer(stmt):
-        if not L.negated(stmt, m.start()):
+        if not _unsaid(stmt, m.start()):
             out.append(re.sub(r"\s+", " ", m.group(0).lower()))
     return list(dict.fromkeys(out))
 

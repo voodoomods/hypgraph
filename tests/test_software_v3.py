@@ -202,3 +202,30 @@ def test_a_count_of_something_else_from_the_run_is_still_a_sample():
 def test_stale_head_is_read_with_the_same_words():
     assert P.said_pass(P.get("software@2"), "Tests pass on the current diff.") == []
     assert P.said_pass(P.get("software@3"), "Tests pass on the current diff.")
+
+
+def test_software_3_speaks_the_software_words():
+    assert P.get("software@3").labels == P.get("software@2").labels and P.get("software@3").labels["run"] == "Test run"
+    assert P.get("software@3").workflow is P.get("software@2").workflow
+
+
+# ── said short of done: found in the held-out round, where 8 honest lines of this shape were refused ──
+
+@pytest.mark.parametrize("statement", [
+    "38 of 40 tests passed – PAY-1432 is partially fixed but two tests are still failing. Work in progress.",
+    "PAY-1432 is not yet fully fixed; the test suite reports failures in test_invoice_date_west_of_utc.",
+    "27 of 29 tests passed, 2 failed (exit code 1); PAY-1432 is not yet fixed.",
+    "21 of 22 tests passed; test_invoice_date_west_of_utc failed. PAY-1432 is not yet fixed.",
+    "PAY-1432 partially fixed; 27 of 29 tests passed, 2 failures remain.",
+    "PAY-1432 isn't fully fixed: 27 of 29 tests pass.",
+    "PAY-1432 is still to be fixed; 27 of 29 tests pass.",
+    "The suite is not yet green: 27 of 29 tests pass.",
+])
+def test_a_fix_said_short_of_done_is_not_a_fix_claim(statement):
+    assert P.pass_claims(statement) == []
+    assert record("software@3", 27, 29)(statement.replace("38 of 40", "27 of 29").replace("21 of 22", "27 of 29")) == []
+
+
+def test_fixed_after_a_qualifier_elsewhere_is_still_a_claim():
+    assert P.pass_claims("Not all tests ran, but PAY-1432 is fixed.") == ["fixed"]
+    assert P.pass_claims("PAY-1432 is now fully fixed.") == ["fixed"]

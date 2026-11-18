@@ -167,7 +167,7 @@ record behaves exactly as before. For a new investigation, pin the newest versio
 | profile | the stages a question passes through | the record refuses | done when |
 |---|---|---|---|
 | `scientific@2` | asked → conjectured → preregistered (**before** any run) → run → evidenced → claimed → reviewed | numbers no result accounts for, "never" without the count, "significant" without the test, a check on stale evidence | every question settled |
-| `software@2` | specified → implemented (a diff by hash) → verified (**the instrument ran the tests on that head**) → claimed → reviewed | *"it passes"* without an instrument run, or on a superseded head; the diff's author as its reviewer | every requirement's claim rests on a passing run on the current head |
+| `software@3` | specified → implemented (a diff by hash) → verified (**the instrument ran the tests on that head**) → claimed → reviewed | *"it passes"*, *"fixed"* or *"ready to merge"* without an instrument run, **on a run that failed**, or on a superseded head; the diff's author as its reviewer | every requirement's claim rests on a passing run on the current head |
 | `trading@3` | asked → thesised → preregistered → backtested (**out of sample, after costs, trials declared**) → claimed → risk-reviewed → positioned → monitored | a backtest without its costs; *"edge"* without both, or without the configurations tried; **an edge the numbers deny** (a loss, or behind the benchmark, out of sample after costs); an in-sample return not called one; a position without size, stop, review date; any live order | questions settled, a position taken or declined, nothing past its review date |
 | `knowledge@2` | asked → (searched) → sourced (**the passage**, retrieved, kind) → claimed → checked | a claim with no source; a source without its passage | every claim cites a source and is checked |
 | `optimization@3` | posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked | an objective without feasibility; *"optimal"* without a bound, **with a gap the bound leaves open, on an infeasible incumbent**, or on a changed instance; a solve that uses no instance | a feasible bounded incumbent, verified on the current instance |
@@ -188,8 +188,13 @@ moving to a newer version is a choice you make for new work. From 0.8.9, `tradin
 out-of-sample after-cost return, or a bound; `@3` asks what it says. *"Edge"* on an out-of-sample loss or behind
 the benchmark is refused, an in-sample return must say so, and *"optimal"* needs a feasible incumbent within 1e-4
 of its bound. Neither value check refuses a sentence that denies something ("there is no edge", "the plan is
-infeasible, whereas the optimum is 112"): an audit names the claim to refute it. `scientific@2`, `software@2` and
-`knowledge@2` are still the newest of theirs; every `@1` and `@2` stays available, exactly as it was.
+infeasible, whereas the optimum is 112"): an audit names the claim to refute it. `software@3` does the same for a
+pass: `@2` knows seven phrases and asks only that some supporting result is a passing instrument run; `@3` reads
+*"tests pass"*, *"the suite is green"*, *"fixed"*, *"resolved"* and *"ready to merge"*, and refuses them on a run that
+failed with what the run recorded ("26 of 29 passed, exit code 1"). A count of what passed is a count ("26 of 29
+tests pass; 3 still fail" goes in), and *"all tests pass"* on the instrument's complete passing run needs no sample
+bound: every test was run. `scientific@2` and `knowledge@2` are still the newest of theirs; every `@1` and `@2`
+stays available, exactly as it was.
 
 `completion(inv)` reports each criterion; `hypgraph serve` exposes `/api/graph/completion` and
 `/api/graph/profiles` (every version). The method each workflow is taken from is quoted, one page each, in
