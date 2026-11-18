@@ -1,5 +1,5 @@
 """
-Workflows: a discipline's method as the record enforces it (the ``@2`` profiles; docs/workflows/<name>.md).
+Workflows: a discipline's method as the record enforces it (the ``@2`` profiles and later; docs/workflows/<name>.md).
 
 A question moves through the stages of its investigation's workflow. **The stage is derived, never set**: a
 question is in the first stage whose gate the record does not meet. Gates are checks over the record alone
@@ -555,7 +555,7 @@ def stage_of(s: D.Snap, t: str, now: str = "") -> dict:
     base = {"question": q, "code": s.nodes[q].get("code") or q, "profile": p.id if p else ""}
     if not p or not p.workflow:
         return {**base, "workflow": False, "stage": "", "index": 0, "of": 0, "complete": False,
-                "next": "no workflow: the profile has no stages (pin an @2 profile)", "gates": []}
+                "next": "no workflow: the profile has no stages (pin an @2 or later profile)", "gates": []}
     now = now or s.now
     gates, stage, nxt = [], None, ""
     for i, st in enumerate(p.workflow.stages):

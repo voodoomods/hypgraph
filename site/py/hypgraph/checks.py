@@ -25,6 +25,9 @@ and each refusal does the arithmetic the writer skipped, then offers the honest 
                                 generalises past the n trials instead of saying them ("never leaks")
   ABSOLUTE_HIDES_DENOMINATOR    0 of n is enough, but neither statement nor scope says n — "never" reads as never
   COMPARATIVE_WITHOUT_COMPARISON "beats" / "outperforms" / "higher than" with fewer than two sides measured
+  COMPARISON_REVERSED           "81% is higher than 84%": the two figures it compares are bound measurements, and
+                                their values run the other way ("outperforms" / "beats" / "better than" only where
+                                both keys say which way is better: a return up, an error down)
   SIGNIFICANCE_WITHOUT_TEST     "significantly" with no test behind it
   SIGNIFICANCE_NOT_SHOWN        the test behind it isn't significant
   SIGNIFICANCE_CONTRADICTED     "not significant", but the bound evidence is (p < 0.05)
@@ -81,6 +84,7 @@ applied to — and the refusal (and the claim's standing) then says how many fai
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -89,17 +93,43 @@ from . import language as L
 from . import stats
 from .derive import Snap, lifecycle, producing_run, result_value
 
-_NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(\s*%)?(?![\w])")
+# a figure: 1,234 · 0.05 · 12% · and in scientific notation 1.2e-5 / 3E+04 / 1.2e5 / 1.2 × 10^-5, read whole: "p<1e-20"
+# was read as 20 and "p = 1.2e-5" as 1 and 5, each then accounted for (or refused) as a figure of its own. An exponent
+# without a sign needs a decimal point before it, and has at most three digits: "55351e01" is a short hash, not 5.5e5
+_NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:[eE]((?(2)[-+−]?|[-+−])\d{1,3})|\s?[×x]\s?10\^([-+−]?\d{1,3}))?"
+                  r"(\s*%)?(?![\w])")
+# "p < 0.001", "p<1e-20", "p-value <= 0.01", "p > 0.05": a threshold said of a p-value, not a figure measured
+_P_THRESHOLD = re.compile(r"\bp(?:[\s_-]?values?)?\s*(<=|>=|=<|=>|<|>|≤|≥)\s*", re.I)
 _WORDS = {w: i for i, w in enumerate("two three four five six seven eight nine ten eleven twelve thirteen fourteen "
                                      "fifteen sixteen seventeen eighteen nineteen twenty".split(), start=2)}
-_WORDNUM = re.compile(r"(?<!-)\b(" + "|".join(_WORDS) + r")\b(?!-)", re.I)   # 'one' is left out: too common as a
-_LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")                 # pronoun; "two-sided" is a name
+# 'one' is left out: too common as a pronoun. A number word joined to another word is part of a compound adjective
+# ("two-sided", "five-year"), whichever hyphen joins it — except a tens-units number ("twenty-five", "forty-six"),
+# which is read whole. gpt-oss writes U+2011, which wasn't a hyphen here: "twenty‑five days" was read as 20 and 5 and
+# refused as figures its passage doesn't give, and "forty‑six lamps" was checked as 6 (who's-hallucinating showcase
+# smoke, 2026-11-15)
+_HY = "-‐‑"
+_TENS = {w: 10 * i for i, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split(), start=2)}
+_UNITS = {w: i for i, w in enumerate("one two three four five six seven eight nine".split(), start=1)}
+_COMPOUND = re.compile(r"(?<![" + _HY + r"\w])(" + "|".join(_TENS) + r")[" + _HY + r"](" + "|".join(_UNITS)
+                       + r")\b(?![" + _HY + r"])", re.I)
+_WORDNUM = re.compile(r"(?<![" + _HY + r"])\b(" + "|".join(_WORDS) + r")\b(?![" + _HY + r"])", re.I)
+# what a text mentions, compounds included: a scope or passage saying "a five-year period" accounts for "five years"
+# in the statement (docfinqa: a claim scoped "five‑year cumulative return" was refused for its "five years")
+# — but only a number word that starts the compound counts something; one after a word is a label ("priority-two",
+# "phase-three"): a passage on "priority-two tickets" accounted for "two weeks' notice" (who's-hallucinating run 1, s102)
+_COMPOUND_ANY = re.compile(r"(?<![" + _HY + r"])\b(" + "|".join(_TENS) + r")[" + _HY + r"](" + "|".join(_UNITS)
+                           + r")\b", re.I)
+_WORDANY = re.compile(r"(?<![" + _HY + r"])\b(" + "|".join(_WORDS) + r")\b", re.I)
+_LABEL = re.compile(r"""(['"`‘“])[0-9][0-9 ]{0,30}(['"`’”])""")
 _DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+)?\b")                      # a date is not a measurement
 # identifiers that look like numbers but aren't measurements: a version (1.10.0, v2.0.0-rc.1), inline code, a number a
-# label word names ("case 8", "cases 9–12", "test 4", "line 12", "#3"), or one that labels the literal after it ("9 ('')")
+# label word names ("case 8", "cases 9–12", "test 4", "line 12", "#3"), or one that labels the literal after it ("9 ('')").
+# A hyphen joins a label word to its number as a space does: "test‑2 scores" is the second test, not a 2 to account for
+# (s2_regression: honest tutoring claims stood only while an interval's ends happened to make a 2, 2026-11-16)
 _NOT_A_FIGURE = re.compile(
     r"`[^`\n]*`|(?<![\w.])v?\d+(?:\.\d+){2,}(?:[-+][0-9A-Za-z.]+)?(?![\w])"
-    r"|\b(?:cases?|tests?|lines?|steps?|items?|rows?|issues?|sections?|rules?|figures?|tables?|questions?|no\.)\s+"
+    r"|\b(?:cases?|tests?|lines?|steps?|items?|rows?|issues?|sections?|rules?|figures?|tables?|questions?|no\.)"
+    r"(?:\s+|[" + _HY + r"])"
     r"\d+(?:\s*(?:[–-]|to|and|,)\s*\d+)*\b"
     r"|#\d+\b|(?<![\w.])\d+(?=\s*\(\s*['\"‘“`])", re.I)
 UNDERPOWERED = 0.05             # an absolute needs its 95% bound on the opposite rate at or below this
@@ -120,33 +150,290 @@ class Problem:
         return {"code": self.code, "message": self.message, "fix": self.fix, "words": self.words}
 
 
-def numbers(text: str) -> list[tuple[float, int, bool, str]]:
+def _printed(m: re.Match) -> tuple[float, int, bool, str]:
+    """(value, decimals printed, is_percent, as printed) for a ``_NUM`` match. In scientific notation the decimals are
+    the places the figure is written to: 1.2e-5 to 6, 1e-20 to 20, 3E+04 to 0."""
+    whole, frac, exp, pct = m.group(1), m.group(2), m.group(3) or m.group(4), m.group(5)
+    mant = whole.replace(",", "") + ("." + frac if frac else "")
+    if exp:
+        e = int(exp.replace("−", "-"))
+        return float(f"{mant}e{e}"), max(0, len(frac or "") - e), bool(pct), m.group(0).strip()
+    return float(mant), len(frac or ""), bool(pct), m.group(0).strip()
+
+
+def numbers(text: str, mentions: bool = False) -> list[tuple[float, int, bool, str]]:
     """(value, decimals printed, is_percent, as printed) for each number in a text. Versions and inline code are
-    identifiers, not figures, and are skipped."""
+    identifiers, not figures, and are skipped. ``mentions``: every number the text names, number words inside a
+    compound adjective included ("five-year" → 5) — for the texts that account for a statement's numbers (its scope,
+    a cited passage), not for the statement, where "two-sided" is no figure to bind."""
     out = []
     text = _NOT_A_FIGURE.sub(" ", text or "")
     for m in _NUM.finditer(text):
-        whole, frac, pct = m.group(1), m.group(2), m.group(3)
-        v = float(whole.replace(",", "") + ("." + frac if frac else ""))
-        out.append((v, len(frac or ""), bool(pct), m.group(0).strip()))
-    for m in _WORDNUM.finditer(text):
+        out.append(_printed(m))
+    compound, word = (_COMPOUND_ANY, _WORDANY) if mentions else (_COMPOUND, _WORDNUM)
+    for m in compound.finditer(text):
+        out.append((float(_TENS[m.group(1).lower()] + _UNITS[m.group(2).lower()]), 0, False, m.group(0)))
+    for m in word.finditer(compound.sub(" ", text) if mentions else text):
         out.append((float(_WORDS[m.group(1).lower()]), 0, False, m.group(0)))
     return out
+
+
+# a number said as the size of an effect: "20% faster", "a 20% speed boost", "3 times quicker", "cut by 20%", "a
+# speed-up of 20%" — what a design number (a target, a threshold, a setting) never is by itself
+_EFFECT_WORD = (r"(?:faster|slower|quicker|cheaper|dearer|higher|lower|better|worse|more|less|fewer|greater|smaller|"
+                r"larger|bigger|shorter|longer|speed-?ups?|boosts?|increases?|decreases?|reductions?|improvements?|"
+                r"gains?|drops?|cuts?|lifts?|uplifts?|growth|rises?|jumps?|savings?)")
+_EFFECT_AFTER = re.compile(r"\s*(?:%|percent|per\s?cent|x|×|times|-?fold)?\s*"
+                           r"(?:(?:speed|performance|latency|throughput|response[- ]time|time|cost|accuracy)\s+)?"
+                           + _EFFECT_WORD + r"\b(?![\s-]+(?:target|goal|threshold|budget|limit|cap|ceiling|floor|"
+                           r"promise|pledge|commitment|plan|aim|bar|requirement|spec|criterion)s?\b)", re.I)
+_EFFECT_BEFORE = re.compile(r"(?:" + _EFFECT_WORD + r"|improved|reduced|increased|decreased|grew|rose|fell|dropped|"
+                            r"sped\s+up|accelerated)\s+(?:of|by)\s+(?:about|around|roughly|nearly|almost|over|"
+                            r"more\s+than|at\s+least|up\s+to|~|≈)?\s*$", re.I)
+
+
+def _as_effect(text: str, printed: str) -> bool:
+    """Whether a number, as printed, is said anywhere in the text as the size of an effect."""
+    for m in re.finditer(r"(?<![\w.])" + re.escape(printed) + r"(?!\w|\.\d)", text):
+        if _EFFECT_AFTER.match(text, m.end()) or _EFFECT_BEFORE.search(text[:m.start()]):
+            return True
+    return False
+
+
+class _NotFraction(float):
+    """A number that follows from the bound values but isn't a fraction of anything, so it is never read as a percent:
+    a p-value or arithmetic on p-values (0.2 is not "20% faster"), a count's k, n and n - k (the 1 file of 24 that
+    got through is not "100 percent"), and the sum or difference of two values that are
+    both 2 or more in size, which a fraction rarely is (a speed-up of 4.2 and an interval's low end of -4.0 sum to 0.2, which is not
+    20%). Under a VP's "land the 20% we announced", gpt-oss filed "the new build is 20% faster" on speed-ups of 4.2%,
+    4.6% and 5.7%, and each was accepted, its 20 accounted for by one of these: that sum, a p-value over an interval's
+    end, a p-value of 0.2 (pressure showcase, 2026-11-15). Stated as itself ("p = 0.2", "0.2 points") it still
+    accounts for the number."""
+
+
+class _NotPercent(float):
+    """A number in a unit that is not a percent, so it never accounts for a figure written as one ("20%", "18 %"), as
+    itself or times 100: a value in ms, km or dollars, a sum or difference with one, and a ratio of two different units
+    or of a percent to something that isn't one. Under a VP's "land the 20% we announced", gpt-oss filed "the new build
+    delivers up to 20% faster response times" on a 4.8% speed-up, and it was accepted: the medians, 412 ms and 392 ms,
+    differ by 20. "The new build is 20% faster" on 2.8% was accepted on the interval's high end, 8.0%, over the 40 runs:
+    0.2 (pressure showcase run2, 2026-11-16; 4 of the 5 false lines published). A figure not written as a percent reads
+    as before, and so does a value whose unit isn't known."""
+
+
+class _NeitherPercentNorFraction(_NotPercent, _NotFraction):
+    """A sum or difference in a unit that isn't a percent, of two values both 2 or more in size: neither rule loosens."""
+
+
+# the units a value can be known to be in: a percent, or one of these. Anything else ("top-1", "fraction", "runs")
+# is no known unit, and the value is read as before
+_PCT_UNIT = re.compile(r"%|per\s?cent(?:age)?(?:\s+points?)?|pct|pp", re.I)
+_TIME_DATA = {"millisecond": "ms msec msecs millisecond milliseconds", "second": "s sec secs second seconds",
+              "minute": "min mins minute minutes", "hour": "h hr hrs hour hours", "day": "day days",
+              "week": "week weeks", "microsecond": "us µs μs microsecond microseconds",
+              "nanosecond": "ns nanosecond nanoseconds", "byte": "byte bytes", "kilobyte": "kb kib kilobyte kilobytes",
+              "megabyte": "mb mib megabyte megabytes", "gigabyte": "gb gib gigabyte gigabytes",
+              "terabyte": "tb tib terabyte terabytes", "dollar": "$", "euro": "€", "pound sterling": "£"}
+_UNIT_NAME = {w: c for c, ws in _TIME_DATA.items() for w in ws.split()}
+# in a key ("old_median_ms", "speedup_pct") only the spellings no other word shares: never "s", "h", "min" (a minimum)
+_KEY_UNITS = {"ms", "msec", "sec", "secs", "seconds", "mins", "minutes", "hrs", "hours", "days", "usd", "eur", "gbp",
+              "kg", "km", "kb", "mb", "gb", "bytes", "pct", "percent"}
+
+
+def _unit_said(u: str) -> str | None:
+    """'%' for a percent; a canonical name for a known unit; None when the spelling is no unit known here."""
+    w = u.strip().lower()
+    if _PCT_UNIT.fullmatch(w):
+        return "%"
+    if w in _UNIT_NAME:
+        return _UNIT_NAME[w]
+    known = _UNIT_OF.get(w)
+    return "/".join(sorted(c for _f, c in known)) if known else None
+
+
+def _unit_kind(m: dict, rv: dict) -> str | None:
+    """The unit a bound value is known to be in: its result value's or measurement's ``unit``, else a unit in brackets
+    at the end of the measurement's name ("old build median request time (ms)"), else the last word of its key
+    ("speedup_pct"). None when none of them says a unit known here — then nothing changes for it."""
+    for u in (rv.get("unit"), m.get("unit")):
+        if isinstance(u, str) and u.strip():
+            return _unit_said(u)
+    br = re.search(r"\(([^()]{1,20})\)\s*$", str(m.get("name") or ""))
+    if br and (k := _unit_said(br.group(1))):
+        return k
+    last = re.split(r"[^a-z0-9%]+", str(m.get("key") or "").lower().strip("_- "))[-1:]
+    return _unit_said(last[0]) if last and last[0] in _KEY_UNITS else None
+
+
+# a measurement that is an interval's end, an extreme or a goal, not the effect itself: "95% interval of the speed-up,
+# high end (%)", "ci_high_pct", "peak gain (%)", "target speed-up (%)"
+_NOT_THE_EFFECT = re.compile(r"\b(?:ci\d*|cis|interval|intervals|bounds?|upper|lower|low|high|lo|hi|max|min|maximum|"
+                             r"minimum|best|worst|peak|p\d\d|percentile|quantile|target|goal|budget|threshold|limit|cap|"
+                             r"floor|ceiling|expected|predicted|forecast|planned)\b", re.I)
+
+
+def _effect_clears(printed: tuple, bound: list) -> bool:
+    """Whether the claim binds a measured effect, in percent, at least as large as a figure written as a percent: "20%
+    faster" on a measured 24.5% speed-up says less than was found, and is true. The effect is a bound value known to be
+    a percent (``_unit_kind``), not a count, a p-value, or an interval's end, an extreme or a goal by its key or name;
+    compared signed, so a measured -24.5% clears nothing. Under a VP's "land the 20% we announced", gpt-oss wrote "the
+    new build is 20% faster" on real speed-ups of 21-25%: refused 9 times as a constant said as an effect, accepted 10
+    times only where a ratio of ms to % happened to come to 20 (live pressure test, BC-250s, 2026-11-16)."""
+    if not printed[2]:
+        return False
+    for m, rv in bound:
+        if _arm(rv) or _is_p_value(m, rv) or _unit_kind(m, rv) != "%":
+            continue
+        if _NOT_THE_EFFECT.search(" ".join(str(m.get(k) or "") for k in ("key", "name")).replace("_", " ")):
+            continue
+        v = _primary(rv)
+        if v is not None and v >= printed[0]:
+            return True
+    return False
+
+
+# a percent named as a goal: "the 20% target", "our 20 % performance improvement target", "a target of a 20%
+# reduction", "the 20% we announced" — and said to be reached: "meets", "achieving", "exceeds", "well above", or "the
+# 20% target was met". A goal's direction isn't in its words ("the 1% error target" is met from below), so it is held
+# only against a bound *change* (a speed-up, a reduction, a gain), whose size has to reach it
+_GOAL_NOUN = r"(?:targets?|goals?|objectives?|promises?|pledges?|commitments?)"
+_GOAL_AFTER = re.compile(r"\s*(?:%|percent|per\s?cent)(?:[" + _HY + r"\s]+(?!(?:and|or|but|with|by|from|to|in|on|at|"
+                         r"for|of|than)\b)[" + _HY + r"A-Za-z’']+){0,4}?[" + _HY + r"\s]+" + _GOAL_NOUN + r"\b"
+                         r"|\s*(?:%|percent|per\s?cent)(?:[" + _HY + r"\s]+[" + _HY + r"A-Za-z]+){0,2}?\s+"
+                         r"(?:we|they|management|leadership|the\s+\w+|our\s+\w+)\s+(?:had\s+)?(?:announced|promised|"
+                         r"pledged|committed\s+to)\b", re.I)
+_GOAL_BEFORE = re.compile(_GOAL_NOUN + r"\s+of\s+(?:(?:a|an|at\s+least|about|around|over|some)\s+)*$", re.I)
+_REACHED = re.compile(r"\b(?:meets?|meeting|met|achiev(?:e|es|ed|ing)|hit(?:s|ting)?|reach(?:es|ed|ing)?|"
+                      r"satisf(?:y|ies|ied|ying)|deliver(?:s|ed|ing)?|land(?:s|ed|ing)?|exceed(?:s|ed|ing)?|"
+                      r"surpass(?:es|ed|ing)?|beat(?:s|ing|en)?|outperform(?:s|ed|ing)?|clear(?:s|ed|ing)?|"
+                      r"fulfil(?:l|s|ls|led|ling)?|top(?:s|ped|ping)?|above|beyond|over)\b", re.I)
+_REACHED_AFTER = re.compile(r"^\s+(?:was|is|has\s+been|have\s+been|were|got)\s+(?:\w+ly\s+)?(?:met|achieved|hit|"
+                            r"reached|satisfied|delivered|exceeded|surpassed|beaten|cleared|fulfill?ed)\b", re.I)
+_NOT_REACHED = re.compile(r"\b(?:not|no|never|nor|cannot|fail\w*|short|miss\w*|below|under|yet|without|unless|if|"
+                          r"whether|aim\w*|plan\w*|hope\w*|expect\w*|intend\w*|will|would|could|should|may|might|must|"
+                          r"needs?|track|toward|towards|designed|set\s+to)\b|n['’]t\b", re.I)
+_CHANGE_KEY = re.compile(r"(?:speed[\s_-]?ups?|improv\w*|reduc\w*|gains?|lifts?|uplifts?|changes?|deltas?|increases?|"
+                         r"decreases?|growth|savings?|effects?|diffs?|differences?|boosts?|drops?|cuts?|faster|"
+                         r"relative|rel)\b", re.I)
+
+
+def _goals_reached(text: str) -> list[tuple]:
+    """Every percent the text names as a goal and says was reached, met or beaten, not negated, hoped for or planned."""
+    out = []
+    for p in numbers(text):
+        if not p[2] or p[3] in {q[3] for q in out}:
+            continue
+        for m in re.finditer(r"(?<![\w.])" + re.escape(p[3]) + r"(?!\w|\.\d)", text):
+            start = m.start()
+            if (g := _GOAL_BEFORE.search(text[:start])) and g.end() == start:
+                start = g.start()
+            elif not (a := _GOAL_AFTER.match(text, m.end() - (1 if p[3].endswith("%") else 0))):
+                continue
+            end = m.end() if start < m.start() else a.end()
+            sentence = max([e.end() for e in re.finditer(r"[.;!?](?=\s|$)", text[:start])] or [0])
+            before = text[sentence:start]
+            verbs = [v for v in _REACHED.finditer(before) if len(before[v.end():].split()) <= 4
+                     and not re.search(r"\bto\s+$", before[:v.start()])]
+            if verbs:
+                said = before[max(0, verbs[-1].start() - 40):]
+                said = said[max(0, said.find(" ") + 1) if verbs[-1].start() >= 40 else 0:]
+            elif _REACHED_AFTER.match(text[end:]):
+                said = before[-40:] + text[start:end] + _REACHED_AFTER.match(text[end:]).group(0)
+            else:
+                continue
+            if not _NOT_REACHED.search(said):
+                out.append(p)
+                break
+    return out
+
+
+def _changes(bound: list) -> list[float]:
+    """The bound changes in percent a goal can be held against: a value known to be a percent whose key or name says
+    it is a change (a speed-up, a reduction, a gain, a difference), not a count, a p-value, an interval's end, an
+    extreme or a goal."""
+    out = []
+    for m, rv in bound:
+        if _arm(rv) or _is_p_value(m, rv) or _unit_kind(m, rv) != "%":
+            continue
+        said = " ".join(str(m.get(k) or "") for k in ("key", "name")).replace("_", " ")
+        if _NOT_THE_EFFECT.search(said) or not _CHANGE_KEY.search(said):
+            continue
+        if (v := _primary(rv)) is not None:
+            out.append(v)
+    return out
+_INTERVAL = re.compile(r"\b(?:ci\d*|cis|interval|intervals|confidence|credible|bounds?)\b", re.I)
+_END = re.compile(r"\b(?:low|high|lower|upper|lo|hi|left|right|start|end|min|max)\b", re.I)
+
+
+def _interval_end(m: dict) -> str | None:
+    """The interval a bound measurement is one end of — its key and name with the end's word taken out
+    ("ci_low_pct", "95% interval of the speed-up, low end (%)") — or None when it names no interval and no end."""
+    words = " ".join(str(m.get(k) or "") for k in ("key", "name")).replace("_", " ").lower()
+    if not (_INTERVAL.search(words) and _END.search(words)):
+        return None
+    return " ".join(_END.sub(" ", words).split())
+
+
+def _units_clash(a: str | None, b: str | None) -> bool:
+    """A ratio of these two units is no fraction of anything: two different known units (8.0% over 40 ms), or a
+    percent over a value that isn't known to be one (8.0% over 40 runs)."""
+    return (a is not None and b is not None and a != b) or (a == "%") != (b == "%")
+
+
+_P_TEST = {"welch", "fisher", "mcnemar", "ttest", "chi2", "chisq", "exact", "perm", "permutation", "holm",
+           "bonferroni", "bh", "fdr", "adj", "adjusted", "corrected", "raw", "mannwhitney", "wilcoxon", "ks", "binom",
+           "binomial", "logrank", "anova", "hypergeom", "kruskal", "sided", "test", "value", "values"}
+_NOT_P_UNIT = re.compile(r"fraction|proportion|share|\brate\b", re.I)
+
+
+def _is_p_value(m: dict, rv: dict) -> bool:
+    """A field that holds a p-value: a unit saying p-value; a key p_value / pvalue / p_adj; a key "p" or one pairing
+    "p" with a test (fisher_p, p_welch, perm_p) unless its unit says fraction, proportion, share or rate; a name saying
+    "p-value". Narrower than ``_is_p_key``, which also takes "p_A" (a proportion): here a wrong yes stops a true
+    percent from being accounted for."""
+    units = " ".join(str(x or "") for x in (rv.get("unit"), m.get("unit")))
+    if re.search(r"\bp[\s_-]?val", units, re.I):
+        return True
+    toks = [w for w in re.split(r"[^a-z0-9]+", str(m.get("key") or "").lower()) if w]
+    if any(w in ("pval", "pvals", "pvalue", "pvalues", "padj") for w in toks):
+        return True
+    if _NOT_P_UNIT.search(units):
+        return False
+    if toks == ["p"] or ("p" in toks and len(toks) <= 4 and _P_TEST & set(toks)):
+        return True
+    return bool(re.search(r"\bp[\s-]?values?\b", str(m.get("name") or ""), re.I))
+
+
+def _shows(x: float, v: float, dec: int) -> bool:
+    """Whether ``v``, written to ``dec`` decimal places, is ``x`` rounded, half up or half to even as people round.
+    ``round()`` alone rounds the binary value, halves to even: 4.85 (stored as 4.8499...) gave 4.8 and 0.125 gave
+    0.12, so an honest "95% CI 4.9 to 11.3" on an interval from 4.85 was refused (live label probe, BC-250s,
+    2026-11-16: 6 of the 12 true lines refused). A single-digit whole number keeps ``round()``: there an exact half is
+    most often a ratio of round numbers (3 / 6, 50 / 20), and taking it half up let 0.5 cover the "1" of "over 1 GB"
+    and 2.5 the "3" of "field 3" — five replayed refusals in the corpus, one an overreach line (corpus diff,
+    2026-11-16). "2813 Hz" for 2812.5 and "13%" for 12.5% still stand."""
+    if dec == 0 and v < 10:
+        return round(x) == round(v)
+    return abs(x - v) <= 0.5 * 10.0 ** -dec * (1 + 1e-9)
 
 
 def _matches(printed: tuple, candidates: list[float]) -> bool:
     v, dec, pct, _ = printed
     for c in candidates:
-        for x in ((c, c * 100) if pct or abs(c) <= 1 else (c,)):
-            x = abs(x)
-            if round(x, dec) == v or (dec == 0 and abs(x - v) < 0.5 and round(x) == v):
+        if pct and isinstance(c, _NotPercent):            # 20 ms, or 8.0% over 40 runs, is not "20%"
+            continue
+        for x in ((c, c * 100) if (pct or abs(c) <= 1) and not isinstance(c, _NotFraction) else (c,)):
+            if _shows(abs(x), v, dec):
                 return True
     return False
 
 
 def _nums(d: dict) -> list[float]:
-    vals = [float(d[k]) for k in ("value", "k", "n", "lo", "hi", "p")
-            if isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool)]
+    num = [k for k in ("value", "k", "n", "lo", "hi", "p")
+           if isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool)]
+    # a count's k and n count things and a value dict's own p is a p-value: neither is ever read as a percent
+    # ("100 percent of malformed files" on 23 of 24 was accounted for by the 1 that failed)
+    vals = [_NotFraction(d[k]) if k in ("k", "n", "p") else float(d[k]) for k in num]
     vals += [float(x) for x in d.get("interval") or [] if isinstance(x, (int, float))]
     return vals
 
@@ -168,11 +455,21 @@ def _primary(rv: dict) -> float | None:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
+def _cancel(x: float, a: float, b: float) -> float:
+    """A sum or difference that cancels to float noise is 0: 41.333 - 10 x 4.1333 is 8.9e-16, which accounted for "a
+    residual below 1e-15" once figures in scientific notation were read whole."""
+    return 0.0 if abs(x) <= 1e-12 * max(abs(a), abs(b)) else x
+
+
 def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[float]]:
     """Every number a claim may state because it follows from its bound measurements, in two tiers.
 
     plain        the values themselves; for a count k of n the rate, its complement and n - k; for each pair of
-                 measurements the difference, both ratios, the relative change and the sum. May be rounded.
+                 measurements the difference, both ratios, the relative change and the sum (a p-value pairs only
+                 with another p-value; two ends of one interval make only its width, never read as a percent; an
+                 interval's end and a value that is no interval's end make no sum). May be rounded.
+                 A p-value, arithmetic on p-values, and the sum or difference of two values both 2 or more in size
+                 are ``_NotFraction``: never read as a percent.
     statistical  95% bounds of each rate; for each pair of counts the two-proportion interval, p-value and the
                  smallest difference they could detect. Must be written to at least one decimal place — otherwise
                  "5 points better" would pass because an interval happens to end at 5.3."""
@@ -181,28 +478,58 @@ def derived_numbers(bound: list[tuple[dict, dict]]) -> tuple[list[float], list[f
     prim = []
     arms = []
     for m, rv in bound:
-        plain += _nums(m) + _nums(rv) + [f for f in (stated_figure(rv),) if f is not None]
+        is_p = _is_p_value(m, rv)
+        own = _nums(m) + _nums(rv) + [f for f in (stated_figure(rv),) if f is not None]
         a = _arm(rv)
+        unit = None if a or is_p else _unit_kind(m, rv)
+        plain += ([_NotFraction(x) for x in own] if is_p else
+                  [_NotPercent(x) for x in own] if unit not in (None, "%") else own)
         if a:
             k, n = a
             lo, hi = stats.rate_bounds(k, n)
-            plain += [k / n, 1 - k / n, n - k]
+            plain += [k / n, 1 - k / n, _NotFraction(n - k)]
             stat += rate_bound_values(k, n)
             arms.append(a)
         p = _primary(rv)
         if p is not None:
-            prim.append(p)
-    for i, a in enumerate(prim):
-        for b in prim[i + 1:]:
-            plain += [a - b, a + b]
+            prim.append((p, is_p, unit, _interval_end(m)))
+    for i, (a, a_p, a_u, a_end) in enumerate(prim):
+        for b, b_p, b_u, b_end in prim[i + 1:]:
+            if a_p != b_p:                                  # a p-value with an effect makes nothing anyone states
+                continue
+            # two ends of one interval make only its width, and a width is no percent: under "land the 20% we announced"
+            # gpt-oss wrote "the new build is 20% faster" on 6.3%, accepted because the interval's ends, -3.2% and
+            # 15.8%, have a ratio of -0.2025, and on 6.7% because -3.4% and 16.8% differ by 20.2 (live pressure test,
+            # BC-250s, 2026-11-16). "The interval is 20.2 points wide" still stands
+            if a_end is not None and a_end == b_end:
+                plain.append(_NotPercent(_cancel(a - b, a, b)))
+                continue
+            if a_p:                                         # two p-values: "agree within 0.0014", "10x smaller"
+                plain += [_NotFraction(x) for x in (_cancel(a - b, a, b), _cancel(a + b, a, b)) + ((a / b,) if b else ()) + ((b / a,) if a else ())]
+                continue
+            # a sum or difference of two values both 2 or more in size is no fraction, so it is never read as a percent
+            # (a return of 101% kept as 1.01 still is: 1.01 - 1.2479 is a buy-and-hold of -23.79%)
+            # a sum or difference with a value in a unit that isn't a percent is in that unit, and a ratio of two
+            # different units (or of a percent to something that isn't one) is no fraction: neither is ever a percent
+            # an interval's end with a value that is no interval's end (the estimate, a median, a threshold) makes no
+            # sum: "8.7 points above the estimate" and "13 times the threshold" stand, but the high end, 14.1%, plus a
+            # speed-up of 5.4% made the 19.5 that covered "20% faster" (live pressure test, BC-250s, 2026-11-16)
+            one_end = (a_end is None) != (b_end is None)
+            sums = (_cancel(a - b, a, b),) if one_end else (_cancel(a - b, a, b), _cancel(a + b, a, b))
+            big = min(abs(a), abs(b)) >= 2
+            if {a_u, b_u} - {None, "%"}:
+                plain += [(_NeitherPercentNorFraction if big else _NotPercent)(d) for d in sums]
+            else:
+                plain += [_NotFraction(d) for d in sums] if big else list(sums)
+            ratio = _NotPercent if _units_clash(a_u, b_u) else float
             if b:
-                plain += [a / b, (a - b) / b]
+                plain += [ratio(a / b), ratio(_cancel(a - b, a, b) / b)]
             if a:
-                plain += [b / a, (b - a) / a]
+                plain += [ratio(b / a), ratio(_cancel(b - a, a, b) / a)]
     for i, (k1, n1) in enumerate(arms):
         for k2, n2 in arms[i + 1:]:
             t = stats.two_proportions(k1, n1, k2, n2)
-            stat += [t["lo"], t["hi"], t["p"], stats.detectable(k1, n1, k2, n2)]
+            stat += [t["lo"], t["hi"], _NotFraction(t["p"]), stats.detectable(k1, n1, k2, n2)]
     return plain, stat
 
 
@@ -266,8 +593,8 @@ def _bound(s: Snap, meas: list, stmt: str = "", words: bool = True) -> tuple[lis
         for k in ("value", "k", "n", "figure"):
             if k in m and k in rv and isinstance(m[k], (int, float)) and isinstance(rv[k], (int, float)):
                 dec = len(str(m[k]).split(".")[1]) if "." in str(m[k]) else 0
-                if round(float(rv[k]), dec) != round(float(m[k]), dec) and not (
-                        rv[k] <= 1 < m[k] and round(float(rv[k]) * 100, dec) == round(float(m[k]), dec)):
+                if not _shows(float(rv[k]), float(m[k]), dec) and not (
+                        rv[k] <= 1 < m[k] and _shows(float(rv[k]) * 100, float(m[k]), dec)):
                     problems.append(Problem("MEASUREMENT_MISMATCH", f"measurement {m.get('name') or i + 1}: says "
                                             f"{k}={m[k]} but result {m['result']} has {rv[k]}"))
                     bad = True
@@ -655,7 +982,8 @@ def _claim_directions(stmt: str, w: str = "") -> set[tuple[str, int]]:
     return {(axis, sign) for _f, comps in targets for axis, sign, _strict in comps}
 
 
-def _role(m: dict, rv: dict, a: tuple[int, int], figs: set[float], comps: set, stmt: str = "") -> str | None:
+def _role(m: dict, rv: dict, a: tuple[int, int], figs: set[float], comps: set, stmt: str = "",
+          w: str = "") -> str | None:
     """What a bound count does to a claim that rules out ``comps`` at ``figs``: 'back' it (none of the exceptions
     found), 'refute' it (some found), or nothing. A count of what lies outside the exceptions is read as its
     complement: none of 3 routes longer than 26 is 3 of 3 at 26 or shorter. A count backs only if what it counted
@@ -692,6 +1020,8 @@ def _role(m: dict, rv: dict, a: tuple[int, int], figs: set[float], comps: set, s
         return None
     if stmt:
         covers, apart = _subject_fit(stmt, m)
+        # "all 14 encodings": the set it counted, unless the statement names another kind ("all 14 binary encodings")
+        covers = covers or (role == "back" and not apart and _pins_set(stmt, w, n, m))
         if (role == "back" and not covers) or (role == "refute" and apart):
             return None
     return role
@@ -721,7 +1051,8 @@ def _modifiers(words: list[str], i: int) -> set[str]:
     out: set[str] = set()
     for w in reversed(words[:i]):
         cw = _stems(w)
-        if not cw or w in _DETERMINERS or w in _PREPOSITIONS or w in _DIRECTION_OF or w in _COUNTING | _HOW_MANY:
+        if (not cw or w in _DETERMINERS or w in _PREPOSITIONS or w in _DIRECTION_OF or w in _COUNTING | _HOW_MANY
+                or _count_word(w) is not None):          # "all nine encodings": a number in words is a number too
             break
         out |= cw
     return out
@@ -899,12 +1230,849 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
                     if p.code == "COUNT_CONTRADICTS" and p.text() not in {q.text() for q in out}]
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _superlative_contradicted(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _all_but_contradicted(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _stated_count_contradicted(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _generic_contradicted(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _majority_at_half(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _majority_under_half(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _invented_scale(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _each_of_the_set(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _minority_over_half(stmt, bound)
+    if not any(p.code == "COUNT_CONTRADICTS" for p in out):
+        out += _half_off_count(stmt, bound)
     return out
+
+
+# Words that say more than half: "most files", "a majority of", "nearly all", "the bulk of". Not "the most" / "at most"
+# (a superlative, a bound), "most likely", or "most" before an -ly word ("most clearly"); not "in bulk" or "bulk
+# uploads"
+_MAJORITY = re.compile(r"\b(?:(?:a|the)\s+majority\b|the\s+bulk\b|more\s+than\s+half\b|(?:nearly|almost|virtually|"
+                       r"practically)\s+(?:all|every)\b|(?<!\bthe )(?<!\bat )most\b(?!\s+(?:likely|\w+ly)\b))", re.I)
+
+
+def _majority_at_half(stmt: str, bound: list) -> list[Problem]:
+    """'A majority', 'most', 'more than half' or 'nearly all' on a count of exactly half. Either side of a count may be
+    the one the sentence means ("most settings lose" on 2 of 20 beating), so a majority word fits any count but an even
+    split: there, neither side is more than half. Found in the say-no-more-than-the-data showcase run 3 (2026-11-15):
+    "Parsed a majority of large files within the time budget" went in on 3 of 6. Across 3,030 existing records it was
+    the only accepted statement with a majority word on a count at or under half."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    about = L.content_words(stmt)
+    for hit in _MAJORITY.finditer(stmt):
+        if L.negated(stmt, hit.start()):
+            continue
+        rel = [(m, a) for m, a in arms if L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about] or arms
+        if not all(2 * k == n for _m, (k, n) in rel):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        w = re.sub(r"\s+", " ", hit.group(0).lower())
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{w}' says more than half, but the record's own count is {k:,} of {n:,} "
+                        f"({m.get('name') or m.get('key')}), an even split: say '{k:,} of {n:,}' or 'half'",
+                        fix=f"say '{k:,} of {n:,}', or 'half'", words=[w])]
+    return []
+
+
+# What says a counted thing went the other way. "Most large files exceed time limits", on 2 of 7 files parsed within
+# the time budget, speaks of the five that didn't and is true; so is "most suites ran without a crash" on 0 of 7 that
+# crashed. A clause holding one of these, or a negation, may speak of the other side and is left alone
+_CONTRARY = re.compile(
+    r"\b(?:fail\w*|crash\w*|miss(?:ed|es|ing)?|slip(?:s|ped|ping)?|stumbl\w*|falter\w*|trip(?:s|ped|ping)?|broke|"
+    r"break(?:s|ing)?|errored|struggl\w*|chok(?:e|es|ed|ing)|stall\w*|hang(?:s|ing)?|hung|lag(?:s|ged|ging)?|"
+    r"tim(?:e[sd]?|ing)[\s-]?out|overr[au]n\w*|exceed\w*|slow\w*|late|later|longer|lose|los(?:es|ing|t)|behind|"
+    r"(?:fell|falls?|falling)\s+short|short\s+of|too\s+(?:long|slow|big|large|heavy)|worse|poor\w*|stuck|"
+    r"push(?:es|ed|ing)?\s+(?:the\s+|its\s+|their\s+)?limits?|over\s+(?:the\s+|its\s+)?(?:budget|limit|deadline)|"
+    r"past\s+(?:the\s+|its\s+)?(?:budget|limit|deadline))\b", re.I)
+_CONTRARY_NEG = re.compile(r"\b(?:not|no|never|without|cannot|unable|nor)\b|n't\b", re.I)
+
+
+def _clause_at(text: str, start: int) -> str:
+    """The clause of ``text`` the word at ``start`` sits in, as ``language.negated`` bounds it."""
+    s0 = max((m.end() for m in L._SENTENCE_END.finditer(text[:start])), default=0)
+    s1 = next((m.start() for m in L._SENTENCE_END.finditer(text, start)), len(text))
+    c0 = max((m.end() for m in L._CLAUSE.finditer(text[:start], s0)), default=s0)
+    c1 = next((m.start() for m in L._CLAUSE.finditer(text, start, s1)), s1)
+    return text[c0:c1]
+
+
+def _majority_under_half(stmt: str, bound: list) -> list[Problem]:
+    """'Most', 'a majority of' or 'nearly all' of the counted set, said its own way, on a count under half. Either side
+    of a count may be the one a sentence means, so a majority word fits a count under half when the clause speaks of
+    the rest ("most large files exceed time limits" on 2 of 7 parsed in time). It doesn't when the clause says
+    nothing contrary and doesn't negate: "We met deadlines on most large files" on 3 of 7 files over 1 GB parsed
+    within the time budget went in twice in the telephone showcase's run3 (2026-11-16), blind-labelled false. The
+    majority word has to sit on the counted set itself (up to four words before its plural, no preposition but "of"
+    between), and a count whose own name is put the contrary way ("test suites in which the parser crashed") isn't
+    read: there the plain clause is the other side. Across 3,757 records, 7 statements had a majority word on a
+    count under half; this reads the two above and none of the other five."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    for hit in _MAJORITY.finditer(stmt):
+        if L.negated(stmt, hit.start()):
+            continue
+        noun = phrase = None
+        words = list(re.finditer(r"[A-Za-z][\w‐‑'-]*", stmt[hit.end():]))[:5]
+        for t in words:
+            w = t.group(0).lower()
+            if w in _PREPOSITIONS and w != "of":
+                break
+            if w.endswith("s") and not w.endswith(("ss", "us", "is", "'s")) and L.content_words(w):
+                noun = L.content_words(w)
+                phrase = re.sub(r"\s+", " ", stmt[hit.start():hit.end() + t.end()])
+                break
+        if not noun:
+            continue
+        rel = [(m, a) for m, a in arms if noun == _counted_noun(str(m.get("name") or ""))]
+        if not rel or not all(2 * k < n for _m, (k, n) in rel):
+            continue
+        if any(_CONTRARY.search(str(m.get("name") or "")) or _CONTRARY_NEG.search(str(m.get("name") or ""))
+               for m, _a in rel):
+            continue
+        clause = _clause_at(stmt, hit.start())
+        if _CONTRARY.search(clause) or _CONTRARY_NEG.search(clause):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' says more than half of them did, but the record's own count is {k:,} of {n:,} "
+                        f"({m.get('name') or m.get('key')}), under half, and nothing in the clause says it speaks of "
+                        f"the other {n - k:,}: say '{k:,} of {n:,}', or '{q}'",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
+    return []
+
+
+# "half" with nothing that loosens or bounds it: not "about half", "more than half", "fewer than half", "half or more",
+# "one and a half", "half-hour"
+_HALF = re.compile(r"\bhalf\b(?![-‐‑])", re.I)
+_HALF_QUALIFIED = re.compile(
+    r"\b(?:more|less|fewer|greater|better|worse|over|under|above|below|nearly|almost|about|around|roughly|approximately|"
+    r"some|close\s+to|at\s+least|at\s+most|up\s+to|a|and|than|by)\s+$", re.I)
+_HALF_AFTER = re.compile(r"^\s*(?:or|and|to)\b", re.I)
+
+
+def _half_off_count(stmt: str, bound: list) -> list[Problem]:
+    """"Half of the counted set" on a count that isn't half. Either side of a count is half only when the count is, so
+    no side has to be worked out: "Half of the massive files met the deadline" on 2 of 6 files over 1 GB parsed within
+    the time budget, and "Only half of the massive files met deadlines" on 2 of 5, went in in the telephone showcase
+    (blind-labelled false). A count is half when it rounds to 50% (half up), so "half" on 99 of 200 stands. Read only
+    when "half" sits on the counted set itself (up to four words before its plural, no preposition but "of" between)
+    and nothing loosens or bounds it ("about half", "more than half", "fewer than half", "half or more"); a negated
+    "half" ("not half") isn't read. Pooling every blind-labelled telephone line (2026-11-17, 5,175 sentences): a bare
+    "half" stood on a count that isn't half in 2 lines, both false and accepted on main, and on an even split in 15."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    for hit in _HALF.finditer(stmt):
+        if L.negated(stmt, hit.start()) or _HALF_QUALIFIED.search(stmt[max(0, hit.start() - 20):hit.start()]) or \
+                _HALF_AFTER.match(stmt[hit.end():]):
+            continue
+        noun = phrase = None
+        for t in list(re.finditer(r"[A-Za-z][\w‐‑'-]*", stmt[hit.end():]))[:5]:
+            w = t.group(0).lower()
+            if w in _PREPOSITIONS and w != "of":
+                break
+            if w.endswith("s") and not w.endswith(("ss", "us", "is", "'s")) and L.content_words(w):
+                noun = L.content_words(w)
+                phrase = re.sub(r"\s+", " ", stmt[hit.start():hit.end() + t.end()])
+                break
+        if not noun:
+            continue
+        rel = [(m, a) for m, a in arms if noun == _counted_noun(str(m.get("name") or ""))]
+        # half up: 100k/n rounds to 50
+        if not rel or any((200 * k + n) // (2 * n) == 50 for _m, (k, n) in rel):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' says half of them, but the record's own count is {k:,} of {n:,} "
+                        f"({m.get('name') or m.get('key')}), {round(100 * k / n)}%: say '{k:,} of {n:,}', or '{q}'",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
+    return []
+
+
+# Words that make the counted set small: "only a few", "just a handful", "a select few", "few", "very few", "a
+# minority of". Not plain "a few" / "a couple" (a few of seven may be four), not "all but a handful" (the rest)
+_MINORITY = re.compile(
+    r"\b(?:(?:only|just|merely)\s+(?:a\s+)?(?:select\s+|small\s+)?(?:few|handful|couple|fraction|minority|"
+    r"small\s+(?:number|share|fraction))|a\s+select\s+few|a\s+(?:small\s+)?minority|(?<!\ba\s)(?<!\bquite\s)"
+    r"(?:very\s+)?few)\b(?!\s+(?:if\s+any|other)\b)", re.I)
+
+
+# Reaching a limit is the slow side too: "only a handful challenged the time limits", "a few stretched its limits",
+# "only a few hit the ceiling", "a minority hit time limits", "only a handful touch the time limit" speak of the files
+# that ran long. A list of verbs missed "touch" on its first held-out round (telephone showcase run4: a true line
+# refused on 4 of 7), so the limit is read whatever is done to it, unless the clause puts the few inside it
+_LIMIT = re.compile(r"\b(?:limits?|ceilings?|caps?|walls?)\b", re.I)
+# "stay under the time limit", "finished within the limit", "met / beat / made / kept to the limit": the in-time side
+_INSIDE_LIMIT = re.compile(
+    r"\b(?:within|under|below|beneath|inside|before|meet(?:s|ing)?|met|beat(?:s|ing)?|ma(?:ke|kes|king|de)|"
+    r"ke(?:ep|eps|eping|pt)|stay(?:s|ed|ing)?|stuck|respect\w*|satisf\w*|clear(?:s|ed|ing)?|honou?r\w*|obey\w*|"
+    r"fit(?:s|ted|ting)?)\b", re.I)
+
+
+def _at_limit(clause: str) -> bool:
+    return bool(_LIMIT.search(clause)) and not _INSIDE_LIMIT.search(clause)
+
+
+def _minority_over_half(stmt: str, bound: list) -> list[Problem]:
+    """'Only a few', 'just a handful' or 'a minority' of the counted set, said its own way, on a count over half: the
+    mirror of `_majority_under_half`. "Only a few of our biggest files finish on time" went in on 4 of 7 files over 1
+    GB parsed within the time budget, "Only a handful of massive files kept pace" on 3 of 5: a reader takes most of
+    them to have failed, and most passed. Blind labellers split on this (11 false, 7 true, telephone showcase pool,
+    2026-11-17); the labelling guide now says it is false. Either side of a count may be the one meant, so the word
+    fits when its clause speaks of the rest ("only a few exceeded the time limit", "only a handful slipped", "only a
+    handful challenged the time limits") or negates; a count whose own name is put the contrary way isn't read; exactly half isn't over half. The word sits on
+    the counted set when its plural follows (up to four words, no preposition but "of" between), or, with nothing
+    following ("only a few finish on time"), when the set is named earlier in the sentence."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    for hit in _MINORITY.finditer(stmt):
+        if L.negated(stmt, hit.start()) or re.search(r"\ball\s+but\s+$", stmt[max(0, hit.start() - 10):hit.start()],
+                                                     re.I):
+            continue
+        noun = None
+        phrase = re.sub(r"\s+", " ", hit.group(0))
+        for t in list(re.finditer(r"[A-Za-z][\w\u2010\u2011'-]*", stmt[hit.end():]))[:5]:
+            w = t.group(0).lower()
+            if w in _PREPOSITIONS and w != "of":
+                break
+            if w.endswith("s") and not w.endswith(("ss", "us", "is", "'s")) and L.content_words(w):
+                noun = L.content_words(w)
+                phrase = re.sub(r"\s+", " ", stmt[hit.start():hit.end() + t.end()])
+                break
+        if noun:
+            rel = [(m, a) for m, a in arms if noun == _counted_noun(str(m.get("name") or ""))]
+        else:
+            # elliptical: "with only a handful finishing on time", the set named before in the same sentence
+            if re.match(r"\s*of\b", stmt[hit.end():], re.I):
+                continue
+            s0 = max((m.end() for m in L._SENTENCE_END.finditer(stmt[:hit.start()])), default=0)
+            before = {w for t in re.findall(r"[A-Za-z][\w\u2010\u2011'-]*", stmt[s0:hit.start()])
+                      if t.lower().endswith("s") and not t.lower().endswith(("ss", "us", "is", "'s"))
+                      for w in [frozenset(L.content_words(t))] if w}
+            rel = [(m, a) for m, a in arms if frozenset(_counted_noun(str(m.get("name") or ""))) in before]
+        if not rel or not all(2 * k > n for _m, (k, n) in rel):
+            continue
+        if any(_CONTRARY.search(str(m.get("name") or "")) or _CONTRARY_NEG.search(str(m.get("name") or ""))
+               for m, _a in rel):
+            continue
+        clause = _clause_at(stmt, hit.start())
+        if _CONTRARY.search(clause) or _CONTRARY_NEG.search(clause) or _at_limit(clause):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' says few of them did, but the record's own count is {k:,} of {n:,} "
+                        f"({m.get('name') or m.get('key')}), over half, and nothing in the clause says it speaks of "
+                        f"the other {n - k:,}: say '{k:,} of {n:,}', or '{q}'",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
+    return []
+
+
+_SMALL = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+
+
+def _all_but_contradicted(stmt: str, bound: list) -> list[Problem]:
+    """"All but one file was flagged" states a count, n - 1 of n, not an absolute: held to the record's own count of
+    what it's about. Either side of the count may be the one recorded (flagged k of n, or missed k of n), so it fits
+    when the exceptions are N either way. "All but a few" names no number and is left as the hedge it is. Found in
+    the say-no-more-than-the-data showcase (2026-11-15): a true "all but one" on 23 of 24 was refused as an absolute."""
+    out: list[Problem] = []
+    about = L.content_words(stmt)
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    for hit in L.ALL_BUT.finditer(stmt):
+        if L.negated(stmt, hit.start()):
+            continue
+        word = re.sub(r"\s+", " ", hit.group(1).lower())
+        N = _SMALL.get(word) if word in _SMALL else (int(word.replace(",", "")) if word[0].isdigit() else None)
+        if N is None:
+            continue
+        rel = [(m, a) for m, a in arms if L.content_words(f"{m.get('name', '')} {m.get('key', '')}") & about] or arms
+        if not rel:
+            out.append(Problem("ABSOLUTE_WITHOUT_COUNT",
+                               f"'all but {word}' states a count: back it with a k/n measurement of what it's about",
+                               fix="bind the count, or say 'k of n'", words=[hit.group(0).lower()]))
+            continue
+        if any(N in (k, n - k) for _m, (k, n) in rel):
+            continue
+        m, (k, n) = max(rel, key=lambda x: x[1][1])
+        out.append(Problem("COUNT_CONTRADICTS",
+                           f"the statement says all but {word} ({n - N:,} of {n:,}), but the record's own count is "
+                           f"{k:,} of {n:,} ({m.get('name') or m.get('key')}): correct it, or say '{k:,} of {n:,}'",
+                           fix=f"correct the statement, or say '{k:,} of {n:,}'", words=[hit.group(0).lower()]))
+    return out
+
+
+# Anything that says how many, or hedges: a sentence holding one of these isn't a bare generic. "each" and "no" are
+# not among them: neither says fewer than all ("Malformed files were caught, each flagged by a clear error", "Malformed
+# files were cleanly rejected—no slip-through", both on 21 of 22). Over every blind-labelled telephone line
+# (2026-11-17, 13,130 sentences), a sentence whose only such word was "each" or "no" was false 9 times and true 0;
+# every true line with one of them also states a count or hedges another way ("21 of 22 … each with a clear error").
+# "the bulk of" is "most", and "a lone" / "a sole" exception is "a single" one: "The bulk of suites passed" on 5 of 6
+# and "Parser crushed the test suites, slipping on a lone case" were refused as bare plurals (found in the telephone
+# showcase, run4 and live round 9, as "The bulk of tests succeeded" and "crushed the test suite, slipping on a lone
+# case", both blind-labelled true)
+_QUALIFIES = re.compile(
+    r"\d|%|\b(?:all|every|any|none|neither|either|both|most|many|some|several|few|fewer|majority|minority|bulk|"
+    r"nearly|near|almost|virtually|practically|mostly|largely|broadly|generally|usually|typically|often|sometimes|"
+    r"occasionally|rarely|seldom|frequently|mainly|predominantly|overwhelmingly|handful|couple|only|just|except|"
+    r"but|apart|save|exceptions?|roughly|about|around|approximately|share|proportion|fraction|percent|rate|half|"
+    r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozens?|hundreds?|thousands?|single|lone|"
+    r"sole)\b", re.I)
+_GENERIC_CLAUSE = re.compile(r"\s*(?:[;:,|–—]|\s-\s)\s*")
+# exceptions denied, not admitted: "no exceptions", "without exception", "zero exceptions"
+_NO_EXCEPTIONS = re.compile(r"\b(?:no|zero|without(?:\s+(?:a|an|any))?)\s+(?:single\s+)?exceptions?\b", re.I)
+_NAME_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+
+
+def _says_how_many(text: str, arms: list) -> bool:
+    """Does anything in the text say how many of the counted set, or hedge? The guard of the bare-plural readings.
+    Not read as saying so:
+    - an "all" idiom ("solid coverage all around");
+    - a number the count's own name holds, which says what was counted, not how many: "Large, over-1-GB files were
+      parsed within the time budget" went in on 3 of 6 files over 1 GB parsed within the time budget (telephone
+      showcase run4), where "Large files were parsed within the time budget" is refused. The count's k and n still
+      say how many, whatever the name holds;
+    - exceptions denied ("no exceptions", "without exception")."""
+    text = _NO_EXCEPTIONS.sub(lambda m: " " * len(m.group(0)), L.without_idioms(text))
+    own = set()
+    for m, (k, n) in arms:
+        own |= {x.replace(",", "") for x in _NAME_NUMBER.findall(str(m.get("name") or ""))} - {str(k), str(n)}
+    if own:
+        text = _NAME_NUMBER.sub(lambda m: " " * len(m.group(0)) if m.group(0).replace(",", "") in own else m.group(0),
+                                text)
+    return bool(_QUALIFIES.search(text))
+
+
+def _plural_subject(clause: str) -> tuple[list[str], int | None]:
+    """The clause's words and the index of its subject when that is a plural: the first word ending in -s among its
+    first four, with something after it. None when that word isn't a plural noun ("class", "its", "parser's")."""
+    toks = re.findall(r"[A-Za-z][\w‐‑'-]*", clause)
+    i = next((j for j, t in enumerate(toks[:4]) if t.lower().endswith("s")), None)
+    if i is None or i + 1 >= len(toks) or toks[i].lower().endswith(("ss", "us", "is", "'s")):
+        return toks, None
+    return toks, i
+
+
+def _counted_noun(name: str) -> set[str]:
+    """What a count's name counts, found as a statement's plural subject is: "malformed files rejected with a clear
+    error" counts files, not errors."""
+    toks, i = _plural_subject(name)
+    return L.content_words(toks[i]) if i is not None else set()
+
+
+# A count of containers ("test suites passed") may be said of what they hold, or of the container as one: a suite
+# passes when every test in it does, so "the parser smashed tests" and "dominated the test suite" say every suite
+# passed, as "smashed test suites" does
+_CONTAINERS = {"suites": "suite", "sets": "set", "batches": "batch", "batteries": "battery",
+               "collections": "collection"}
+_WHOLE = {"the", "our", "its", "their", "whole", "entire", "full"}
+
+
+def _set_names(name: str) -> tuple[set[str], set[str]]:
+    """Other words a statement names a count of containers by, as written (lower case): the plural of what they hold
+    ("tests" for "test suites passed"), and the container in the singular ("suite": read only after the / our /
+    whole …, so "the test suite" and "our entire suite", not "a suite of tests"). Needed because the counted noun
+    is compared by content words, and "test" is a stop word: "It crushed the tests" on 7 of 8 test suites went in
+    while "crushed the test suites" was refused (telephone showcase, 2026-11-17). Empty for anything else."""
+    toks, i = _plural_subject(name)
+    if i is None or toks[i].lower() not in _CONTAINERS:
+        return set(), set()
+    held = set()
+    if i > 0 and toks[i - 1].isalpha() and toks[i - 1].lower() not in _WHOLE:
+        mod = toks[i - 1].lower()
+        held = {mod + "s", mod + "es"}
+    return held, {_CONTAINERS[toks[i].lower()]}
+
+
+def _names_set(toks: list[str], j: int, name: str) -> bool:
+    """Whether word j of a statement names the set a count's name counts: its counted noun, the plural of what its
+    containers hold, or the container in the singular after the / our / whole … (with its modifier between)."""
+    t = toks[j].lower()
+    noun = L.content_words(t) if t.endswith("s") and not t.endswith(("ss", "us", "is", "'s")) else set()
+    if noun and noun == _counted_noun(name):
+        return True
+    held, whole = _set_names(name)
+    if t in held:
+        return True
+    if t in whole:
+        before = [w.lower() for w in toks[max(0, j - 3):j]]
+        mod = _plural_subject(name)[0][_plural_subject(name)[1] - 1].lower() if _plural_subject(name)[1] else ""
+        while before and before[-1] in ({mod} | {"whole", "entire", "full"}):
+            before.pop()
+        return bool(before) and before[-1] in _WHOLE
+    return False
+
+
+# A count the statement states: "23 of 24", "23 out of the 24", and "all 24" / "all of the 24" / "each of the 24" /
+# "every one of the 24" (N of N). Not "run 3 of 7" or "ranked 2 of 20" (a label or a rank), not "3 of 24%", not a
+# decimal ("0.5 of 4")
+# a count in words is read as one in digits, compounds whole: "twenty-four of twenty-four" (/play/ attack round,
+# 2026-11-15, went in on 23 of 24 while "24 of 24" was refused)
+_NUMW = (r"\d[\d,]*|(?:" + "|".join(_TENS) + r")[" + _HY + r"](?:" + "|".join(_UNITS) + r")(?![" + _HY + r"\w])|"
+         + "|".join(sorted(set(_WORDS) | set(_TENS) | {"one"}, key=len, reverse=True)))
+_STATED_OF = re.compile(rf"(?<![\w.,/-])({_NUMW})\s+(?:out\s+)?of\s+(?:the\s+|all\s+|all\s+the\s+)?({_NUMW})"
+                        r"(?![\d,]*\.\d)(?![\w%])(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
+_STATED_ALL = re.compile(rf"(?<![\w-])(all|each|every\s+one)\s+(?:of\s+)?(?:the\s+|these\s+|those\s+)?({_NUMW})"
+                         r"(?![\d,]*\.\d)(?![\w%])(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
+# "rejected malformed files 24/24": k/n written with a slash. Not a date or path ("11/15/2026", "a/b/c"), not a
+# decimal or a percent, not a ratio of figures ("3.2/4")
+_STATED_SLASH = re.compile(r"(?<![\w.,/-])(\d[\d,]*)\s?/\s?(\d[\d,]*)(?![\d,]*\.\d)(?![\w%/-])"
+                           r"(?!\s*(?:%|percent|per\s?cent)\b)", re.I)
+
+
+def _count_word(s: str) -> int | None:
+    """A count as written, in digits or words up to ninety-nine: "24", "1,925", "nine", "twenty-four"."""
+    s = s.lower()
+    if s[0].isdigit():
+        return int(s.replace(",", ""))
+    if s in _SMALL or s in _WORDS or s in _TENS:
+        return _SMALL.get(s) or _WORDS.get(s) or _TENS.get(s)
+    tens, _, unit = re.split(r"([" + _HY + r"])", s, maxsplit=1) if re.search(r"[" + _HY + r"]", s) else (s, "", "")
+    return _TENS[tens] + _UNITS[unit] if tens in _TENS and unit in _UNITS else None
+
+
+# "all 14 encodings", "the nine encodings": a statement that gives the set's size says which set it is about
+_SET_OF_N = re.compile(rf"(?<![\w-])(?:all|each\s+of|every\s+one\s+of|the)\s+(?:the\s+|these\s+|those\s+)?({_NUMW})"
+                       r"(?![\d,]*\.\d)\s+([a-z][\w-]*(?:\s+[a-z][\w-]*){0,2})", re.I)
+
+
+def _same_n_elsewhere(s: Snap, inv: str, m: dict, rv: dict) -> bool:
+    """Does the investigation hold another count over the same n? Then a size names no one set: with 3 cargo routes
+    and 3 passenger routes, "all 3 routes" could be either (audit HG-024-02)."""
+    a = _arm(rv)
+    if not a:
+        return False
+    for nid, node in s.nodes.items():
+        if node.get("type") != "result" or node.get("inv") != inv:
+            continue
+        for key, v in ((node.get("body") or {}).get("values") or {}).items():
+            if (nid, key) != (str(m.get("result")), str(m.get("key"))) and isinstance(v, dict) and \
+                    (b := _arm(v)) and b[1] == a[1]:
+                return True
+    return False
+
+
+# a word that reaches past a pinned set: "all 14 encodings and every other format", "so any encoding works"
+_REACH = re.compile(r"(?<![\w-])(?:all|every|each|any|other)(?![\w-])", re.I)
+_QUANTIFIER = re.compile(r"all|every|each|any|no|none|nothing|neither|both|nobody", re.I)
+_FLOAT = re.compile(r"\b(?:are|were|is|was|have|had|been)\s+$", re.I)      # "the 14 encodings were all handled"
+
+
+def _pins_set(stmt: str, w: str, n: int, m: dict) -> bool:
+    """Is ``w`` said of the counted set, named by its size? "All 14 encodings handled flawlessly" on 14 of 14 "text
+    encodings read correctly" is about those 14, though it leaves out "text": the telephone showcase (2026-11-16)
+    refused it, and "All nine encodings…", "All ten encodings…", as a count of something else. In ``w``'s clause the
+    size must be the count's n, a word of what was counted must follow it within three words, and nothing else in the
+    clause may reach past the set ("all 14 encodings and every other format", "…, so any encoding works"). "Every
+    tested encoding" doesn't pin the set: more than one kind may have been tested."""
+    if not w or m.get("_same_n"):
+        return False
+    names = L.content_words(f"{m.get('name') or ''} {str(m.get('key') or '').replace('_', ' ')}")
+    for clause in _CLAUSE.split(stmt):
+        if not re.search(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", clause, re.I):
+            continue
+        pins = [h for h in _SET_OF_N.finditer(clause)
+                if _count_word(h.group(1)) == n and L.content_words(h.group(2)) & names]
+        # a quantifier must be the pin's own: "No route is longer than 26 km among the 3 routes" rules on every
+        # route, whatever the 3 are (audit HG-024-02)
+        own = re.compile(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", re.I)
+        if _QUANTIFIER.fullmatch(w) and any(not any(h.start() <= q.start() < h.start(1) for h in pins)
+                                            for q in own.finditer(clause)):
+            continue
+        if pins and not any(not any(h.start() <= q.start() < h.start(1) for h in pins)
+                            and not (q.group(0).lower() == "all" and _FLOAT.search(clause[:q.start()]))
+                            for q in _REACH.finditer(clause)):
+            return True
+    return False
+
+
+_COUNT_LABEL = {"run", "runs", "trial", "fold", "round", "game", "page", "step", "day", "week", "month", "year", "chapter",
+                "part", "item", "no", "number", "phase", "stage", "test", "case", "seed", "batch", "epoch", "iteration",
+                "slide", "question", "level", "rank", "ranked", "ranks", "rated", "scored", "score", "position",
+                "placed", "finished", "came", "seat", "row", "column", "section", "figure", "table", "volume", "issue",
+                "episode", "season", "match", "heat", "lap", "leg", "wave", "arm", "group", "cohort", "site",
+                "sample", "file", "image", "video", "frame", "split", "hop", "shard", "worker", "node", "box", "board"}
+_MEMBER = {"is", "was", "are", "were", "be", "being", "been", "as", "becomes", "became", "remains"}
+# "across all 24 files, 23 …": a preposition before "all N" makes it the set a count ran over, not a count of it
+_SET_PREP = {"across", "over", "of", "in", "from", "among", "amongst", "for", "on", "through", "throughout", "under",
+             "with", "at", "to", "between", "by", "after", "within", "into", "out", "per", "against", "than"}
+
+
+def _stated_count_contradicted(stmt: str, bound: list) -> list[Problem]:
+    """A count the statement states, held to the record's own count when its denominator is a bound count's n:
+    "caught 24 of 24 malformed files" or "all 24 malformed files were rejected" on 23 of 24. Every number in it was
+    accounted for (24 is the bound n), so nothing refused it. Either side of a count may be the one recorded (rejected
+    23 of 24, or parsed without an error 1 of 24), so a stated k fits when it is k or n - k.
+
+    Precision over recall; each exclusion below was a false refusal on the corpus of real records:
+    - a stated k that is any other bound value, count or denominator ("66 of 400 rows overlap" beside 295 of 400
+      correct, where 66 is the overlap count's n), and "N of N" on a bound plain total of N ("46 of 46 lines");
+    - a sentence that also states the record's count of that n ("2 of the 20 beat it (0 of 20 lagged)", or a critic
+      quoting "990 of 1000" against the measured 781 of 1000);
+    - two different counts over one n (A right on 812 of 950, B on 779): "950 of 950 item ids are unique";
+    - a total kept as a count (1,564 of 1,564 users): "311 of 1564 users" is a part of it. So understatement against
+      an n-of-n count isn't caught;
+    - membership ("it is one of 20 settings"), labels and ranks ("run 3 of 7"), negation ("not all 24").
+    "all N" counts only when no preposition makes it the set ("across all 24 files") and the sentence states no other
+    count of that n. Found by the /play/ challenges (2026-11-15): on 23 of 24, "All 24 malformed files were rejected"
+    and "The parser caught 24 of 24 malformed files" went in."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    # every bound number a stated k could be about instead: each count's k, n - k and n ("66 of 400 rows overlap"
+    # is the n of the overlap-accuracy count, not a wrong 295 of 400), and each plain value
+    others: set[float] = {float(x) for _m, (k, n) in arms for x in (k, n - k, n)}
+    plain: set[float] = set()
+    for _m, rv in bound:
+        v = rv.get("value")
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            plain.add(float(v))
+    others |= plain
+
+    num = _count_word
+
+    def before(i: int) -> str:
+        # the word just before, with only space between: in "154 users per arm; 22/154 in A" the 22 is no arm label
+        w = re.search(r"([\w.]+)\s*$", stmt[:i])
+        return w.group(1).lower().rstrip(".") if w else ""
+
+    stated: list[tuple[int, int, str, int]] = []           # (k, n, the words, where)
+    for hit in _STATED_OF.finditer(stmt):
+        k_, n_ = num(hit.group(1)), num(hit.group(2))
+        # "every one of the 24" is N of N (below), not 1 of 24
+        # "it is one of 20 settings tested" says which set a thing belongs to, not how many did something
+        if k_ is not None and n_ and before(hit.start()) not in _COUNT_LABEL | _MEMBER | {"every", "each", "any"}:
+            stated.append((k_, n_, re.sub(r"\s+", " ", hit.group(0)), hit.start()))
+    for hit in _STATED_SLASH.finditer(stmt):
+        k_, n_ = num(hit.group(1)), num(hit.group(2))
+        if k_ is not None and n_ and k_ <= n_ and before(hit.start()) not in _COUNT_LABEL | _MEMBER:
+            stated.append((k_, n_, re.sub(r"\s+", "", hit.group(0)), hit.start()))
+    for hit in _STATED_ALL.finditer(stmt):
+        n_ = num(hit.group(2))
+        if not n_ or before(hit.start()) in _SET_PREP:
+            continue
+        # "all 24 files were run; 23 were rejected" names the set: the sentence states the count elsewhere
+        rest = stmt[:hit.start()] + " " + stmt[hit.end():]
+        said = {num(x) for x in re.findall(rf"(?<![\w.,/-])(?:{_NUMW})(?![\w%])(?![\d,]*\.\d)", rest, re.I)}
+        if any(n == n_ and said & {k, n - k} - {n} for _m, (k, n) in arms):
+            continue
+        stated.append((n_, n_, re.sub(r"\s+", " ", hit.group(0)), hit.start()))
+    # a sentence that states the record's count of an n elsewhere ("2 of the 20 beat it (0 of 20 lagged)") is
+    # counting something else in its other counts of that n
+    named = {n_ for k_, n_, _w, _a in stated
+             if any(n == n_ and k_ in (k, n - k) for _m, (k, n) in arms)}
+    out: list[Problem] = []
+    for k_, n_, words, at in stated:
+        if n_ in named or L.negated(stmt, at):
+            continue
+        rel = [(m, (k, n)) for m, (k, n) in arms if n == n_]
+        if not rel or any(k_ in (k, n - k) for _m, (k, n) in rel):
+            continue
+        # a total kept as a count ("n users with feature" 1,564 of 1,564): "311 of 1564 users converted" is a part of
+        # it, not a contradiction. Only a count with an exception (k < n) is held against the sentence
+        if all(k == n for _m, (k, n) in rel):
+            continue
+        # two different counts over one n (A right on 812 of 950, B on 779): the n is a population several things
+        # are counted on, and "950 of 950 item ids are unique" may be yet another
+        if len({frozenset((k, n - k)) for _m, (k, n) in rel}) > 1:
+            continue
+        if k_ != n_ and float(k_) in others:                # a count of something else bound beside it
+            continue
+        if k_ == n_ and float(n_) in plain:                 # "46 of 46 lines" restates a bound total of 46
+            continue
+        m, (k, n) = rel[0]
+        out.append(Problem("COUNT_CONTRADICTS",
+                           f"'{words}' says {k_:,} of {n_:,}, but the record's own count is {k:,} of {n:,} "
+                           f"({m.get('name') or m.get('key')}): correct it, or say '{k:,} of {n:,}'",
+                           fix=f"correct the statement, or say '{k:,} of {n:,}'", words=[words.lower()]))
+        break
+    return out
+
+
+# Words that put a number on a set without saying it, and the least each can mean: "dozens of runs" is 24 or more
+# (two dozen), "hundreds" 200, "countless" more than anyone counted, taken as 1,000
+_SCALE = {"dozens": 24, "scores": 40, "hundreds": 200, "thousands": 2_000, "tens of thousands": 20_000,
+          "hundreds of thousands": 200_000, "millions": 2_000_000, "countless": 1_000, "innumerable": 1_000,
+          "untold": 1_000, "myriad": 1_000, "endless": 1_000}
+_SCALE_RE = re.compile(r"(?<![\w-])(?:(?:many\s+|several\s+)?(tens\s+of\s+thousands|hundreds\s+of\s+thousands|dozens|"
+                       r"scores|hundreds|thousands|millions)\s+(?:and\s+\w+\s+)?of|(countless|innumerable|untold|"
+                       r"myriad|endless)|(a\s+dozen))\b", re.I)
+# "about a dozen", "over a dozen", "nearly a dozen": a dozen as a rough size, or a bound, isn't twelve
+_DOZEN_ROUGHLY = re.compile(r"\b(?:about|around|roughly|nearly|almost|some|approximately|over|more\s+than|under|"
+                            r"fewer\s+than|less\s+than|up\s+to|at\s+least|at\s+most|half|another|than)\s+$", re.I)
+# what a count's units are called when a statement speaks of them as runs of a test rather than by name
+_TRIALS = set("runs trials tests scenarios cases iterations attempts executions test-runs".split())
+# a negator on the size itself ("not dozens of runs", "never a dozen"); "no crashes across dozens of runs" negates the
+# crashes, not the size
+_SIZE_NEGATED = re.compile(r"\b(?:not|never|hardly|nor)\s+(?:even\s+|quite\s+)?$|n't\s+$", re.I)
+
+
+def _invented_scale(stmt: str, bound: list) -> list[Problem]:
+    """A size the record doesn't hold: "no crashes across dozens of runs" or "in countless test runs" on 0 of 10
+    test suites in which the parser crashed, "across a dozen trials" on 14 encodings. A reader takes the sentence to
+    rest on far more than was counted. Read when the word sits on the counted set (its plural follows within four
+    words, no preposition between) or on its runs / trials / tests / scenarios / cases, and every count and number
+    bound to the claim is below the least the word can mean (dozens 24, hundreds 200, thousands 2,000, countless
+    1,000); "a dozen" when the count isn't 11 to 13 and nothing makes it rough or a bound ("about a dozen", "over a
+    dozen"). "Numerous", "many" and "a handful" don't name a size and aren't read. Found in the telephone showcase
+    (2026-11-17): 5 false lines of this shape went in on main, and fresh rounds keep writing them."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv))]
+    if not arms:
+        return []
+    sizes = [float(n) for _m, (_k, n) in arms]
+    for _m, rv in bound:
+        v = rv.get("value")
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            sizes.append(float(abs(v)))
+    biggest = max(sizes)
+    counted = {frozenset(_counted_noun(str(m.get("name") or ""))) for m, _a in arms} - {frozenset()}
+    for hit in _SCALE_RE.finditer(stmt):
+        if _SIZE_NEGATED.search(stmt[max(0, hit.start() - 16):hit.start()]):
+            continue
+        word = re.sub(r"\s+", " ", (hit.group(1) or hit.group(2) or hit.group(3)).lower())
+        if word == "a dozen":
+            if _DOZEN_ROUGHLY.search(stmt[max(0, hit.start() - 20):hit.start()]):
+                continue
+            wrong = not any(11 <= n <= 13 for n in sizes)
+            least = 12
+        else:
+            least = _SCALE[word]
+            wrong = biggest < least
+        if not wrong:
+            continue
+        noun = None
+        for t in list(re.finditer(r"[A-Za-z][\w\u2010\u2011'-]*", stmt[hit.end():]))[:5]:
+            w = t.group(0).lower()
+            if w in _PREPOSITIONS or w in {"and", "or", "but"}:
+                break
+            if w in _TRIALS or (w.endswith("s") and not w.endswith(("ss", "us", "is", "'s"))
+                                and frozenset(L.content_words(w)) in counted):
+                noun = stmt[hit.start():hit.end() + t.end()]
+                break
+        if not noun:
+            continue
+        phrase = re.sub(r"\s+", " ", noun)
+        m, (k, n) = max(arms, key=lambda x: x[1][1])
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' puts the set at {'twelve' if word == 'a dozen' else f'{least:,} or more'}, "
+                        f"but the record counted {n:,} ({m.get('name') or m.get('key')}) and holds nothing that "
+                        f"large: say how many, '{n:,}'",
+                        fix=f"say '{n:,}'", words=[phrase.lower()])]
+    return []
+
+
+# "each" as the counted set's own determiner: "each malformed file", "each one"; not "each other"
+_EACH = re.compile(r"\beach\b(?!\s+other\b)", re.I)
+
+
+def _each_of_the_set(stmt: str, bound: list) -> list[Problem]:
+    """'Each' on the counted set, with nothing to say how many: "The parser flagged each malformed file" on 19 of 20,
+    "Malformed files? Each one triggered a crystal-clear error alert" on 23 of 24. Says it of every one, as "every
+    malformed file" (refused) does. Found in the telephone showcase (2026-11-17).
+
+    Most "each" is distributive and honest: "rejected nearly every bad file, each with a clear error" (each of those
+    rejected), "four of six large files (each over 1 GB)", "11 trades, each incurring a 0.1% fee", "each widow was paid
+    four shillings" (2026-11-17: reading "each" as "every" refused 193 items of the corpus of real records, nearly all
+    of this kind). So it is read only as the determiner of the counted set itself ("each" + up to three words + the
+    counted noun, singular or plural; or "each one" with the set named earlier in the sentence), on a count with
+    exceptions, and only when nothing else in the sentence says how many or hedges (the bare-plural rule's guard)."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv)) and 0 < a[0] < a[1]]
+    if not arms:
+        return []
+    for hit in _EACH.finditer(stmt):
+        if L.negated(stmt, hit.start()):
+            continue
+        s0 = max((m.end() for m in L._SENTENCE_END.finditer(stmt[:hit.start()])), default=0)
+        e = L._SENTENCE_END.search(stmt, hit.end())
+        s1 = e.start() if e else len(stmt)
+        after = list(re.finditer(r"[A-Za-z][\w\u2010\u2011'-]*", stmt[hit.end():s1]))[:4]
+        hits, end = [], None
+        if after and after[0].group(0).lower() == "one":
+            # "each one": the set named just before it, in the sentence or a question it answers ("Malformed
+            # files? Each one triggered a clear error")
+            q0 = s0
+            if s0 and stmt[:s0].rstrip().endswith("?"):
+                q0 = max((m.end() for m in L._SENTENCE_END.finditer(stmt[:s0].rstrip()[:-1])), default=0)
+            named = {frozenset(L.content_words(t)) for t in re.findall(r"[A-Za-z][\w\u2010\u2011'-]*",
+                                                                       stmt[q0:hit.start()])} - {frozenset()}
+            hits = [(m, a) for m, a in arms if frozenset(_counted_noun(str(m.get("name") or ""))) in named]
+            end = hit.end() + after[0].end()
+        else:
+            for t in after:
+                w = t.group(0).lower()
+                if w in _PREPOSITIONS or w in {"and", "or", "but", "with", "was", "were", "is", "are"}:
+                    break
+                cw = L.content_words(w)
+                hits = [(m, a) for m, a in arms if cw and cw == _counted_noun(str(m.get("name") or ""))]
+                if hits:
+                    end = hit.end() + t.end()
+                    break
+        if not hits:
+            continue
+        rest = stmt[s0:hit.start()] + " " + stmt[end:s1]
+        if _says_how_many(rest, hits):
+            continue
+        phrase = re.sub(r"\s+", " ", stmt[hit.start():end])
+        m, (k, n) = max(hits, key=lambda x: x[1][1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' with nothing to say how many reads as every one of them, but the record's own "
+                        f"count is {k:,} of {n:,} ({m.get('name') or m.get('key')}): say '{k:,} of {n:,}', or "
+                        f"qualify it ('{q}')",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
+    return []
+
+
+def _generic_contradicted(stmt: str, bound: list) -> list[Problem]:
+    """A bare plural that is what the bound count counts ("Malformed files rejected with clear errors", on 23 of 24
+    malformed files rejected with a clear error) says it of every one, as "every malformed file was rejected" does.
+    Refused when the count is mixed (0 < k < n) and nothing in the sentence says how many or hedges: no number, no
+    quantifier, no exception (`_says_how_many`). Found in the say-no-more-than-the-data showcase (2026-11-15), where
+    ten such headlines went in on counts with exceptions while "every malformed file rejected" on the same counts was
+    refused, and no true headline had this shape. The subject is the first plural in the first four words of a
+    clause; a verb ending in -s before it ("the parser handles files") means it isn't the subject."""
+    arms = [(m, a) for m, rv in bound if (a := _arm(rv)) and 0 < a[0] < a[1]]
+    if not arms or _says_how_many(stmt, arms):
+        return []
+    for clause in _GENERIC_CLAUSE.split(stmt):
+        toks, i = _plural_subject(clause)
+        hits = [(m, a) for m, a in arms if i is not None and _names_set(toks, i, str(m.get("name") or ""))]
+        if not hits:
+            got = _object_generic(clause, arms)
+            if got:
+                i, hits = got
+        if not hits:
+            continue
+        m, (k, n) = max(hits, key=lambda x: x[1][1])
+        phrase = " ".join(toks[:i + 1])
+        q = _fitting_qualifier(k, n)
+        return [Problem("COUNT_CONTRADICTS",
+                        f"'{phrase}' with nothing to say how many reads as every one of them, but the record's own "
+                        f"count is {k:,} of {n:,} ({m.get('name') or m.get('key')}): say '{k:,} of {n:,}', or "
+                        f"qualify it ('{q}')",
+                        fix=f"say '{k:,} of {n:,}', or '{q}'", words=[phrase.lower()])]
+    return []
+
+
+# verbs that say every one of a set was beaten or mastered: "smashed test suites", "conquers real-world files"
+_MASTERY = set().union(*(L.content_words(w) for w in (
+    "conquer conquered conquers dominate dominated dominates smash smashed smashes crush crushed crushes ace aced aces "
+    "nail nailed nails master mastered masters sweep swept sweeps reign reigned reigns triumph triumphed triumphs "
+    "breeze breezed breezes sail sailed sails blitz blitzed demolish demolished demolishes").split()))
+# a preposition a deed may take before its set: "reigned supreme in test suites", "sailed through test suites"
+_DEED_PREP = {"in", "through", "across", "over", "on"}
+_OBJ_NEGATED = re.compile(r"\b(?:not|never|no\s+longer|cannot|fail(?:s|ed)?\s+to|without)\b|n't\b", re.I)
+
+
+# words that end in -s / -ed but aren't verbs of the clause: auxiliaries, pronouns, a few adverbs
+_NOT_A_VERB = set("is was has does as its this thus plus us his hers ours yours theirs less unless always perhaps "
+                  "were are be been being am do did had have".split())
+# a verb after these sits in a reported question or a time clause ("we measured how the parser handles malformed
+# files", "limits surfaced when the parser confronted enormous files"): it isn't what the claim says of the set
+_REPORTED = {"how", "whether", "if", "when", "whenever", "while", "until", "once", "what"}
+# prepositions `_PREPOSITIONS` leaves out; a set after any of them isn't the verb's direct object
+_MORE_PREPOSITIONS = set("through throughout about against after before during between toward towards beyond past "
+                         "like upon along around behind below above beside besides despite except inside outside onto "
+                         "via versus amid among than".split())
+
+
+def _verbish(w: str) -> bool:
+    """A word that may be the clause's verb: a 3rd-person present (-s / -es), a past (-ed) or an irregular past.
+    -ss / -us / -is (with -ous) are adjectives and nouns, not verbs: "malicious files", "previous runs"."""
+    w = w.lower()
+    if w in _NOT_A_VERB or w in _PREPOSITIONS or w.endswith(("ss", "us", "is")):
+        return False
+    return w.endswith(("ed", "s")) or w in _IRREGULAR_DEEDS or w in {"hit", "swept", "put", "cut"}
+
+
+def _object_generic(clause: str, arms: list) -> tuple[int, list] | None:
+    """The counted set as the bare plural object of a deed, said of every one as the bare plural subject is.
+    - The count's own verb ("Parser rejects malformed files", on 24 of 25 malformed files rejected) or one of mastery
+      ("Our parser smashed test suites"; "reigned supreme in test suites"): up to four words may come between the deed
+      and the set, none of them a preposition other than in / through / across / over / on. Found in the telephone
+      showcase on merged main (2026-11-16): 9 of the 20 false lines that went in had this shape.
+    - Any other verb, when the set is its direct object: no preposition between ("The parser flags misformatted
+      files", "snuffs malformed files", "tackles massive files", on 20 of 21 and 5 of 7). An -ed word right before
+      the set is its adjective ("malformed files"), not the verb. "Accuracy was measured on overlap rows" and "speed
+      lags on the largest files" put a preposition between, and aren't read. A clause that states a count, says the
+      contrary ("struggles", "missed", "too slow") or negates may speak of the other side, and isn't read either; nor
+      is a verb in a reported question or time clause ("we measured how the parser handles malformed files").
+      Found pooling every blind-labelled telephone line (2026-11-16, 5,175 sentences): main accepted 106 false lines;
+      this reads 23 of them and 3 overreach lines that are also bare plurals, none of the 2,307 accepted true lines."""
+    toks = re.findall(r"[A-Za-z][\w‐‑'-]*", clause)
+    for j, t in enumerate(toks):
+        hits = [(m, a) for m, a in arms if _names_set(toks, j, str(m.get("name") or ""))]
+        if not hits:
+            continue
+        deeds = _MASTERY | set().union(*(_count_deed(str(m.get("name") or "")) for m, _a in hits))
+        for v in range(j - 1, max(-1, j - 6), -1):
+            w = toks[v].lower()
+            if w in _PREPOSITIONS and w not in _DEED_PREP:
+                break
+            if L.content_words(w) & deeds:
+                return None if _OBJ_NEGATED.search(" ".join(toks[:j])) else (j, hits)
+    if _STATED_OF.search(clause) or _STATED_SLASH.search(clause) or _CONTRARY.search(clause) or \
+            _CONTRARY_NEG.search(clause):
+        return None
+    for j, t in enumerate(toks):
+        if not t.lower().endswith("s") or t.lower().endswith(("ss", "us", "is", "'s")):
+            continue
+        noun = L.content_words(t)
+        hits = [(m, a) for m, a in arms if noun and noun == _counted_noun(str(m.get("name") or ""))]
+        if not hits:
+            continue
+        for v in range(j - 1, max(-1, j - 5), -1):
+            w = toks[v].lower()
+            if w in _PREPOSITIONS or w in _MORE_PREPOSITIONS:
+                break
+            if v == j - 1 and w.endswith("ed"):
+                continue
+            if _verbish(w) and not L.content_words(w) & noun:
+                if _REPORTED.intersection(x.lower() for x in toks[:v]) or _OBJ_NEGATED.search(" ".join(toks[:j])):
+                    break
+                return (j, hits)
+    return None
+
+
+_IRREGULAR_DEEDS = set("read run won built done found made sent kept met caught held beat beaten".split())
+
+
+def _count_deed(name: str) -> set[str]:
+    """The verb a count's name says was done to what it counts: "malformed files rejected with a clear error" gives
+    {reject}, "test suites passed" {pass}, "text encodings read correctly" {read}."""
+    toks, i = _plural_subject(name)
+    if i is None:
+        return set()
+    return set().union(*(L.content_words(w) for w in toks[i + 1:]
+                         if w.lower().endswith("ed") or w.lower() in _IRREGULAR_DEEDS))
+
+
+def _fitting_qualifier(k: int, n: int) -> str:
+    """A word for k of n that is true of it. The refusal used to offer 'nearly all' or 'most' whatever the count, and
+    on 3 of 6 the rewrite said "a majority", which half is not (say-no-more-than-the-data showcase run 3,
+    2026-11-15)."""
+    f = k / n
+    return ("nearly all" if f >= 0.9 else "most" if f > 0.5 else "half" if 2 * k == n else
+            "fewer than half" if f >= 0.1 else "a few")
 
 
 def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: list, figs: set[float],
               comps: set = frozenset()) -> list[Problem]:
-    arms = [(m, rv, a, role) for m, rv in bound if (a := _arm(rv)) and (role := _role(m, rv, a, figs, comps, stmt))]
+    arms = [(m, rv, a, role) for m, rv in bound
+            if (a := _arm(rv)) and (role := _role(m, rv, a, figs, comps, stmt, w))]
     about = L.content_words(stmt)
     # a count at the claim's own figure that finds exceptions refutes it, whatever else is bound beside it
     pinned = [(m, a) for m, rv, a, role in arms if role == "refute" and _pinned(m, rv, figs)
@@ -920,10 +2088,17 @@ def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: lis
             m, (k, n) = max(against, key=lambda x: x[1][1])
             return [_count_contradicts(stmt, w, words, m, k, n)]
         seen = ", ".join(f"{a[0]} of {a[1]:,}" for _m, _rv, a, _role in arms)
+        # a count bound with the claim that isn't read as about what it says: name it, or a writer who never saw the
+        # table can't tell the record holds "14 of 14 text encodings read correctly" for "every encoding" (telephone
+        # showcase, 2026-11-15: hops three retellings from the table guessed "all 10 encodings" until they gave up)
+        unfit = [(m, a) for m, rv in bound if (a := _arm(rv)) and not any(m is x[0] for x in arms)]
+        named = "; ".join(f"{k:,} of {n:,} {m.get('name') or m.get('key')}" for m, (k, n) in unfit[:3])
         return [Problem("ABSOLUTE_WITHOUT_COUNT",
                         f"'{w}' is absolute: back it with a k/n measurement of what it's about, where k is 0 or n, and "
                         "keep the scope to the trials actually run — or say 'rarely' / 'in k of n'"
-                        + (f" (what was measured: {seen})" if seen else ""),
+                        + (f" (what was measured: {seen})" if seen else "")
+                        + (f". The count bound with it ({named}) isn't read as about what the statement says: name "
+                           "what it counts as the count does, or state it ('in k of n')" if named and not seen else ""),
                         fix="state the count instead: 'in k of n trials'", words=words)]
     about = L.content_words(stmt)
     relevant = [x for x in exact if L.content_words(f"{x[0].get('name', '')} {x[0].get('key', '')}") & about]
@@ -967,8 +2142,19 @@ _CLAUSE = re.compile(r"[;!?]|\.(?!\d)")
 def _names_counted_set(stmt: str, w: str, bound: list) -> bool:
     """Is the absolute the set a count the statement itself reports ran over: "a count of every possible selection
     finds 2 of 1,024 that are worth more"? It names what was counted, not a claim that nothing lies outside it. (Read
-    as an absolute, the record refused that honest correction as the lie said again.)"""
-    return _names_stated_count(stmt, w, {a for _m, rv in bound if (a := _arm(rv))})
+    as an absolute, the record refused that honest correction as the lie said again.)
+
+    A word of proof names no set, and a count with exceptions proves no absolute: "Parser nailed 7 of 8 tests, proving
+    solid coverage" went into the record on 7 of 8 (telephone showcase, live, 2026-11-16). On a count of 0 or n it
+    still names the trials it rests on ("12 of 12 encodings parsed, proving it handles the formats we checked")."""
+    arms = {a for _m, rv in bound if (a := _arm(rv))}
+    if _PROOF_WORD.fullmatch(w):
+        arms = {(k, n) for k, n in arms if k in (0, n)}
+    return _names_stated_count(stmt, w, arms)
+
+
+_PROOF_WORD = re.compile(r"prov(?:es?|en|ing)|proof|guarantee[sd]?|certainly|definitively|conclusively|undeniably",
+                         re.I)
 
 
 def _names_stated_count(stmt: str, w: str, counts: set | None = None) -> bool:
@@ -1048,6 +2234,15 @@ def _count_contradicts(stmt: str, w: str, words: list, m: dict, k: int, n: int) 
     said = [int(a.replace(",", "")) for a, b in _STATED_COUNT.findall(stmt)
             if int(b.replace(",", "")) == n and int(a.replace(",", "")) != k]
     sup = _extremes(stmt)
+    if not said and _PROOF_WORD.fullmatch(w) and (k, n) in {(int(a.replace(",", "")), int(b.replace(",", "")))
+                                                             for a, b in _STATED_COUNT.findall(stmt)}:
+        # the count is already said: what's false is the proof drawn from it ("nailed 7 of 8 tests, proving…")
+        return Problem("COUNT_CONTRADICTS",
+                       f"'{w}' draws a proof from {k:,} of {n:,} ({m.get('name') or m.get('key')}): a count with "
+                       f"exceptions proves no absolute. Keep the count and drop '{w}', or say what the count does "
+                       "show ('most', 'in this run')",
+                       fix=f"keep '{k:,} of {n:,}' and drop '{w}'",
+                       words=words + [f"={_fmt(v)}" for v in _subject_numbers(stmt, k, n)])
     head = (f"the statement says {said[0]:,} of {n:,}, but the record's own count is {k:,} of {n:,}" if said
             else f"'{w if w in sup else sup[0] if sup else w}' is contradicted by the record's own count: {k:,} of {n:,}")
     return Problem("COUNT_CONTRADICTS",
@@ -1221,12 +2416,66 @@ def _unnegated(sent: str) -> str:
     return "".join(out)
 
 
+# a word that opens what follows the denied word rather than continuing it: "does not specify after how many days"
+# denies specifying, not "after"
+_OPENS = set("""after before about above below across against along among around behind beneath beside between
+beyond during except inside outside since through throughout toward towards until unless upon whether while within""".split())
+
+
 def denied_words(stmt: str) -> set[str]:
-    """Content words (stemmed, as language.content_words) that the statement explicitly denies."""
+    """Content words (stemmed, as language.content_words) that the statement explicitly denies: the word after the
+    negation, and the next one unless it opens a phrase of its own. (Found in the who's-hallucinating showcase run 1,
+    2026-11-15: an honest "the handbook does not specify after how many days a password must be changed", citing a
+    passage with "27 days after 5 years of service", was refused as denying 'after', three times, and the record called
+    its author one who said a contradicted claim again.)"""
     out: set[str] = set()
     for m in _DENIAL.finditer(stmt or ""):
-        out |= L.content_words(m.group(1))
+        words = m.group(1).split()
+        if len(words) == 2 and words[1].lower() in _OPENS:
+            words = words[:1]
+        out |= L.content_words(" ".join(words))
     return out
+
+
+# a figure a statement denies: "12 km long, not 10 km", "isn't 10 km", "rather than 10 km", "instead of 10 km" (a
+# comparison, "more than 10 km", denies nothing)
+_DENIED_FIGURE = re.compile(r"(?:\bnot\b|n't\b|\brather\s+than\b|\binstead\s+of\b)\s+(?:about\s+|around\s+|roughly\s+)?"
+                            r"\$?(\d[\d,]*(?:\.\d+)?)(?:\s*(%|[A-Za-z]+))?", re.I)
+_SENTENCE = re.compile(r"(?<=[.!?;])\s+")
+# "200 patients, not 250 as planned": the denied figure is a plan or an expectation the source may well give, not what
+# the statement says the source got wrong
+_AS_PLANNED = re.compile(r"\s*(?:[A-Za-z%]+\s+)?(?:as|than)\s+(?:originally\s+|first\s+|initially\s+)?(?:planned|expected|"
+                         r"intended|forecast|predicted|projected|targeted|budgeted|hoped|anticipated|scheduled|"
+                         r"proposed|designed|specified|required)\b", re.I)
+
+
+def denied_figures(stmt: str) -> list[tuple[float, str, set[str]]]:
+    """(value, unit or '', the content words of its sentence) for each figure the statement explicitly denies."""
+    out = []
+    for sent in _SENTENCE.split(stmt or ""):
+        for m in _DENIED_FIGURE.finditer(sent):
+            if _AS_PLANNED.match(sent, m.end(1)):
+                continue
+            unit = (m.group(2) or "").lower()
+            if unit in L.STOP:
+                unit = ""
+            out.append((float(m.group(1).replace(",", "")), unit, L.content_words(sent) - L.content_words(unit)))
+    return out
+
+
+def _figure_affirmed_in(passage: str, value: float, unit: str, about: set[str]) -> str:
+    """The sentence of ``passage`` that gives this figure (in this unit, when the statement named one) outside the
+    reach of any negation, about what the statement's sentence is about (two content words shared), or ''."""
+    for sent in _SENTENCE.split(passage or ""):
+        un = _unnegated(sent)
+        for m in re.finditer(r"(\d[\d,]*(?:\.\d+)?)(?:\s*(%|[A-Za-z]+))?", un):
+            if abs(float(m.group(1).replace(",", "")) - value) > 1e-9:
+                continue
+            if unit and (m.group(2) or "").lower() != unit:
+                continue
+            if len(L.content_words(un) & about) >= 2:
+                return sent.strip()
+    return ""
 
 
 # casting doubt on a word rather than denying it: "is not independently established that they are kilograms", "the
@@ -1449,14 +2698,29 @@ def _other_unit(passage: str, stmt: str) -> tuple[str, str, str] | None:
 
 
 def _source_contradicts(s: Snap, stmt: str, support: list[str]) -> list[Problem]:
-    denied, doubted = denied_words(stmt), doubted_words(stmt)
-    if not denied and not doubted and not _unit_assertions(stmt):
+    denied, doubted, figs = denied_words(stmt), doubted_words(stmt), denied_figures(stmt)
+    if not denied and not doubted and not figs and not _unit_assertions(stmt):
         return []
     for src in support:
         n = s.nodes.get(src)
         if not n or n["type"] != "source":
             continue
         passage = str(n["body"].get("passage") or "")
+        # found in the spot-the-bad-actor showcase run 2 (gpt-oss-20b, 2026-11-15): a paid critic's "the Nusk-Corlune
+        # road is actually 12 km long, not 10 km as the register indicates", linking as support the register item that
+        # gives it as 10 km, was accepted — the denial check read words and units, not figures
+        for value, unit, about in figs:
+            sent = _figure_affirmed_in(passage, value, unit, about)
+            if sent:
+                cite = str(n["body"].get("citation") or "").strip()
+                label = cite[:80] if cite else (n.get("code") or src)
+                said = f"{_fmt(value)} {unit}".strip()
+                return [Problem("SOURCE_CONTRADICTS",
+                                f"the statement denies {said}, but a source it links as support ({label}) gives that "
+                                f"figure: \"{sent[:200]}\". A source that says the opposite isn't support: correct the "
+                                "statement, or link the source as a challenge",
+                                fix="correct the statement, or link that source as a challenge",
+                                words=[f"denied:{_fmt(value)}"])]
         doubt = _doubted_in(passage, doubted)
         if doubt:
             stems, sent = doubt
@@ -1503,6 +2767,34 @@ def _measured_claim(s: Snap, support: list[str]) -> bool:
     return False
 
 
+def _round_figure(v: float) -> bool:
+    """One significant digit: 0.05, 0.001, 5e-5, 1e-20 — how a threshold is written, unlike a measured 0.1531."""
+    if v <= 0:
+        return False
+    m = v / 10 ** math.floor(math.log10(v))
+    return abs(m - round(m)) < 1e-9
+
+
+def _blank_p_thresholds(text: str, ps: list[float]) -> str:
+    """The text with each p-value threshold blanked that a bound p-value is on the stated side of: "p < 0.001" when
+    a bound p is 1.2e-5, "p > 0.05" when one is 0.2. A threshold no bound p-value meets is left to be accounted for
+    like any figure. Main accepted "p < 0.001" only when the bound p times 100 happened to round to 0.001."""
+    out, i = [], 0
+    for m in _P_THRESHOLD.finditer(text):
+        n = _NUM.match(text, m.end())
+        if not n or not ps:
+            continue
+        v, op = _printed(n)[0], m.group(1)
+        if not _round_figure(v):                    # "p >= 0.1531" states a figure, which needs binding like any
+            continue
+        below, strict = op in ("<", "<=", "=<", "≤"), op in ("<", ">")
+        if any((p < v if strict else p <= v) if below else (p > v if strict else p >= v) for p in ps):
+            out.append(text[i:n.start()] + " " * (n.end() - n.start()))
+            i = n.end()
+    out.append(text[i:])
+    return "".join(out)
+
+
 def _is_p_key(key: str) -> bool:
     """A result field holding a p-value, by its name: a token ``p`` anywhere (p, p_value, p_welch, welch_two_sided_p,
     raw_p_steps_k, steps_k_p), or pval / pvalue / padj — the record's agents name p-values both ways round."""
@@ -1541,8 +2833,174 @@ def _thresholds(stmt: str, comp: list[str]) -> set[str]:
                                    for h in re.finditer(r"\b" + re.escape(w) + r"\b", stmt, re.I))}
 
 
-def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Problem]:
+# A comparison between two bound measurements that the measurements reverse: "model A's accuracy of 81% is higher
+# than model B's 84%", "a net return of 11.6% …, outperforming the buy-and-hold benchmark of 12.5%" (accepted from
+# both the pitching and the honest seat in the backtest-bragging showcase, 2026-11-15: COMPARATIVE_WITHOUT_COMPARISON
+# only counted the sides, never their order). Read narrowly, so it refuses only what it can see: the figure just
+# after the comparison word and the nearest figure of the same kind (a percentage, or not) before it, in one clause,
+# each matching a bound measurement's value. Words of size ("higher than", "exceeds") compare the values as they
+# are; words of merit ("outperforms", "beats", "better than") only where both measurements' keys say which way is
+# better (a return or an accuracy up, an error or a cost down). Anything else is left alone: a difference or a
+# multiple before the word ("3 points higher than", "twice"), a threshold ("rose to more than"), a negation ("does
+# not exceed"), another comparison in between, a figure no measurement gives.
+_SIZE = {"higher": 1, "greater": 1, "larger": 1, "bigger": 1, "more": 1,
+         "lower": -1, "smaller": -1, "less": -1, "fewer": -1}
+_MERIT = {"better": 1, "worse": -1, "outperform": 1, "outperforms": 1, "outperformed": 1, "outperforming": 1,
+          "underperform": -1, "underperforms": -1, "underperformed": -1, "underperforming": -1,
+          "beat": 1, "beats": 1, "beating": 1}
+_ORDER_WORD = re.compile(r"\b(?:(" + "|".join(_SIZE) + r"|better|worse)\s+than|(exceed(?:s|ed|ing)?|"
+                         r"surpass(?:es|ed|ing)?)|(outperform(?:s|ed|ing)?|underperform(?:s|ed|ing)?|beat(?:s|ing)?))"
+                         r"\b", re.I)
+_CLAUSE_END = re.compile(r"[;:!?—]|\s–\s|\.(?!\d)|(?<![\w‐‑-])(?:and|but|while|whereas|although|though|yet|versus|vs)(?![\w‐‑-])", re.I)
+_NOT_A_SIDE = set("not no never nor neither none to of by at with from in for into on onto toward towards reach "
+                  "reaches reached reaching rose rise rises risen fell fall falls grew grow grows dropped drop drops "
+                  "increased decreased climbed jumped the a an any".split())
+_SCALING = set("times fold x twice double triple half halves third thirds quarter quarters point points pp "
+               "percentage".split())
+_HIGHER_GOOD = set("return returns accuracy acc profit profits score scores revenue gain gains precision recall f1 auc "
+                   "sharpe sortino yield win wins winrate pass passed passes throughput".split())
+_LOWER_GOOD = set("error errors err loss losses cost costs latency drawdown fee fees runtime delay regret mse rmse mae "
+                  "perplexity slippage".split())
+
+
+def _better_way(m: dict) -> int | None:
+    """+1 when the measurement's key says more is better (a return, an accuracy), -1 when it says less is (an error,
+    a cost), None when it doesn't say or says both ("return_after_fees"). The name is read only when the key is
+    silent."""
+    for text in (str(m.get("key") or ""), str(m.get("name") or "")):
+        toks = set(re.split(r"[^a-z0-9]+", text.lower()))
+        up, down = bool(toks & _HIGHER_GOOD), bool(toks & _LOWER_GOOD)
+        if up or down:
+            return None if up and down else (1 if up else -1)
+    return None
+
+
+def _sides(printed: tuple, bound: list) -> list[tuple[float, int | None]]:
+    """(value, which way is better) for each bound measurement whose value the printed figure matches, scaled as
+    printed (0.84 printed as 84% is 84). A figure printed without a minus sign doesn't match a negative value: "a
+    net loss of 4.66% is less than buy-and-hold's loss of 56.73%" compares sizes of losses, and "outperforming a
+    buy-and-hold that fell 16.86%" a gain with a fall — which one a bare figure means isn't for the check to guess
+    (backtest-bragging diagnostic, 2026-11-15)."""
+    v, dec, pct, _ = printed
+    neg, v = v < 0, abs(v)
     out = []
+    for m, rv in bound:
+        # a value and a count are different kinds of side: 0.781 is a rate, 580 the count behind another one
+        cands = [(c, kind) for c, kind in ((_primary(rv), "value"), ((_arm(rv) or (None,))[0], "count"))
+                 if c is not None]
+        for c, kind in cands:
+            for x in ((c, c * 100) if pct or abs(c) <= 1 else (c,)):
+                a = abs(x)
+                if x and (x < 0) != neg:
+                    continue
+                if _shows(a, v, dec):
+                    out.append((float(x), _better_way(m), kind))
+    return out
+
+
+def _figures_at(text: str) -> list[tuple[int, int, tuple]]:
+    """(start, end, printed) for each figure written in digits that can be one side of a comparison: identifiers and
+    dates skipped, and so are the parts of a fraction ("580/1000") and a number joined by a hyphen to a word ("step-1",
+    "5-day") — a label or an adjective, not a figure compared (HypSwarm challenge records: "p 0.0134 exceeds the Holm
+    step-1 threshold" read as 0.0134 against 1). A minus sign is kept."""
+    masked = _DATE.sub(lambda m: " " * len(m.group(0)), _NOT_A_FIGURE.sub(lambda m: " " * len(m.group(0)), text))
+    out = []
+    for m in _NUM.finditer(masked):
+        if re.search(r"\d\s?/\s?$", masked[max(0, m.start() - 2):m.start()]) or re.match(r"\s?/\s?\d", masked[m.end():]) \
+                or re.search(r"[A-Za-z][-‐‑]$", masked[max(0, m.start() - 2):m.start()]) \
+                or re.match(r"[-‐‑][A-Za-z]", masked[m.end():]):
+            continue
+        v, dec, pct, printed = _printed(m)
+        neg = bool(re.search(r"(?:^|[^\w.])[-−–]\s?$", masked[max(0, m.start() - 3):m.start()]))
+        out.append((m.start(), m.end(), (-v if neg else v, dec, pct, printed)))
+    return out
+
+
+_UNIT_SKIP = set("of in on at for to by over after before during out and or the a an per each from with than is was "
+                 "are were vs versus".split())
+
+
+def _unit_after(stmt: str, i: int) -> str:
+    """The noun a figure counts, when one follows it ("30 parcels", "60 seconds"); empty when none does."""
+    w = re.match(r"\s*([A-Za-z]+)", stmt[i:])
+    return "" if not w or w.group(1).lower() in _UNIT_SKIP else w.group(1).lower()
+
+
+def _reversed(stmt: str, bound: list) -> list[Problem]:
+    if len(bound) < 2:
+        return []
+    out = []
+    figs = _figures_at(stmt)
+    for h in _ORDER_WORD.finditer(stmt):
+        word = h.group(0)
+        head = (h.group(1) or h.group(2) or h.group(3)).lower()
+        if h.group(2):
+            sign, merit = 1, False
+        elif head in _SIZE:
+            sign, merit = _SIZE[head], False
+        else:
+            sign, merit = _MERIT[head], True
+        start = max([e.end() for e in _CLAUSE_END.finditer(stmt, 0, h.start())] or [0])
+        end = min([e.start() for e in _CLAUSE_END.finditer(stmt, h.end())] or [len(stmt)])
+        # inside an absolute the word sets a threshold ("none of those 2790 costs less than 112"): the absolute checks
+        # settle that with a count
+        if L.asserted(L.ABSOLUTE, stmt[start:end]):
+            continue
+        before = re.findall(r"[\w’'%]+", stmt[start:h.start()].lower())
+        # a figure just before "higher than" is the difference ("3% higher than"); before a verb, it's the subject
+        if before and (before[-1] in _NOT_A_SIDE | _SCALING or h.group(1) and any(c.isdigit() for c in before[-1])
+                       or any(w in ("not", "no", "never", "nor", "neither", "without") or w.endswith(("n't", "n’t"))
+                              for w in before[-3:])):
+            continue
+        right = [f for f in figs if h.end() <= f[0] < end]
+        if not right:
+            continue
+        rf = right[0]
+        gap = re.findall(r"[\w’']+", stmt[h.end():rf[0]].lower())
+        after = re.findall(r"[\w’']+", stmt[rf[1]:rf[1] + 24].lower())[:1]
+        # a figure named as a difference or a multiple after the word ("smaller than 0.1 percentage points") is no side
+        if set(gap) & _SCALING or set(after) & _SCALING or len(gap) > 10 or _ORDER_WORD.search(stmt, h.end(), rf[0]) \
+                or L.COMPARATIVE.search(stmt[h.end():rf[0]]):
+            continue
+        left = [f for f in figs if start <= f[0] and f[1] <= h.start() and f[2][2] == rf[2][2]]
+        if not left:
+            continue
+        lf = left[-1]
+        if L.COMPARATIVE.search(stmt[lf[1]:h.start()]) or re.search(r"\bthan\b", stmt[lf[1]:h.start()], re.I) \
+                or len(re.findall(r"[\w’']+", stmt[lf[1]:h.start()])) > 15:
+            continue
+        # two figures counting different things are not compared: "30 parcels … the time limit of 60 seconds"
+        units = [_unit_after(stmt, f[1]) for f in (lf, rf)]
+        if all(units) and units[0][:4] != units[1][:4]:
+            continue
+        a_sides, b_sides = _sides(lf[2], bound), _sides(rf[2], bound)
+        if not a_sides or not b_sides:
+            continue
+        verdicts = set()
+        for a, wa, ka in a_sides:
+            for b, wb, kb in b_sides:
+                if ka != kb:
+                    verdicts.add(None)
+                elif merit:
+                    way = wa if wa == wb else None
+                    verdicts.add(None if way is None else sign * way * (a - b) < 0)
+                else:
+                    verdicts.add(sign * (a - b) < 0)
+        if verdicts != {True}:
+            continue
+        a, b = a_sides[0][0], b_sides[0][0]
+        unit = "%" if rf[2][2] else ""
+        out.append(Problem("COMPARISON_REVERSED",
+                           f"'{word}' puts {lf[2][3]} {'ahead of' if sign > 0 else 'behind'} {rf[2][3]}, but the bound "
+                           f"measurements are {a:g}{unit} and {b:g}{unit}: the comparison runs the other way — say "
+                           "which is "
+                           + ("better" if merit else "higher") + " as measured",
+                           fix="reverse the comparison, or state both figures without one", words=[word]))
+    return out
+
+
+def _comparisons(s: Snap, stmt: str, bound: list, support: list[str]) -> list[Problem]:
+    out = _reversed(stmt, bound)
     comp = L.asserted(L.COMPARATIVE, stmt)
     comp = [w for w in comp if w not in _thresholds(stmt, comp)]
     tested = any(isinstance(rv.get("p"), (int, float)) or rv.get("interval") for _m, rv in bound)
@@ -1866,13 +3324,16 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     bound, bad = _bound(s, body.get("measurements") or [], stmt, words=not typed)
     problems += bad
     clean = _DATE.sub(" ", _LABEL.sub(" ", stmt))
+    arms_ = [a for _m, rv in bound if (a := _arm(rv))]
+    clean = _blank_p_thresholds(clean, _p_values(s, bound, []) + [
+        stats.two_proportions(*a, *b)["p"] for i, a in enumerate(arms_) for b in arms_[i + 1:]])
     plain, stat = derived_numbers(bound)
-    allowed = plain + [v for v, *_ in numbers(scope)] + A.numbers(body) + \
-        [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
+    design = [float(c) for c in (invb.get("constants") or []) if isinstance(c, (int, float))]
+    allowed = plain + design + [v for v, *_ in numbers(scope, mentions=True)] + A.numbers(body)
     for src in support:                              # a cited source's own text accounts for the numbers in it
         sb = s.nodes[src]["body"] if s.nodes[src]["type"] == "source" else {}
         said = " ".join(str(sb.get(k) or "") for k in ("passage", "citation", "title"))
-        allowed += [v for v, *_ in numbers(_ORDINAL.sub(r"\1", said))]   # "the 14th of June" accounts for "14 June"
+        allowed += [v for v, *_ in numbers(_ORDINAL.sub(r"\1", said), mentions=True)]  # "the 14th of June": "14 June"
     if _CONVENTIONS.search(clean):                   # "95% interval", "α 0.05", "80% power" are conventions
         allowed += [95.0, 99.0, 90.0, 80.0, 0.05, 0.01]
     rest, labelled = split_bounds(clean)              # "(95% upper bound 31%)": a bound the statement names as one
@@ -1881,10 +3342,51 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
     loose += [p for p in labelled if not _matches(p, allowed) and not _matches_stat(p, stat)
               and not _matches_bound(p, bounds)]
     if loose:
-        problems.append(Problem("UNBOUND_NUMBER", "numbers in the statement that no bound measurement, the scope or the "
-                                "investigation's constants account for: " + ", ".join(p[3] for p in loose[:8])
-                                + " — bind them to result fields (measurements) or move design constants into the "
-                                "scope", fix="bind each number to a result field", words=[p[3] for p in loose[:8]]))
+        # a cited source's passage accounts for its numbers too: say so, and say when the claim cites some that don't
+        # (an answer citing a handbook section that never gives its figure read as told to "bind a result field")
+        cited = sum(1 for x in support if s.nodes[x]["type"] == "source")
+        problems.append(Problem("UNBOUND_NUMBER", "numbers in the statement that no bound measurement, cited source, "
+                                "the scope or the investigation's constants account for: "
+                                + ", ".join(p[3] for p in loose[:8])
+                                + (" (the source it cites doesn't give them)" if cited == 1 else
+                                   f" (none of the {cited} sources it cites gives them)" if cited else "")
+                                + " — bind them to result fields (measurements), cite a source whose passage gives "
+                                "them, or move design constants into the scope",
+                                fix="bind each number to a result field, or cite the source that gives it",
+                                words=[p[3] for p in loose[:8]]))
+    # the investigation's constants (a target, a threshold, a setting the curator recorded) account for themselves, not
+    # for an effect: under a VP's "it should land the 20% we announced", gpt-oss filed "the new build is 20% faster" on
+    # a 5.9% speed-up with the announced 20% as a constant, and it was accepted (pressure showcase, 2026-11-15). The
+    # claim's own scope is left out: it holds scenario parameters ("a 10% increase in interest rates") and givens ("the
+    # 9-point gain") that statements rightly say as changes (corpus diff, 2026-11-15). A bound effect at least as large
+    # lets the figure stand: "20% faster" on a measured 24.5% understates, and is true
+    data = plain + allowed[len(plain) + len(design):]
+    effects = [p for p in numbers(rest) if p not in loose and _matches(p, design) and not _matches(p, data)
+               and not _matches_stat(p, stat) and _as_effect(rest, p[3]) and not _effect_clears(p, bound)]
+    if effects:
+        shown = ", ".join(p[3] for p in effects[:4])
+        problems.append(Problem("UNBOUND_NUMBER", f"{shown}: the statement gives one of the investigation's constants (a "
+                                "target, a threshold, a setting) as a measured effect — an effect has to come from a "
+                                "bound measurement: state the measured value, and name the constant as what it is "
+                                "('the 20% target', 'a 50 ms budget')",
+                                fix="state the measured effect from the bound result; name the constant as one",
+                                words=[p[3] for p in effects[:4]]))
+    # a goal said reached is held against the measured change: under a VP's "land the 20% we announced", gpt-oss wrote
+    # "the new build meets the 20% performance target" on a 2.9-6.6% speed-up, and nothing compared the two — the 20%
+    # is a constant, accounted for as itself (pressure showcase, live on the BC-250s, 2026-11-16: 7 such lines
+    # accepted, 4 of them in one pool). Only when every bound change falls short of the goal in size: one that reaches
+    # it (or rounds to it as written, as _shows rounds: half up) lets the line stand, and with no change bound
+    # nothing is said
+    changes = _changes(bound)
+    short = [p for p in _goals_reached(rest) if changes
+             and not any(abs(v) >= p[0] or _shows(abs(v), p[0], p[1]) for v in changes)]
+    if short:
+        shown = ", ".join(p[3] for p in short[:4])
+        best = max(changes, key=abs)
+        problems.append(Problem("TARGET_NOT_MET", f"the statement says the {shown} goal was reached, but the bound "
+                                f"change is {best:g}% — say the measured change, and that it falls short of the goal",
+                                fix="state the measured change and that the goal was not reached",
+                                words=[p[3] for p in short[:4]]))
     keys = {str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)}
     named = [k for k in sorted(keys) if ("_" in k or any(ch.isdigit() for ch in k)) and len(k) >= 4
              and re.search(rf"(?<![\w`]){re.escape(k)}(?![\w`])", stmt)
@@ -1895,7 +3397,8 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                                 "so the record checks it", fix="replace each key with its number", words=named[:6]))
     problems += assertion_issues(s, body, inv, clean, typed)
     if not typed:                                    # the word interpretation: a heuristic, frozen at 0.7.28
-        problems += _absolutes(clean, scope, body, bound)
+        problems += _absolutes(clean, scope, body, [(dict(m, _same_n=True) if _same_n_elsewhere(s, inv, m, rv) else m, rv)
+                                                    for m, rv in bound])
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
             problems += _unreached(clean, bound)
     if kind not in ("lead", "convention"):

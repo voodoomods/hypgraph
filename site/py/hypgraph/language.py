@@ -4,7 +4,7 @@ a word earns its place by a mistake it would have caught.
 
 - ABSOLUTE      "never", "always", "eliminates", "100%" … — says a rate is exactly 0 or 1.
 - COMPARATIVE   "beats", "outperforms", "higher than" … — says one thing differs from another.
-- SIGNIFICANCE  "significantly", "statistically" … — says a test was passed.
+- SIGNIFICANCE  "significantly", "statistically", "a measurable improvement" … — says a test was passed.
 - CAUSAL        "causes", "leads to", "because of" … — says an intervention would change the outcome.
 - EXCLUSION     "no effect", "makes no difference", "rules out" … — says an effect is absent.
 - EFFECT        "changes", "lowers", "differs", "affects" … — says an intervention or condition moved an outcome.
@@ -29,9 +29,17 @@ ABSOLUTE = re.compile(
     r"\b(never|always|all|every|none|nothing|no one|nobody|impossible|cannot|can't|proves?|proven|proof|certainly|"
     r"certain|guaranteed?|guarantees|eliminat(?:es|ed|ing)|entirely|completely|totally|universally|invariably|"
     r"consistently|without exception|perfect(?:ly)?|solves?|solved|definitively|conclusively|undeniably|"
+    # "nearly all test suites passed, proving our parser's reliability": the participle says what "proves" says
+    # (telephone showcase, 2026-11-16: in 27 accepted lines, none of them true). Not "proved": "proved optimal
+    # in-sample" says how something turned out, and "the claim that the test proved them equivalent is not licensed"
+    # reports a claim to deny it; both are honest lines in the corpus of real records.
+    r"proving|"
+    # "our parser stands undefeated" on 8 of 9 suites: said of the whole, so a named exception elsewhere doesn't
+    # qualify it (say-no-more-than-the-data showcase, 2026-11-15)
+    r"undefeated|unbeaten|"
     # an absolute with no "all" in it: "files parsed flawlessly" on 62 of 63, "without a single error" on 52 of 55
     # (both accepted in the say-no-more-than-the-data showcase, 2026-11-15)
-    r"flawless(?:ly)?|without\s+(?:a\s+single\s+|any\s+|one\s+)?(?:error|failure|fault|crash|exception|bug|"
+    r"flawless(?:ly)?|without\s+(?:a\s+single\s+|a\s+|any\s+|one\s+)?(?:error|failure|fault|crash|exception|bug|"
     r"mistake|glitch|hitch)e?s?|(?:error|failure|fault|crash|bug)-free|"
     r"zero(?!-)"
     # "no route is longer than 26 km": a universal negative comparison, the same claim as "nothing is longer"; only
@@ -51,8 +59,19 @@ COMPARATIVE = re.compile(
     r"\b(better|worse|beats?|beat|outperform(?:s|ed|ing)?|underperform(?:s|ed|ing)?|improv(?:es|ed|ement|ing)|"
     r"superior|inferior|exceeds?|exceeded|higher than|lower than|more than|fewer than|less than|faster|slower|"
     r"gains? over|uplift|lift over|advantage over|wins? over|surpass(?:es|ed)?)\b", re.I)
+# an effect said to stand out from the noise: "a measurable improvement", "a measurable 6.6% reduction", "noticeably
+# quicker". Under a VP's push gpt-oss wrote these on speed-ups whose interval spanned 0 (p 0.22-0.42) once
+# "significantly" was refused (pressure showcase, live on the BC-250s, 2026-11-16: 4 lines accepted). Only before a
+# change or a comparative: "measurable outcomes" is a kind of outcome. "detectable" stays out: "no detectable effect at
+# this sample size" is the wording the report check recommends for an absence
+_CHANGE_NOUN = (r"(?:improvements?|gains?|reductions?|increases?|decreases?|differences?|effects?|boosts?|"
+                r"speed-?ups?|drops?|declines?|rises?|changes?|uplifts?|lifts?|benefits?|advantages?|impacts?|"
+                r"shifts?|slowdowns?|wins?)")
+_STANDS_OUT = (r"(?:measurabl|noticeabl|discernibl)(?:e(?=(?:\s+[\w.%‑-]+){0,2}?\s+" + _CHANGE_NOUN + r"\b)"
+               r"|y(?=\s+(?:" + CMP_WORDS + r"|quicker|improved|reduced|increased|decreased|raised|lowered|"
+               r"cut|sped)\b))")
 SIGNIFICANCE = re.compile(r"\b(significant(?:ly)?|statistically(?!\s+(?:in|non-?|not\b|un))|"
-                          r"reliably (?:better|worse|higher|lower))\b", re.I)
+                          r"reliably (?:better|worse|higher|lower)|" + _STANDS_OUT + r")\b", re.I)
 CAUSAL = re.compile(
     r"\b(caus(?:es|ed|ing|al)|cause|leads? to|led to|resulted in|drives?|driven by|due to|because of|"
     r"responsible for|is the reason)\b", re.I)
@@ -101,8 +120,29 @@ _ZERO_ON_A_SCALE = re.compile(r"\b(below|above|near|to|from|of|than|at|cross(?:e
                               r"exclud(?:es|ed|ing)?|around|about|approximately|spans?|toward|towards|between|"
                               r"distinguishable from|different from|differs? from|differ from|equal to|equals?|net|"
                               r"versus|vs\.?|against|the|a|null of)\s+zero\b", re.I)
-# "almost all", "nearly every", "virtually none": the qualifier says it is not absolute
-_ALMOST = re.compile(r"\b(almost|nearly|virtually|practically|roughly|about|mostly)\s+$", re.I)
+# "almost all", "nearly every", "virtually none", "near-perfect": the qualifier says it is not absolute
+_ALMOST = re.compile(r"(?:\b(almost|nearly|virtually|practically|roughly|about|mostly)\s+|\bnear[-‐‑])$", re.I)
+# "all but one file": a count (n - 1 of n), not an absolute; checks.py holds it to the record's own count
+ALL_BUT = re.compile(r"\ball\s+but\s+(one|two|three|four|five|six|seven|eight|nine|ten|a\s+few|a\s+handful|"
+                     r"a\s+couple|\d[\d,]*)\b", re.I)
+# "all" that counts nothing: an idiom ("solid coverage all around", "above all", "at all", "all in all") or the head
+# of a compound that names a set ("all-rows accuracy", "all-orders average", "all-cause"). "Nine of ten test suites
+# passed—solid coverage all around" was refused as "all" on 9 of 10 (telephone showcase, a true line), and
+# "all-rows accuracy" / "any leak at all" in 16 refusals on the corpus of real records, every one honest. A compound
+# that doesn't name a set still counts: "an all-passing run", "all-green", "all-clear" say every one passed.
+_ALL_SET_COMPOUND = r"all[-‐‑](?=(?:[a-z]*[a-rt-z]s|data|sample|cause|time)\b)"
+_ALL_IDIOM = re.compile(r"all(?:\s+(?:around|round|along|told|the\s+same|the\s+while|the\s+more|the\s+better)\b|"
+                        r"\s+in\s+all\b)|" + _ALL_SET_COMPOUND, re.I)
+_ALL_IDIOM_BEFORE = re.compile(r"\b(?:above|at|after|once\s+and\s+for|in\s+all)\s+$", re.I)
+_ALL_IDIOM_SPAN = re.compile(r"\b(?:(?:above|at|after|once\s+and\s+for)\s+all|all\s+in\s+all|all\s+(?:around|round|"
+                             r"along|told|the\s+same|the\s+while|the\s+more|the\s+better)\b|" + _ALL_SET_COMPOUND + ")",
+                             re.I)
+
+
+def without_idioms(text: str) -> str:
+    """The text with "all" idioms blanked, for a check that asks whether anything says how many: "solid coverage all
+    around" says nothing about how many suites passed."""
+    return _ALL_IDIOM_SPAN.sub(lambda m: " " * len(m.group(0)), text or "")
 # "the interval lies entirely below zero": where an interval lies, not a rate of 0 or 1
 _INTERVAL_SIDE = re.compile(r"\b(entirely|wholly|completely)\s+(below|above|on|within|inside|outside|negative|"
                             r"positive|to the|in the|on the|the)\b", re.I)
@@ -133,7 +173,12 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
             continue
         if _ALMOST.search(text[:m.start()]):
             continue
+        if m.group(0).lower() == "all" and (ALL_BUT.match(text, m.start()) or _ALL_IDIOM.match(text, m.start())
+                                            or _ALL_IDIOM_BEFORE.search(text[:m.start()])):
+            continue
         if m.group(0).lower() in ("entirely", "wholly", "completely") and _INTERVAL_SIDE.match(text, m.start()):
+            continue
+        if m.group(0).lower() == "proving" and _OPENS_SENTENCE.fullmatch(_sentence_before(text, m.start())):
             continue
         if _MANNER.fullmatch(m.group(0)) and (_PART_SUBJECT.search(_clause_before(text, m.start()))
                                               or _EXCEPTIONS.search(text)):
@@ -147,11 +192,33 @@ def asserted(pattern: re.Pattern, text: str) -> list[str]:
 # parsed without error" and "flawlessly, only a handful slipped" say so of a part (all four were in the
 # say-no-more-than-the-data showcase, 2026-11-15, and true of their counts)
 _MANNER = re.compile(r"flawless(?:ly)?|without\s.*|\w+-free", re.I | re.S)
-_PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:all|every)|most|mostly|majority|many|"
-                           r"some|several|all\s+but|\d[\d,]*\s+(?:of|out\s+of)\s+\d)", re.I)
+# A part stated as a count is one in any written form: "64 of 65", "64/65", "nine of ten" ("64/65 real-world files
+# parsed flawlessly" on 64 of 65 was refused in the telephone showcase, a true line)
+_PART_SUBJECT = re.compile(r"\b(?:(?:almost|nearly|virtually|practically)\s+(?:all|every)|most|mostly|majority|"
+                           r"the\s+bulk|many|"
+                           r"some|several|all\s+but|\d[\d,]*\s+(?:of|out\s+of)\s+\d|\d[\d,]*\s?/\s?\d|"
+                           r"(?<!every\s)(?<!each\s)(?<!any\s)"
+                           r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|(?:twenty|thirty|forty|"
+                           r"fifty|sixty|seventy|eighty|ninety)(?:[-‐‑](?:one|two|three|four|five|six|seven|eight|"
+                           r"nine))?)\s+(?:of|out\s+of)\s+(?:the\s+)?[a-z]+)", re.I)
 _EXCEPTIONS = re.compile(r"\b(?:except(?:\s+for)?|all\s+but|but\s+(?:one|two|a\s+few)|apart\s+from|save\s+for|"
-                         r"other\s+than)\b|\b(?:only|just)\s+(?:a\s+)?(?:few|handful|couple|one|\d+)\b[^.;]*?\b"
+                         r"other\s+than)\b|"
+                         # "flawlessly, one exception", "with two exceptions", "a lone exception"; not "without a
+                         # single exception"
+                         r"(?<!without )(?<!not )\b(?:one|a\s+(?:single|lone|sole)|two|three|a\s+few|a\s+handful\s+of|"
+                         r"\d+)\s+"
+                         r"exceptions?\b|\b(?:only|just)\s+(?:a\s+)?(?:few|handful|couple|one|\d+)\b[^.;]*?\b"
                          r"(?:slipped|failed|fell|broke|crashed|errored|missed|stumbled|faltered|tripped)\b", re.I)
+
+
+# "Proving that P ≠ PSPACE would be a breakthrough": a gerund that opens its sentence is the thing talked about, not a
+# claim that something was proved (five honest lines in the corpus of real records)
+_OPENS_SENTENCE = re.compile(r"[\s\"'“‘(*_\[-]*")
+
+
+def _sentence_before(text: str, start: int) -> str:
+    head = text[:start]
+    return head[max((m.end() for m in _SENTENCE_END.finditer(head)), default=0):]
 
 
 def _clause_before(text: str, start: int) -> str:

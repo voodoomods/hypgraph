@@ -294,7 +294,7 @@ def report(g: "Graph", inv: str) -> dict:
            "state": n["body"].get("state") or "active", "objective": n["body"].get("objective", ""),
            "claims": claims, "results": results, "hypotheses": hyps, "experiments": exps,
            "open": open_items, "spend": spend, "seq": s.seq}
-    # the workflow's view (@2 profiles): each question's derived stage, and the evidence that has gone stale
+    # the workflow's view (@2 and later profiles): each question's derived stage, and the evidence that has gone stale
     from . import profiles, workflow
     prof = profiles.profile_of(s, inv)
     if prof and prof.workflow:
@@ -344,7 +344,10 @@ def report_markdown(r: dict) -> str:
           f"- claims contested: {', '.join(o['claims_contested']) or 'none'}",
           f"- claims on stale evidence (what they rest on has changed since; a check of them no longer counts): "
           f"{', '.join(o.get('claims_stale') or []) or 'none'}",
-          f"- results no claim carries (their conclusions are unreviewed): {', '.join(o['results_in_no_claim']) or 'none'}",
+          # the instrument's own results are measurements, not conclusions: they need no claim, and aren't listed here
+          # (a run 3 showcase record read "none" right under a table of the instrument's counts marked "NO")
+          f"- results no claim carries (their conclusions are unreviewed; the instrument's own measurements need none, "
+          f"and aren't listed): {', '.join(o['results_in_no_claim']) or 'none'}",
           f"- experiments not preregistered: {', '.join(o['experiments_not_preregistered']) or 'none'}"]
     sp = r["spend"]
     if "error" in sp:

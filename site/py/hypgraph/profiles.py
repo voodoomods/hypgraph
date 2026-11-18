@@ -8,12 +8,13 @@ A profile is a named, versioned set of
   predicates     domain predicates the record can check (beyond coord.PREDICATES)
   validators     domain refusals at write time, on claims, results, artifacts, sources and decisions
   completion     what "the investigation is done" means, as criteria the record derives
-  workflow       (@2) the discipline's own method as stages with gates, what invalidates evidence, what "fresh"
+  workflow       (@2 and later) the discipline's own method as stages with gates, what invalidates evidence, what "fresh"
                  means, the typed artifacts — see docs/workflows/ and workflow.py
 
 An investigation pins ``profile: "software@1"``. Without one, nothing changes: ``scientific@1`` is today's behaviour
-and is what the engine does with no profile at all. Rules never change under a version; a changed rule is @2. The
-``@2`` profiles carry a workflow; the ``@1`` profiles are frozen as they were.
+and is what the engine does with no profile at all. Rules never change under a version; a changed rule is a new
+version. The ``@2`` profiles carry a workflow; ``trading@3`` and ``optimization@3`` add checks that read the values;
+every earlier version is frozen as it was.
 
     from hypgraph import profiles
     profiles.get("trading@2").workflow.stages
@@ -70,7 +71,7 @@ class Profile:
     validators: tuple = ()                                # names from _CLAIM_VALIDATORS / _RESULT_VALIDATORS
     completion: tuple = ("questions_settled",)            # names from _CRITERIA
     seats: tuple = ()                                     # suggested seat templates: (name, role, takes...)
-    workflow: Workflow | None = None                      # @2: the discipline's workflow (None = kernel defaults)
+    workflow: Workflow | None = None                      # @2 and later: the discipline's workflow (None = kernel defaults)
     typed_claims: bool = False                            # its investigations check claims as typed atoms
 
     @property
@@ -158,6 +159,8 @@ LABELS: dict[str, dict[str, str]] = {
                        "result": "Solution", "claim": "Solution claim", "artifact": "Instance",
                        "review": "Verification", "decision": "Recommendation"},
 }
+LABELS["optimization@3"] = LABELS["optimization@2"]
+LABELS["trading@3"] = LABELS["trading@2"]
 
 
 def _add(p: Profile) -> Profile:
@@ -329,6 +332,20 @@ TRADING2 = _add(Profile(
         measure_skips=("hypothesis_stated", "preregistered", "backtested", "positioned", "still_valid"),
     )))
 
+# ── @3: the claim checks read the values, not only the keys. @2 asks that a result *has* an out-of-sample, after-cost
+# return before "edge" is said; @3 asks what it says. Found in the backtest-bragging showcase probes (2026-11-15):
+# under trading@2, "the strategy has an edge out of sample after costs" was accepted on a −3.1% out-of-sample return,
+# and an in-sample return as the unlabelled headline. Everything else is trading@2 unchanged. ──────────────────────
+
+TRADING3 = _add(Profile(
+    "trading", 3, TRADING2.about + " Edge words are checked against the values: an edge or a profit needs the "
+    "out-of-sample after-cost return to be a gain, beating the benchmark needs it above the benchmark's, and an "
+    "in-sample return is said to be one.",
+    vocabulary=TRADING2.vocabulary, done_when=TRADING2.done_when, predicates=TRADING2.predicates,
+    validators=TRADING2.validators + ("edge_needs_oos_gain", "in_sample_labelled"),
+    completion=TRADING2.completion, seats=TRADING2.seats, workflow=TRADING2.workflow,
+))
+
 KNOWLEDGE2 = _add(Profile(
     "knowledge", 2, KNOWLEDGE.about + " With the source-criticism workflow: the passage that says it, the source's "
     "kind and date, a check by someone else, and a withdrawn source puts every claim citing it at risk.",
@@ -383,6 +400,18 @@ OPTIMIZATION2 = _add(Profile(
         artifacts={"instance": (), "solution": ("objective", "feasible"), "model": ("solver",)},
         report="Solution report",
     )))
+
+# ── @3: "optimal" reads the values, not only the keys. @2 asks that a supporting result *has* a bound or gap; @3 asks
+# what they say. Found in the optimal-plan showcase probes (2026-11-15): under optimization@2, "the plan is optimal"
+# was accepted on a result whose gap to its bound was 3%. Everything else is optimization@2 unchanged. ──────────────
+
+OPTIMIZATION3 = _add(Profile(
+    "optimization", 3, OPTIMIZATION2.about + " 'Optimal' is checked against the values: the incumbent feasible and "
+    "within the gap tolerance (1e-4) of its bound.",
+    vocabulary=OPTIMIZATION2.vocabulary, done_when=OPTIMIZATION2.done_when, predicates=OPTIMIZATION2.predicates,
+    validators=OPTIMIZATION2.validators + ("optimal_needs_zero_gap",),
+    completion=OPTIMIZATION2.completion, seats=OPTIMIZATION2.seats, workflow=OPTIMIZATION2.workflow,
+))
 
 
 def get(pid: str) -> Profile:
@@ -576,10 +605,184 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
             out.append(Problem("CLAIM_WITHOUT_SOURCE", "a knowledge claim must cite a source node (citation, url or doi, "
                                "the passage) — the record holds what was read, not what was recalled",
                                fix="graph_add a source, then link the claim with {\"rel\": \"cites\", \"to\": <source>}"))
+    if "optimal_needs_zero_gap" in p.validators:
+        out += _optimal_contradicted(s, stmt, results)
+    if "edge_needs_oos_gain" in p.validators:
+        out += _edge_contradicted(s, stmt, results)
+    if "in_sample_labelled" in p.validators:
+        out += _in_sample_unlabelled(stmt, body)
     if p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
     return out
+
+
+# ── optimization@3: the values behind "optimal" ──
+# The MIP convention: a solve is optimal when the relative gap |bound − objective| / |objective| is within the solver's
+# tolerance (1e-4 is the default of CPLEX, Gurobi, HiGHS and SCIP) and the incumbent is feasible.
+GAP_TOLERANCE = 1e-4
+_FALSE = (False, 0, "false", "False", "no", "No")
+# 'optimal' as a reference point, not said of the plan: "within 1% of optimal", "the gap to the optimum", "the optimal
+# bound", "close to the optimum"
+_OPT_REFERENCE_BEFORE = re.compile(r"(?:\b(?:of|to|from|on|than|versus|vs|relative|above|below|within|near|close|"
+                                   r"nearly|approximately|about|towards?)\b[\s,]*(?:(?:the|an?)\s+(?:[\w‐‑-]+\s+)?|"
+                                   r"(?:true|proven|known|global|exact|real|lp|best|theoretical)\s+)?)$",
+                                   re.I)
+_OPT_REFERENCE_AFTER = re.compile(r"^[ \t‐‑-]*(?:bounds?|gap)\b", re.I)
+_OPT_UNKNOWN = re.compile(r"\b(?:not (?:known|proven|proved|certain)|unknown|unproven|unproved)\b", re.I)
+_OPT_CLAUSE = re.compile(r"[;:!?—]|\.(?!\d)")
+# A sentence that denies something isn't a bare optimality claim: audits name the optimum to measure a plan against
+# it ("the plan is not optimal; the optimal value is 656", "the rota is infeasible …, whereas the exact minimum cost of
+# a rule-abiding rota is 112"). 5 of the 7 corpus sentences the value check alone refused were these.
+_OPT_DENIED = re.compile(r"\b(?:no|not|never|none|neither|nor|without|cannot|infeasible|unusable|fail(?:s|ed)?)\b|"
+                         r"n't\b", re.I)
+
+
+def _said_optimal(stmt: str) -> str:
+    """The first optimal word said *of* the solution, in a clause that asserts it: '' when every one is a reference
+    point (within 1% of optimal, the gap to the optimum, the optimal bound), negated, hedged or unknown, and in a
+    sentence that denies anything (_OPT_DENIED): precision over recall."""
+    if not L.asserted(_OPTIMAL, stmt or "") or _OPT_DENIED.search(stmt):
+        return ""
+    for clause in _OPT_CLAUSE.split(stmt):
+        if _OPT_UNKNOWN.search(clause) or not L.asserted(_OPTIMAL, clause):
+            continue
+        for m in _OPTIMAL.finditer(clause):
+            if _OPT_REFERENCE_BEFORE.search(clause[:m.start()]) or _OPT_REFERENCE_AFTER.search(clause[m.end():]):
+                continue
+            return m.group(1)
+    return ""
+
+
+def _gap_of(body: dict) -> tuple[str, float] | None:
+    """A result's distance from optimal: ('feasible = false', inf) for an infeasible incumbent, else the relative gap
+    from objective and bound when both are numbers (unambiguous), else the recorded gap; None when it says none."""
+    v = _vals(body)
+    if "feasible" in v and v["feasible"] in _FALSE:
+        return "feasible = false", float("inf")
+
+    def num(k):
+        x = v.get(k)
+        return float(x) if isinstance(x, (int, float)) and not isinstance(x, bool) else None
+    obj, bound, gap = num("objective"), num("bound"), num("gap")
+    if obj is not None and bound is not None:
+        d = abs(bound - obj)
+        rel = d / abs(obj) if obj else (0.0 if d <= 1e-9 else float("inf"))
+        return f"objective {obj:g} against bound {bound:g}, a relative gap of {rel:.3g}", (rel if d > 1e-6 else 0.0)
+    if gap is not None and 0 <= gap <= 1:    # above 1 it's a percentage or an absolute shortfall: units unknown
+        return f"gap = {gap:g}", gap
+    return None
+
+
+def _optimal_contradicted(s: D.Snap, stmt: str, results: list[str]) -> list[Problem]:
+    """OPTIMAL_CONTRADICTED: 'optimal' said of a solution whose supporting results deny it — an infeasible incumbent,
+    or a gap above the tolerance. Refused only when every supporting result that says something denies it."""
+    word = _said_optimal(stmt)
+    if not word:
+        return []
+    denials = []
+    for r in results:
+        g = _gap_of(s.nodes[r]["body"])
+        if g is None:
+            continue
+        if g[1] <= GAP_TOLERANCE:
+            return []
+        denials.append(g[0])
+    if not denials:
+        return []
+    return [Problem("OPTIMAL_CONTRADICTED", f"'{word}' is asserted, but the result it rests on says otherwise: "
+                    f"{denials[0]} — optimal means a feasible incumbent within {GAP_TOLERANCE:g} of its bound",
+                    fix="say 'best found' with its gap (or 'within X of the bound'), or solve until the gap closes",
+                    words=[word])]
+# ── trading@3: the values behind the edge words ──
+_OOS_KEY = re.compile(r"oos|out_?of_?sample|holdout|(?:^|_)test(?:_|$)", re.I)
+_RETURN_KEY = re.compile(r"return|pnl|profit|cagr", re.I)
+_IS_KEY = re.compile(r"(?:^|_)(?:is|in_?sample|insample|train(?:ing)?)(?:_|$)", re.I)
+_NAMES_BENCHMARK = re.compile(r"buy[\s‐‑-]*(?:and|&)[\s‐‑-]*hold|benchmark|\bthe market\b|\bindex\b|passive|holding", re.I)
+_SAYS_IN_SAMPLE = re.compile(r"in[\s‐‑-]?sample|insample|training|\btrain(?:ed)?\b|fitted|fitting|tuning|tuned|"
+                             r"calibrat\w*|estimation (?:window|period)|optimi[sz]ation (?:window|period)|"
+                             r"first [\d,]+ (?:trading )?days", re.I)
+# A sentence that denies something isn't a bare edge claim: honest audits name the edge to refute it ("there is no
+# out-of-sample, after-cost edge", "the in-sample edge did not carry over", "only 2 of the 20 settings beat buy and
+# hold", "it underperforms buy and hold"). 27 of 34 corpus sentences the value check alone refused were these.
+_EDGE_DENIED = re.compile(r"\b(?:no|not|never|none|neither|nor|without|cannot|fail(?:s|ed)?|los(?:e|es|t|ing)|"
+                          r"trail(?:s|ed|ing)?|underperform\w*|shortfall|worse|negative|declin(?:e|es|ed)|beaten|"
+                          r"revers\w*)\b|n't\b|\b\d+\s+of\s+(?:the\s+)?\d+\b", re.I)
+
+
+def _oos_returns(body: dict) -> tuple[tuple[str, float] | None, tuple[str, float] | None]:
+    """The strategy's out-of-sample return and the benchmark's, from one result's values: (key, value) each, or None
+    when there's none or more than one candidate. The strategy's prefers the after-cost figure (net / after_cost),
+    then one that says neither, then the gross one — costs only lower a return, so a gross loss is a net loss and a
+    gross shortfall to the benchmark a net one. Statistics of returns, counts and benchmarks are not the strategy's."""
+    v, raw = _vals(body), {str(k).lower(): x for k, x in (body.get("values") or {}).items()}
+    strat, bench = [], []
+    for k, x in v.items():
+        if not isinstance(x, (int, float)) or isinstance(x, bool) or not (_OOS_KEY.search(k) and _RETURN_KEY.search(k)):
+            continue
+        if _STAT_OF_RETURNS.search(k) or _a_count(k, raw.get(k)):
+            continue
+        (bench if _BENCHMARK.search(k) else strat).append((k, float(x)))
+
+    def tier(k: str) -> int:
+        return 0 if re.search(r"net|after_?costs?", k) else 2 if re.search(r"gross|before_?costs?", k) else 1
+    pick = None
+    if strat:
+        best = min(tier(k) for k, _ in strat)
+        top = [x for x in strat if tier(x[0]) == best]
+        pick = top[0] if len(top) == 1 else None
+    return pick, (bench[0] if len(bench) == 1 else None)
+
+
+def _edge_contradicted(s: D.Snap, stmt: str, results: list[str]) -> list[Problem]:
+    """EDGE_CONTRADICTED: an edge word the supporting results' values deny. 'profitable' and 'edge' need the
+    out-of-sample after-cost return to be a gain; 'edge', 'alpha' and 'excess return' need it above the benchmark's
+    when one is recorded, and 'beats' / 'outperforms' when the sentence names the benchmark (buy-and-hold, the
+    index, the market). Refused only when every supporting result that says something denies it, and never in a
+    sentence that denies something itself (_EDGE_DENIED): precision over recall."""
+    words = [w.lower() for w in L.asserted(_EDGE, stmt)]
+    if not words or _EDGE_DENIED.search(stmt):
+        return []
+    names = bool(_NAMES_BENCHMARK.search(stmt))
+    need_gain = any(w in ("edge", "profitable") for w in words)
+    need_beat = any(w == "edge" or w.startswith(("alpha", "excess")) or (w.startswith(("outperform", "beat")) and names)
+                    for w in words)
+    if not (need_gain or need_beat):
+        return []
+    denials = []
+    for r in results:
+        strat, bench = _oos_returns(s.nodes[r]["body"])
+        if not strat:
+            continue
+        k, x = strat
+        if need_gain and x <= 0:
+            denials.append(f"{k} = {x:g}, not a gain")
+        elif need_beat and bench and x <= bench[1]:
+            denials.append(f"{k} = {x:g}, not above {bench[0]} = {bench[1]:g}")
+        else:
+            return []
+    if not denials:
+        return []
+    return [Problem("EDGE_CONTRADICTED", f"'{words[0]}' is asserted, but the result it rests on says otherwise: "
+                    f"{denials[0]} — out of sample, after costs, that is no edge",
+                    fix="state the out-of-sample after-cost return (and the benchmark's) without the edge word",
+                    words=words)]
+
+
+def _in_sample_unlabelled(stmt: str, body: dict) -> list[Problem]:
+    """IN_SAMPLE_UNLABELLED: the claim's only bound returns are in sample (is_*, in_sample_*, train_*) and the
+    sentence doesn't say so — "the strategy returned 14.2% after costs" reads as the result, and the in-sample return
+    is the one the configurations were chosen on. A claim that also binds an out-of-sample return has its headline
+    (the in-sample figure bound beside it is context)."""
+    keys = [str(m.get("key") or "") for m in body.get("measurements") or [] if isinstance(m, dict)]
+    returns = [k for k in keys if _RETURN_KEY.search(k)]
+    is_keys = [k for k in returns if _IS_KEY.search(k) and not _OOS_KEY.search(k)]
+    if not is_keys or any(_OOS_KEY.search(k) for k in returns) or _SAYS_IN_SAMPLE.search(stmt or ""):
+        return []
+    return [Problem("IN_SAMPLE_UNLABELLED", f"the claim binds an in-sample return ({', '.join(is_keys[:3])}) but "
+                    "doesn't say it is in sample — it reads as the strategy's result, and it is the figure the "
+                    "configuration was chosen on", fix="say 'in sample' (or 'on the training window') in the sentence",
+                    words=is_keys[:3])]
 
 
 # a statistic *about* returns (a signal's correlation with tomorrow's return, a hit rate, the volatility) isn't a return
@@ -630,7 +833,7 @@ def W_result_issues(p: "Profile", s: D.Snap, inv: str, body: dict, pending: list
 
 
 def node_issues(s: D.Snap, inv: str, ntype: str, body: dict, pending: list) -> list[Problem]:
-    """Workflow refusals on artifacts, sources and decisions (@2 profiles only)."""
+    """Workflow refusals on artifacts, sources and decisions (profiles with a workflow: @2 and later)."""
     p = profile_of(s, inv)
     if not p or not p.workflow:
         return []
