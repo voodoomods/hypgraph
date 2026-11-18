@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Conduct names a goal said reached.** A claim refused with `TARGET_NOT_MET` is shown false, so its author is in
+  the conduct report, but the sentence had words only for a count, a typed assertion and a cited source. For an
+  author shown false by a goal alone it began with nothing: "perf-agent: ; the author did not say it again, and
+  corrected it 1 time" (`examples/problems/hit_the_number.py`, the overclaims report, the Overview). It now reads
+  "the measured change contradicted a goal this author said was reached 1 time; …", `conduct()` carries
+  `by_target`, and a contradiction the sentence has no words for is still told as one. Tests:
+  `tests/test_conduct_target.py`.
 - **Problem examples: `--step`.** Each story in `examples/problems/` printed all of its lines at once. With
   `--step` it shows one part at a time and waits for Enter, so it can be told aloud or recorded. It only waits:
   the same lines are filed and printed, and with nothing to read (piped, closed) it runs on. Tests:

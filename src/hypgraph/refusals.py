@@ -30,9 +30,10 @@ chain, separate from the record's events (verify() on the record is unchanged; v
 conduct() is the per-author view of those: how often the record contradicted an author's claim, how often the
 author corrected it, how often it said the same thing again — and where it stands now: whether its LAST word on
 each contradicted claim still says it. A party that repeated itself once and then moved off the claim is counted as
-having said it again, but not as still saying it. It keeps the two kinds apart: the record's own count (``by_count``)
-and a source the author cited as support that says otherwise (``by_source``) — the second shows the citation doesn't
-support the claim, not that the claim is false, since a source can be wrong. Conduct describes what an author did
+having said it again, but not as still saying it. It keeps the kinds apart: the record's own count (``by_count``),
+a measured change short of a goal said reached (``by_target``), and a source the author cited as support that says
+otherwise (``by_source``) — the last shows the citation doesn't support the claim, not that the claim is false,
+since a source can be wrong. Conduct describes what an author did
 after being shown, not why: it is evidence for a reviewer to weigh, not a verdict on anyone's intent.
 
 report() turns it into the numbers worth watching: overclaims caught per author, how many were fixed and how many
@@ -426,12 +427,13 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
                 (into_false.add if kind == "dropped" and to in contra else into_false.discard)(r)
     out: dict[str, dict] = {}
     for rid, a in shown.items():
-        o = out.setdefault(a, {"shown_false": 0, "by_count": 0, "by_source": 0, "by_assertion": 0, "corrected": 0,
+        o = out.setdefault(a, {"shown_false": 0, "by_count": 0, "by_source": 0, "by_assertion": 0, "by_target": 0, "corrected": 0,
                                "reasserted": 0, "open": 0, "still_saying": 0, "moved_off": 0, "replaced_false": 0})
         o["shown_false"] += 1
         o["by_count"] += "COUNT_CONTRADICTS" in shown_codes[rid]
         o["by_source"] += "SOURCE_CONTRADICTS" in shown_codes[rid]
         o["by_assertion"] += "ASSERTION_CONTRADICTED" in shown_codes[rid]
+        o["by_target"] += "TARGET_NOT_MET" in shown_codes[rid]
         fixed = any(k == "fixed" and r == rid for _i, k, _a, r, _c, _d in rows)
         again = sum(1 for _i, k, _a, r, _c, _d in rows if k == "reasserted" and r == rid)
         o["corrected"] += fixed
@@ -460,12 +462,17 @@ def conduct(g: "Graph", inv: str = "", author: str = "") -> dict:
         o["ends_false"] = any(k == "reasserted" or (k == "refused" and set(json.loads(c or "[]")) & set(CONTRADICTIONS))
                               for k, c in rs) and not _accepted_after(con, a, inv, key)
     for a, o in out.items():
-        c, s_, t_ = o["by_count"], o["by_source"], o["by_assertion"]
+        c, s_, t_, g_ = o["by_count"], o["by_source"], o["by_assertion"], o["by_target"]
         shown = "; ".join(
             ([f"the record's own count contradicted a claim of this author's {c} time{'s' * (c != 1)}"] if c else [])
             + ([f"a typed count showed an assertion of this author's false {t_} time{'s' * (t_ != 1)}"] if t_ else [])
+            + ([f"the measured change contradicted a goal this author said was reached {g_} time{'s' * (g_ != 1)}"]
+               if g_ else [])
             + ([f"{s_} claim{'s' * (s_ != 1)} of this author's went against a source it cited as support"]
                if s_ else []))
+        if not shown:                               # a contradiction this sentence has no words for yet: still say so
+            n = o["shown_false"]
+            shown = f"the record contradicted a claim of this author's {n} time{'s' * (n != 1)}"
         x = o["replaced_false"]
         o["sentence"] = (shown + "; "
                          + (f"the author said it again {o['reasserted']} time{'s' * (o['reasserted'] != 1)} after "
