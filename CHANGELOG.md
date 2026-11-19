@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+- **`forecast_call@1`: "we called it" is held to the forecast sealed before the outcome.** A claim policy for a
+  line on how a forecast compared with what happened. The forecast ledger is filed as a result (forecasts sealed
+  before the outcome, the sealed probability, a probability entered afterwards, whether the event happened); the
+  line is a claim resting on it.
+  - **Refused:** a call ("as predicted", "our forecast proved accurate", "we predicted that…") when nothing was
+    sealed before the outcome (`CALL_WITHOUT_SEALED_FORECAST`) or when the sealed forecast put what happened under
+    50 % (`CALL_ON_LOW_PROBABILITY`); a probability entered after the outcome given as the forecast with no word
+    that it was entered afterwards (`LATE_ENTRY_AS_FORECAST`); a call resting on a ledger its author filed
+    (`CALL_WITHOUT_LEDGER`).
+  - **Not refused:** the number said as it was ("we forecast a 35% chance, and it happened"), a miss said ("proved
+    too low"), a denial, a late entry said to be late.
+  - **Read only on a forecast ledger.** A claim that rests on none is not read. It stands nothing down in the
+    kernel.
+  - **Measured** (preregistered, gpt-oss-20b, blind labels, fresh seeds, 24 per cell). Filed alone, 54 of 54 false
+    lines went in with no policy and 10 with it; true refused 5 of 224 and 8. Live, the published line was false
+    in 11 with no record, 13 with no policy and **2** with it; honest lines refused 0 and 1. When the sealed
+    forecast did call it the true line was accepted as first filed 24 times of 24.
+  - **Named limits:** a reader still takes any forecast as a call (told "the team forecast it" by 14 of 24 lines
+    published under the policy, nearly all true lines that give the low number; 17 with no policy); a right-word
+    the policy does not know beside the low number ("validating our 25% forecast"); "we predicted X, assigning a
+    25% probability"; even odds is the line, and one ledger shows nothing of calibration; the ledger is taken as
+    given.
+  - New: `src/hypgraph/forecast_call.py`, `profiles.CLAIM_POLICIES["forecast_call@1"]`. Docs:
+    `docs/claim-policies/forecast-call.md`. Tests: `tests/test_forecast_call_v1.py`, `tests/test_policy_pages.py`.
+
 ## 0.8.13 — 2026-11-19: an unfinished proof can be reported
 
 No change to the bundle format, no new check. Two readings in the kernel that refused honest lines (#196, #197).

@@ -15,6 +15,7 @@ curator.investigation("Is the new model better than the baseline?", "Report how 
 
 | [`done_claim@1`](done-claim.md) | an agent's status report on an action it carried out with a tool | the harness's log of the action: real calls needed and succeeded, dry run or not, exit code | "sent", "deployed" or "done" on a log that shows only a dry run, a failed call, or some of several calls failing with no count given; "all five" on 3 of 5; a report on such a log that doesn't say so |
 | [`corroboration@1`](corroboration.md) | a sourcing line for one fact | the source register: sources on file, and the independent origins they trace to | "independently confirmed", "corroborated" or "three separate reports" on a register that counts one independent origin; more independent sources than the register counts; sources given side by side on one origin with nothing said of how they depend |
+| [`forecast_call@1`](forecast-call.md) | a line on how a forecast compared with what happened | the forecast ledger: what was sealed before the outcome, at what probability, and what was entered afterwards | "we called it" or "our forecast proved accurate" with nothing sealed beforehand, or on a sealed forecast that put what happened under 50 %; a late entry given as the forecast |
 
 `GET /api/graph/claim-policies` lists them with what each reads, refuses and stands down
 (`profiles.describe_claim_policies()`).
@@ -40,7 +41,7 @@ curator.investigation("Is the new model better than the baseline?", "Report how 
    relaxed only for a result of its own shape that the instrument produced. `baseline_comparison@1` relaxes one: a
    count over every seed the instrument ran is the whole set, not a sample. `done_claim@1` relaxes four, all for
    the instrument's count of the task's own calls; its page lists them. `corroboration@1` relaxes one: the sources on the
-   instrument's register are the whole set, so "all carrying the same wire report" needs no count.
+   instrument's register are the whole set, so "all carrying the same wire report" needs no count. `forecast_call@1` relaxes none.
 6. **Pinned when the investigation is created.** The ids are in the investigation's body, so the record says what
    its claims were held to. An unknown id is refused. A revision cannot add or remove one: a policy added later
    would leave claims already accepted beside a check they were never held to.
