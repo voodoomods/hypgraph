@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **"Not yet proven" denies "proven".** "Yet" was a clause break wherever it stood, so the "not" before it
+  never reached the word after it, and "the property is not yet proven" was read as asserting "proven". After a
+  negator ("not yet", "n't yet", "not as yet") and before "to" ("has yet to be proven") it is no longer a break,
+  and "yet to" is a denial. "Fast, yet it always fails" and "not exhaustive, yet the property is proven" are read
+  as before. Looser only.
+  - **Measured** (preregistered, gpt-oss-20b, blind labels, fresh seeds; the same round as the "proof" change, the
+    same seeds on main and on this change). Every line filed alone (318): true refused 107 of 292 on main and 106
+    with it; false accepted 16 of 23 on both, none newly. Live: honest lines refused 25 and 25, false lines
+    published 3 and 5 of 24 (within the bar of main + 2). On its own the change moves little here, because the
+    same lines are also refused for "proof obligations"; with both changes true refused falls to 27 of 292 and
+    live honest refusals from 25 to 0.
+  - **Existing records** (`dev/corpus_regress.py`, main against this change over 6,837 records): nothing moves.
+  - Tests: `tests/test_not_yet_negates.py`.
+
 ## 0.8.12 — 2026-11-19: claim policies, checks on one kind of sentence beside any profile
 
 No change to the bundle format. One new kind of pin and three policies (#189, #192–#194).
