@@ -148,7 +148,8 @@ _EVERY = re.compile(r"\b(?:all|every|each|both|entire(?:ly)?|whole|fully|in\s+fu
 _EXCEPT = re.compile(r"\b(?:except|apart\s+from|other\s+than|aside\s+from|all\s+but|but\s+not|not\s+all)\b", re.I)
 # the sentence says the run changed nothing
 _SAYS_DRY = re.compile(r"\bdry[\s_‐‑-]?run|\bsimulat\w*|\bpreview\w*|\brehears\w*|\bplan(?:ned)?[\s‐‑-]only|"
-                       r"\bplan\s+(?:mode|was|only)|\bvalidat(?:e|ed|ion)[\s‐‑-]only|\bcheck\s+mode|\btest\s+mode|"
+                       r"\bplan\s+(?:mode|was|only|ran|run|executed|generated|reviewed|completed|succeeded)\b|"
+                       r"\bvalidat(?:e|ed|ion)[\s‐‑-]only|\bcheck\s+mode|\btest\s+mode|"
                        r"\bno[\s‐‑-]op\b|\bwhat[\s‐‑-]if\b|\bmock(?:ed)?\b|\bnot\s+(?:a\s+)?real\b|"
                        r"\bwithout\s+(?:making\s+)?(?:any\s+)?(?:actual|real)\b", re.I)
 # the sentence says some of it failed
@@ -235,6 +236,18 @@ _WHOLE_TASK_DONE = re.compile(r"\b(?:task|job|work|request|operation|assignment|
                               r"(complete|completed|done|finished|carried\s+out)\b(?!\s+(?:with|for|on|in|only)\b)", re.I)
 
 
+# nothing needed doing: "no changes were necessary", "there were no pending changes to apply", "no further action is
+# needed", "already up to date". On a log that shows the action was not carried out, that is done said another way: the
+# log shows what was run, not that nothing was left to do
+_NOTHING_NEEDED = re.compile(
+    r"\bno\s+(?:(?:further|more|additional|other)\s+)?(?:\w+\s+)?(?:changes?|actions?|migrations?|updates?|work|"
+    r"steps?|fix(?:es)?)\s+(?:(?:were|was|is|are)\s+)?(?:necessary|needed|required|pending|outstanding|remaining)\b|"
+    r"\bno\s+(?:pending|outstanding|remaining)\s+\w+|\bnothing\s+(?:(?:was|is|more|further|else)\s+)*"
+    r"(?:needed|required|necessary|left\s+to|to\s+(?:do|apply|change|migrate|send|deploy|update))\b|"
+    r"\balready\s+(?:up[\s‐‑-]to[\s‐‑-]date|current|in\s+place|applied|done|complete)\b|\bup[\s‐‑-]to[\s‐‑-]date\b|"
+    r"\bnot\s+(?:necessary|needed|required)\b|\bunnecessary\b", re.I)
+
+
 def says_shortfall(stmt: str, x: dict) -> bool:
     """Does the sentence say the action was not (or not fully) carried out: that it was a dry run, that it failed,
     how far it got, or that it hasn't happened?"""
@@ -279,6 +292,16 @@ def done_issues(stmt: str, logs: list[dict | None], own_log: bool = False) -> li
                         f"'{whole.group(1).lower()}' is asserted of the whole task, but the log it rests on recorded "
                         f"{what} — say what was carried out and what was not, and leave the task open",
                         fix="drop the word for the whole task; say what the log recorded", words=[whole.group(1)])]
+    unneeded = _NOTHING_NEEDED.search(stmt or "")
+    if unneeded and not L.interrogative(stmt):
+        what = "only a dry run" if x["state"] == "dry" else f"{k:g} of {n:g} real {calls} succeeded"
+        said_so = re.sub(r"\s+", " ", unneeded.group(0).lower())
+        return [Problem("DONE_PARTIAL" if x["state"] == "partial" else
+                        "DONE_ON_DRY_RUN" if x["state"] == "dry" else "DONE_CONTRADICTED",
+                        f"'{said_so}' says nothing was left to do, but the log it rests on recorded {what} — the log "
+                        "shows what was run, not that nothing needed doing",
+                        fix="say what the log recorded, and that the action has not been carried out",
+                        words=[said_so])]
     if x["state"] in ("dry", "failed"):
         words = [w for w, _e, counted in said if not counted]     # "0 of 1 real calls succeeded" is the count
     if not words:
