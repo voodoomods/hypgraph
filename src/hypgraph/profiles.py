@@ -29,6 +29,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import derive as D
+from . import done_claim as O
 from . import evaluation as E
 from . import language as L
 from .checks import Problem
@@ -496,6 +497,19 @@ BASELINE_COMPARISON = _add_policy(ClaimPolicy(
 # evaluation@1 is exactly scientific@2 with this policy: a frozen profile, kept as a name for the pair
 assert EVALUATION.validators == SCIENTIFIC2.validators + BASELINE_COMPARISON.validators
 
+DONE_CLAIM = _add_policy(ClaimPolicy(
+    "done_claim", 1,
+    "A status report on an action an agent carried out with a tool. A completion word ('sent', 'deployed', "
+    "'done') is held to the instrument's log of a real call that succeeded: not a dry run, not a failed call, and "
+    "with the count when only some of the calls succeeded. A report on a log that shows a shortfall has to say so.",
+    reads="a result that is the harness's log of the action: how many real calls the task needed and how many "
+          "succeeded (calls_succeeded as k of n), whether a real call was made at all (calls_attempted, or a flag "
+          "such as dry_run, preview or validate_only), and the exit code when there is one",
+    refuses=("DONE_ON_DRY_RUN", "DONE_CONTRADICTED", "DONE_PARTIAL", "SHORTFALL_UNSAID", "DONE_WITHOUT_LOG"),
+    validators=O.VALIDATORS,
+    relaxes=O.RELAXES,
+))
+
 
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
@@ -733,6 +747,8 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
         out += E.win_issues(stmt, [s.nodes[r]["body"] for r in results])
     if "tuning_split_labelled" in held:
         out += E.tuning_issues(stmt, [s.nodes[r]["body"] for r in results])
+    if "done_held_to_log" in held:
+        out += O.done_issues(stmt, _action_logs(s, results), _own_action_log(s, results))
     if p and p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
@@ -870,6 +886,47 @@ def _from_instrument(s: D.Snap, rid: str) -> bool:
 
 
 _TEST_COUNT = re.compile(r"test|spec|check|suite", re.I)
+
+
+def _action_logs(s: D.Snap, results: list[str]) -> list[dict | None]:
+    """The instrument's action logs among these results, read as done_claim@1 reads them."""
+    return [O.log(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)]
+
+
+def _own_action_log(s: D.Snap, results: list[str]) -> bool:
+    """Does the claim rest on an action log that is not the instrument's: one its author filed?"""
+    return any(O.log(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r))
+
+
+def own_count(s: D.Snap, inv: str, m: dict, rv: dict) -> bool:
+    """Under done_claim@1: is this bound count the instrument's count of the real calls the task needed? A status
+    report on the task is about that count, whatever the count is named."""
+    if "done_held_to_log" not in held_to(s, inv):
+        return False
+    rid = m.get("result")
+    if not rid or rid not in s.nodes or not _from_instrument(s, rid):
+        return False
+    x = O.log(s.nodes[rid]["body"])
+    k, n = rv.get("k"), rv.get("n")
+    if not x or not isinstance(k, (int, float)) or isinstance(k, bool) or not isinstance(n, (int, float)):
+        return False
+    return (x["k"], x["n"]) == (float(k), float(n))
+
+
+def count_speaks_for_claim(s: D.Snap, inv: str, stmt: str, m: dict, rv: dict) -> bool:
+    """Under done_claim@1, the instrument's count of the real calls a task needed is the whole set when it is 0 or
+    all of them: \"nothing was sent\" on 0 of 1 real calls, \"sent to all five contacts\" on 5 of 5. Elsewhere a
+    count is read as about a sentence only when its name shares a word with it."""
+    return O.census(rv) and own_count(s, inv, m, rv)
+
+
+def causal_is_the_logs(s: D.Snap, inv: str, stmt: str, support: list[str]) -> bool:
+    """Under done_claim@1, a reason given for a failure the instrument's log records (\"failed due to permission
+    denied\") is the log's own error line, not a causal claim that needs an experiment."""
+    if "done_held_to_log" not in held_to(s, inv):
+        return False
+    return O.reason_is_the_logs(stmt, _action_logs(s, [x for x in support if x in s.nodes
+                                                       and s.nodes[x]["type"] == "result"]))
 
 
 def census_count(s: D.Snap, inv: str, stmt: str, m: dict, rv: dict) -> bool | frozenset:

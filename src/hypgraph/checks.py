@@ -2106,7 +2106,8 @@ def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: lis
                            "what it counts as the count does, or state it ('in k of n')" if named and not seen else ""),
                         fix="state the count instead: 'in k of n trials'", words=words)]
     about = L.content_words(stmt)
-    relevant = [x for x in exact if L.content_words(f"{x[0].get('name', '')} {x[0].get('key', '')}") & about]
+    relevant = [x for x in exact if x[0].get("_about")
+                or L.content_words(f"{x[0].get('name', '')} {x[0].get('key', '')}") & about]
     if not relevant:
         names = ", ".join(repr(x[0].get("name") or x[0].get("key")) for x in exact)
         return [Problem("ABSOLUTE_UNRELATED_COUNT",
@@ -3421,13 +3422,17 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
             census = profiles.census_count(s, inv, clean, m, rv)
             if census:
                 flags["_census"] = census
+            if profiles.count_speaks_for_claim(s, inv, clean, m, rv):    # done_claim@1: the task's own calls
+                flags["_census"], flags["_about"] = profiles.O.CENSUS_WORDS, True
             flagged.append((dict(m, **flags) if flags else m, rv))
         problems += _absolutes(clean, scope, body, flagged)
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
             problems += _unreached(clean, bound)
     if kind not in ("lead", "convention"):
+        from . import profiles as _profiles
         problems += _comparisons(s, clean, bound, support)
-        problems += _causal(s, clean, support)
+        if not _profiles.causal_is_the_logs(s, inv, clean, support):
+            problems += _causal(s, clean, support)
         problems += _source_contradicts(s, clean, support)
     problems += _exclusion(s, clean, kind, support, bound)
     if kind == "finding":
