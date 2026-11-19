@@ -17,9 +17,11 @@
     never stands down a profile's check, and what it stands down in the kernel is declared. Pinned when the
     investigation is created (a revision cannot add or remove one), versioned and frozen as profiles are. An
     unknown id is refused.
-  - **No existing record moves.** `dev/corpus_regress.py`, main against this change over 5,059 records: nothing
-    read differently, no refusal, claim or result moved. No check reads anything differently; the change is where
-    a check can be pinned.
+  - **No existing record moves.** `dev/corpus_regress.py`, main against this change over 5,377 records (67,184
+    texts, 27,141 logged refusals, 26,643 live claims, 43,585 live results): nothing moved. And every labelled
+    line of the rounds the checks were measured in (1,193 lines), filed alone under the profile, under
+    `scientific@2` with the policy and under the policy alone, gets the same verdict and the same codes each
+    way. No check reads anything differently; the change is where a check can be pinned.
   - New: `claim_policies` on an investigation; `profiles.CLAIM_POLICIES`, `held_to`, `pinned`,
     `describe_claim_policies`; `GET /api/graph/claim-policies`. Docs: `docs/claim-policies/`.
     Tests: `tests/test_claim_policies.py`.
