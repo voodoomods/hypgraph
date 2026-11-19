@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Docs: `evaluation@1` explained by example.** The README's profile table gives the profile its stages and says
+  what it refuses in plain terms; `docs/workflows/evaluation.md` opens with one evaluation result and seven result
+  lines filed against it, each with the record's answer word for word. `tests/test_evaluation_docs.py` files every
+  line of that table and fails if the page and the engine disagree. No behaviour changes.
+
 ## 0.8.11 — 2026-11-18: "beats the baseline" is held to the split it is said of
 
 No change to the bundle format. One new profile, two fixes to what the record says back, and a flag for the

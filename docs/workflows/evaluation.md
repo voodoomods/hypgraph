@@ -9,52 +9,77 @@ best seed. The failure it guards against is the oldest one in the field: the spl
 
 ## What it is
 
-`evaluation@1` is `scientific@2`, unchanged, with checks on what a claim says about a model and a baseline. The
-stages, the gates, invalidation and completion are the scientific workflow's (see `scientific.md`). Pin it on an
-investigation with `"profile": "evaluation@1"`. No other profile version changes.
+`evaluation@1` is `scientific@2` with one addition: checks on a claim that compares a model with a baseline. The
+stages, the gates, invalidation and completion are the scientific workflow's, unchanged (see
+[scientific.md](scientific.md)). Pin it on an investigation with `"profile": "evaluation@1"`. No other profile
+version changes.
 
-## What a result holds
+The addition is needed because the scientific checks confirm that a claim's numbers are the result's numbers, not
+which side those numbers favour. "The new model beats the baseline" can bind every score of an evaluation the
+baseline won, and it goes in under `scientific@2`.
 
-Scores by key. The profile reads three things from a key:
+## An example
 
-- **the split:** `test_`, `holdout_`, `held_out_`, `oos_`, `unseen_` are held out; `val_`, `validation_`, `dev_`,
-  `train_`, `tuning_`, `in_sample_` are tuning splits;
-- **the side:** a key naming `baseline`, `benchmark`, `production`, `current`, `incumbent`, `reference`,
-  `control`, `previous` or `old` is the other side; any other is the model;
-- **the metric:** what is left. `test_auc_model` and `test_auc_baseline` are one held-out pair.
-
-And the result says which way is better: `higher_is_better: true` (or `false`, or `lower_is_better`). A count over
-seeds or folds is a k-of-n value (`test_seeds_ahead: {"k": 1, "n": 5}`).
-
-A claim that compares the two sides binds the scores it speaks of, as any comparison claim does.
+The evaluation harness files one result. On validation the model leads, 0.84 to 0.82. On the test split the
+baseline leads, 0.81 to 0.79, and the model is ahead on 1 of 5 seeds.
 
 ```json
 {"val_auc_model": 0.84, "val_auc_baseline": 0.82, "test_auc_model": 0.79, "test_auc_baseline": 0.81,
  "test_seeds_ahead": {"k": 1, "n": 5}, "higher_is_better": true}
 ```
 
+An agent then files a result line as a claim resting on it:
+
+| the line | the record's answer |
+|---|---|
+| "The new churn model beats the baseline." | **Refused**, `WIN_CONTRADICTED`: *'beats' is asserted, but the result it rests on says otherwise on held-out data: auc 0.79 for the model against 0.81 for the other side (higher is better)* |
+| "The new churn model does not beat the baseline on the test split: 0.79 against 0.81." | Accepted. |
+| "The new churn model beats the baseline on all 5 seeds." | **Refused**, `WIN_CONTRADICTED`: *'beats' is asserted of every one, but the result counts 1 of 5 (test_seeds_ahead)* |
+| "The new churn model is ahead of the baseline on 1 of 5 test seeds." | Accepted. A count is not a win. |
+| "The new churn model reaches an AUC of 0.84." | **Refused**, `TUNING_SPLIT_UNLABELLED`: *the statement gives a score from the tuning split (val_auc_model) with no word that it is one and no held-out figure* |
+| "The new churn model reaches a validation AUC of 0.84 and a test AUC of 0.79." | Accepted. |
+| "On validation the new churn model beats the baseline, 0.84 against 0.82." | Accepted. It is true of validation, and it says validation. |
+
+With no profile, or under `scientific@2`, the first line is accepted. On a report where the test split also favours
+the model, `evaluation@1` accepts it too.
+
+## What a result holds
+
+Scores by key. The profile reads three things from a key:
+
+- **The split.** `test_`, `holdout_`, `held_out_`, `oos_` and `unseen_` are held out. `val_`, `validation_`, `dev_`,
+  `train_`, `tuning_` and `in_sample_` are tuning splits.
+- **The side.** A key naming `baseline`, `benchmark`, `production`, `current`, `incumbent`, `reference`, `control`,
+  `previous` or `old` is the other side. Any other key is the model.
+- **The metric.** What is left. `test_auc_model` and `test_auc_baseline` are one held-out pair.
+
+The result also says which way is better: `higher_is_better: true` (or `false`, or `lower_is_better`). A count over
+seeds or folds is a k-of-n value, as `test_seeds_ahead` is above.
+
+A claim that compares the two sides binds the scores it speaks of, as any comparison claim does.
+
 ## What is read as a win
 
 A comparison word said of one side: beats, outperforms, surpasses, improves on, better, superior, ahead, wins; and
-"higher than" / "exceeds" (or "lower than" when lower is better) beside a side. Three things are read with it
-(`evaluation.comparisons`):
+"higher than" or "exceeds" (or "lower than" when lower is better) beside a side. Three things are read with the
+word (`evaluation.comparisons`):
 
 - **Who wins.** The subject of the clause. "The baseline slightly outperforms the new model" is the baseline's win.
 - **On which split.** The split named beside the word, or the one that opens the clause ("On validation, …"). A win
-  with no split named is said of the model, and held-out data is what speaks for the model.
-- **Whether it is a win at all.** Not one: a denial ("does not beat", "never", "not yet superior"), a count
-  ("ahead on 1 of 5 seeds", "2 of the 20 settings beat it"), and one not said of now ("the potential to exceed").
+  with no split named is held to the held-out scores.
+- **Whether it is a win at all.** These are not: a denial ("does not beat", "never", "not yet superior"), a count
+  ("ahead on 1 of 5 seeds", "2 of the 20 settings beat it"), and a win not said of now ("the potential to exceed").
 
 ## Refusals
 
 | code | when |
 |---|---|
-| `WIN_CONTRADICTED` | the scores of the split the win is said of run the other way. The message gives them in words. Also: a win said of every seed ("beats the baseline on all 5 seeds") when the count is short of all. |
-| `WIN_WITHOUT_HELDOUT` | a win with no held-out pair in the supporting results |
-| `WIN_WITHOUT_PAIR` | a lead on a named tuning split where the other side was never scored |
-| `WIN_WITHOUT_DIRECTION` | a win on a pair whose result doesn't say which way is better |
-| `TUNING_SPLIT_UNLABELLED` | a tuning-split score given with no word that it is one, and no held-out figure beside it |
-| `EVAL_WITHOUT_DIRECTION` | an author's result scores a model against a baseline and doesn't say which way is better |
+| `WIN_CONTRADICTED` | The scores of the split the win is said of run the other way; the message gives both scores. Also a win said of every seed ("beats the baseline on all 5 seeds") when the count is short of all. |
+| `WIN_WITHOUT_HELDOUT` | A win, and no supporting result holds a held-out score for both sides. |
+| `WIN_WITHOUT_PAIR` | A lead on a named tuning split where the other side was never scored. |
+| `WIN_WITHOUT_DIRECTION` | A win on a pair whose result doesn't say which way is better. |
+| `TUNING_SPLIT_UNLABELLED` | A tuning-split score given with no word that it is one, and no held-out figure beside it. |
+| `EVAL_WITHOUT_DIRECTION` | An author's result scores a model against a baseline and doesn't say which way is better. |
 
 A win is refused as contradicted only when every pair of its split that says something denies it. A tie is not a
 win. The held-out mean decides; the count of seeds is for the reader.
@@ -82,10 +107,7 @@ published, or filed as a claim and sent back with the refusal up to twice.
 
 - **The gap, before anything was built.** On a failing report the published line was false in 16 of 24 trials with
   no record and 20 of 24 through a record with no profile.
-- **A first version failed its held-out round.** It read the word and not the winner. It refused 13 honest lines in
-  24 trials ("the baseline slightly outperforms the new model") and published 3 false ones (a validation lead the
-  record didn't hold). Nothing was proposed from it.
-- **This version, on seeds it had never seen** (24 per cell):
+- **`evaluation@1`, on seeds it had never seen** (24 per cell):
 
   | on a failing report | no record | no profile | `evaluation@1` |
   |---|---|---|---|
