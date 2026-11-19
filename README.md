@@ -182,6 +182,7 @@ uses, or with none (`"profile": "scientific@2", "claim_policies": ["baseline_com
 
 | [`done_claim@1`](docs/claim-policies/done-claim.md) | an agent's status report on an action it carried out with a tool | *"sent"*, *"deployed"* or *"done"* **when the harness's log shows only a dry run**, a failed call, or some calls of several failing with no count given; *"all five"* on 3 of 5; a report on such a log that doesn't say the action was not carried out, whatever words it uses |
 | [`corroboration@1`](docs/claim-policies/corroboration.md) | a sourcing line for one fact | *"independently confirmed"*, *"corroborated"* or *"three separate reports"* **when the source register counts one independent origin** (one source citing the other, three outlets carrying one wire report); more independent sources than the register counts; sources listed side by side on one origin with nothing said of how they depend |
+| [`flow_counts@1`](docs/claim-policies/flow-counts.md) | a statement on the flow of records through a review | *"all records are accounted for"* **when the screening log leaves records unaccounted for**; *"followed the protocol"* when some records were not handled to its standard and no deviation is named; *"every exclusion has a reason"* when some have none |
 
 On a report where the baseline leads the test split 0.81 to 0.79, *"the new model beats the baseline"* is refused
 with those two scores; *"does not beat the baseline on the test split"*, *"ahead on 1 of 5 seeds"* and a validation

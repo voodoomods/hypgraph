@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 
 from . import derive as D
 from . import corroboration as R
+from . import flow_counts as FL
 from . import done_claim as O
 from . import evaluation as E
 from . import language as L
@@ -526,6 +527,18 @@ CORROBORATION = _add_policy(ClaimPolicy(
     relaxes=R.RELAXES,
 ))
 
+FLOW_COUNTS = _add_policy(ClaimPolicy(
+    "flow_counts", 1,
+    "A statement on the flow of records through a review. 'All records are accounted for', 'the screening followed "
+    "the protocol' and 'every exclusion has a reason' are held to the screening log's counts.",
+    reads="a result that is the screening log of the review: the counts at each stage (records_identified, "
+          "duplicates_removed, records_screened), records unaccounted for (records_unaccounted), and k-of-n counts "
+          "of exclusions with a reason and of records screened to the protocol's standard",
+    refuses=("RECORDS_UNACCOUNTED", "PROTOCOL_CONTRADICTED", "REASONS_INCOMPLETE", "FLOW_WITHOUT_LOG"),
+    validators=FL.VALIDATORS,
+    relaxes=FL.RELAXES,
+))
+
 
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
@@ -768,6 +781,9 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
     if "corroboration_held_to_register" in held:
         out += R.issues(stmt, [R.register(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
                         any(R.register(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
+    if "flow_held_to_log" in held:
+        out += FL.issues(stmt, [FL.log(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                         any(FL.log(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
     if p and p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
@@ -946,6 +962,22 @@ def causal_is_the_logs(s: D.Snap, inv: str, stmt: str, support: list[str]) -> bo
         return False
     return O.reason_is_the_logs(stmt, _action_logs(s, [x for x in support if x in s.nodes
                                                        and s.nodes[x]["type"] == "result"]))
+
+
+def vouched_words(s: D.Snap, inv: str, m: dict, stmt: str = "") -> frozenset:
+    """The absolute words a pinned claim policy vouches for, for a claim that binds a count from the instrument's
+    result of that policy's own shape."""
+    held = held_to(s, inv)
+    rid = m.get("result")
+    if not rid or rid not in s.nodes or not _from_instrument(s, rid):
+        return frozenset()
+    body = s.nodes[rid]["body"]
+    out: frozenset = frozenset()
+    if "flow_held_to_log" in held:
+        x = FL.log(body)
+        if x and FL.clean(x):
+            out |= FL.VOUCHED
+    return out
 
 
 def register_whole_set(s: D.Snap, inv: str, m: dict, rv: dict) -> bool:
