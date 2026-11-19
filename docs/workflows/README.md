@@ -27,7 +27,10 @@ Conventions used in every spec:
 | [trading](trading.md) | preregistered backtesting, risk management | a backtest past its review date, a regime notice |
 | [knowledge](knowledge.md) | source criticism, fact-checking practice | a retracted or superseded source |
 | [optimization](optimization.md) | operations-research practice: model, solve, bound, verify | a changed instance after the solve |
-| [evaluation](evaluation.md) | held-out evaluation against a baseline (the scientific workflow, plus checks on the comparison) | a lead on the split the model was tuned on |
+
+`evaluation@1` has no workflow of its own: it is the scientific workflow with the claim policy
+[`baseline_comparison@1`](../claim-policies/baseline-comparison.md) (see [evaluation.md](evaluation.md)). Checks on
+one kind of claim, with no stages or gates, are [claim policies](../claim-policies/README.md), not workflows.
 
 Each spec ends with its review questions and the decision taken on each (2026-10-26). **Built as hypgraph 0.5.0**
 (`src/hypgraph/workflow.py`, the `@2` profiles in `profiles.py`, `tests/test_workflows.py`): the stages and gates,
