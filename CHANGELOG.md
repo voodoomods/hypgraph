@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+- **`corroboration@1`: "independently confirmed" is held to the source register.** A claim policy for a sourcing
+  line about one fact. Whoever keeps the sources files a register as a result (sources on file, and the
+  independent origins they trace to); the sourcing line is a claim resting on it.
+  - **Refused, on a register that counts one independent origin:** an independence word said of the sources
+    ("independently confirmed", "multiple independent sources", "three separate reports":
+    `INDEPENDENCE_CONTRADICTED`); a confirmation word ("confirmed", "corroborated", "verified":
+    `CONFIRMED_ON_ONE_ORIGIN`); and, with neither word, more than one source given side by side with nothing said
+    of how they depend ("according to the Courier and the Gazette": `DEPENDENCE_UNSAID`).
+  - **Refused on any register:** more independent sources than it counts, or independence said of all of them when
+    some are not (`INDEPENDENT_COUNT_CONTRADICTS`); one of these words resting on a register its author filed
+    (`CORROBORATION_WITHOUT_REGISTER`).
+  - **Not refused:** a denial ("not independently confirmed"), a need ("awaiting confirmation"), the count of one
+    ("the sole independent source"), the dependence said ("cited by", "carrying the same wire report"), one
+    source named, a person's word inside the report ("a named manager confirmed").
+  - **Read only on a source register.** A claim that rests on none is not read, so the policy sits beside any
+    profile without touching "the run confirmed that the parser reads 120 rows".
+  - **What it stands down in the kernel, for a claim that binds the instrument register's count of its sources:**
+    "all", "every", "each" and "both" need no k-of-n count behind them ("all carrying the Northgate Wire report").
+    A few lines in `checks.py` carry the hook and change nothing for a record that does not pin the policy.
+  - **Measured** (preregistered, gpt-oss-20b, blind labels, fresh seeds, 24 per cell). Pushed to "say it's
+    independently confirmed by multiple sources": when the second source cited the first the published line was
+    false in 18 with no record, 21 with no policy and **0** with it; when three outlets carried one wire report,
+    21, 12 and **0**. A reader told what independent means was told more than one independent source confirmed
+    the fact 11, 18 and **0** times, and 14, 8 and **0**. No honest line was refused in 72 trials. When the sources
+    were independent the true line was published 48 times of 48 and accepted as first filed 48 of 48. Each line of
+    the round filed alone (638): false accepted 124 of 145 with no policy and 4 with it; true refused 38 of 483
+    and 8. In a second scenario (supplier due diligence, a JSON register, "put 'corroborated' in the summary") the
+    false line was published 48 times of 48 with no record and 0 of 48 with the policy.
+  - **Named limits:** an unattributed echo is covered by the same checks but not claimed (with no record the model
+    published the false line in 10 of 24, under the bar, and the policy let 3 through: "echoed by an independent
+    post"); the register is taken as given; a list of names is not counted; a false denial; a confirmation word
+    beside the count of one is refused though true; "both the Courier and the Gazette report"; a reader who is not
+    told what independent means still takes "cited by the Gazette" as a second source.
+  - **No existing record moves** (`dev/corpus_regress.py`, main against this change over 6,825 records: the only
+    items that move are in the records of this policy's own rounds, which pin it).
+  - New: `src/hypgraph/corroboration.py`, `profiles.CLAIM_POLICIES["corroboration@1"]`. Docs:
+    `docs/claim-policies/corroboration.md`. Tests: `tests/test_corroboration_v1.py`,
+    `tests/test_corroboration_docs.py`.
 - **`done_claim@1`: "it's done" is held to the tool log.** A claim policy for an agent's status report on an action
   it carried out with a tool. The harness files its log as a result (real calls needed and succeeded, dry run or
   not, exit code); the status line is a claim resting on it.

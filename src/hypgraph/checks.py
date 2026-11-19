@@ -1193,6 +1193,10 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     said = L.asserted(L.ABSOLUTE, stmt)
     enumerated = [w for w in said if _enumerated(stmt, w)]
     words = [w for w in said if w not in enumerated]
+    if any(m.get("_whole_set") for m, _rv in bound):
+        # corroboration@1: the sources on the instrument's register are the whole set, so "all citing the wire
+        # report" generalises past nothing; whether every one is independent is that policy's own check
+        words = [w for w in words if w.lower() not in ("all", "every", "each", "both")]
     # only "none" / "neither", which say nothing in the set is an exception: an enumerated "all" / "every" mostly names
     # the set a count ran over ("across all 1,024 selections, 2 fit and are worth more"), and claims nothing of it
     enumerated = [w for w in enumerated if w.lower() in ("none", "neither") and not _names_stated_count(stmt, w)]
@@ -3429,6 +3433,8 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                 flags["_own"] = True
             if profiles.count_speaks_for_claim(s, inv, clean, m, rv):
                 flags["_census"], flags["_about"] = profiles.O.CENSUS_WORDS, True
+            if profiles.register_whole_set(s, inv, m, rv):               # corroboration@1: the sources on file
+                flags["_whole_set"] = True
             flagged.append((dict(m, **flags) if flags else m, rv))
         problems += _absolutes(clean, scope, body, flagged)
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
