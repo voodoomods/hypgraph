@@ -33,11 +33,27 @@ NAMES = {"val_auc_model": "new model AUC on the validation split",
          "holdout_folds_better": "holdout folds where the new model is better than the production model"}
 
 
+# Every test in this file runs twice: with the released profile pinned, and with what it is a name for, scientific@2
+# and the claim policy baseline_comparison@1. The two have to give the same answer on every case.
+PAIR = {"profile": "scientific@2", "claim_policies": ["baseline_comparison@1"]}
+WAY = "profile"
+
+
+@pytest.fixture(autouse=True, params=["profile", "pair"])
+def _both_ways(request):
+    global WAY
+    WAY = request.param
+    yield
+    WAY = "profile"
+
+
 def filed(values: dict, statement: str, profile: str | None = "evaluation@1", by: str = "lab") -> list[str]:
     """File one claim against a result with these values; the refusal codes, or [] when it goes in."""
     g = Graph(None)
     cur, who = g.author("curator"), g.author(by)
     kw = {"profile": profile} if profile else {}
+    if profile == "evaluation@1" and WAY == "pair":
+        kw = dict(PAIR)
     inv = cur.investigation("Is the new model better than the baseline?",
                             "Report how the new model compares with the baseline.", scope=SCOPE, **kw)["id"]
     run = who.add("run", inv, kind="lab" if by == "lab" else "external", state="succeeded", name="Evaluation run.")

@@ -42,7 +42,8 @@ from . import derive as D
 _NUM = re.compile(r"(?<![\w.,])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\w])")
 # A reader may make these requests while sealed; everything else quotes or summarises what other authors wrote.
 READ_ROUTES = frozenset({"investigations", "orders", "order", "resolve", "subgraph", "node", "why", "impact",
-                         "neighborhood", "search", "events", "verify", "profiles", "profile", "references"})
+                         "neighborhood", "search", "events", "verify", "profiles", "profile", "claim-policies",
+                         "references"})
 POST_ROUTES = frozenset({"check_work"})
 # The problem statement every reader keeps. An investigation says what is being found out; a lead whose framing
 # lived in a second investigation had it sealed, and the numbers that define the problem (1,000,000; 23) then read

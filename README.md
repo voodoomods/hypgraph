@@ -156,7 +156,7 @@ version's hash. The UI draws every pinned record beside yours, verifies each one
 </picture></a></p>
 <p align="center"><sub>Three records, each its own hash chain, joined only by pinned references. <a href="https://hypgraph.com/examples/linked/#view=graph">Open it live</a>.</sub></p>
 
-## One record, six disciplines
+## One record, five disciplines
 
 The rules above are the scientific case written as code. A **profile** says what a domain means by evidence,
 acceptance and done — and, from 0.5, carries the discipline's own **workflow**: the stages a question passes
@@ -171,7 +171,20 @@ record behaves exactly as before. For a new investigation, pin the newest versio
 | `trading@3` | asked → thesised → preregistered → backtested (**out of sample, after costs, trials declared**) → claimed → risk-reviewed → positioned → monitored | a backtest without its costs; *"edge"* without both, or without the configurations tried; **an edge the numbers deny** (a loss, or behind the benchmark, out of sample after costs); an in-sample return not called one; a position without size, stop, review date; any live order | questions settled, a position taken or declined, nothing past its review date |
 | `knowledge@2` | asked → (searched) → sourced (**the passage**, retrieved, kind) → claimed → checked | a claim with no source; a source without its passage | every claim cites a source and is checked |
 | `optimization@3` | posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked | an objective without feasibility; *"optimal"* without a bound, **with a gap the bound leaves open, on an infeasible incumbent**, or on a changed instance; a solve that uses no instance | a feasible bounded incumbent, verified on the current instance |
-| `evaluation@1` | the `scientific@2` stages: asked → conjectured → preregistered (**before** any run) → run → evidenced → claimed → reviewed | everything `scientific@2` refuses, and: *"beats the baseline"* **when the held-out scores have the baseline ahead**, or when no result scores both on held-out data; a validation lead over a baseline that has no validation score; a validation score stated as the result, with no word that it is one | every question settled |
+
+**Claim policies.** A profile says how the work proceeds. A **claim policy** says what one kind of sentence is held
+to, and nothing else: no stages, no gates, no completion. So it is pinned beside whatever profile the investigation
+uses, or with none (`"profile": "scientific@2", "claim_policies": ["baseline_comparison@1"]`).
+
+| claim policy | the sentence it reads | the record refuses |
+|---|---|---|
+| [`baseline_comparison@1`](docs/claim-policies/baseline-comparison.md) | a model said to beat a baseline | *"beats the baseline"* **when the held-out scores have the baseline ahead**, or when no result scores both on held-out data; a validation lead over a baseline that has no validation score; a validation score stated as the result, with no word that it is one |
+
+On a report where the baseline leads the test split 0.81 to 0.79, *"the new model beats the baseline"* is refused
+with those two scores; *"does not beat the baseline on the test split"*, *"ahead on 1 of 5 seeds"* and a validation
+lead that says it is validation go in. A policy is pinned when the investigation is created, is versioned and
+frozen as a profile is, and never stands down a profile's check. The rules, and what is not measured, are in
+[docs/claim-policies](docs/claim-policies/README.md); `GET /api/graph/claim-policies` lists them.
 
 **The stage is derived, never set**: `g.stage(question)` reads it off the record (the first stage whose gate is not
 met, every gate MET / NOT MET with what would meet it); `GET /api/graph/stages`; MCP tool `stage`. A workflow
@@ -194,13 +207,9 @@ same for a pass: `@2` knows seven phrases and asks only that some supporting res
 *"tests pass"*, *"the suite is green"*, *"fixed"*, *"resolved"* and *"ready to merge"*, and refuses them on a run that
 failed with what the run recorded ("26 of 29 passed, exit code 1"). A count of what passed is a count ("26 of 29
 tests pass; 3 still fail" goes in), and *"all tests pass"* on the instrument's complete passing run needs no sample
-bound: every test was run. From 0.8.11, `evaluation@1` is `scientific@2` plus checks on one kind of claim: a model
-compared with a baseline. It reads who is said to win and on which split, and holds the sentence to that split's
-scores. On a report where the baseline leads the test split 0.81 to 0.79, *"the new model beats the baseline"* is
-refused with those two scores; *"does not beat the baseline on the test split"*, *"ahead on 1 of 5 seeds"* and a
-validation lead that says it is validation go in. The keys it reads, every refusal and the measured rounds are in
-[docs/workflows/evaluation.md](docs/workflows/evaluation.md). `scientific@2` and `knowledge@2` are still the newest
-of theirs; every `@1` and `@2` stays available, exactly as it was.
+bound: every test was run. `scientific@2` and `knowledge@2` are still the newest of theirs; every `@1` and `@2`
+stays available, exactly as it was. So does `evaluation@1`, released in 0.8.11 as a profile: it is `scientific@2`
+with the claim policy `baseline_comparison@1`, a test holds the two to the same answer, and new work pins the pair.
 
 `completion(inv)` reports each criterion; `hypgraph serve` exposes `/api/graph/completion` and
 `/api/graph/profiles` (every version). The method each workflow is taken from is quoted, one page each, in
