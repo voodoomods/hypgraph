@@ -213,9 +213,12 @@ def dispatch(g: Graph, method: str, path: str, query: dict | None = None, body: 
             return 200, g.stage(arg, inv)
         if head == "profiles":
             return 200, profiles.describe()
+        if head == "claim-policies":
+            return 200, profiles.describe_claim_policies()
         if head == "profile":
-            pid = str((g.get(inv).get("body") or {}).get("profile") or "") if inv else ""
-            return 200, profiles.view(pid)
+            body = (g.get(inv).get("body") or {}) if inv else {}
+            return 200, profiles.view(str(body.get("profile") or "")) | {
+                "claim_policies": list(body.get("claim_policies") or [])}
         if head == "verify":
             return 200, g.verify_chain()
         if head == "refusals":

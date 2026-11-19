@@ -2,10 +2,35 @@
 
 ## Unreleased
 
-- **Docs: `evaluation@1` explained by example.** The README's profile table gives the profile its stages and says
-  what it refuses in plain terms; `docs/workflows/evaluation.md` opens with one evaluation result and seven result
-  lines filed against it, each with the record's answer word for word. `tests/test_evaluation_docs.py` files every
-  line of that table and fails if the page and the engine disagree. No behaviour changes.
+- **Claim policies: checks on one kind of claim, beside any profile.** A profile says how the work proceeds. A
+  claim policy says what one kind of sentence is held to and has no stages, gates or completion, so an
+  investigation pins it beside whatever profile it uses, or with none:
+  `{"profile": "scientific@2", "claim_policies": ["baseline_comparison@1"]}`.
+  - **`baseline_comparison@1`** is the checks `evaluation@1` was released with in 0.8.11: a model said to beat a
+    baseline is held to the scores of the split it is said of. Under a profile they could not be used in a software
+    or a trading investigation.
+  - **`evaluation@1` is unchanged and stays available.** It is `scientific@2` with the policy. Every test of it
+    now runs both ways (91 cases, the same answer each way), and it is marked in `/api/graph/profiles` with what to
+    pin for new work.
+  - **The rules.** No lifecycle. A policy reads one kind of sentence and holds it to its own shape of result.
+    Order does not matter: the refusals are the kernel's, the profile's and each policy's, taken together. A policy
+    never stands down a profile's check, and what it stands down in the kernel is declared. Pinned when the
+    investigation is created (a revision cannot add or remove one), versioned and frozen as profiles are. An
+    unknown id is refused.
+  - **No existing record moves.** `dev/corpus_regress.py`, main against this change over 5,377 records (67,184
+    texts, 27,141 logged refusals, 26,643 live claims, 43,585 live results): nothing moved. And every labelled
+    line of the rounds the checks were measured in (1,193 lines), filed alone under the profile, under
+    `scientific@2` with the policy and under the policy alone, gets the same verdict and the same codes each
+    way. No check reads anything differently; the change is where a check can be pinned.
+  - New: `claim_policies` on an investigation; `profiles.CLAIM_POLICIES`, `held_to`, `pinned`,
+    `describe_claim_policies`; `GET /api/graph/claim-policies`. Docs: `docs/claim-policies/`.
+    Tests: `tests/test_claim_policies.py`.
+  - Not measured: a policy beside a profile other than the one it was built with. The policy's checks are the
+    same there and that profile's own apply too.
+- **Docs: the baseline comparison explained by example.** Its page opens with one evaluation result and seven
+  result lines filed against it, each with the record's answer word for word. `tests/test_evaluation_docs.py`
+  files every line of that table three ways (the policy beside `scientific@2`, the policy alone, the profile
+  `evaluation@1`) and fails if the page and the engine disagree.
 
 ## 0.8.11 — 2026-11-18: "beats the baseline" is held to the split it is said of
 
