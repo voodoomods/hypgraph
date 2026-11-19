@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.8.13 — 2026-11-19: an unfinished proof can be reported
+
+No change to the bundle format, no new check. Two readings in the kernel that refused honest lines (#196, #197).
+Both can only make it looser.
+- **"Proof" naming a thing.** "12 of 14 proof obligations discharged; 2 remain open" was refused as drawing a proof
+  from 12 of 14. "Proof" before a noun it names, and a proof said missing after the word ("was not attempted"), are
+  no longer read as the absolute.
+- **"Not yet proven."** The clause was split at "yet", so the "not" never reached "proven". "Not yet" and "has yet
+  to be" now deny the word after them.
+
+Measured together in one preregistered round with gpt-oss-20b (BC-250), fresh seeds, the same seeds on each engine,
+labelled blind: on a checker's report that is not a proof, honest lines refused live went from 25 to 0 with both
+changes, and of 292 true lines filed alone 107 were refused before and 27 after. One false line is newly accepted,
+and it gives its own count. The entries below give the rest.
 
 - **"Proof" naming a thing is not a claim that something is proved.** "Proof" is on the list of absolutes
   wherever it stood, so an honest report on an unfinished proof was refused: "12 of 14 proof obligations discharged;
