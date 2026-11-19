@@ -268,6 +268,21 @@ was taken from a changelog without being checked against the code.*
 > them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
 > `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
 
+> **After 0.8.12 (2026-11-19).** No change to the bundle format and no new check. Two kernel readings that refused
+> honest reports on an unfinished proof, found by reading a screen's refused true lines one by one. "Proof" was an
+> absolute wherever it stood, so "12 of 14 proof obligations discharged; 2 remain open" was refused as drawing a
+> proof from 12 of 14 (#196): before a noun it names, and when said missing after the word, it is no longer read.
+> "Yet" was a clause break wherever it stood, so "not yet proven" asserted "proven" (#197): after a negator and
+> before "to" it is not a break. Both are looser only. One preregistered round on fresh seeds, the same seeds on
+> main, on each change and on both, blind labels: every line filed alone (318), true refused 107 of 292 on main,
+> 34 with #196, 106 with #197, 27 with both; false accepted 16 of 23 on main and 17 with both (one line newly, which
+> gives its count: "demonstrated in 9 of 14 proof obligations discharged"); live, honest lines refused 25, 10, 25
+> and 0, and false lines published 3 of 24 on main and 5 on each (the bar was main + 2; the lines are "has been
+> proved", which the kernel with no profile does not read). Over 6,837 existing records #196 moves 30 items, all
+> honest lines about an unfinished proof, and #197 moves nothing. Still refused there and not touched: "all
+> configurations up to 3 processes" with no count, "due to the time limit" as a causal word; each was found at
+> most once among 27,659 logged refusals. #196 and #197 are merged with green CI. Released as 0.8.13.
+
 > **After 0.8.11 (2026-11-19).** No change to the bundle format. Claim policies (#192): checks on one kind of claim
 > that an investigation pins beside whatever profile it uses, or with none (`claim_policies` in the investigation's
 > body; pinned at creation, versioned and frozen; `GET /api/graph/claim-policies`). A policy has no lifecycle, reads
