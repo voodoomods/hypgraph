@@ -95,8 +95,13 @@ HEDGE = re.compile(r"\b(could|might|may|likely|probably|perhaps|possibly|suggest
 _NEGATOR = re.compile(
     r"\b(not|no|nor|neither|cannot|can't|couldn't|doesn't|don't|didn't|isn't|aren't|wasn't|weren't|hasn't|"
     r"haven't|won't|wouldn't|without|fails?|failed|unable|insufficient|unclear|unlikely|whether|"
-    r"(?:no|little|weak|insufficient) evidence)\b", re.I)
-_CLAUSE = re.compile(r"[,;:()\[\]—]|\b(but|although|though|whereas|while|however|yet|except|unless)\b", re.I)
+    r"(?:no|little|weak|insufficient) evidence|yet\s+to)\b", re.I)
+# "yet" breaks a clause when it joins two ("fast, yet it fails"), not when it says not so far: "is not yet proven"
+# and "has yet to be proven" deny the word after them. As a break, "not yet proven" was read as asserting "proven"
+# (profile screen, 2026-11-19: every honest "not yet proven" line on an unfinished proof was refused for it).
+_YET = r"(?<!\bnot\s)(?<!n't\s)(?<!n’t\s)(?<!\bnever\s)(?<!\bas\s)yet(?!\s+to\b)"
+_CLAUSE = re.compile(r"[,;:()\[\]—]|\b(but|although|though|whereas|while|however|" + _YET + r"|except|unless)\b",
+                     re.I)
 _SENTENCE_END = re.compile(r"[.!?]")
 # "cannot conclude / say / rule out …" is an epistemic hedge, not an absolute about the world
 _EPISTEMIC = re.compile(
