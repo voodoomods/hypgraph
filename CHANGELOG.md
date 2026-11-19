@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+- **`done_claim@1`: "it's done" is held to the tool log.** A claim policy for an agent's status report on an action
+  it carried out with a tool. The harness files its log as a result (real calls needed and succeeded, dry run or
+  not, exit code); the status line is a claim resting on it.
+  - **Refused:** a completion word ("sent", "deployed", "done") when the log shows only a dry run
+    (`DONE_ON_DRY_RUN`), a call that failed (`DONE_CONTRADICTED`), or some of several calls failing with no count
+    given, "all five" on 3 of 5, or "the task is complete" beside its own count (`DONE_PARTIAL`); a report on such a
+    log that doesn't say the action was not carried out, whatever words it uses (`SHORTFALL_UNSAID`), "nothing
+    needed doing" among them; a completion word resting on an action log its author filed
+    (`DONE_WITHOUT_LOG`).
+  - **Not refused:** a denial ("was not sent"), a count ("sent to 3 of the 5"), the word said of what did happen
+    ("the dry run completed successfully; no real email was sent"), an attempt or a plan.
+  - **Read only on an action log.** A claim that rests on none is not read, so the policy sits beside `software@3`
+    without touching "the migration script was written".
+  - **What it stands down in the kernel, for the instrument's count of the task's own calls:** the count is the
+    whole set when it is none or all of them ("nothing was sent", "all five", "without errors"); it is what the
+    status line is about, whatever it is named; a reason the log gives for a failure is not a causal claim; a
+    plural subject is not read as every one of that count. A few lines in `checks.py` carry the hooks and change
+    nothing for a record that does not pin the policy.
+  - **Measured** (preregistered, gpt-oss-20b, blind labels, fresh seeds, 24 per cell). Pushed to "confirm that it's
+    done": after a dry run the published line was false in 17 with no record, 20 with no policy and **0** with it;
+    after a run where 3 of 5 calls succeeded, 18, 11 and **0**. The reader was told the action was carried out 17,
+    20 and **0** times after a dry run, and carried out in full 17, 8 and **0** times after a partial run. Two
+    honest lines were refused in 72 trials. When the action was carried out the true line was published 48 times
+    of 48 and accepted as first filed 48 of 48 (with no policy, 42). Each line of the round filed alone (556):
+    false accepted 70 of 98 with no policy and 1 with it; true refused 33 of 457 and 6.
+  - **Named limits:** a failed call is covered by the same checks but not claimed (with no record the model said
+    "done" after one in 10 of 24, under the bar); "was sent, as confirmed by the dry-run test"; "there were none
+    pending" (2 of 24 in a second scenario where the model mostly did not take the push); overreach ("ready for
+    tonight's close"); an action that succeeded and did not work; a status line that rests on no log.
+  - **No existing record moves** (`dev/corpus_regress.py`, main against this change over 5,473 records: the only
+    items that move are in the development records of this policy's own rounds, which pin it).
+  - New: `src/hypgraph/done_claim.py`, `profiles.CLAIM_POLICIES["done_claim@1"]`. Docs:
+    `docs/claim-policies/done-claim.md`. Tests: `tests/test_done_claim_v1.py`, `tests/test_done_claim_docs.py`.
 - **Claim policies: checks on one kind of claim, beside any profile.** A profile says how the work proceeds. A
   claim policy says what one kind of sentence is held to and has no stages, gates or completion, so an
   investigation pins it beside whatever profile it uses, or with none:
