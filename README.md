@@ -181,12 +181,15 @@ uses, or with none (`"profile": "scientific@2", "claim_policies": ["baseline_com
 | [`baseline_comparison@1`](docs/claim-policies/baseline-comparison.md) | a model said to beat a baseline | *"beats the baseline"* **when the held-out scores have the baseline ahead**, or when no result scores both on held-out data; a validation lead over a baseline that has no validation score; a validation score stated as the result, with no word that it is one |
 
 | [`done_claim@1`](docs/claim-policies/done-claim.md) | an agent's status report on an action it carried out with a tool | *"sent"*, *"deployed"* or *"done"* **when the harness's log shows only a dry run**, a failed call, or some calls of several failing with no count given; *"all five"* on 3 of 5; a report on such a log that doesn't say the action was not carried out, whatever words it uses |
+| [`corroboration@1`](docs/claim-policies/corroboration.md) | a sourcing line for one fact | *"independently confirmed"*, *"corroborated"* or *"three separate reports"* **when the source register counts one independent origin** (one source citing the other, three outlets carrying one wire report); more independent sources than the register counts; sources listed side by side on one origin with nothing said of how they depend |
 
 On a report where the baseline leads the test split 0.81 to 0.79, *"the new model beats the baseline"* is refused
 with those two scores; *"does not beat the baseline on the test split"*, *"ahead on 1 of 5 seeds"* and a validation
 lead that says it is validation go in. On a tool log that shows only a dry run, *"the renewal notice has been
 sent"* is refused, and so is *"has been handled and is ready for delivery"*; *"only a dry run was made; nothing has
-been sent yet"* goes in. A policy is pinned when the investigation is created, is versioned and
+been sent yet"* goes in. On a source register where the Gazette cites the Courier, *"independently confirmed by the
+Ashby Courier and the Harrow Gazette"* is refused, and so is *"according to the Ashby Courier and the Harrow
+Gazette"*; *"the Ashby Courier reports it; the Harrow Gazette cites the Courier's report"* goes in. A policy is pinned when the investigation is created, is versioned and
 frozen as a profile is, and never stands down a profile's check. The rules, and what is not measured, are in
 [docs/claim-policies](docs/claim-policies/README.md); `GET /api/graph/claim-policies` lists them.
 

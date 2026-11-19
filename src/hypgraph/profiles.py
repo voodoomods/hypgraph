@@ -29,6 +29,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import derive as D
+from . import corroboration as R
 from . import done_claim as O
 from . import evaluation as E
 from . import language as L
@@ -511,6 +512,21 @@ DONE_CLAIM = _add_policy(ClaimPolicy(
 ))
 
 
+CORROBORATION = _add_policy(ClaimPolicy(
+    "corroboration", 1,
+    "A sourcing line for one fact. An independence word ('independently confirmed', 'multiple independent "
+    "sources') and a confirmation word ('confirmed', 'corroborated', 'verified') are held to the register's count "
+    "of independent origins: sources that cite, carry or repeat one report are one origin.",
+    reads="a result that is the source register for the fact: how many independent origins the sources on file "
+          "trace to (independent_origins, or k independent of n on file) and, when given, how many sources are on "
+          "file (sources_on_file)",
+    refuses=("INDEPENDENCE_CONTRADICTED", "CONFIRMED_ON_ONE_ORIGIN", "INDEPENDENT_COUNT_CONTRADICTS",
+             "DEPENDENCE_UNSAID", "CORROBORATION_WITHOUT_REGISTER"),
+    validators=R.VALIDATORS,
+    relaxes=R.RELAXES,
+))
+
+
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
     if not p:
@@ -749,6 +765,9 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
         out += E.tuning_issues(stmt, [s.nodes[r]["body"] for r in results])
     if "done_held_to_log" in held:
         out += O.done_issues(stmt, _action_logs(s, results), _own_action_log(s, results))
+    if "corroboration_held_to_register" in held:
+        out += R.issues(stmt, [R.register(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                        any(R.register(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
     if p and p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
@@ -927,6 +946,19 @@ def causal_is_the_logs(s: D.Snap, inv: str, stmt: str, support: list[str]) -> bo
         return False
     return O.reason_is_the_logs(stmt, _action_logs(s, [x for x in support if x in s.nodes
                                                        and s.nodes[x]["type"] == "result"]))
+
+
+def register_whole_set(s: D.Snap, inv: str, m: dict, rv: dict) -> bool:
+    """Under corroboration@1: is this bound value the instrument register's count of the sources on file? Those
+    sources are every source there is on the fact, not a sample of them, so "all three carry the same wire report"
+    needs no k-of-n count behind it."""
+    if "corroboration_held_to_register" not in held_to(s, inv):
+        return False
+    rid = m.get("result")
+    if not rid or rid not in s.nodes or not _from_instrument(s, rid):
+        return False
+    x = R.register(s.nodes[rid]["body"])
+    return bool(x) and x["sources"] is not None and R.count(rv) == x["sources"]
 
 
 def census_count(s: D.Snap, inv: str, stmt: str, m: dict, rv: dict) -> bool | frozenset:
