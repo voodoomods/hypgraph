@@ -61,7 +61,7 @@ def test_done_claim1_is_a_claim_policy_and_not_a_profile():
     assert c.validators == operations.VALIDATORS and c.relaxes == operations.RELAXES
     assert "done_claim@1" not in profiles.PROFILES and "operations@1" not in profiles.PROFILES
     d = profiles.describe_claim_policies()["done_claim@1"]
-    assert "DONE_ON_DRY_RUN" in d["refuses"] and len(d["relaxes"]) == 3
+    assert "DONE_ON_DRY_RUN" in d["refuses"] and len(d["relaxes"]) == 4
 
 
 # ── the false line: a completion word on a log that shows no real call succeeded ──

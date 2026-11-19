@@ -47,6 +47,8 @@ RELAXES = (
     "that count is read as what a status report on the task is about, whatever the count is named",
     "a reason the log itself gives for a shortfall ('failed due to permission denied') is not a causal claim that "
     "needs an experiment",
+    "a plural subject is not read as every one of that count: 'refunds completed for four regions; two remain "
+    "pending' is held to the count by this policy's own check",
 )
 
 # ── the log, read from a result's values ──
@@ -241,7 +243,8 @@ def says_shortfall(stmt: str, x: dict) -> bool:
         return True
     if x["state"] == "dry" and _SAYS_DRY.search(s):
         return True
-    return x["state"] == "partial" and _says_count(s, x["k"], x["n"])
+    # some of it: the count, or everything but what is named ("all refunds went through except the US one")
+    return x["state"] == "partial" and (_says_count(s, x["k"], x["n"]) or bool(_EXCEPT.search(s)))
 
 
 def done_issues(stmt: str, logs: list[dict | None], own_log: bool = False) -> list[Problem]:

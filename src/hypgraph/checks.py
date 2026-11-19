@@ -1235,7 +1235,10 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _stated_count_contradicted(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
-        out += _generic_contradicted(stmt, bound)
+        # a claim policy that holds the sentence to this count itself (done_claim@1 and the task's own calls) has
+        # already ruled on it: "Refunds completed for US, LATAM, MEA and UK; EU and APAC remain pending" is not
+        # every refund
+        out += _generic_contradicted(stmt, [(m, rv) for m, rv in bound if not m.get("_own")])
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _majority_at_half(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
@@ -3422,7 +3425,9 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
             census = profiles.census_count(s, inv, clean, m, rv)
             if census:
                 flags["_census"] = census
-            if profiles.count_speaks_for_claim(s, inv, clean, m, rv):    # done_claim@1: the task's own calls
+            if profiles.own_count(s, inv, m, rv):                        # done_claim@1: the task's own calls
+                flags["_own"] = True
+            if profiles.count_speaks_for_claim(s, inv, clean, m, rv):
                 flags["_census"], flags["_about"] = profiles.O.CENSUS_WORDS, True
             flagged.append((dict(m, **flags) if flags else m, rv))
         problems += _absolutes(clean, scope, body, flagged)
