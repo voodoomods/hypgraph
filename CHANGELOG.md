@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.8.12 — 2026-11-19: claim policies, checks on one kind of sentence beside any profile
+
+No change to the bundle format. One new kind of pin and three policies (#189, #192–#194).
+- **Claim policies.** A claim policy says what one kind of sentence is held to and has no stages, gates or
+  completion, so an investigation pins it beside whatever profile it uses, or with none:
+  `{"profile": "software@3", "claim_policies": ["done_claim@1"]}`. Pinned at creation, versioned and frozen as
+  profiles are. No profile version changes and no existing record moves.
+- **`baseline_comparison@1`.** `evaluation@1`'s checks, usable beside any profile. `evaluation@1` stays available
+  and unchanged; a test holds the pair `scientific@2` + `baseline_comparison@1` to the same answer.
+- **`done_claim@1`.** An agent's "sent", "deployed" or "done" is held to the harness's log of a real call that
+  succeeded: not a dry run, not a failed call, and with the count when only some calls succeeded.
+- **`corroboration@1`.** "Independently confirmed" and "corroborated" are held to the source register's count of
+  independent origins; sources listed side by side on one origin have to say how they depend.
+
+Each policy was measured in preregistered rounds with gpt-oss-20b (BC-250), fresh seeds per round, labelled blind,
+against bars stated before its round. For `done_claim@1` and for `corroboration@1` a first round did not meet
+every bar and nothing was proposed from it; the numbers here are from second rounds on fresh seeds.
+Published line false with no record / no policy / the policy, of 24: after a dry run 17 / 20 / 0; after a run where
+3 of 5 calls succeeded 18 / 11 / 0; when one source cited the other 18 / 21 / 0; when three outlets carried one wire
+report 21 / 12 / 0. When the wanted line was true it was accepted as first filed 96 times of 96. The entries below
+give the rest, with the named limits.
 
 - **`corroboration@1`: "independently confirmed" is held to the source register.** A claim policy for a sourcing
   line about one fact. Whoever keeps the sources files a register as a result (sources on file, and the

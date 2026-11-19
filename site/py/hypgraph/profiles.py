@@ -29,6 +29,8 @@ import re
 from dataclasses import dataclass, field
 
 from . import derive as D
+from . import corroboration as R
+from . import done_claim as O
 from . import evaluation as E
 from . import language as L
 from .checks import Problem
@@ -74,6 +76,7 @@ class Profile:
     seats: tuple = ()                                     # suggested seat templates: (name, role, takes...)
     workflow: Workflow | None = None                      # @2 and later: the discipline's workflow (None = kernel defaults)
     typed_claims: bool = False                            # its investigations check claims as typed atoms
+    deprecated: str = ""                                  # what to pin instead; the profile itself never changes
 
     @property
     def id(self) -> str:
@@ -442,6 +445,85 @@ EVALUATION = _add(Profile(
     vocabulary=SCIENTIFIC2.vocabulary, done_when=SCIENTIFIC2.done_when, predicates=SCIENTIFIC2.predicates,
     validators=SCIENTIFIC2.validators + E.VALIDATORS,
     completion=SCIENTIFIC2.completion, seats=SCIENTIFIC2.seats, workflow=SCIENTIFIC2.workflow,
+    deprecated="pin scientific@2 with the claim policy baseline_comparison@1: the same checks, on any profile",
+))
+
+
+# ── Claim policies. A profile says how the work proceeds: stages, gates, review, completion. A claim policy says what
+# one kind of sentence is held to, and nothing else, so it attaches to an investigation beside whatever profile it
+# pins. evaluation@1 showed why: it copies scientific@2's lifecycle field for field and adds three checks on a claim
+# that compares a model with a baseline. As a profile those checks could not be used under software@3 or trading@3.
+#
+# The rules: no lifecycle (no stages, gates, completion, seats); it reads its own shape of result, so a claim that
+# rests on none of that shape is untouched; order does not matter; it never stands down a profile's check; what it
+# stands down in the kernel is declared in ``relaxes`` and applies only to claims on its own shape of result. Pinned
+# when the investigation is created, versioned and frozen as profiles are. ──
+
+@dataclass(frozen=True)
+class ClaimPolicy:
+    name: str
+    version: int
+    about: str
+    reads: str = ""                 # the shape of result it reads, in words: a claim resting on none is untouched
+    refuses: tuple = ()             # the refusal codes it can give
+    validators: tuple = ()          # the names of its checks, as a profile's ``validators`` holds them
+    relaxes: tuple = ()             # kernel readings stood down for claims on its own shape of result, in words
+
+    @property
+    def id(self) -> str:
+        return f"{self.name}@{self.version}"
+
+
+CLAIM_POLICIES: dict[str, ClaimPolicy] = {}
+
+
+def _add_policy(c: ClaimPolicy) -> ClaimPolicy:
+    CLAIM_POLICIES[c.id] = c
+    return c
+
+
+BASELINE_COMPARISON = _add_policy(ClaimPolicy(
+    "baseline_comparison", 1,
+    "A model compared with a baseline. A win is read with who is said to win and on which split, and held to that "
+    "split's scores; a tuning-split score is said to be one; a count over every seed the instrument ran is the whole "
+    "set.",
+    reads="a result that scores a model and a baseline by split: test_<metric>_model and test_<metric>_baseline "
+          "(held out), val_<metric>_… (tuning), with higher_is_better or lower_is_better",
+    refuses=("WIN_CONTRADICTED", "WIN_WITHOUT_HELDOUT", "WIN_WITHOUT_PAIR", "WIN_WITHOUT_DIRECTION",
+             "TUNING_SPLIT_UNLABELLED", "EVAL_WITHOUT_DIRECTION"),
+    validators=E.VALIDATORS,
+    relaxes=("a count over every seed or fold the instrument ran is the whole set, not a sample: 'ahead on all 5 "
+             "seeds' on 5 of 5 needs no sample bound",),
+))
+# evaluation@1 is exactly scientific@2 with this policy: a frozen profile, kept as a name for the pair
+assert EVALUATION.validators == SCIENTIFIC2.validators + BASELINE_COMPARISON.validators
+
+DONE_CLAIM = _add_policy(ClaimPolicy(
+    "done_claim", 1,
+    "A status report on an action an agent carried out with a tool. A completion word ('sent', 'deployed', "
+    "'done') is held to the instrument's log of a real call that succeeded: not a dry run, not a failed call, and "
+    "with the count when only some of the calls succeeded. A report on a log that shows a shortfall has to say so.",
+    reads="a result that is the harness's log of the action: how many real calls the task needed and how many "
+          "succeeded (calls_succeeded as k of n), whether a real call was made at all (calls_attempted, or a flag "
+          "such as dry_run, preview or validate_only), and the exit code when there is one",
+    refuses=("DONE_ON_DRY_RUN", "DONE_CONTRADICTED", "DONE_PARTIAL", "SHORTFALL_UNSAID", "DONE_WITHOUT_LOG"),
+    validators=O.VALIDATORS,
+    relaxes=O.RELAXES,
+))
+
+
+CORROBORATION = _add_policy(ClaimPolicy(
+    "corroboration", 1,
+    "A sourcing line for one fact. An independence word ('independently confirmed', 'multiple independent "
+    "sources') and a confirmation word ('confirmed', 'corroborated', 'verified') are held to the register's count "
+    "of independent origins: sources that cite, carry or repeat one report are one origin.",
+    reads="a result that is the source register for the fact: how many independent origins the sources on file "
+          "trace to (independent_origins, or k independent of n on file) and, when given, how many sources are on "
+          "file (sources_on_file)",
+    refuses=("INDEPENDENCE_CONTRADICTED", "CONFIRMED_ON_ONE_ORIGIN", "INDEPENDENT_COUNT_CONTRADICTS",
+             "DEPENDENCE_UNSAID", "CORROBORATION_WITHOUT_REGISTER"),
+    validators=R.VALIDATORS,
+    relaxes=R.RELAXES,
 ))
 
 
@@ -476,6 +558,38 @@ def profile_of(s: D.Snap, inv: str) -> Profile | None:
     n = s.nodes.get(inv) if inv else None
     pid = (n or {}).get("body", {}).get("profile") if n else None
     return PROFILES.get(str(pid).lower()) if pid else None
+
+
+def validate_claim_policy_ids(ids) -> list[str]:
+    """The ids as stored: known, without repeats, sorted (order never matters). An unknown id is refused at the
+    investigation's creation (fail closed), as an unknown profile is."""
+    if not ids:
+        return []
+    if isinstance(ids, str):
+        ids = [ids]
+    out = set()
+    for x in ids:
+        c = CLAIM_POLICIES.get(str(x or "").strip().lower())
+        if not c:
+            raise KeyError(f"unknown claim policy {x!r}; claim policies: {', '.join(sorted(CLAIM_POLICIES))}")
+        out.add(c.id)
+    return sorted(out)
+
+
+def claim_policies_of(s: D.Snap, inv: str) -> list[ClaimPolicy]:
+    n = s.nodes.get(inv) if inv else None
+    ids = (n or {}).get("body", {}).get("claim_policies") if n else None
+    return [CLAIM_POLICIES[i] for i in (str(x).lower() for x in (ids or [])) if i in CLAIM_POLICIES]
+
+
+def held_to(s: D.Snap, inv: str) -> frozenset:
+    """The names of every check an investigation's claims and results are held to: its profile's and those of each
+    claim policy it pins."""
+    p = profile_of(s, inv)
+    names = set(p.validators) if p else set()
+    for c in claim_policies_of(s, inv):
+        names.update(c.validators)
+    return frozenset(names)
 
 
 def default_done(s: D.Snap, inv: str, target_type: str) -> list | None:
@@ -603,52 +717,58 @@ _PASSES = re.compile(r"\b(passes|passing|all tests pass|works correctly|is fixed
 
 def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) -> list[Problem]:
     p = profile_of(s, inv)
-    if not p:
+    held = held_to(s, inv)
+    if not held and not p:
         return []
     stmt = body.get("statement", "")
     kind = body.get("kind") or "finding"
     out: list[Problem] = []
     results = [x for x in support if x in s.nodes and s.nodes[x]["type"] == "result"]
-    if "edge_needs_oos_costs" in p.validators and L.asserted(_EDGE, stmt):
+    if "edge_needs_oos_costs" in held and L.asserted(_EDGE, stmt):
         ok = any(_has(_vals(s.nodes[r]["body"]), r"oos|out_of_sample|holdout") and
                  _has(_vals(s.nodes[r]["body"]), r"fee|cost|slippage|commission") for r in results)
         if not ok:
             out.append(Problem("EDGE_WITHOUT_OOS_COSTS", "an edge is asserted, but no supporting result carries both an "
                                "out-of-sample measure and the costs charged — in-sample, pre-cost returns are not an edge",
                                fix="support the claim with a result whose values include oos_* and fees/slippage"))
-    if "optimal_needs_bound" in p.validators and L.asserted(_OPTIMAL, stmt):
+    if "optimal_needs_bound" in held and L.asserted(_OPTIMAL, stmt):
         ok = any({"bound", "gap"} & set(_vals(s.nodes[r]["body"])) for r in results)
         if not ok:
             out.append(Problem("OPTIMAL_WITHOUT_BOUND", "'optimal' is asserted, but no supporting result carries a bound "
                                "or gap — an incumbent without a bound is a solution, not an optimum",
                                fix="bind a result with bound or gap, or say 'best found'"))
-    if "pass_held_to_run" in p.validators:
+    if "pass_held_to_run" in held:
         out += _pass_held_to_run(s, stmt, results)
-    elif "pass_needs_instrument" in p.validators and L.asserted(_PASSES, stmt):
+    elif "pass_needs_instrument" in held and L.asserted(_PASSES, stmt):
         ok = any(_instrument_backed(s, r) for r in results)
         if not ok:
             out.append(Problem("PASS_WITHOUT_INSTRUMENT_RUN", "'passes' is asserted, but no supporting result comes "
                                "from an instrument-recorded run — tests must be run by the instrument, not reported",
                                fix="register_run with the test command as code; the instrument's re-run is the evidence — write the "
                 "claim once the re-run has landed (the order's reply names it)"))
-    if "claim_needs_source" in p.validators and kind in ("finding", "exclusion"):
+    if "claim_needs_source" in held and kind in ("finding", "exclusion"):
         cites = any(rel == "cites" and s.nodes.get(b, {}).get("type") == "source" for a, rel, b in pending) or \
             any(_cites_source(s, x) for x in support if x in s.nodes and s.nodes[x]["type"] in ("claim", "result"))
         if not cites:
             out.append(Problem("CLAIM_WITHOUT_SOURCE", "a knowledge claim must cite a source node (citation, url or doi, "
                                "the passage) — the record holds what was read, not what was recalled",
                                fix="graph_add a source, then link the claim with {\"rel\": \"cites\", \"to\": <source>}"))
-    if "optimal_needs_zero_gap" in p.validators:
+    if "optimal_needs_zero_gap" in held:
         out += _optimal_contradicted(s, stmt, results)
-    if "edge_needs_oos_gain" in p.validators:
+    if "edge_needs_oos_gain" in held:
         out += _edge_contradicted(s, stmt, results)
-    if "in_sample_labelled" in p.validators:
+    if "in_sample_labelled" in held:
         out += _in_sample_unlabelled(stmt, body)
-    if "win_held_to_heldout" in p.validators:
+    if "win_held_to_heldout" in held:
         out += E.win_issues(stmt, [s.nodes[r]["body"] for r in results])
-    if "tuning_split_labelled" in p.validators:
+    if "tuning_split_labelled" in held:
         out += E.tuning_issues(stmt, [s.nodes[r]["body"] for r in results])
-    if p.workflow:
+    if "done_held_to_log" in held:
+        out += O.done_issues(stmt, _action_logs(s, results), _own_action_log(s, results))
+    if "corroboration_held_to_register" in held:
+        out += R.issues(stmt, [R.register(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                        any(R.register(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
+    if p and p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
     return out
@@ -787,13 +907,67 @@ def _from_instrument(s: D.Snap, rid: str) -> bool:
 _TEST_COUNT = re.compile(r"test|spec|check|suite", re.I)
 
 
+def _action_logs(s: D.Snap, results: list[str]) -> list[dict | None]:
+    """The instrument's action logs among these results, read as done_claim@1 reads them."""
+    return [O.log(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)]
+
+
+def _own_action_log(s: D.Snap, results: list[str]) -> bool:
+    """Does the claim rest on an action log that is not the instrument's: one its author filed?"""
+    return any(O.log(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r))
+
+
+def own_count(s: D.Snap, inv: str, m: dict, rv: dict) -> bool:
+    """Under done_claim@1: is this bound count the instrument's count of the real calls the task needed? A status
+    report on the task is about that count, whatever the count is named."""
+    if "done_held_to_log" not in held_to(s, inv):
+        return False
+    rid = m.get("result")
+    if not rid or rid not in s.nodes or not _from_instrument(s, rid):
+        return False
+    x = O.log(s.nodes[rid]["body"])
+    k, n = rv.get("k"), rv.get("n")
+    if not x or not isinstance(k, (int, float)) or isinstance(k, bool) or not isinstance(n, (int, float)):
+        return False
+    return (x["k"], x["n"]) == (float(k), float(n))
+
+
+def count_speaks_for_claim(s: D.Snap, inv: str, stmt: str, m: dict, rv: dict) -> bool:
+    """Under done_claim@1, the instrument's count of the real calls a task needed is the whole set when it is 0 or
+    all of them: \"nothing was sent\" on 0 of 1 real calls, \"sent to all five contacts\" on 5 of 5. Elsewhere a
+    count is read as about a sentence only when its name shares a word with it."""
+    return O.census(rv) and own_count(s, inv, m, rv)
+
+
+def causal_is_the_logs(s: D.Snap, inv: str, stmt: str, support: list[str]) -> bool:
+    """Under done_claim@1, a reason given for a failure the instrument's log records (\"failed due to permission
+    denied\") is the log's own error line, not a causal claim that needs an experiment."""
+    if "done_held_to_log" not in held_to(s, inv):
+        return False
+    return O.reason_is_the_logs(stmt, _action_logs(s, [x for x in support if x in s.nodes
+                                                       and s.nodes[x]["type"] == "result"]))
+
+
+def register_whole_set(s: D.Snap, inv: str, m: dict, rv: dict) -> bool:
+    """Under corroboration@1: is this bound value the instrument register's count of the sources on file? Those
+    sources are every source there is on the fact, not a sample of them, so "all three carry the same wire report"
+    needs no k-of-n count behind it."""
+    if "corroboration_held_to_register" not in held_to(s, inv):
+        return False
+    rid = m.get("result")
+    if not rid or rid not in s.nodes or not _from_instrument(s, rid):
+        return False
+    x = R.register(s.nodes[rid]["body"])
+    return bool(x) and x["sources"] is not None and R.count(rv) == x["sources"]
+
+
 def census_count(s: D.Snap, inv: str, stmt: str, m: dict, rv: dict) -> bool | frozenset:
     """Is this bound count a census the statement's pass claim speaks of? Under software@3, the instrument's run of a
     test suite ran every test: "all tests pass" on its 14 of 14 says what was counted, where "all" on 14 trials of
     something open-ended would be a sample. The count must be of tests, complete (k = n), and from an instrument run
     that passed; the statement must make a pass claim."""
     p = profile_of(s, inv)
-    if p and "win_held_to_heldout" in p.validators:      # evaluation@1: every seed the instrument ran is the set
+    if "win_held_to_heldout" in held_to(s, inv):         # the baseline comparison: every seed the instrument ran
         rid = m.get("result")
         if rid and rid in s.nodes and _from_instrument(s, rid) and E.census(m, rv):
             return E.CENSUS_WORDS            # truthy; checks.py adds these words to the ones a census answers
@@ -1020,27 +1194,28 @@ def _a_count(k: str, v: object) -> bool:
 
 def result_issues(s: D.Snap, inv: str, body: dict, pending: list | None = None, author: str = "") -> list[Problem]:
     p = profile_of(s, inv)
-    if not p:
+    held = held_to(s, inv)
+    if not held and not p:
         return []
     v = _vals(body)
     out: list[Problem] = []
     # the instrument's re-execution records what the code printed and asserts nothing: the value validators
     # (feasibility beside an objective, costs beside returns) were asked of the original result
     if author and author == s.policy.instrument:
-        return out + (W_result_issues(p, s, inv, body, pending or []) if p.workflow else [])
-    if "objective_needs_feasibility" in p.validators and "objective" in v and "feasible" not in v:
+        return out + (W_result_issues(p, s, inv, body, pending or []) if p and p.workflow else [])
+    if "objective_needs_feasibility" in held and "objective" in v and "feasible" not in v:
         out.append(Problem("OBJECTIVE_WITHOUT_FEASIBILITY", "a result reports an objective value without saying whether "
                            "the solution is feasible", fix="add values.feasible (true/false) and bound or gap"))
-    if "eval_needs_direction" in p.validators:
+    if "eval_needs_direction" in held:
         out += E.result_issues(body)
     raw = {str(k).lower(): x for k, x in (body.get("values") or {}).items()}
     earned = [k for k in v if re.search(r"return|sharpe|pnl|cagr|profit", k) and not _STAT_OF_RETURNS.search(k)
               and not _a_count(k, raw.get(k)) and not _BENCHMARK.search(k)]
-    if "backtest_needs_costs" in p.validators and earned and not _has(v, r"fee|cost|slippage|commission"):
+    if "backtest_needs_costs" in held and earned and not _has(v, r"fee|cost|slippage|commission"):
         out.append(Problem("BACKTEST_WITHOUT_COSTS", "a backtest result reports returns (" + ", ".join(earned[:4])
                            + ") without the costs it charged — add values.fees (and slippage) to this result; zero "
                            "is a value, absence isn't", fix="add values.fees and values.slippage to the result"))
-    if p.workflow:
+    if p and p.workflow:
         out += W_result_issues(p, s, inv, body, pending or [])
     return out
 
@@ -1163,9 +1338,25 @@ def describe() -> dict:
     return {pid: {"about": p.about, "vocabulary": p.vocabulary, "labels": labels_of(p), "done_when": p.done_when,
                   "predicates": list(p.predicates),
                   "validators": list(p.validators), "completion": list(p.completion),
-                  "seats": [list(x) for x in p.seats], "workflow": _wf(p.workflow)} for pid, p in PROFILES.items()}
+                  "seats": [list(x) for x in p.seats], "workflow": _wf(p.workflow)}
+                 | ({"deprecated": p.deprecated} if p.deprecated else {}) for pid, p in PROFILES.items()}
 
 
-__all__ = ["LABELS", "PRED_DESC", "PROFILES", "Profile", "RECIPES", "Stage", "Workflow", "claim_issues",
-           "completion", "default_done", "describe", "evaluate", "get", "labels_of", "latest", "node_issues",
-           "profile_of", "result_issues", "review_refusal", "validate_profile_id", "view", "workflow_of"]
+def describe_claim_policies() -> dict:
+    """Every claim policy: what it holds, the shape of result it reads, the refusals it can give, and what it stands
+    down in the kernel for claims on that shape."""
+    return {cid: {"about": c.about, "reads": c.reads, "refuses": list(c.refuses), "validators": list(c.validators),
+                  "relaxes": list(c.relaxes)} for cid, c in CLAIM_POLICIES.items()}
+
+
+def pinned(s: D.Snap, inv: str) -> dict:
+    """What an investigation is held to, for a viewer: its profile id and its claim policies."""
+    p = profile_of(s, inv)
+    return {"profile": p.id if p else "", "claim_policies": [c.id for c in claim_policies_of(s, inv)]}
+
+
+__all__ = ["CLAIM_POLICIES", "ClaimPolicy", "LABELS", "PRED_DESC", "PROFILES", "Profile", "RECIPES", "Stage",
+           "Workflow", "claim_issues", "claim_policies_of", "completion", "default_done", "describe",
+           "describe_claim_policies", "evaluate", "get", "held_to", "labels_of", "latest", "node_issues", "pinned",
+           "profile_of", "result_issues", "review_refusal", "validate_claim_policy_ids", "validate_profile_id",
+           "view", "workflow_of"]

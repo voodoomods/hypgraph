@@ -32,7 +32,8 @@ TYPES: dict[str, dict] = {
         "constants": _f("list", 60), "strict_claims": _f("bool"), "keywords": _f("list", 30), "projects": _f("list", 20),
         "typed_claims": _f("bool"),                      # claims assert typed atoms; the word checks stand down
         "doi": _f("str", 120), "note": _f("text", 2000), "legacy_case": _f("str", 80),
-        "profile": _f("str", 60)}},                      # governance profile, e.g. software@1 (profiles.py)
+        "profile": _f("str", 60),                        # governance profile, e.g. software@1 (profiles.py)
+        "claim_policies": _f("list", 10)}},              # checks on one kind of claim, beside any profile (profiles.py)
     "question": {"prefix": "Q", "fields": {"text": _f("text", 1500, True), "why": _f("text", 1500),
                                          "asks": _f("enum:measure")}},
     "hypothesis": {"prefix": "H", "fields": {

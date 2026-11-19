@@ -1,5 +1,5 @@
 {
- "version": "0.8.11",
+ "version": "0.8.12",
  "files": [
   "hypgraph/__init__.py",
   "hypgraph/__main__.py",
@@ -9,12 +9,14 @@
   "hypgraph/checks.py",
   "hypgraph/cli.py",
   "hypgraph/coord.py",
+  "hypgraph/corroboration.py",
   "hypgraph/demos/__init__.py",
   "hypgraph/demos/broad_street.py",
   "hypgraph/demos/cascade.py",
   "hypgraph/demos/dispute.py",
   "hypgraph/demos/linked.py",
   "hypgraph/derive.py",
+  "hypgraph/done_claim.py",
   "hypgraph/evaluation.py",
   "hypgraph/graph.py",
   "hypgraph/language.py",

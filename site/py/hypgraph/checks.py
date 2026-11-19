@@ -1193,6 +1193,10 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     said = L.asserted(L.ABSOLUTE, stmt)
     enumerated = [w for w in said if _enumerated(stmt, w)]
     words = [w for w in said if w not in enumerated]
+    if any(m.get("_whole_set") for m, _rv in bound):
+        # corroboration@1: the sources on the instrument's register are the whole set, so "all citing the wire
+        # report" generalises past nothing; whether every one is independent is that policy's own check
+        words = [w for w in words if w.lower() not in ("all", "every", "each", "both")]
     # only "none" / "neither", which say nothing in the set is an exception: an enumerated "all" / "every" mostly names
     # the set a count ran over ("across all 1,024 selections, 2 fit and are worth more"), and claims nothing of it
     enumerated = [w for w in enumerated if w.lower() in ("none", "neither") and not _names_stated_count(stmt, w)]
@@ -1235,7 +1239,10 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _stated_count_contradicted(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
-        out += _generic_contradicted(stmt, bound)
+        # a claim policy that holds the sentence to this count itself (done_claim@1 and the task's own calls) has
+        # already ruled on it: "Refunds completed for US, LATAM, MEA and UK; EU and APAC remain pending" is not
+        # every refund
+        out += _generic_contradicted(stmt, [(m, rv) for m, rv in bound if not m.get("_own")])
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
         out += _majority_at_half(stmt, bound)
     if not any(p.code == "COUNT_CONTRADICTS" for p in out):
@@ -2106,7 +2113,8 @@ def _absolute(stmt: str, scope: str, body: dict, bound: list, w: str, words: lis
                            "what it counts as the count does, or state it ('in k of n')" if named and not seen else ""),
                         fix="state the count instead: 'in k of n trials'", words=words)]
     about = L.content_words(stmt)
-    relevant = [x for x in exact if L.content_words(f"{x[0].get('name', '')} {x[0].get('key', '')}") & about]
+    relevant = [x for x in exact if x[0].get("_about")
+                or L.content_words(f"{x[0].get('name', '')} {x[0].get('key', '')}") & about]
     if not relevant:
         names = ", ".join(repr(x[0].get("name") or x[0].get("key")) for x in exact)
         return [Problem("ABSOLUTE_UNRELATED_COUNT",
@@ -3421,13 +3429,21 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
             census = profiles.census_count(s, inv, clean, m, rv)
             if census:
                 flags["_census"] = census
+            if profiles.own_count(s, inv, m, rv):                        # done_claim@1: the task's own calls
+                flags["_own"] = True
+            if profiles.count_speaks_for_claim(s, inv, clean, m, rv):
+                flags["_census"], flags["_about"] = profiles.O.CENSUS_WORDS, True
+            if profiles.register_whole_set(s, inv, m, rv):               # corroboration@1: the sources on file
+                flags["_whole_set"] = True
             flagged.append((dict(m, **flags) if flags else m, rv))
         problems += _absolutes(clean, scope, body, flagged)
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
             problems += _unreached(clean, bound)
     if kind not in ("lead", "convention"):
+        from . import profiles as _profiles
         problems += _comparisons(s, clean, bound, support)
-        problems += _causal(s, clean, support)
+        if not _profiles.causal_is_the_logs(s, inv, clean, support):
+            problems += _causal(s, clean, support)
         problems += _source_contradicts(s, clean, support)
     problems += _exclusion(s, clean, kind, support, bound)
     if kind == "finding":
