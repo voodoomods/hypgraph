@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 
 from . import derive as D
 from . import corroboration as R
+from . import proof_claim as PC
 from . import done_claim as O
 from . import evaluation as E
 from . import language as L
@@ -526,6 +527,20 @@ CORROBORATION = _add_policy(ClaimPolicy(
     relaxes=R.RELAXES,
 ))
 
+PROOF_CLAIM = _add_policy(ClaimPolicy(
+    "proof_claim", 1,
+    "A status line on the verification of one property. 'Proved', 'verified' and 'holds' are held to the checker's "
+    "report: every proof obligation discharged, not a bounded check stated without its bound, not a run that gave "
+    "no result.",
+    reads="a result that is the checker's report on the property: whether it is proved (proved), how many proof "
+          "obligations were discharged (obligations_discharged as k of n), and the bound a model checker checked up "
+          "to (bounded_check_up_to_…)",
+    refuses=("PROVED_WITH_OPEN_OBLIGATIONS", "PROVED_ON_BOUNDED_CHECK", "BOUND_UNSAID", "PROVED_WITHOUT_RESULT",
+             "PROOF_WITHOUT_CHECKER"),
+    validators=PC.VALIDATORS,
+    relaxes=PC.RELAXES,
+))
+
 
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
@@ -768,6 +783,9 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
     if "corroboration_held_to_register" in held:
         out += R.issues(stmt, [R.register(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
                         any(R.register(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
+    if "proved_held_to_checker" in held:
+        out += PC.issues(stmt, [PC.report(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                         any(PC.report(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
     if p and p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
@@ -946,6 +964,24 @@ def causal_is_the_logs(s: D.Snap, inv: str, stmt: str, support: list[str]) -> bo
         return False
     return O.reason_is_the_logs(stmt, _action_logs(s, [x for x in support if x in s.nodes
                                                        and s.nodes[x]["type"] == "result"]))
+
+
+def vouched_words(s: D.Snap, inv: str, m: dict, stmt: str = "") -> frozenset:
+    """The absolute words a pinned claim policy vouches for, for a claim that binds a count from the instrument's
+    result of that policy's own shape."""
+    held = held_to(s, inv)
+    rid = m.get("result")
+    if not rid or rid not in s.nodes or not _from_instrument(s, rid):
+        return frozenset()
+    body = s.nodes[rid]["body"]
+    out: frozenset = frozenset()
+    if "proved_held_to_checker" in held:
+        x = PC.report(body)
+        if x and x["state"] == "proved":
+            out |= PC.VOUCHED
+        elif x and x["state"] == "bounded" and PC.says_bound(stmt):
+            out |= PC.VOUCHED_BOUNDED
+    return out
 
 
 def register_whole_set(s: D.Snap, inv: str, m: dict, rv: dict) -> bool:
