@@ -79,6 +79,11 @@
      "kind": "str",
      "max": 60,
      "required": false
+    },
+    "claim_policies": {
+     "kind": "list",
+     "max": 10,
+     "required": false
     }
    }
   },

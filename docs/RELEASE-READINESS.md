@@ -268,6 +268,29 @@ was taken from a changelog without being checked against the code.*
 > them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
 > `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
 
+> **After 0.8.11 (2026-11-19).** No change to the bundle format. Claim policies (#192): checks on one kind of claim
+> that an investigation pins beside whatever profile it uses, or with none (`claim_policies` in the investigation's
+> body; pinned at creation, versioned and frozen; `GET /api/graph/claim-policies`). A policy has no lifecycle, reads
+> one kind of sentence against one shape of result, never stands down a profile's check, and declares what it
+> stands down in the kernel. Three ship. `baseline_comparison@1` is `evaluation@1`'s checks; `evaluation@1` is
+> unchanged and a test holds the pair to the same answer. `done_claim@1` (#193) holds a completion word to the
+> harness's log of a real call that succeeded (`DONE_ON_DRY_RUN`, `DONE_CONTRADICTED`, `DONE_PARTIAL`,
+> `SHORTFALL_UNSAID`, `DONE_WITHOUT_LOG`). `corroboration@1` (#194) holds an independence or confirmation word to
+> the source register's count of independent origins (`INDEPENDENCE_CONTRADICTED`, `CONFIRMED_ON_ONE_ORIGIN`,
+> `DEPENDENCE_UNSAID`, `INDEPENDENT_COUNT_CONTRADICTS`, `CORROBORATION_WITHOUT_REGISTER`). For each of the two new
+> ones a first preregistered round missed the bar on the comparison arm (the model published the false line with no
+> record in 14 of 24, bar 16; `done_claim@1` also missed a reader bar on a question that did not fit a partial run)
+> and nothing was proposed; a second round on fresh seeds met every bar, with blind labels. False published for no record / no policy / the policy, of 24: dry run 17 / 20 / 0,
+> partial run 18 / 11 / 0, a source citing another 18 / 21 / 0, three outlets on one wire report 21 / 12 / 0; honest
+> lines refused 2 in 72 trials and 0 in 72; the true line accepted as first filed 48 of 48 for each. Named limits:
+> a failed call and an unattributed echo are covered but not claimed (with no record the model published the false
+> line in 10 of 24 for each); a dry run named beside a completion word; the register is taken as given; a reader
+> who is not told what independent means still takes "cited by the Gazette" as a second source; no round measured
+> a policy beside another profile (tests cover that the checks are added and neither stands the other down). Over
+> existing records (5,473 when `done_claim@1` was measured, 6,825 for `corroboration@1`) nothing moves outside the
+> policies' own rounds. #189 and #192–#194 are merged with green
+> CI. Released as 0.8.12.
+
 > **After 0.8.10 (2026-11-18).** No change to the bundle format. A new profile, `evaluation@1` (#187): `scientific@2`
 > plus checks on a comparison of a model and a baseline. A profile screen had found that, pushed to "say it beats
 > the baseline" on a report where the new model led on validation only, a model published a false line in 16 of 24

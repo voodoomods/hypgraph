@@ -759,6 +759,13 @@ class Graph:
                             body["profile"] = profiles.validate_profile_id(body["profile"])   # unknown → refused
                         except KeyError as e:
                             raise GraphError(str(e).strip("'\"")) from None
+                    if "claim_policies" in body:
+                        try:
+                            body["claim_policies"] = profiles.validate_claim_policy_ids(body["claim_policies"])
+                        except KeyError as e:
+                            raise GraphError(str(e).strip("'\"")) from None
+                        if not body["claim_policies"]:
+                            del body["claim_policies"]                 # none pinned is the same record as before
                 elif not inv:
                     raise GraphError("inv: which investigation this belongs to (search(type='investigation') lists "
                                      "them)")
@@ -1071,6 +1078,16 @@ class Graph:
                 if not self._may_revise(s, author, n):
                     raise GraphError(f"only {n['created_by']} (its author), a reviewer or the {P.operator} revises "
                                      f"{n['code']}; challenge it, or propose a node that supersedes it")
+                if n["type"] == "investigation" and "claim_policies" in (fields or {}):
+                    # pinned when the investigation is created: a policy added later would leave claims already
+                    # accepted sitting beside a check they were never held to, and one removed would hide what they were
+                    try:
+                        asked = profiles.validate_claim_policy_ids(fields["claim_policies"])
+                    except KeyError as e:
+                        raise GraphError(str(e).strip("'\"")) from None
+                    if asked != list(n["body"].get("claim_policies") or []):
+                        raise GraphError("claim_policies: pinned when the investigation is created; start a new "
+                                         "investigation to hold claims to a different set")
                 try:
                     body = clean_body(n["type"], {**n["body"], **(fields or {})})
                 except GraphError as e:

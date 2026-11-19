@@ -172,7 +172,7 @@ record behaves exactly as before. For a new investigation, pin the newest versio
 | `knowledge@2` | asked → (searched) → sourced (**the passage**, retrieved, kind) → claimed → checked | a claim with no source; a source without its passage | every claim cites a source and is checked |
 | `optimization@3` | posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked | an objective without feasibility; *"optimal"* without a bound, **with a gap the bound leaves open, on an infeasible incumbent**, or on a changed instance; a solve that uses no instance | a feasible bounded incumbent, verified on the current instance |
 
-**Claim policies.** A profile says how the work proceeds. A **claim policy** says what one kind of sentence is held
+**Claim policies** (from 0.8.12). A profile says how the work proceeds. A **claim policy** says what one kind of sentence is held
 to, and nothing else: no stages, no gates, no completion. So it is pinned beside whatever profile the investigation
 uses, or with none (`"profile": "scientific@2", "claim_policies": ["baseline_comparison@1"]`).
 
