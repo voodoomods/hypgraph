@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- **"Proof" naming a thing is not a claim that something is proved.** "Proof" is on the list of absolutes
+  wherever it stood, so an honest report on an unfinished proof was refused: "12 of 14 proof obligations discharged;
+  2 remain open" as drawing a proof from 12 of 14, "2 of 14 proof obligations remaining" as contradicting it, and
+  "an unbounded proof was not attempted" as an absolute with no count. Now "proof" before a noun it names
+  (obligations, assistant, attempt, sketch, of concept) and a proof said missing after the word ("was not
+  attempted", "is incomplete", "pending") are not read as the absolute. "This is proof that…", "the proof is
+  complete" and "…which is proof the property holds" on 12 of 14 are read as before. Looser only.
+  - **Measured** (preregistered, gpt-oss-20b, blind labels, fresh seeds; a checker's report on one property, a
+    record with no profile, the same seeds on main and on this change). Live, on a report that is not a proof:
+    honest lines refused 25 on main and 10 with it; false lines published 3 and 5 of 24 (within the bar of main +
+    2; the kernel does not read "proved"). Every line of the round filed alone (318): true refused 107 of 292 on
+    main and 34 with it; false accepted 16 of 23 and 17. The one false line newly accepted: "Mutual exclusion in
+    the lock service is demonstrated in 9 of 14 proof obligations discharged."
+  - **Existing records** (`dev/corpus_regress.py`, main against this change over 6,837 records): 30 items move, all
+    looser, every one an honest line about an unfinished proof.
+  - Tests: `tests/test_proof_names_a_thing.py`.
+
 ## 0.8.12 — 2026-11-19: claim policies, checks on one kind of sentence beside any profile
 
 No change to the bundle format. One new kind of pin and three policies (#189, #192–#194).
