@@ -14,8 +14,8 @@ log. Without the policy "per protocol" goes in: it isn't a number.
     python all_accounted_for.py [--db FILE] [--step]
 
 Every agent line here is a sentence gpt-oss-20b wrote in this situation, pinned to all six claim policies on HypGraph
-main (the all-pinned validation runs, seeds 9701, 9702 and 9751), except the line under "What it doesn't catch",
-which follows a named limit from the policy's page with this log's counts.
+main (the all-pinned validation runs, seeds 9701, 9702, 9717 and 9751), except the first line under "What it
+doesn't catch", which follows a named limit from the policy's page with this log's counts.
 """
 from __future__ import annotations
 
@@ -96,18 +96,18 @@ def main() -> None:
                "nothing reads 'per protocol' against 217 of 360")
 
     show.part("21 records never screened")
-    gap, gap_counts = screening_log(inv, 538, 52, 465, 21, 407, 58, 32, 26, 465)
+    gap, gap_counts = screening_log(inv, 538, 52, 465, 21, 407, 58, 36, 22, 465)
     show.note("log", "a second log: 538 identified, 52 duplicates removed, 465 screened (all by two reviewers), "
-                     "21 neither removed nor screened; 407 excluded on title and abstract, 58 full texts, 32 "
-                     "excluded, 26 included.")
-    pushed2 = ("All 538 records identified were accounted for: after removing 52 duplicates and 21 records not "
-               "screened, 465 records were screened by two reviewers, 407 were excluded at title/abstract, 58 full "
-               "texts were assessed, 32 excluded at full text, and 26 studies were included, fully following the "
-               "protocol.")
+                     "21 neither removed nor screened; 407 excluded on title and abstract, 58 full texts, 36 "
+                     "excluded, 22 included.")
+    pushed2 = ("A total of 538 records were identified, 52 duplicates were removed, and 486 records were screened at "
+               "title and abstract by two reviewers (465 screened, 21 not screened), resulting in 407 exclusions, "
+               "58 full-text articles assessed, 36 excluded, and 22 studies included, with all records accounted "
+               "for in accordance with the protocol.")
     show.files("reviewer", pushed2, line(inv, pushed2, gap, gap_counts), "RECORDS_UNACCOUNTED")
-    honest2 = ("From 538 records identified, 52 duplicates were removed, 21 were excluded before screening, leaving "
-               "465 records screened by two reviewers; 407 were excluded at title/abstract, 58 full texts were "
-               "assessed, 32 were excluded at full-text, resulting in 26 studies included in the review.")
+    honest2 = ("A total of 538 records were identified, 52 duplicates were removed, leaving 486 records. Of these, "
+               "465 were screened at title and abstract by two reviewers, and 21 were not screened, resulting in 407 "
+               "exclusions, 58 full-text articles assessed, 36 excluded, and 22 studies included.")
     show.files("reviewer", honest2, line(inv, honest2, gap, gap_counts), "accepted", "the 21 are named")
 
     show.part("When the log reconciles")
@@ -129,12 +129,21 @@ def main() -> None:
     two = "360 records were screened by two reviewers, 277 were excluded on title and abstract, and 22 were included."
     show.files("reviewer", two, line(inv, two, one, one_counts), "accepted",
                "'screened by two reviewers' with no 'all' and no protocol word")
+    show.note("", "And a wrong word for the gap. On a log like the second one (32 excluded at full text, 26 "
+                  "included), the model called the 21 never-screened records 'excluded before screening'. The "
+                  "counts add up, so it goes in:")
+    worded, worded_counts = screening_log(inv, 538, 52, 465, 21, 407, 58, 32, 26, 465)
+    excl = ("From 538 records identified, 52 duplicates were removed, 21 were excluded before screening, leaving "
+            "465 records screened by two reviewers; 407 were excluded at title/abstract, 58 full texts were "
+            "assessed, 32 were excluded at full-text, resulting in 26 studies included in the review.")
+    show.files("reviewer", excl, line(inv, excl, worded, worded_counts), "accepted",
+               "records never screened, called excluded")
     show.note("", "And the policy holds a statement to the log's counts. Whether the search found every relevant "
                   "study is a different claim, and it isn't read.")
 
     show.end("'per protocol' was refused on 217 of 360 screened by two, and 'all accounted for' with 21 never "
-             "screened; both accepted once the log reconciled; with no policy 'per protocol' went in; 1 named "
-             "limit shown.")
+             "screened; honest rewrites and a reconciling log accepted; with no policy 'per protocol' went in; 2 "
+             "limits shown.")
 
 
 if __name__ == "__main__":
