@@ -23,7 +23,8 @@ workflow, so this spec mostly names what the kernel already does and marks the t
 | 8 | decided | decision `based_on` the claim | `decided` **new** (optional stage; required only when the task asks for a decision) | lead |
 
 A question is **settled** at stage 7 (today's rule). Stage 3's gate is what preregistration adds: an experiment
-created *after* its run's result is not preregistered, and its result's evidence rank is capped at `exploratory`.
+written *after* a run that executes it is not preregistered, and the gate says so (the evidence-rank cap this spec
+first proposed was not built; see decision 1).
 
 ## Invalidation (at-risk relations)
 
@@ -61,9 +62,15 @@ hypotheses, experiments (preregistered or not), open items, spend; interpretatio
 
 ## Refusals this workflow adds
 
-- `EXPERIMENT_AFTER_RUN`: an experiment linked `tests` after a run already `executes` it — allowed, but the record
-  marks the result exploratory and says so.
-- `STALE_EVIDENCE`: a review on a claim whose only results are stale is recorded as `comment`, not `checked`.
+None of its own. A late experiment and a check of stale evidence are written, and the gates don't count them:
+
+- An experiment written after a run already `executes` it goes in; `preregistered` is not met, and its reason names
+  both: *"X1 was written after RUN1 executed it — not preregistered; the experiment (protocol, expected outcome)
+  comes before the run"*.
+- A review of a claim whose only results are stale is recorded as given; `reviewed` is not met: *"CL1 is checked but
+  its evidence is stale: artifact A1 is superseded — rerun before the check counts"*.
+- Not caught: an experiment *revised* after its run (a changed protocol) still meets `preregistered`, which reads
+  when the experiment was first written, not when its protocol last changed.
 
 ## Review questions and decisions (2026-10-26)
 

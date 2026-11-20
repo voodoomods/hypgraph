@@ -62,9 +62,11 @@ superseded heads, listed as superseded); open requirements.
 ## Refusals this workflow adds
 
 - `TESTS_ON_STALE_HEAD`: a claim of passing bound to a lab result whose diff is superseded.
-- `DIFF_WITHOUT_BASE`: a diff artifact without `base_sha` / `head_sha`.
-- `REVIEW_BY_AUTHOR`: a review of a claim whose diff the reviewer authored (today only the claim's author is
-  blocked; the diff's author should be too).
+- `ARTIFACT_MISSING_FIELDS`: a diff artifact without `meta.base_sha`, `meta.head_sha` and `meta.files` (*"an
+  artifact kind=diff needs meta.base_sha, meta.head_sha, meta.files in this workflow (software@2)"*). The same code
+  covers every typed artifact's required fields.
+- `REVIEW_BY_AUTHOR`: a review of a claim whose diff the reviewer authored. The claim's own author is refused too,
+  as in every record.
 
 ## Review questions and decisions (2026-10-26)
 

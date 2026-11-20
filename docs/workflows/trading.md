@@ -65,8 +65,10 @@ passed without a newer result.
 - `EDGE_WITHOUT_TRIALS`: "edge" on a result that does not state how many configurations were tried.
 - `POSITION_WITHOUT_STOP`: a position decision missing `size`, `stop` or `review_date`.
 - `LIVE_ORDER`: any decision or artifact kind that names a venue order; there is no path, and the refusal says so.
-- `BACKTEST_AFTER_PROTOCOL_EDIT`: an experiment revised after its run (a changed window) — allowed, but the result
-  is re-ranked `in_sample`.
+
+An experiment written after its run is not refused: `preregistered` is not met, and its reason says the experiment
+was written after the run. Not caught: an experiment *revised* after its run (a changed window) still meets
+`preregistered`, which reads when the experiment was first written.
 
 ## `trading@3` (2026-11-15): the values behind the edge words
 
@@ -108,5 +110,5 @@ Measured before it was released, on material written by other seats:
    artifact, which only they write; `uses` then carries it to every position.
 
 Also decided: `still_valid` counts a result as newer only if written after both the review date and the position
-(the evidence a position was taken on doesn't renew it). `BACKTEST_AFTER_PROTOCOL_EDIT` is not a separate refusal:
-`preregistered` already names an experiment written after its run.
+(the evidence a position was taken on doesn't renew it). A separate refusal for a protocol edited after its run was
+not built: `preregistered` already names an experiment written after its run (though not one revised after it).
