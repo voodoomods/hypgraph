@@ -59,6 +59,33 @@ def test_example_runs(script, expect, codes, tmp_path):
         g.close()
 
 
+# A story run on a hypgraph without what it pins (the examples on main run ahead of the last release): it says what
+# is missing and how to run it, and files nothing. The policy is taken out in the child process, as an older install
+# would not have it.
+WITHOUT = """
+import runpy, sys
+from hypgraph import profiles
+profiles.CLAIM_POLICIES.pop({policy!r})
+sys.argv = [{script!r}, "--db", {db!r}]
+runpy.run_path({script!r}, run_name="__main__")
+"""
+
+
+@pytest.mark.parametrize("script,policy", [("we_called_it.py", "forecast_call@1"),
+                                           ("six_policies_one_record.py", "flow_counts@1")])
+def test_story_says_what_it_needs(script, policy, tmp_path):
+    if not (HERE / script).exists():
+        pytest.skip("examples aren't shipped in the sdist")
+    db = tmp_path / "record.hypgraph"
+    r = subprocess.run([sys.executable, "-c", WITHOUT.format(policy=policy, script=script, db=str(db))], cwd=HERE,
+                       env={**os.environ, "PYTHONIOENCODING": "utf-8"}, stdin=subprocess.DEVNULL, capture_output=True,
+                       text=True, encoding="utf-8", timeout=300)
+    assert r.returncode != 0
+    assert f"this story needs {policy}, which hypgraph" in r.stderr, r.stderr[-3000:]
+    assert "pip install -e ." in r.stderr and "Traceback" not in r.stderr
+    assert r.stdout == "" and not db.exists()        # stopped before printing or filing anything
+
+
 HINT = "(--step: press Enter for each part)\n"
 HEAD = re.compile(r"\b[0-9a-f]{16}…|\bn[0-9a-f]{12}\b")     # cover_up prints two chain heads and a node id, new every run
 

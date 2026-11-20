@@ -2,8 +2,8 @@
 Six claim policies on one record (claim policies: all six, beside scientific@2).
 
 One investigation, one team of agents, four instruments: an evaluation harness, a deploy tool's log, a source
-register and a review's screening log. The investigation pins every claim policy HypGraph has. Each agent is pushed
-to say something stronger than its instrument shows.
+register and a review's screening log. The investigation pins all six of HypGraph's claim policies. Each agent is
+pushed to say something stronger than its instrument shows.
 
 A claim policy reads only its own kind of result. So pinning all six changes nothing for a line a policy doesn't
 read: each pushed line is refused by the policy whose result it rests on, with that policy's code, and by no other.
@@ -18,18 +18,19 @@ from __future__ import annotations
 
 from collections import Counter
 
-from hypgraph.profiles import CLAIM_POLICIES
+from hypgraph import profiles
 
 from _show import Show
 
-ALL = sorted(CLAIM_POLICIES)
-OWNER = {code: pid for pid, p in CLAIM_POLICIES.items() for code in p.refuses}
+ALL = ["baseline_comparison@1", "corroboration@1", "done_claim@1", "flow_counts@1", "forecast_call@1",
+       "proof_claim@1"]
 
 
 def main() -> None:
     show = Show("Six claim policies on one record",
                 "One investigation pins all six claim policies. Four agents, four instruments, four pushes. Each line "
-                "is held by the one policy that reads its instrument's result.", __doc__)
+                "is held by the one policy that reads its instrument's result.", __doc__,
+                needs=["scientific@2", *ALL])
     g = show.g
     curator, lab = g.author("curator"), g.author("lab")
     inv = curator.investigation("Is the release ready to announce?",
@@ -99,10 +100,11 @@ def main() -> None:
     show.files("reviewer", flow, line("reviewer", flow, rv, rv_meas), "PROTOCOL_CONTRADICTED")
 
     show.part("Who refused what")
+    owner = {code: pid for pid in ALL for code in profiles.CLAIM_POLICIES[pid].refuses}
     owners = Counter()
     for _statement, codes in show.refused:
         for c in codes:
-            owners[OWNER.get(c, "the kernel")] += 1
+            owners[owner.get(c, "the kernel")] += 1
     for pid in ALL:
         print(f"  {pid:24} {owners.get(pid, 0)} refusal(s)")
     print(f"  {'the kernel':24} {owners.get('the kernel', 0)} refusal(s)")

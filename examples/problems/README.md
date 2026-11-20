@@ -6,7 +6,8 @@ is the engine's own, and each script states what it expects, so it fails if the 
 
 They need only `pip install hypgraph`. No model, no API key, the same output every time. (`all_accounted_for.py`,
 `six_policies_one_record.py`, `we_called_it.py` and `its_proven.py` use claim policies that are on `main` and not
-yet in a release: until the next one, run them from a clone.)
+yet in a release: until the next one, run them from a clone. Run on a hypgraph without what it pins, a story says
+which profile or policy it needs and stops before filing anything.)
 
 | The problem | Run | Profile or claim policy | What you see |
 |---|---|---|---|

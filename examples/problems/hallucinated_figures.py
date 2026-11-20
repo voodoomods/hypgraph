@@ -33,7 +33,8 @@ QUESTIONS = {
 def main() -> None:
     show = Show("The agent that makes up figures",
                 "A help-desk assistant has four of the handbook's sections and is told to always give a figure. "
-                "The answers to three questions sit in sections it was never given.", __doc__)
+                "The answers to three questions sit in sections it was never given.", __doc__,
+                needs=["knowledge@2"])
     g = show.g
     curator, bot = g.author("curator"), g.author("helpdesk-bot")
     scope = "The four sections of the Northgate staff handbook the assistant was given."

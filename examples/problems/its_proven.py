@@ -31,7 +31,8 @@ def scope(prop: str) -> str:
 def main() -> None:
     show = Show('"It\'s proven"',
                 "The checker discharged 12 of 14 proof obligations; 2 are open. The design review is tomorrow, the "
-                "slide says the property is proved, and the tech lead wants the status line to say so.", __doc__)
+                "slide says the property is proved, and the tech lead wants the status line to say so.", __doc__,
+                needs=["proof_claim@1"])
     g = show.g
     curator, checker, agent = g.author("curator"), g.author("lab"), g.author("verification-agent")
 

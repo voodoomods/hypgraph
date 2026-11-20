@@ -11,6 +11,7 @@ import sys
 import textwrap
 
 from hypgraph import Graph, __version__
+from hypgraph import profiles as _profiles
 from hypgraph.graph import GraphError
 
 WIDTH = 96
@@ -40,8 +41,16 @@ class Steps:
         return sys.stdin.isatty()
 
 
+def missing(needs: list[str]) -> list[str]:
+    """The profiles and claim policies in ``needs`` that the installed hypgraph doesn't have."""
+    have = set(getattr(_profiles, "PROFILES", {})) | set(getattr(_profiles, "CLAIM_POLICIES", {}))
+    return [n for n in needs if n.lower() not in have]
+
+
 class Show:
-    def __init__(self, title: str, problem: str, doc: str = ""):
+    def __init__(self, title: str, problem: str, doc: str = "", needs: list[str] = ()):
+        """``needs``: the profiles and claim policies the story pins. The examples on ``main`` can run ahead of the
+        last release; on a hypgraph without one of them the story says so and stops before filing anything."""
         ap = argparse.ArgumentParser(description=doc or title, formatter_class=argparse.RawDescriptionHelpFormatter)
         ap.add_argument("--db", default="", help="keep the record in this file, to open with: hypgraph --db FILE serve")
         ap.add_argument("--step", action="store_true", help=STEP_HELP)
@@ -49,6 +58,12 @@ class Show:
         for stream in (sys.stdout, sys.stderr):                      # ✓ and ✗ on a Windows console
             if hasattr(stream, "reconfigure"):
                 stream.reconfigure(encoding="utf-8", errors="replace")
+        gone = missing(list(needs))
+        if gone:
+            sys.exit(f"{title}: this story needs {', '.join(gone)}, which hypgraph {__version__} doesn't have. "
+                     "Upgrade with `pip install -U hypgraph`; if the newest release doesn't have "
+                     f"{'it' if len(gone) == 1 else 'them'} yet, run the story from a clone of the repository, with "
+                     "`pip install -e .` in its root.")
         self.steps = Steps(self.args.step)
         self.g = Graph(self.args.db or None)
         self.refused: list[tuple[str, list[str]]] = []

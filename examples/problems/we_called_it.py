@@ -32,7 +32,8 @@ def scope(question: str = QUESTION) -> str:
 def main() -> None:
     show = Show('"We called it"',
                 "One forecast was sealed before the meeting, at 35%, and the central bank held its rate. The managing "
-                "partner wants the review to say the team predicted it.", __doc__)
+                "partner wants the review to say the team predicted it.", __doc__,
+                needs=["forecast_call@1"])
     g = show.g
     curator, ledger_keeper, agent = g.author("curator"), g.author("lab"), g.author("forecast-agent")
 

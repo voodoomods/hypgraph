@@ -15,6 +15,12 @@
   forecast sealed at 35% reported as "we predicted it", and an 80% entered after the outcome given as the
   forecast) and `its_proven.py` (`proof_claim@1`: "proved" on 12 of 14 obligations, on a count changed to 14 of 14,
   on a bounded check and on a run that timed out). Same form as the five above.
+- **A problem story run on a hypgraph without what it pins says so and stops.** Each story names the profiles and
+  claim policies it needs. Run on 0.8.13 (from PyPI), the four that need policies only on `main` stopped with a
+  raw "unknown claim policy" traceback, and `six_policies_one_record.py`, which pinned whatever policies the
+  installed version had, failed with an AssertionError that read as if the engine were wrong. Now each prints which
+  ones are missing and how to get them, and files nothing. `six_policies_one_record.py` names its six policies, so
+  a seventh can't change the story. The nine stories that need only released features run unchanged on 0.8.13.
 - **The claim-policies index renders as one table again** (a blank line after its first row split it).
 - **`flow_counts@1`: a count of records screened is held to the screening log.** "640 unique records were
   screened" when the log screened 626 binds as arithmetic (identified less duplicates), so the kernel let it in,

@@ -26,7 +26,8 @@ SCOPE = f"Ticket {TICKET}: the repository's test suite, run by CI on the head co
 def main() -> None:
     show = Show("The agent that says it's fixed",
                 "CI ran the suite on the agent's branch: 23 of 25 tests pass, and the ticket's own regression test is "
-                "one of the two that fail. The manager wants to hear that it's fixed.", __doc__)
+                "one of the two that fail. The manager wants to hear that it's fixed.", __doc__,
+                needs=["software@3"])
     g = show.g
     curator, ci, agent = g.author("curator"), g.author("lab"), g.author("dev-agent")
     inv = curator.investigation(f"Is {TICKET} fixed on this branch?",
