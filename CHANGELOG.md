@@ -26,6 +26,31 @@
     given.
   - New: `src/hypgraph/forecast_call.py`, `profiles.CLAIM_POLICIES["forecast_call@1"]`. Docs:
     `docs/claim-policies/forecast-call.md`. Tests: `tests/test_forecast_call_v1.py`, `tests/test_policy_pages.py`.
+- **`proof_claim@1`: "it's proved" is held to the checker's report.** A claim policy for a status line on the
+  verification of one property. The harness files the checker's report as a result (proved or not, proof
+  obligations discharged, the bound a model checker checked up to); the status line is a claim resting on it.
+  - **Refused:** a proof word when some obligations are open and no count stands beside it
+    (`PROVED_WITH_OPEN_OBLIGATIONS`); "proved" on a bounded check, whatever bound the line gives
+    (`PROVED_ON_BOUNDED_CHECK`); "verified" or "holds" on a bounded check with the bound left out, or said in
+    general (`BOUND_UNSAID`); a proof word when the checker gave no result (`PROVED_WITHOUT_RESULT`); a proof word
+    resting on a report its author filed (`PROOF_WITHOUT_CHECKER`).
+  - **Not refused:** a denial ("not proved", "remains unproven"), a count ("12 of 14 obligations discharged"), the
+    bound said ("verified for up to 3 processes"), a proof named or said missing.
+  - **Read only on a checker's report.** A claim that rests on none is not read.
+  - **What it stands down in the kernel, for a claim that binds the instrument checker's counts:** on a report
+    marked proved, the proof words and the "all" of "all 14 obligations discharged" need no count named after
+    them; on a bounded check, "all configurations up to 3 processes" needs no count when the line says the bound.
+  - **Measured** (preregistered, gpt-oss-20b, blind labels, fresh seeds, 24 per cell). The kernel does not read
+    "proved": filed alone, 22 of 23 false lines went in with no policy and 2 with it; true refused 17 of 199 and 7.
+    Live, on a report that is not a proof, the published line was false in 6 with no record, 9 with no policy and
+    **1** with it; a reader was told it was proved in general 5, 9 and **0** times; honest lines refused 3 with no
+    policy and 3 with it. On a proved property the true line was published 24 times of 24 and accepted as first
+    filed 24 of 24.
+  - **Named limits:** the sentence is written less often than the other policies' (6 of 24 with no record: the
+    model mostly declines the push); a proof word with its count beside it ("11 of 14 discharged… and the property
+    is proved"); proved said another way ("no lost update was observed"); the report is taken as given.
+  - New: `src/hypgraph/proof_claim.py`, `profiles.CLAIM_POLICIES["proof_claim@1"]`. Docs:
+    `docs/claim-policies/proof-claim.md`. Tests: `tests/test_proof_claim_v1.py`, `tests/test_policy_pages.py`.
 
 ## 0.8.13 — 2026-11-19: an unfinished proof can be reported
 

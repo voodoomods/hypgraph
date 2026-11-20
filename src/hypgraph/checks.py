@@ -1193,6 +1193,11 @@ def _absolutes(stmt: str, scope: str, body: dict, bound: list) -> list[Problem]:
     said = L.asserted(L.ABSOLUTE, stmt)
     enumerated = [w for w in said if _enumerated(stmt, w)]
     words = [w for w in said if w not in enumerated]
+    vouched = frozenset().union(*(m.get("_vouched") or frozenset() for m, _rv in bound))
+    if vouched:
+        # a claim policy's own instrument result settles these words (a checker's PROVED, a log that reconciles)
+        words = [w for w in words if w.lower() not in vouched]
+        enumerated = [w for w in enumerated if w.lower() not in vouched]
     if any(m.get("_whole_set") for m, _rv in bound):
         # corroboration@1: the sources on the instrument's register are the whole set, so "all citing the wire
         # report" generalises past nothing; whether every one is independent is that policy's own check
@@ -3435,6 +3440,9 @@ def claim_issues(s: Snap, body: dict, support: list[str], inv: str) -> list[Prob
                 flags["_census"], flags["_about"] = profiles.O.CENSUS_WORDS, True
             if profiles.register_whole_set(s, inv, m, rv):               # corroboration@1: the sources on file
                 flags["_whole_set"] = True
+            vouched = profiles.vouched_words(s, inv, m, clean)           # a claim policy's own instrument result
+            if vouched:
+                flags["_vouched"] = vouched
             flagged.append((dict(m, **flags) if flags else m, rv))
         problems += _absolutes(clean, scope, body, flagged)
         if not any(p.code == "COUNT_CONTRADICTS" for p in problems):
