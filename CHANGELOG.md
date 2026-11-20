@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **`flow_counts@1`: a count of records screened is held to the screening log.** "640 unique records were
+  screened" when the log screened 626 binds as arithmetic (identified less duplicates), so the kernel let it in,
+  and so did the policy. Now a count said screened above the log's screened count is refused
+  (`RECORDS_UNACCOUNTED`), and a count said screened by two reviewers or in duplicate above the log's by-two count
+  is refused (`PROTOCOL_CONTRADICTED`). A count after "of" is the whole and is not read; a negated count is not
+  read; a claim that also says "per protocol" gets the code once. `flow_counts@1` is not yet in a release, so it is
+  changed in place.
+  - **Measured** (preregistered, gpt-oss-20b, blind labels, fresh seeds 9800–9823, 24 per cell, the policy
+    before and after at the same seeds). Live: published false 2 and 2, honest refused 2 and 3, true published on
+    a reconciling log 24 and 22 (the other 2 were overreach, accepted by both), first filing accepted 24 and 24 —
+    the live round doesn't separate them. Every statement of the round (453, labels blind to the version) filed on
+    each: false accepted 18 of 80 before and 12 after, no true statement refused after that was accepted before.
+    The two earlier rounds' 412 statements: 18 → 11, none true.
+  - **Existing records** (`dev/corpus_regress.py`, main against the branch, 8,017 records): 3 replayed refusals
+    and 3 live claims moved, all stricter, all false review-flow statements in experiment records ("474 records
+    were screened by two reviewers" where 453 were). Nothing looser.
+  - **Named limits:** a count not said as screened ("leaving 613 records"), counts in words, and the verb first
+    ("we screened 501") are not read.
+  - Changed: `src/hypgraph/flow_counts.py`. Docs: `docs/claim-policies/flow-counts.md`. Tests:
+    `tests/test_flow_counts_v1.py`.
+
 - **README: brought up to date and restructured.** The claim-policies table rendered only its first row (a blank line
   split it); it is one table of the six policies again. Every link is absolute, so the PyPI page resolves them. The
   profiles section states what each current version does and leaves release history to this file. Added: badges, a
