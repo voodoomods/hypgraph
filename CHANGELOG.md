@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Five problem stories for the claim policies** (`examples/problems/`): `its_done.py` (`done_claim@1`: a dry run
+  and three of five deploys reported as done), `independently_confirmed.py` (`corroboration@1`: one wire report in
+  three papers, and a paper citing another, called independent confirmation), `beats_the_baseline.py`
+  (`baseline_comparison@1` beside `scientific@2`: a validation-split lead called beating the baseline),
+  `all_accounted_for.py` (`flow_counts@1`: a screening log called fully accounted for and to protocol) and
+  `six_policies_one_record.py` (all six policies pinned on one investigation; each pushed line refused by the one
+  policy that reads its result, and by no other). Each runs with no model, asserts every refusal code, shows the
+  same pushed sentence accepted with no policy pinned, and ends with a limit. The agents' lines are sentences
+  gpt-oss-20b wrote in runs pinned to all six policies on `main`. Run by `tests/test_problem_examples.py`.
+- **The claim-policies index renders as one table again** (a blank line after its first row split it).
 - **README: brought up to date and restructured.** The claim-policies table rendered only its first row (a blank line
   split it); it is one table of the six policies again. Every link is absolute, so the PyPI page resolves them. The
   profiles section states what each current version does and leaves release history to this file. Added: badges, a

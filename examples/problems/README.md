@@ -1,13 +1,20 @@
 # Problems agents cause, and what the record does about each
 
-Six short, runnable stories. Each takes a failure people meet when they put agents to work, scripts the agent's
+Eleven short, runnable stories. Each takes a failure people meet when they put agents to work, scripts the agent's
 lines, and files every line into a HypGraph record. The agent is scripted. The record is not: every refusal printed
 is the engine's own, and each script states what it expects, so it fails if the engine ever answers differently.
 
-They need only `pip install hypgraph`. No model, no API key, the same output every time.
+They need only `pip install hypgraph`. No model, no API key, the same output every time. (`all_accounted_for.py`
+and `six_policies_one_record.py` use `flow_counts@1`, which is on `main` and not yet in a release: until the next
+one, run them from a clone.)
 
-| The problem | Run | Profile | What you see |
+| The problem | Run | Profile or claim policy | What you see |
 |---|---|---|---|
+| An agent says it's done | `python its_done.py` | `done_claim@1` | "Completed" refused on a dry run and "all five" on three of five; the same sentence accepted once the real call succeeds, and accepted with no policy |
+| "Independently confirmed by multiple sources" | `python independently_confirmed.py` | `corroboration@1` | Three papers carrying one wire report, and a paper citing another, refused as independent confirmation; accepted on two papers' own reporting |
+| "The new model beats the baseline" | `python beats_the_baseline.py` | `scientific@2` + `baseline_comparison@1` | A bare "beats the baseline" refused on a validation-only lead, a lead with no baseline score refused, a held-out win accepted |
+| "All records were accounted for" | `python all_accounted_for.py` | `flow_counts@1` | "Per protocol" refused on 217 of 360 screened by two, "all accounted for" refused with 21 records never screened; accepted once the log reconciles |
+| Six policies on one record | `python six_policies_one_record.py` | all six claim policies | Four pushed lines on four instruments, each refused by the one policy that reads its result and by no other |
 | An agent says it's fixed | `python its_fixed.py` | `software@3` | "Fixed" and "all tests passing" refused on CI's failing run and on the agent's own run; the same sentence accepted once CI is green |
 | An agent makes up figures | `python hallucinated_figures.py` | `knowledge@2` | Three made-up figures refused because no cited passage gives them; "the handbook does not specify" published instead |
 | An agent tells the boss what he wants to hear | `python hit_the_number.py` | scientific (default) | "20% faster" refused on a measured 5.2%, as a figure and as a target met; the measured change goes in |
@@ -46,7 +53,9 @@ them go in. In short:
 - **Words the checks read.** Enthusiasm with no number ("a clear win"), a forecast ("on track to meet the target")
   and synonyms a profile doesn't read ("the cheapest plan" for "optimal", "corrected" for "fixed") go in.
 - **The instrument is trusted.** The record holds an agent to the benchmark, backtest or solve it was given. It
-  doesn't re-run them.
+  doesn't re-run them. A tool log, a source register and a screening log are taken as given too.
+- **A claim policy reads a line by the result it rests on.** "Completed" bound to anything but a tool log is not
+  read by `done_claim@1`. Binding each line to the right instrument's result is the harness's job.
 - **Tamper-evident, not tamper-proof.** A full rewrite of the file is caught only against a head published first.
 
 A scripted agent shows the mechanism, not how often a real model does this. Runs with a real model, with their

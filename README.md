@@ -102,10 +102,12 @@ Other ways to try it:
 - **In the browser.** Try to get a claim past the real engine at [hypgraph.com/play](https://hypgraph.com/play/), or
   watch a multi-agent run in each profile, replayed from its record, at
   [hypgraph.com/examples](https://hypgraph.com/examples/).
-- **Scripted scenarios, no model needed.** Six short stories in
+- **Scripted scenarios, no model needed.** Eleven short stories in
   [examples/problems](https://github.com/voodoomods/hypgraph/tree/main/examples/problems): an agent that says it is
   fixed, one that makes up figures, one that tells the boss what he wants to hear, a backtest that brags, an
-  "optimal" with no proof, and a rogue agent editing the log.
+  "optimal" with no proof, a rogue agent editing the log, and one for each claim policy: a dry run reported as
+  done, one wire report called independent confirmation, a validation-split win called beating the baseline, a
+  screening log called fully accounted for, and all six policies pinned on one record.
 
 ## How a claim is checked
 
