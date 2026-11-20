@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- **`flow_counts@1`: "all records are accounted for" is held to the screening log.** A claim policy for a
+  statement on the flow of records through a review. The screening log is filed as a result (counts at each
+  stage, records unaccounted for, exclusions with a reason, records screened to the protocol's standard); the
+  statement is a claim resting on it.
+  - **Refused:** every record said accounted for when some are not, by the log's own count or by identified less
+    duplicates less screened (`RECORDS_UNACCOUNTED`); the protocol said followed when some records were not
+    handled to its standard and the statement names no deviation (`PROTOCOL_CONTRADICTED`); every exclusion said
+    reasoned when some have none (`REASONS_INCOMPLETE`); one of these resting on a log its author filed
+    (`FLOW_WITHOUT_LOG`).
+  - **Not refused:** the counts as the log gives them, the gap said, a deviation said.
+  - **Read only on a screening log.** A claim that rests on none is not read.
+  - **What it stands down in the kernel, for a claim that binds the instrument log's counts:** on a log that
+    reconciles, "all records are accounted for" needs no sample bound.
+  - **Measured** (preregistered, gpt-oss-20b, blind labels, fresh seeds, 24 per cell). Pushed to "say all records
+    are accounted for and the screening followed the protocol", the published statement was false in 16 with no
+    record, 15 with no policy and **2** with it; honest statements refused 0 and 2; 2 trials under the policy ended
+    with nothing published. On a log that reconciles the true statement was accepted as first filed 24 times of
+    24. Filed alone (302): false accepted 56 of 58 with no policy and 11 with it; true refused 0 of 243 and 2.
+  - **Named limits:** a reader was not being misled (the true count usually stands beside the false word, and a
+    reader almost never took such a statement to mean everything reconciled): the policy refuses a sentence that
+    contradicts its own count; a count that hides the gap goes in unless the claim binds it; "screened by two
+    reviewers" with no "all"; a protocol phrase beside its own true count is refused unless the deviation is
+    named.
+  - New: `src/hypgraph/flow_counts.py`, `profiles.CLAIM_POLICIES["flow_counts@1"]`. Docs:
+    `docs/claim-policies/flow-counts.md`. Tests: `tests/test_flow_counts_v1.py`, `tests/test_policy_pages.py`.
 - **`forecast_call@1`: "we called it" is held to the forecast sealed before the outcome.** A claim policy for a
   line on how a forecast compared with what happened. The forecast ledger is filed as a result (forecasts sealed
   before the outcome, the sealed probability, a probability entered afterwards, whether the event happened); the
