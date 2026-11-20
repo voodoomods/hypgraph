@@ -2103,7 +2103,7 @@ count actually supports and offers the honest sentence.
   type, with claims and decisions named (and spend, if metered). The CLI and MCP print it.
 - **`hypgraph bound K N --exposure X`** and the MCP tool `bound`: what a count supports, before anyone writes "never".
 - A claim's standing carries `bounds`, and `test` for "significantly" claims. Spec draft 2 (§7 rewritten).
-- Credits: made by Nicolas Houghtaling at VoodooMods LLC (README, NOTICE, CITATION.cff, package metadata, site).
+- Credits: made by VoodooMods LLC (README, NOTICE, CITATION.cff, package metadata, site).
 
 ## 0.1.0 — 2026-10-24
 

@@ -150,7 +150,7 @@ def nav_links(current: str, up: str = "../") -> str:
 
 
 FOOTER = """<footer><div class="wrap"><span class="slogan">Don't believe the hype. Test the hyp.</span>
-<span>Made by <a href="https://www.linkedin.com/in/nicolas-houghtaling-b68074147">Nicolas Houghtaling</a> · VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="../disclaimer/">Disclaimer</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>"""
+<span>Made by VoodooMods LLC · Code Apache-2.0 · format &amp; docs CC BY 4.0 · <a href="../disclaimer/">Disclaimer</a> · <a href="https://github.com/voodoomods/hypgraph">GitHub</a></span></div></footer>"""
 
 
 def page(title: str, lede: str, body: str, toc: list[tuple[str, str]], current: str, kicker: str = "hypgraph/1 · draft 1",
