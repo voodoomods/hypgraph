@@ -67,8 +67,9 @@ passed without a newer result.
 - `LIVE_ORDER`: any decision or artifact kind that names a venue order; there is no path, and the refusal says so.
 
 An experiment written after its run is not refused: `preregistered` is not met, and its reason says the experiment
-was written after the run. Not caught: an experiment *revised* after its run (a changed window) still meets
-`preregistered`, which reads when the experiment was first written.
+was written after the run. Not caught under `trading@2` and `@3`: an experiment *revised* after its run (a changed
+window) still meets `preregistered`, which reads when the experiment was first written, and a thesis linked to the
+backtest after it ran counts as preregistered. `trading@4` catches both (below).
 
 ## `trading@3` (2026-11-15): the values behind the edge words
 
@@ -99,6 +100,15 @@ Measured before it was released, on material written by other seats:
 - every logged sentence of the backtest-bragging showcase (gpt-oss-20b) re-filed under `@3`: 9 of 367 move, all on
   trials whose truth is no edge, and no true edge.
 
+## `trading@4` (2026-11-20): preregistration per thesis
+
+`trading@4` is `trading@3` with `preregistered` judging each `tests` link, as `scientific@3` does (see
+[scientific.md](scientific.md#scientific3-2026-11-20-preregistration-per-hypothesis)): a thesis linked to the
+backtest after it ran, or a protocol (windows, costs, configurations) changed after the run, holds the question
+until a new experiment tests it before its run. `trading@1` to `@3` are unchanged. In the existing records, 5 of the
+14 questions that move are trading questions; in two of them the lead wrote a second thesis five to six minutes after
+the quant's backtest ran and linked it to that backtest.
+
 ## Review questions and decisions (2026-10-26)
 
 1. *Will agents report `trials` honestly?* **Required, and checked like any value**: `backtested` and
@@ -111,4 +121,5 @@ Measured before it was released, on material written by other seats:
 
 Also decided: `still_valid` counts a result as newer only if written after both the review date and the position
 (the evidence a position was taken on doesn't renew it). A separate refusal for a protocol edited after its run was
-not built: `preregistered` already names an experiment written after its run (though not one revised after it).
+not built: `preregistered` already names an experiment written after its run (and from `trading@4` one revised
+after it).

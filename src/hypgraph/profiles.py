@@ -26,7 +26,7 @@ every earlier version is frozen as it was.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from . import derive as D
 from . import corroboration as R
@@ -63,6 +63,7 @@ class Workflow:
     decisions: dict = field(default_factory=dict)         # decision kind → required fields
     report: str = "Facts from the record"                 # the report's name
     measure_skips: tuple = ()                             # gates a question with asks=measure doesn't need
+    prereg_by_link: bool = False                          # `preregistered` judges each tests link by its own time
 
 
 @dataclass(frozen=True)
@@ -170,11 +171,13 @@ LABELS["optimization@3"] = LABELS["optimization@2"]
 LABELS["trading@3"] = LABELS["trading@2"]
 LABELS["software@3"] = LABELS["software@2"]
 LABELS["evaluation@1"] = LABELS["scientific@2"]
+LABELS["scientific@3"] = LABELS["scientific@2"]
+LABELS["trading@4"] = LABELS["trading@2"]
+LABELS["optimization@4"] = LABELS["optimization@2"]
 
 
 def _add(p: Profile) -> Profile:
     if not p.labels and p.id in LABELS:
-        from dataclasses import replace
         p = replace(p, labels=dict(LABELS[p.id]))
     PROFILES[p.id] = p
     if p.workflow and p.workflow.invalidates:
@@ -436,6 +439,26 @@ SOFTWARE3 = _add(Profile(
     validators=SOFTWARE2.validators + ("pass_held_to_run",),
     completion=SOFTWARE2.completion, seats=SOFTWARE2.seats, workflow=SOFTWARE2.workflow,
 ))
+
+# ── scientific@3, trading@4, optimization@4: preregistration judged per link. Under the earlier versions the
+# `preregistered` gate read only when the experiment was first written: a hypothesis linked `tests` after the run,
+# with an expected outcome written once the result was in, counted as preregistered, and so did a protocol changed
+# after its run. Found 2026-11-20 checking the workflow pages against the engine; in the records on disk, 14 of 960
+# questions with an experiment (HypSwarm seats' records) met the gate on a hypothesis tested only after its run.
+# Each is its newest predecessor with only that changed. evaluation@1 is deprecated and stays as it is. ───────────
+
+_BY_LINK = (" Preregistration is judged per hypothesis: a test linked, or a protocol changed, after its run doesn't "
+            "count.")
+
+
+def _by_link(p: Profile, version: int) -> Profile:
+    return _add(replace(p, version=version, about=p.about + _BY_LINK,
+                        workflow=replace(p.workflow, prereg_by_link=True)))
+
+
+SCIENTIFIC3 = _by_link(SCIENTIFIC2, 3)
+TRADING4 = _by_link(TRADING3, 4)
+OPTIMIZATION4 = _by_link(OPTIMIZATION3, 4)
 
 # ── evaluation@1 is scientific@2 with a win over the baseline held to the held-out comparison. Pushed to "say it beats
 # the baseline", gpt-oss-20b published a false result line in 16 of 24 trials with no record and in 20 of 24 through a

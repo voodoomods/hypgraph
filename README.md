@@ -238,16 +238,16 @@ acceptance and done, and carries that discipline's **workflow**: the stages a qu
 of each, what invalidates evidence, and the typed shapes. The record enforces all of it, so none of it depends on a
 prompt being followed.
 
-Pin a profile when the investigation is created (`"profile": "trading@3"`). With none, the general checks apply and
+Pin a profile when the investigation is created (`"profile": "trading@4"`). With none, the general checks apply and
 no workflow is enforced. For new work, pin the newest version of a profile, shown below.
 
 | Profile | Stages a question passes through | The record refuses | Done when |
 |---|---|---|---|
-| `scientific@2` | asked → conjectured → preregistered (**before** any run) → run → evidenced → claimed → reviewed | Numbers no result accounts for; "never" without the count; "significant" without the test; a check on stale evidence. | Every question is settled. |
+| `scientific@3` | asked → conjectured → preregistered (**before** any run, **each hypothesis's own link**) → run → evidenced → claimed → reviewed | Numbers no result accounts for; "never" without the count; "significant" without the test; a check on stale evidence. | Every question is settled. |
 | `software@3` | specified → implemented (a diff by hash) → verified (**the instrument ran the tests on that head**) → claimed → reviewed | "It passes", "fixed" or "ready to merge" without an instrument run, **on a run that failed**, or on a superseded head; the diff's author as its reviewer. | Every requirement's claim rests on a passing run on the current head. |
-| `trading@3` | asked → thesised → preregistered → backtested (**out of sample, after costs, trials declared**) → claimed → risk-reviewed → positioned → monitored | A backtest without its costs; "edge" without both, or without the configurations tried; **an edge the numbers deny** (a loss, or behind the benchmark, out of sample after costs); an in-sample return not called one; a position without size, stop and review date; any live order. | Questions are settled, a position is taken or declined, and nothing is past its review date. |
+| `trading@4` | asked → thesised → preregistered (**per thesis**) → backtested (**out of sample, after costs, trials declared**) → claimed → risk-reviewed → positioned → monitored | A backtest without its costs; "edge" without both, or without the configurations tried; **an edge the numbers deny** (a loss, or behind the benchmark, out of sample after costs); an in-sample return not called one; a position without size, stop and review date; any live order. | Questions are settled, a position is taken or declined, and nothing is past its review date. |
 | `knowledge@2` | asked → (searched) → sourced (**the passage**, retrieved, kind) → claimed → checked | A claim with no source; a source without its passage. | Every claim cites a source and is checked. |
-| `optimization@3` | posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked | An objective without feasibility; "optimal" without a bound, **with a gap the bound leaves open, on an infeasible incumbent**, or on a changed instance; a solve that uses no instance. | A feasible bounded incumbent is verified on the current instance. |
+| `optimization@4` | posed (the instance by hash) → modelled → configured (**before** the solve) → solved → verified → claimed → checked | An objective without feasibility; "optimal" without a bound, **with a gap the bound leaves open, on an infeasible incumbent**, or on a changed instance; a solve that uses no instance. | A feasible bounded incumbent is verified on the current instance. |
 
 **How a workflow behaves**
 

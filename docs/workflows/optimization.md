@@ -96,6 +96,15 @@ Measured before it was released, on material written by other seats:
   "optimal" the seats wrote sat on a closed gap; on open gaps they wrote "within X% of the optimum", which the first
   draft refused once and which is now a test case. The hole this closes was found by the probes, not by a model.
 
+## `optimization@4` (2026-11-20): the configuration before the solve, per model
+
+`optimization@4` is `optimization@3` with `preregistered` judging each `tests` link, as `scientific@3` does (see
+[scientific.md](scientific.md#scientific3-2026-11-20-preregistration-per-hypothesis)): a model linked to the solve
+configuration after the solve, or a configuration changed after it, holds the question until a new configuration
+tests the model before its solve. `optimization@1` to `@3` are unchanged. In the existing records, 1 of the 14
+questions that move is an optimization question: a configuration ("compute all subsets to confirm maximum value")
+written four seconds after the solve it describes.
+
 ## Review questions and decisions (2026-10-26)
 
 1. *The model: hypothesis or experiment?* **Hypothesis** (`modelled`, gate `hypothesis_stated`): it can be wrong

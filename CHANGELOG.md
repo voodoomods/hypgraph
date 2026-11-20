@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **`scientific@3`, `trading@4`, `optimization@4`: preregistration judged per hypothesis.** The `preregistered`
+  gate read one time per experiment, when it was first written, against its first run. A hypothesis written after
+  the run's outcome and linked `tests` to the experiment that ran counted as preregistered, and so did a protocol
+  changed after the run. In the new versions each link is judged by its own time and the protocol in force at the
+  first run; a hypothesis tested only after the fact holds its question until a new experiment tests it before its
+  run, and the reason says which (*"H2 is tested only through X1, linked after RUN1 executed it — …"*,
+  *"X1's protocol was changed after RUN1 executed it (version 2) — …"*). An order on one hypothesis or claim reads
+  only that target's links. Each new version is its predecessor with only that changed; every earlier version is
+  unchanged, and `evaluation@1` (deprecated) stays as it is. On the records on disk, the frozen versions give the
+  same verdict on all 7,526 questions; under the new ones, 14 of 960 questions with an experiment move from met to
+  not met, all HypSwarm seats' records, and 3 accepted orders would not have been. See
+  `docs/workflows/scientific.md`.
 - **Five problem stories for the claim policies** (`examples/problems/`): `its_done.py` (`done_claim@1`: a dry run
   and three of five deploys reported as done), `independently_confirmed.py` (`corroboration@1`: one wire report in
   three papers, and a paper citing another, called independent confirmation), `beats_the_baseline.py`
