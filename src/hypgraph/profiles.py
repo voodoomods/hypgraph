@@ -443,12 +443,14 @@ SOFTWARE3 = _add(Profile(
 # ── scientific@3, trading@4, optimization@4: preregistration judged per link. Under the earlier versions the
 # `preregistered` gate read only when the experiment was first written: a hypothesis linked `tests` after the run,
 # with an expected outcome written once the result was in, counted as preregistered, and so did a protocol changed
-# after its run. Found 2026-11-20 checking the workflow pages against the engine; in the records on disk, 14 of 960
-# questions with an experiment (HypSwarm seats' records) met the gate on a hypothesis tested only after its run.
+# after its run, and a hypothesis whose statement or predictions changed after the run that tested them. Found
+# 2026-11-20 checking the workflow pages against the engine; in the records on disk, 15 of 960 questions with an
+# experiment (HypSwarm seats' records) met the gate on a hypothesis tested only after its run. A hold is lifted by a
+# new experiment written before its run once that run is on the record, not by one written and never run.
 # Each is its newest predecessor with only that changed. evaluation@1 is deprecated and stays as it is. ───────────
 
-_BY_LINK = (" Preregistration is judged per hypothesis: a test linked, or a protocol changed, after its run doesn't "
-            "count.")
+_BY_LINK = (" Preregistration is judged per hypothesis: a test linked, a protocol changed, or a hypothesis's "
+            "predictions changed after its run doesn't count.")
 
 
 def _by_link(p: Profile, version: int) -> Profile:

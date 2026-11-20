@@ -2,9 +2,10 @@
 
 Under the earlier versions the `preregistered` gate read only when the experiment was first written. A hypothesis
 linked to an experiment after its run, with an expected outcome written once the result was in, counted as
-preregistered, and so did a protocol changed after the run. In the records on disk, 14 questions under scientific@2 /
-trading@2 had a hypothesis tested only that way and still read as preregistered. Under the new versions such a
-hypothesis holds its question until a new experiment tests it before its run. The earlier versions are frozen."""
+preregistered, and so did a protocol changed after the run and a hypothesis rewritten after it. In the records on
+disk, 15 questions under scientific@2 / trading@2 / optimization@2 had a hypothesis tested only that way and still
+read as preregistered. Under the new versions such a hypothesis holds its question until a new experiment tests it
+before its run and that run is on the record. The earlier versions are frozen."""
 from __future__ import annotations
 
 import dataclasses
@@ -110,6 +111,9 @@ def test_a_hypothesis_linked_after_the_run_beside_a_preregistered_one_holds_the_
     assert g.stage(q)["index"] <= stages.index("preregistered") + 1 and not g.stage(q)["complete"]
     assert _order(g, h1)["met"] and not _order(g, h2)["met"]
     x2 = _exp(g, inv, LATER, [h2])                                         # what the reason says to do
+    # written but not run: the hold stays (seen in the records: a later experiment that never ran lifted it, and the
+    # post-hoc result was still the only one)
+    assert _gate(g, q)["why"] == LINKED_LATE and not _order(g, h2)["met"]
     _run(g, inv, x2, LATEST)
     assert _gate(g, q)["met"] and set(_gate(g, q)["evidence"]) == {"X1", "X2"}
     assert _order(g, h2)["met"] and _order(g, h2)["evidence"] == [x2]
@@ -242,6 +246,68 @@ def test_criteria_changed_before_any_run_count():
     assert _gate(g, q)["met"]
 
 
+# ── a hypothesis changed after the run that tested it ──────────────
+
+HYP_REVISED = ("H1's statement or predictions were changed after RUN1 executed X1 (version 2) — the hypothesis that "
+               "was tested is not the one on the record; test it as it now reads with a new experiment, before its run")
+
+
+@pytest.mark.parametrize("profile", [*NEW, *NEW.values()])
+@pytest.mark.parametrize("fields", [{"predictions": ["the p50 latency falls by a tenth"]},
+                                    {"statement": "Caching cuts the latency by a tenth."}])
+def test_a_hypothesis_changed_after_its_run_holds_the_question(profile, fields):
+    # seen in the records on disk (no profile pinned): predictions rewritten after the experiment that tested them ran
+    g, inv, q = _g(profile)
+    h = _hyp(g, inv, q)
+    x = _exp(g, inv, T0, [h])
+    _run(g, inv, x)
+    g.revise(author=g.policy.importer, node=h, fields=fields, reason="Matched to what the run showed.")
+    gate = _gate(g, q)
+    if profile in NEW.values():                                            # frozen: the gap as it was
+        assert gate["met"] and _order(g, h)["met"]
+        return
+    assert not gate["met"] and gate["why"] == HYP_REVISED
+    assert not _order(g, h)["met"] and _order(g, h)["why"] == HYP_REVISED
+    x2 = _exp(g, inv, "2099-01-01T00:00:00+00:00", [h])                   # what the reason says to do, after the
+    _run(g, inv, x2, "2099-01-02T00:00:00+00:00")                          # revision (written at the real clock)
+    assert _gate(g, q)["met"] and _gate(g, q)["evidence"] == ["X2"]
+    assert _order(g, h)["met"]
+
+
+@pytest.mark.parametrize("profile", NEW)
+def test_a_hypothesis_change_that_leaves_statement_and_predictions_alone_still_counts(profile):
+    g, inv, q = _g(profile)
+    h = _hyp(g, inv, q)
+    _run(g, inv, _exp(g, inv, T0, [h]))
+    g.revise(author=g.policy.importer, node=h, fields={"open_questions": ["Does it hold under load?"],
+             "assumptions": ["The cache is warm."]}, reason="Noted what the run left open.")
+    assert _gate(g, q)["met"]
+
+
+@pytest.mark.parametrize("profile", NEW)
+def test_a_hypothesis_changed_before_its_run_counts(profile):
+    g, inv, q = _g(profile)
+    h = _hyp(g, inv, q)
+    x = _exp(g, inv, T0, [h])
+    g.revise(author=g.policy.importer, node=h, fields={"predictions": ["the p50 latency falls by a third"]},
+             reason="Sharpened the prediction before running.")
+    _run(g, inv, x, "2099-01-01T00:00:00+00:00")
+    assert _gate(g, q)["met"]
+
+
+@pytest.mark.parametrize("profile", NEW)
+def test_a_changed_hypothesis_on_another_question_holds_only_its_own(profile):
+    g, inv, q = _g(profile)
+    q2 = g.create(author=H, type="question", inv=inv, code="Q2", fields={"text": "Does the cache cut the cost?"})["id"]
+    h1, h2 = _hyp(g, inv, q), _hyp(g, inv, q2, T0, "Caching halves the cost.")
+    x = _exp(g, inv, T0, [h1, h2])
+    _run(g, inv, x)
+    g.revise(author=g.policy.importer, node=h2, fields={"predictions": ["the cost falls a little"]},
+             reason="Matched to what the run showed.")
+    assert _gate(g, q)["met"]
+    assert not _gate(g, q2)["met"] and _gate(g, q2)["why"] == HYP_REVISED.replace("H1", "H2")
+
+
 @pytest.mark.parametrize("profile", [*NEW, *NEW.values()])
 def test_an_experiment_written_after_its_run_beside_a_preregistered_one(profile):
     g, inv, q = _g(profile)
@@ -313,14 +379,18 @@ def _history(rng: random.Random, profile: str):
             _run(g, inv, x, day())
     s = g.snapshot()
     for _ in range(rng.randint(0, 2)):                                    # links / revisions written now (after all)
-        x = rng.choice(xs)
-        if rng.random() < 0.5:
+        x, roll = rng.choice(xs), rng.random()
+        if roll < 0.4:
             free = [h for h in hs if not any(e["rel"] == "tests" and e["dst"] == h for e in s.out.get(x, []))]
             if free:
                 _link(g, x, rng.choice(free))
-        else:
+        elif roll < 0.7:
             g.revise(author=g.policy.importer, node=x, fields={"protocol": f"Requests each way: {rng.randint(60, 99)}."},
                      reason="Changed how many requests are sent.")
+        else:
+            field = rng.choice([{"predictions": [f"the p50 latency falls by {rng.randint(2, 9)} ms"]},
+                                {"open_questions": ["Does it hold under load?"]}])
+            g.revise(author=g.policy.importer, node=rng.choice(hs), fields=field, reason="Revised after reading it.")
         s = g.snapshot()
     return g, q
 
@@ -338,9 +408,9 @@ def test_randomized_histories(new, old):
         assert not (a["met"] and not b["met"]), f"history {i}: the new rule passed what the old one refused"
         if a["met"] != b["met"]:
             seen["stricter"] += 1
-            assert any(k in a["why"] for k in ("linked after", "was changed after", "was written after")), a["why"]
+            assert any(k in a["why"] for k in ("linked after", "was changed after", "were changed after", "was written after")), a["why"]
         else:
             seen["same"] += 1
             if not a["met"]:
-                assert a["why"] == b["why"] or any(k in a["why"] for k in ("linked after", "was changed after"))
+                assert a["why"] == b["why"] or any(k in a["why"] for k in ("linked after", "was changed after", "were changed after"))
     assert seen["stricter"] and seen["same"]                              # the generator reaches both

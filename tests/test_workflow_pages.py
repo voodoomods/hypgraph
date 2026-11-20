@@ -106,6 +106,26 @@ def test_an_experiment_revised_after_its_run_reads_as_the_pages_say(profile):
     assert quote in page("scientific.md")
 
 
+@pytest.mark.parametrize("profile", ["scientific@2", "trading@3", "optimization@3",
+                                     "scientific@3", "trading@4", "optimization@4"])
+def test_a_hypothesis_revised_after_its_run_reads_as_the_page_says(profile):
+    g, inv, q = _g(profile)
+    x = _experiment(g, inv, q, "2026-01-01T00:00:00+00:00")
+    _run(g, inv, x, "2026-01-02T00:00:00+00:00")
+    h = next(e["dst"] for e in g.snapshot().out[x] if e["rel"] == "tests")
+    g.revise(author=g.policy.importer, node=h, fields={"predictions": ["p50 latency falls by a tenth"]},
+             reason="Matched to what the run showed.")
+    gate = _gate(g, q, "preregistered")
+    if profile in ("scientific@2", "trading@3", "optimization@3"):          # frozen: what the page says went through
+        assert gate["met"]
+        assert "So did a hypothesis whose predictions were rewritten after the run" in page("scientific.md")
+        return
+    quote = ("H1's statement or predictions were changed after RUN1 executed X1 (version 2) — the hypothesis that was "
+             "tested is not the one on the record; test it as it now reads with a new experiment, before its run")
+    assert not gate["met"] and gate["why"] == quote
+    assert quote in page("scientific.md")
+
+
 @pytest.mark.parametrize("profile", ["scientific@3", "trading@4", "optimization@4"])
 def test_a_hypothesis_linked_after_the_run_reads_as_the_page_says(profile):
     g, inv, q = _g(profile)

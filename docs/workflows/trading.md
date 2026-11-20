@@ -69,7 +69,8 @@ passed without a newer result.
 An experiment written after its run is not refused: `preregistered` is not met, and its reason says the experiment
 was written after the run. Not caught under `trading@2` and `@3`: an experiment *revised* after its run (a changed
 window) still meets `preregistered`, which reads when the experiment was first written, and a thesis linked to the
-backtest after it ran counts as preregistered. `trading@4` catches both (below).
+backtest after it ran, or one whose predictions changed after it, counts as preregistered. `trading@4` catches all
+three (below).
 
 ## `trading@3` (2026-11-15): the values behind the edge words
 
@@ -104,10 +105,11 @@ Measured before it was released, on material written by other seats:
 
 `trading@4` is `trading@3` with `preregistered` judging each `tests` link, as `scientific@3` does (see
 [scientific.md](scientific.md#scientific3-2026-11-20-preregistration-per-hypothesis)): a thesis linked to the
-backtest after it ran, or a protocol (windows, costs, configurations) changed after the run, holds the question
-until a new experiment tests it before its run. `trading@1` to `@3` are unchanged. In the existing records, 5 of the
-14 questions that move are trading questions; in two of them the lead wrote a second thesis five to six minutes after
-the quant's backtest ran and linked it to that backtest.
+backtest after it ran, a protocol (windows, costs, configurations) changed after the run, or a thesis whose
+statement or predictions changed after it, holds the question until a new experiment tests it before its run and that
+run is on the record. `trading@1` to `@3` are unchanged. In the existing records, 5 of the 15 questions that move are
+trading questions; in two of them the lead wrote a second thesis five to six minutes after the quant's backtest ran
+and linked it to that backtest.
 
 ## Review questions and decisions (2026-10-26)
 

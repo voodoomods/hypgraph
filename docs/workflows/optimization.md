@@ -100,10 +100,11 @@ Measured before it was released, on material written by other seats:
 
 `optimization@4` is `optimization@3` with `preregistered` judging each `tests` link, as `scientific@3` does (see
 [scientific.md](scientific.md#scientific3-2026-11-20-preregistration-per-hypothesis)): a model linked to the solve
-configuration after the solve, or a configuration changed after it, holds the question until a new configuration
-tests the model before its solve. `optimization@1` to `@3` are unchanged. In the existing records, 1 of the 14
-questions that move is an optimization question: a configuration ("compute all subsets to confirm maximum value")
-written four seconds after the solve it describes.
+configuration after the solve, a configuration changed after it, or a model whose statement or predictions changed
+after it, holds the question until a new configuration tests the model before its solve and that solve is on the
+record. `optimization@1` to `@3` are unchanged. In the existing records, 1 of the 15 questions that move is an
+optimization question: a configuration ("compute all subsets to confirm maximum value") written four seconds after the
+solve it describes.
 
 ## Review questions and decisions (2026-10-26)
 

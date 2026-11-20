@@ -176,31 +176,36 @@ def g_hypothesis_stated(sc: Scope, now: str) -> dict:
 
 
 PREREG_FIELDS = ("protocol", "success_criteria")       # what a run is held to: a later change is another test
+HYPOTHESIS_FIELDS = ("statement", "predictions")       # what a run tested: a later change is another hypothesis
 
 
-def _revised_after(s: D.Snap, x: str, first_run: str) -> dict | None:
-    """The first version of experiment ``x`` written after ``first_run`` that changed its protocol or success
-    criteria: the test that ran is not the one the record now holds."""
+def _revised_after(s: D.Snap, x: str, first_run: str, fields: tuple = PREREG_FIELDS) -> dict | None:
+    """The first version of node ``x`` written after ``first_run`` that changed one of ``fields`` (an experiment's
+    protocol or success criteria, a hypothesis's statement or predictions): what ran is not what the record now
+    holds."""
     vs = s.versions.get(x, [])
     for prev, row in zip(vs, vs[1:]):
-        if row["at"] > first_run and any(row["body"].get(k) != prev["body"].get(k) for k in PREREG_FIELDS):
+        if row["at"] > first_run and any(row["body"].get(k) != prev["body"].get(k) for k in fields):
             return row
     return None
 
 
 def g_preregistered_by_link(sc: Scope, now: str) -> dict:
     """``preregistered`` when the workflow judges each link (``Workflow.prereg_by_link``: scientific@3, trading@4,
-    optimization@4). A hypothesis is preregistered through a ``tests`` link written, with its expected outcome,
-    before the first run that executes the experiment, while the experiment was itself written before that run and
-    its protocol and success criteria are still the ones that ran. The question's gate is met when some hypothesis
-    on it is preregistered and none is tested only after the fact: a hypothesis linked after the run (its outcome
-    already seen), or tested only by an experiment written or changed after its run, holds the question until a new
-    experiment tests it before its run. Links to claims count but don't hold the question, nor does a hypothesis
-    that answers only other questions (an experiment can test hypotheses on several). Under an order on one
-    hypothesis or claim (``Scope.own``), only that target's links count."""
+    optimization@4). A hypothesis is preregistered through a ``tests`` link written, with its expected outcome, before
+    the first run that executes the experiment, while the experiment was itself written before that run, its protocol
+    and success criteria are still the ones that ran, and the hypothesis's statement and predictions are still the ones
+    that were tested. The question's gate is met when some hypothesis on it is preregistered and none is tested only
+    after the fact: a hypothesis linked after the run (its outcome already seen), or tested only by an experiment
+    written or changed after its run, holds the question until a new experiment tests it before its run, and has run (a
+    new experiment that never runs would otherwise lift the hold while the post-hoc result stays the only one). Links to
+    claims count but don't hold the question, nor does a hypothesis that answers only other questions (an experiment can
+    test hypotheses on several). Under an order on one hypothesis or claim (``Scope.own``), only that target's links
+    count."""
     s = sc.s
     good: dict[str, str] = {}                            # target → an experiment that preregistered it
     post: dict[str, tuple] = {}                          # target → why its first post-hoc link doesn't count
+    ran: dict[str, str] = {}                             # target → a preregistered experiment that has run
     untested = []
     for x in sc.fresh(sc.experiments):
         links = [e for e in s.out.get(x, []) if e["rel"] == "tests" and (not sc.own or e["dst"] == sc.t)]
@@ -219,17 +224,21 @@ def g_preregistered_by_link(sc: Scope, now: str) -> dict:
                 post.setdefault(e["dst"], ("written", x, first, None))
             elif row:
                 post.setdefault(e["dst"], ("revised", x, first, row))
+            elif first and e["at"] <= first_at and (hrow := _revised_after(s, e["dst"], first_at, HYPOTHESIS_FIELDS)):
+                post.setdefault(e["dst"], ("hypothesis revised", x, first, (e["dst"], hrow)))
             elif first and e["at"] > first_at:
                 post.setdefault(e["dst"], ("linked", x, first, e["dst"]))
             else:
                 good.setdefault(e["dst"], x)
+                if first:
+                    ran.setdefault(e["dst"], x)
     def on_this_question(t: str) -> bool:
         # an experiment in scope (through a claim, or written under an order) can also test a hypothesis on another
         # question; that hypothesis holds its own question, not this one. One that answers no question still holds
         qs = [e["dst"] for e in s.out.get(t, []) if e["rel"] == "answers" and s.nodes[e["dst"]]["type"] == "question"]
         return not qs or sc.root in qs
 
-    held = [c for t, c in post.items() if t not in good and _live(s, t)
+    held = [c for t, c in post.items() if t not in ran and _live(s, t)
             and (sc.own or (s.nodes[t]["type"] == "hypothesis" and on_this_question(t)))]
     if held:
         kind, x, r, extra = held[0]
@@ -240,6 +249,11 @@ def g_preregistered_by_link(sc: Scope, now: str) -> dict:
             return _g(False, [], f"{sc.code(x)}'s protocol was changed after {sc.code(r)} executed it (version "
                                  f"{extra['v']}) — the test that ran is not the one on the record; write the new "
                                  "protocol as a new experiment, before its run")
+        if kind == "hypothesis revised":
+            h, row = extra
+            return _g(False, [], f"{sc.code(h)}'s statement or predictions were changed after {sc.code(r)} executed "
+                                 f"{sc.code(x)} (version {row['v']}) — the hypothesis that was tested is not the one "
+                                 "on the record; test it as it now reads with a new experiment, before its run")
         if s.nodes[extra]["created_at"] < s.nodes[r]["created_at"]:
             # the hypothesis came first; the link, which carries the expected outcome, came after the run
             return _g(False, [], f"{sc.code(extra)} is tested only through {sc.code(x)}, linked after {sc.code(r)} "

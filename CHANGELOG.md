@@ -11,7 +11,7 @@
   *"X1's protocol was changed after RUN1 executed it (version 2) — …"*). An order on one hypothesis or claim reads
   only that target's links. Each new version is its predecessor with only that changed; every earlier version is
   unchanged, and `evaluation@1` (deprecated) stays as it is. On the records on disk, the frozen versions give the
-  same verdict on all 7,526 questions; under the new ones, 14 of 960 questions with an experiment move from met to
+  same verdict on all 7,526 questions; under the new ones, 15 of 960 questions with an experiment move from met to
   not met, all HypSwarm seats' records, and 3 accepted orders would not have been. Live on gpt-oss-20b (12 paired
   runs, frozen vs new version), the gate held one question, where a hypothesis written before the run was linked
   to its experiment after it; the reason names that case. See `docs/workflows/scientific.md`.
