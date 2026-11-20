@@ -32,6 +32,11 @@ CASES = [
     ("all_accounted_for.py", "OK: 'per protocol' was refused", {"PROTOCOL_CONTRADICTED": 2, "RECORDS_UNACCOUNTED": 1}),
     ("six_policies_one_record.py", "OK: 4 pushed lines refused, each by its own policy and no other",
      {"WIN_CONTRADICTED": 1, "DONE_ON_DRY_RUN": 1, "INDEPENDENCE_CONTRADICTED": 1, "PROTOCOL_CONTRADICTED": 1}),
+    ("we_called_it.py", "OK: 'we predicted it' was refused on a sealed 35%",
+     {"CALL_ON_LOW_PROBABILITY": 1, "LATE_ENTRY_AS_FORECAST": 1}),
+    ("its_proven.py", "OK: 'proved' was refused on 12 of 14 obligations",
+     {"PROVED_WITH_OPEN_OBLIGATIONS": 2, "COUNT_CONTRADICTS": 1, "PROVED_ON_BOUNDED_CHECK": 1,
+      "PROVED_WITHOUT_RESULT": 1, "COMPARATIVE_WITHOUT_COMPARISON": 1}),
 ]
 
 
