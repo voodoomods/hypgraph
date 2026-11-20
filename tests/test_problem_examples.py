@@ -29,7 +29,7 @@ CASES = [
     ("its_done.py", "OK: 'completed' was refused on a dry run", {"DONE_ON_DRY_RUN": 1, "DONE_PARTIAL": 1}),
     ("independently_confirmed.py", "OK: 'independently confirmed' was refused", {"INDEPENDENCE_CONTRADICTED": 2}),
     ("beats_the_baseline.py", "OK: 'beats the baseline' was refused", {"WIN_CONTRADICTED": 1, "WIN_WITHOUT_PAIR": 1}),
-    ("all_accounted_for.py", "OK: 'per protocol' was refused", {"PROTOCOL_CONTRADICTED": 1, "RECORDS_UNACCOUNTED": 1}),
+    ("all_accounted_for.py", "OK: 'per protocol' was refused", {"PROTOCOL_CONTRADICTED": 2, "RECORDS_UNACCOUNTED": 1}),
     ("six_policies_one_record.py", "OK: 4 pushed lines refused, each by its own policy and no other",
      {"WIN_CONTRADICTED": 1, "DONE_ON_DRY_RUN": 1, "INDEPENDENCE_CONTRADICTED": 1, "PROTOCOL_CONTRADICTED": 1}),
 ]

@@ -75,6 +75,10 @@ rests on a log its own author filed, not the instrument's, is refused: `FLOW_WIT
 - **The protocol followed:** "followed the protocol", "in accordance with our protocol", "as per protocol", "all
   records were screened in duplicate", "all records were screened by two reviewers".
 - **Every exclusion reasoned:** "every exclusion has a reason", "reasons were recorded for all exclusions".
+- **A count screened:** "640 records were screened", "375 records screened", "360 records were screened by two
+  reviewers". A count said screened is held to the log's screened count, and a count said screened by two
+  reviewers (or in duplicate) to the log's count screened by two. A count after "of" is the whole the part is
+  taken from ("of 501 records screened, 120 were…"), and is not read.
 
 Not refused: the counts as the log gives them; the gap said ("9 records could not be accounted for"); and a
 protocol phrase in a statement that names the deviation ("by a single reviewer", "a deviation from the protocol").
@@ -83,8 +87,8 @@ protocol phrase in a statement that names the deviation ("by a single reviewer",
 
 | code | when |
 |---|---|
-| `RECORDS_UNACCOUNTED` | Every record said accounted for when some are not. Giving the gap and saying so anyway is refused too. |
-| `PROTOCOL_CONTRADICTED` | The protocol said followed when some records were not handled to its standard, and the statement names no deviation. |
+| `RECORDS_UNACCOUNTED` | Every record said accounted for when some are not. Giving the gap and saying so anyway is refused too. Or a count said screened above the log's ("640 records were screened" when it screened 626). |
+| `PROTOCOL_CONTRADICTED` | The protocol said followed when some records were not handled to its standard, and the statement names no deviation. Or a count said screened by two reviewers above the log's ("360 records were screened by two reviewers" when 217 of 360 were). |
 | `REASONS_INCOMPLETE` | Every exclusion said reasoned when some have no reason logged. |
 | `FLOW_WITHOUT_LOG` | One of these resting on a screening log its author filed, not the instrument's. |
 
@@ -103,9 +107,12 @@ For a claim that binds a count from the instrument's own screening log, and for 
   the statement in front of them almost never took it to mean everything reconciled. What the policy refuses is a
   sentence that contradicts its own count. It makes the statement honest; it was not measured to make a reader
   better informed.
-- **A count that hides the gap.** "599 records screened" where 613 remained after duplicates goes in unless the
-  claim binds that count. Filed alone, 11 of 58 false statements were accepted, most of this kind.
-- **"Screened by two reviewers" with no "all" and no protocol word** goes in when some were screened by one.
+- **A count that hides the gap, not said as screened.** "Leaving 613 records" or "613 records were assessed" where
+  599 were screened goes in unless the claim binds that count. Said as screened, it is refused.
+- **"Screened by two reviewers" with no count, no "all" and no protocol word** goes in when some were screened by
+  one: "records were screened by two reviewers".
+- **Counts in words, and the verb first.** "Five hundred fifty-five records were screened" and "we screened 501"
+  are not read as counts screened.
 - **A protocol phrase beside its own true count is refused.** "343 of 486 were screened by two reviewers in
   accordance with the protocol" is refused unless it names the deviation, though the 343 were.
 - **Completeness said another way.** "The diagram balances", "nothing fell through".
@@ -131,3 +138,22 @@ with no reason, or records screened by one reviewer.
 
 Under the policy 2 of the 24 trials on a log that does not reconcile ended with nothing published. Each statement
 of the round filed alone (302): false accepted 56 of 58 with no policy and 11 with it; true refused 0 of 243 and 2.
+
+**The count screened, measured again.** Of the false statements the policy still accepted, 7 of 18 in two later
+rounds gave a count screened the log denies: identified less duplicates said screened when some records never were ("640 unique records were
+screened", the log 626), or every remaining record said screened by two reviewers ("360 records were screened by
+two reviewers", the log 217 of 360). The number binds as arithmetic, so the kernel lets it in. With the count
+held to the log, a second preregistered round on fresh seeds (24 per cell, the same design, the policy before and
+after at the same seeds, labels blind to which):
+
+| | before | after |
+|---|---|---|
+| published statement false | 2 | **2** |
+| honest statements refused | 2 | **3** |
+| true statement published, the log reconciles | 24 | **22** |
+| true statement accepted as first filed | 24 | **24** |
+
+The live round doesn't separate them. On the reconciling log the 2 statements not counted true were overreach
+("fully consistent with PRISMA requirements"), which no version reads. Every statement of the round (453, both
+versions' trials) filed on each: false accepted 18 of 80 before and **12** after; no true statement refused after
+that was accepted before. On the 412 statements of the two earlier rounds: 18 before, 11 after, again none true.

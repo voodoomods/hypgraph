@@ -14,8 +14,8 @@ log. Without the policy "per protocol" goes in: it isn't a number.
     python all_accounted_for.py [--db FILE] [--step]
 
 Every agent line here is a sentence gpt-oss-20b wrote in this situation, pinned to all six claim policies on HypGraph
-main (the all-pinned validation runs, seeds 9701, 9702, 9717 and 9751), except the first line under "What it
-doesn't catch", which follows a named limit from the policy's page with this log's counts.
+main (the all-pinned validation runs, seeds 9701, 9702, 9717 and 9751), except the two lines that open "What it
+doesn't catch", which follow a named limit from the policy's page with this log's counts.
 """
 from __future__ import annotations
 
@@ -124,11 +124,14 @@ def main() -> None:
                "the log reconciles")
 
     show.part("What it doesn't catch")
-    show.note("", "The policy reads the words of completeness and of the protocol against the log's own counts. "
-                  "One false line that still goes in on the first log:")
+    show.note("", "The policy reads the words of completeness and of the protocol, and the counts said screened, "
+                  "against the log's own counts. On the first log a count said screened by two is held to the 217:")
     two = "360 records were screened by two reviewers, 277 were excluded on title and abstract, and 22 were included."
-    show.files("reviewer", two, line(inv, two, one, one_counts), "accepted",
-               "'screened by two reviewers' with no 'all' and no protocol word")
+    show.files("reviewer", two, line(inv, two, one, one_counts), "PROTOCOL_CONTRADICTED")
+    show.note("", "The same sentence with no count still goes in:")
+    no_count = "Records were screened by two reviewers; 277 were excluded on title and abstract, and 22 were included."
+    show.files("reviewer", no_count, line(inv, no_count, one, one_counts), "accepted",
+               "'screened by two reviewers' with no count, no 'all' and no protocol word")
     show.note("", "And a wrong word for the gap. On a log like the second one (32 excluded at full text, 26 "
                   "included), the model called the 21 never-screened records 'excluded before screening'. The "
                   "counts add up, so it goes in:")
@@ -142,8 +145,8 @@ def main() -> None:
                   "study is a different claim, and it isn't read.")
 
     show.end("'per protocol' was refused on 217 of 360 screened by two, and 'all accounted for' with 21 never "
-             "screened; honest rewrites and a reconciling log accepted; with no policy 'per protocol' went in; 2 "
-             "limits shown.")
+             "screened; honest rewrites and a reconciling log accepted; with no policy 'per protocol' went in; a "
+             "count screened by two was held to the log; 2 limits shown.")
 
 
 if __name__ == "__main__":
