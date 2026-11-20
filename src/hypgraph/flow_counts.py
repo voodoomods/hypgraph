@@ -15,10 +15,12 @@ claim is read only when it rests on such a log.
 
     RECORDS_UNACCOUNTED       "all records are accounted for", "every record was screened", "the flow reconciles"
                               when records are unaccounted for: the log says so, or identified less duplicates is
-                              more than screened
+                              more than screened; or a count of records screened above the log's ("640 records
+                              were screened" when it screened 626)
     PROTOCOL_CONTRADICTED     "followed the protocol", "in accordance with the protocol", "screened in duplicate"
                               when some records were not handled to the protocol's standard, and the sentence names
-                              no deviation
+                              no deviation; or a count screened by two reviewers above the log's ("360 records were
+                              screened by two reviewers" when 217 of 360 were)
     REASONS_INCOMPLETE        "every exclusion has a reason", "all exclusions are documented" when some have none
     FLOW_WITHOUT_LOG          one of these resting on a screening log its author filed, not the instrument's
 
@@ -88,7 +90,7 @@ def log(body: dict) -> dict | None:
     gap = unacc
     if ident is not None and screened is not None:
         gap = max(gap or 0.0, ident - (dup or 0.0) - screened)
-    return {"gap": gap or 0.0, "reasons": reasons, "protocol": protocol}
+    return {"gap": gap or 0.0, "reasons": reasons, "protocol": protocol, "screened": screened}
 
 
 def clean(x: dict) -> bool:
@@ -122,6 +124,29 @@ _DEVIATION = re.compile(r"\bdeviat\w+|\bdepart\w+\s+from|\bcontrary\s+to|\bnot\s
                         r"compl\w+|adher\w+|per)\b|\bnon[\s-]?complian\w*|\bviolat\w+|\bbreach\w*|\binstead\s+of|"
                         r"\b(?:a\s+)?single\s+reviewer\b|\bone\s+reviewer\b|\bshort\s+of\s+the\s+protocol|"
                         r"\b(?:did|does|do)\s+not\s+meet\b|\bfell\s+short\b|\brather\s+than\b", re.I)
+
+
+# a count of records said to be screened: "640 unique records were screened", "375 records screened", "217 were
+# screened by two reviewers". Digits only; "not" / "never" between the count and "screened" is not a count screened.
+_COUNT = r"(\d{1,3}(?:,\d{3})+|\d+)"
+_STATED = re.compile(
+    rf"(?<![\w.,]){_COUNT}\s+(?:(?!(?:not|never|yet|and|or|but|of|from|to|the|were|was|had|have|been|then|"
+    r"duplicat\w*|exclu\w*|remov\w*|identified|included|assessed)\b)[a-z‐-―-]+\s+){0,3}?"
+    r"(?:titles?\s+and\s+abstracts?\s+)?"
+    r"(?:(?:were|was|had\s+been|have\s+been|been)\s+)?(?:(?:then|subsequently|all|each|independently)\s+)?"
+    r"screened\b(\s+(?:independently\s+)?(?:by\s+two\b|by\s+both\b|in\s+duplicate\b|twice\b|dually\b))?", re.I)
+# a count after "of" is the whole the part is taken from: "of 501 records screened, 120 were …"
+_OF = re.compile(r"\b(?:of|out\s+of)\s+(?:the\s+)?$", re.I)
+
+
+def _stated(stmt: str) -> list[tuple[float, bool, str]]:
+    """The counts the statement says were screened: (count, said to be by two reviewers, the words)."""
+    out = []
+    for m in _STATED.finditer(stmt):
+        if _OF.search(stmt[:m.start()]) or L.negated(stmt, m.start()):
+            continue
+        out.append((float(m.group(1).replace(",", "")), bool(m.group(2)), re.sub(r"\s+", " ", m.group(0).lower())))
+    return out
 
 
 def _asserted(pattern: re.Pattern, stmt: str) -> list[str]:
@@ -161,6 +186,21 @@ def issues(stmt: str, logs: list[dict | None], own_log: bool = False) -> list[Pr
                            "that it is a deviation from the protocol",
                            fix=f"say '{n - k:g} of {n:g} records were not handled as the protocol requires, a "
                            "deviation'", words=followed))
+    codes = {p.code for p in out}
+    for n, by_two, words in _stated(stmt):
+        if not by_two and x.get("screened") is not None and n > x["screened"] and "RECORDS_UNACCOUNTED" not in codes:
+            codes.add("RECORDS_UNACCOUNTED")
+            out.append(Problem("RECORDS_UNACCOUNTED",
+                               f"'{words}' is stated, but the screening log it rests on screened {x['screened']:g} "
+                               "records — say the log's count, and how many were not screened",
+                               fix=f"say '{x['screened']:g} records were screened'", words=[words]))
+        if by_two and x["protocol"] and n > x["protocol"][0] and "PROTOCOL_CONTRADICTED" not in codes:
+            codes.add("PROTOCOL_CONTRADICTED")
+            k, total = x["protocol"]
+            out.append(Problem("PROTOCOL_CONTRADICTED",
+                               f"'{words}' is stated, but the screening log it rests on has {k:g} of {total:g} "
+                               "records screened to the protocol's standard — say the count",
+                               fix=f"say '{k:g} of {total:g} records were screened by two reviewers'", words=[words]))
     if x["reasons"] and x["reasons"][0] < x["reasons"][1] and reasoned:
         k, n = x["reasons"]
         out.append(Problem("REASONS_INCOMPLETE",

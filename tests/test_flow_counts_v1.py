@@ -105,6 +105,35 @@ def test_honest_lines_go_in(vals, line):
     assert filed(vals, line) == []
 
 
+@pytest.mark.parametrize("vals,line,code", [
+    # identified less duplicates said to be screened, where the log screened fewer (showcase Exp19, gpt-oss-20b's
+    # wording, our counts): the number binds as arithmetic, so only the policy can see it
+    (GAP, "After removal of 37 duplicates, 501 unique records were screened on title and abstract.",
+     "RECORDS_UNACCOUNTED"),
+    (SINGLE, "After removing 37 duplicates, 501 records were screened by two reviewers; 58 full texts were assessed.",
+     "PROTOCOL_CONTRADICTED"),
+    (SINGLE, "501 titles and abstracts were screened independently by two reviewers.", "PROTOCOL_CONTRADICTED"),
+])
+def test_a_count_screened_above_the_logs_is_refused(vals, line, code):
+    assert code in filed(vals, line)
+    assert filed(vals, line, pin=None) == []
+
+
+@pytest.mark.parametrize("vals,line", [
+    (GAP, "After removal of 37 duplicates, 492 records were screened on title and abstract; 9 were not screened."),
+    (SINGLE, "Of the 501 records screened, 381 were screened by two reviewers and the remaining 120 by one reviewer."),
+    (CLEAN, "After removal of 37 duplicates, 501 records were screened by two reviewers."),
+    (GAP, "Of 501 records remaining, 492 were screened; 9 were never screened."),
+])
+def test_a_count_screened_the_log_gives_goes_in(vals, line):
+    assert filed(vals, line) == []
+
+
+def test_a_stated_count_and_a_protocol_word_are_one_refusal():
+    codes = filed(SINGLE, "501 records were screened by two reviewers per protocol.")
+    assert codes.count("PROTOCOL_CONTRADICTED") == 1
+
+
 @pytest.mark.parametrize("line", [
     "All records are accounted for and the screening followed the protocol.",
     "All 538 records identified were accounted for, every full-text exclusion has a reason, and all records were "
