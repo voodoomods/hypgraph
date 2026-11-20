@@ -108,6 +108,12 @@ Measured before it was released:
   preregistered one, 3 a hypothesis linked after the run to an experiment preregistered for another; in 13 of the 14
   the hypothesis was written after its run's result, seconds to minutes later. 17 of the 1,413 orders given with
   `preregistered` move the same way; 3 of them had been accepted.
+- live, on gpt-oss-20b: 12 paired runs of four HypSwarm challenges (s2_regression, s3_multiple, t2_gridsearch,
+  o1_knapsack), the frozen and the new version side by side on one board. The new gate held one question: a
+  hypothesis and its experiment both written before the run, the link between them 48 s after it (the second reason
+  above was written for that case; the first draft said the hypothesis came after). Settled questions 30 and 27,
+  right 26 and 24, wrong 2 and 2, calls 1,509 and 1,577; every run that settled less stopped on its budget with the
+  gate met wherever it applied.
 
 ## Review questions and decisions (2026-10-26)
 

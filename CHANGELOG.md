@@ -12,8 +12,9 @@
   only that target's links. Each new version is its predecessor with only that changed; every earlier version is
   unchanged, and `evaluation@1` (deprecated) stays as it is. On the records on disk, the frozen versions give the
   same verdict on all 7,526 questions; under the new ones, 14 of 960 questions with an experiment move from met to
-  not met, all HypSwarm seats' records, and 3 accepted orders would not have been. See
-  `docs/workflows/scientific.md`.
+  not met, all HypSwarm seats' records, and 3 accepted orders would not have been. Live on gpt-oss-20b (12 paired
+  runs, frozen vs new version), the gate held one question, where a hypothesis written before the run was linked
+  to its experiment after it; the reason names that case. See `docs/workflows/scientific.md`.
 - **Five problem stories for the claim policies** (`examples/problems/`): `its_done.py` (`done_claim@1`: a dry run
   and three of five deploys reported as done), `independently_confirmed.py` (`corroboration@1`: one wire report in
   three papers, and a paper citing another, called independent confirmation), `beats_the_baseline.py`
