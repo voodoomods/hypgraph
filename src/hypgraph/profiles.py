@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from . import derive as D
 from . import corroboration as R
 from . import flow_counts as FL
+from . import proof_claim as PC
 from . import done_claim as O
 from . import evaluation as E
 from . import language as L
@@ -539,6 +540,20 @@ FLOW_COUNTS = _add_policy(ClaimPolicy(
     relaxes=FL.RELAXES,
 ))
 
+PROOF_CLAIM = _add_policy(ClaimPolicy(
+    "proof_claim", 1,
+    "A status line on the verification of one property. 'Proved', 'verified' and 'holds' are held to the checker's "
+    "report: every proof obligation discharged, not a bounded check stated without its bound, not a run that gave "
+    "no result.",
+    reads="a result that is the checker's report on the property: whether it is proved (proved), how many proof "
+          "obligations were discharged (obligations_discharged as k of n), and the bound a model checker checked up "
+          "to (bounded_check_up_to_…)",
+    refuses=("PROVED_WITH_OPEN_OBLIGATIONS", "PROVED_ON_BOUNDED_CHECK", "BOUND_UNSAID", "PROVED_WITHOUT_RESULT",
+             "PROOF_WITHOUT_CHECKER"),
+    validators=PC.VALIDATORS,
+    relaxes=PC.RELAXES,
+))
+
 
 def get(pid: str) -> Profile:
     p = PROFILES.get(str(pid or "").strip().lower())
@@ -784,6 +799,9 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
     if "flow_held_to_log" in held:
         out += FL.issues(stmt, [FL.log(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
                          any(FL.log(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
+    if "proved_held_to_checker" in held:
+        out += PC.issues(stmt, [PC.report(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                         any(PC.report(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
     if p and p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
@@ -977,6 +995,12 @@ def vouched_words(s: D.Snap, inv: str, m: dict, stmt: str = "") -> frozenset:
         x = FL.log(body)
         if x and FL.clean(x):
             out |= FL.VOUCHED
+    if "proved_held_to_checker" in held:
+        x = PC.report(body)
+        if x and x["state"] == "proved":
+            out |= PC.VOUCHED
+        elif x and x["state"] == "bounded" and PC.says_bound(stmt):
+            out |= PC.VOUCHED_BOUNDED
     return out
 
 
