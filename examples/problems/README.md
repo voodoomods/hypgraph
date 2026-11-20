@@ -1,12 +1,12 @@
 # Problems agents cause, and what the record does about each
 
-Eleven short, runnable stories. Each takes a failure people meet when they put agents to work, scripts the agent's
+Thirteen short, runnable stories. Each takes a failure people meet when they put agents to work, scripts the agent's
 lines, and files every line into a HypGraph record. The agent is scripted. The record is not: every refusal printed
 is the engine's own, and each script states what it expects, so it fails if the engine ever answers differently.
 
-They need only `pip install hypgraph`. No model, no API key, the same output every time. (`all_accounted_for.py`
-and `six_policies_one_record.py` use `flow_counts@1`, which is on `main` and not yet in a release: until the next
-one, run them from a clone.)
+They need only `pip install hypgraph`. No model, no API key, the same output every time. (`all_accounted_for.py`,
+`six_policies_one_record.py`, `we_called_it.py` and `its_proven.py` use claim policies that are on `main` and not
+yet in a release: until the next one, run them from a clone.)
 
 | The problem | Run | Profile or claim policy | What you see |
 |---|---|---|---|
@@ -14,6 +14,8 @@ one, run them from a clone.)
 | "Independently confirmed by multiple sources" | `python independently_confirmed.py` | `corroboration@1` | Three papers carrying one wire report, and a paper citing another, refused as independent confirmation; accepted on two papers' own reporting |
 | "The new model beats the baseline" | `python beats_the_baseline.py` | `scientific@2` + `baseline_comparison@1` | A bare "beats the baseline" refused on a validation-only lead, a lead with no baseline score refused, a held-out win accepted |
 | "All records were accounted for" | `python all_accounted_for.py` | `flow_counts@1` | "Per protocol" refused on 217 of 360 screened by two, "all accounted for" refused with 21 records never screened, "360 records were screened by two reviewers" refused; accepted once the log reconciles |
+| "We called it" | `python we_called_it.py` | `forecast_call@1` | "We predicted it" refused on a forecast sealed at 35%, and an 80% entered after the outcome refused as the forecast; the same sentence accepted on a sealed 75%, and accepted with no policy |
+| "It's proven" | `python its_proven.py` | `proof_claim@1` | "Proved" refused with 2 of 14 obligations open, on a count changed to 14 of 14, on a bounded check and on a run that timed out; accepted once every obligation is discharged |
 | Six policies on one record | `python six_policies_one_record.py` | all six claim policies | Four pushed lines on four instruments, each refused by the one policy that reads its result and by no other |
 | An agent says it's fixed | `python its_fixed.py` | `software@3` | "Fixed" and "all tests passing" refused on CI's failing run and on the agent's own run; the same sentence accepted once CI is green |
 | An agent makes up figures | `python hallucinated_figures.py` | `knowledge@2` | Three made-up figures refused because no cited passage gives them; "the handbook does not specify" published instead |

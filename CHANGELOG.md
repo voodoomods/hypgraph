@@ -11,6 +11,10 @@
   policy that reads its result, and by no other). Each runs with no model, asserts every refusal code, shows the
   same pushed sentence accepted with no policy pinned, and ends with a limit. The agents' lines are sentences
   gpt-oss-20b wrote in runs pinned to all six policies on `main`. Run by `tests/test_problem_examples.py`.
+- **Two more problem stories, for the two claim policies that had none**: `we_called_it.py` (`forecast_call@1`: a
+  forecast sealed at 35% reported as "we predicted it", and an 80% entered after the outcome given as the
+  forecast) and `its_proven.py` (`proof_claim@1`: "proved" on 12 of 14 obligations, on a count changed to 14 of 14,
+  on a bounded check and on a run that timed out). Same form as the five above.
 - **The claim-policies index renders as one table again** (a blank line after its first row split it).
 - **`flow_counts@1`: a count of records screened is held to the screening log.** "640 unique records were
   screened" when the log screened 626 binds as arithmetic (identified less duplicates), so the kernel let it in,
