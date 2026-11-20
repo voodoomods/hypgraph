@@ -33,7 +33,8 @@ def main() -> None:
     show = Show('"The new model beats the baseline"',
                 "The new churn model is ahead of the baseline on the validation split it was tuned on and behind on "
                 "the held-out test split. The slide for tomorrow's review already says it beats the baseline.",
-                __doc__)
+                __doc__,
+                needs=["scientific@2", "baseline_comparison@1"])
     g = show.g
     curator, harness, agent = g.author("curator"), g.author("lab"), g.author("ml-agent")
 

@@ -29,7 +29,8 @@ def main() -> None:
     show = Show('"All records were accounted for"',
                 "The protocol says two reviewers screen every record; the log shows 143 of 360 were screened by one. "
                 "The lead author submits tonight and wants the statement to say the screening followed the "
-                "protocol.", __doc__)
+                "protocol.", __doc__,
+                needs=["flow_counts@1"])
     g = show.g
     curator, log_author, agent = g.author("curator"), g.author("lab"), g.author("reviewer")
 

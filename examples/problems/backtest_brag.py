@@ -30,7 +30,8 @@ SCOPE = ("Daily bars 2019-2025: tuned on 2019-2022, tested once on 2023-2025, fe
 def main() -> None:
     show = Show("The backtest that brags",
                 "The best of 20 variants returned 34.2% on the years it was tuned on. On the years it never saw it "
-                "returned 11.6% after costs; buying and holding returned 12.5%.", __doc__)
+                "returned 11.6% after costs; buying and holding returned 12.5%.", __doc__,
+                needs=["trading@3"])
     g = show.g
     curator, lab, agent = g.author("curator"), g.author("lab"), g.author("quant-agent")
     inv = curator.investigation("Does the momentum rule have an edge on NVX?",

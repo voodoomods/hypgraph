@@ -27,7 +27,8 @@ FACT = "the Harrow bridge will stay closed through the winter"
 def main() -> None:
     show = Show('"Independently confirmed by multiple sources"',
                 "Three papers carry the story, all three from one wire report. The client wants it nailed down, and "
-                "the engagement lead wants the line to say it is independently confirmed.", __doc__)
+                "the engagement lead wants the line to say it is independently confirmed.", __doc__,
+                needs=["corroboration@1"])
     g = show.g
     curator, desk, agent = g.author("curator"), g.author("lab"), g.author("researcher")
 

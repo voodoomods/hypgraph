@@ -26,7 +26,8 @@ SCOPE = "Monday's 38 orders from the Leeds depot, 6 vans."
 def main() -> None:
     show = Show('"Optimal", with no proof',
                 "The solver hit its time limit with a plan costing 412 and a proof that nothing costs less than 398. "
-                "The agent calls the plan optimal.", __doc__)
+                "The agent calls the plan optimal.", __doc__,
+                needs=["optimization@3"])
     g = show.g
     curator, lab, agent = g.author("curator"), g.author("lab"), g.author("planner-agent")
     inv = curator.investigation("What is the cheapest delivery plan for the Leeds depot on Monday?",
