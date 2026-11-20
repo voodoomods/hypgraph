@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **README: brought up to date and restructured.** The claim-policies table rendered only its first row (a blank line
+  split it); it is one table of the six policies again. Every link is absolute, so the PyPI page resolves them. The
+  profiles section states what each current version does and leaves release history to this file. Added: badges, a
+  table of contents, a capabilities table, grouped integration sections, and sections for project status, the
+  documentation index, security and contributing. The maintainer is given as VoodooMods LLC. No claim is new.
 - **`flow_counts@1`: "all records are accounted for" is held to the screening log.** A claim policy for a
   statement on the flow of records through a review. The screening log is filed as a result (counts at each
   stage, records unaccounted for, exclusions with a reason, records screened to the protocol's standard); the
