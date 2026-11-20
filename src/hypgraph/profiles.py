@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 
 from . import derive as D
 from . import corroboration as R
+from . import forecast_call as FC
 from . import proof_claim as PC
 from . import done_claim as O
 from . import evaluation as E
@@ -527,6 +528,21 @@ CORROBORATION = _add_policy(ClaimPolicy(
     relaxes=R.RELAXES,
 ))
 
+FORECAST_CALL = _add_policy(ClaimPolicy(
+    "forecast_call", 1,
+    "A line on how a forecast compared with what happened. 'We called it', 'as predicted' and a forecast said "
+    "right are held to the forecast sealed before the outcome: one must exist, and it must have put what occurred "
+    "at even odds or better. A probability entered afterwards is not given as the forecast.",
+    reads="a result that is the forecast ledger for one question: forecasts sealed before the outcome "
+          "(forecasts_sealed_before_outcome), the sealed probability (sealed_probability_pct), a probability entered "
+          "after the outcome (probability_entered_after_outcome_pct), and whether the event happened "
+          "(outcome_happened)",
+    refuses=("CALL_WITHOUT_SEALED_FORECAST", "CALL_ON_LOW_PROBABILITY", "LATE_ENTRY_AS_FORECAST",
+             "CALL_WITHOUT_LEDGER"),
+    validators=FC.VALIDATORS,
+    relaxes=FC.RELAXES,
+))
+
 PROOF_CLAIM = _add_policy(ClaimPolicy(
     "proof_claim", 1,
     "A status line on the verification of one property. 'Proved', 'verified' and 'holds' are held to the checker's "
@@ -783,6 +799,9 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
     if "corroboration_held_to_register" in held:
         out += R.issues(stmt, [R.register(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
                         any(R.register(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
+    if "call_held_to_sealed_forecast" in held:
+        out += FC.issues(stmt, [FC.ledger(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                         any(FC.ledger(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
     if "proved_held_to_checker" in held:
         out += PC.issues(stmt, [PC.report(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
                          any(PC.report(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
