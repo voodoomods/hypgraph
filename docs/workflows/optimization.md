@@ -65,8 +65,10 @@ recomputed feasibility.
 ## Refusals this workflow adds
 
 - `SOLVED_WITHOUT_INSTANCE`: a run with no `uses` → instance artifact.
-- `VERIFIED_BY_SOLVER`: a review of a solution by its own author.
 - `OPTIMAL_ON_STALE_INSTANCE`: "optimal" bound to a solve whose instance is superseded.
+
+A solver's review of its own solution needs no code of its own: every record refuses a review by the author of
+what it reviews (*"you can't review your own work — ask a reviewer (verifier)"*).
 
 ## `optimization@3` (2026-11-15): the values behind "optimal"
 

@@ -21,6 +21,16 @@
   installed version had, failed with an AssertionError that read as if the engine were wrong. Now each prints which
   ones are missing and how to get them, and files nothing. `six_policies_one_record.py` names its six policies, so
   a seventh can't change the story. The nine stories that need only released features run unchanged on 0.8.13.
+- **The workflow pages name only refusals the engine gives.** Under "Refusals this workflow adds", five of the six
+  pages listed codes that were never built: `EXPERIMENT_AFTER_RUN` and `STALE_EVIDENCE` (scientific),
+  `DIFF_WITHOUT_BASE` (software), `VERIFIED_BY_SOLVER` (optimization), `NUMBER_NOT_IN_PASSAGE` and `TERTIARY_ONLY`
+  (knowledge), `BACKTEST_AFTER_PROTOCOL_EDIT` (trading). Each now says what the record really does, in the engine's
+  words: the `preregistered` and `reviewed` gates don't count a late experiment or a check of stale evidence,
+  `ARTIFACT_MISSING_FIELDS` refuses a diff without its shas, the kernel refuses a solver's review of its own solve,
+  and `UNBOUND_NUMBER` refuses a number the cited passage doesn't give. Two were not built at all and the pages now
+  say so: a warning on tertiary-only findings, and catching an experiment *revised* after its run, which still meets
+  `preregistered`. `tests/test_workflow_pages.py` checks every backticked code in the docs against the source and
+  every quoted answer against the engine.
 - **The claim-policies index renders as one table again** (a blank line after its first row split it).
 - **`flow_counts@1`: a count of records screened is held to the screening log.** "640 unique records were
   screened" when the log screened 626 binds as arithmetic (identified less duplicates), so the kernel let it in,
