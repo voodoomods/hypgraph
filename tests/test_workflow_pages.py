@@ -1,8 +1,9 @@
 """The workflow pages (docs/workflows/) say what the engine does.
 
 Every code a page names in backticks is one the engine has (the pages once listed seven refusals that were never
-built), and every engine answer a page quotes is what the engine says in that case, including the one limit the
-pages state: an experiment revised after its run still reads as preregistered."""
+built), and every engine answer a page quotes is what the engine says in that case, including the limit the
+pages state for the frozen versions: an experiment revised after its run still reads as preregistered there, and
+not from scientific@3 / trading@4 / optimization@4."""
 from __future__ import annotations
 
 import re
@@ -85,16 +86,74 @@ def test_an_experiment_written_after_its_run_goes_in_and_the_gate_says_so(profil
     assert "was written after the run" in page("trading.md")
 
 
-@pytest.mark.parametrize("profile", ["scientific@2", "trading@2"])
-def test_the_limit_the_pages_state_an_experiment_revised_after_its_run_still_reads_as_preregistered(profile):
+@pytest.mark.parametrize("profile", ["scientific@2", "trading@2", "trading@3", "optimization@3",
+                                     "scientific@3", "trading@4", "optimization@4"])
+def test_an_experiment_revised_after_its_run_reads_as_the_pages_say(profile):
     g, inv, q = _g(profile)
     x = _experiment(g, inv, q, "2026-01-01T00:00:00+00:00")
     _run(g, inv, x, "2026-01-02T00:00:00+00:00")
     g.revise(author=g.policy.importer, node=x, fields={"protocol": "Five hundred requests each way."},
              reason="The first protocol was too small to show a change.")
-    assert _gate(g, q, "preregistered")["met"]          # when this is caught, the pages' "Not caught" lines go
-    for name in ("scientific.md", "trading.md"):
-        assert "Not caught: an experiment *revised* after its run" in page(name)
+    gate = _gate(g, q, "preregistered")
+    if profile in ("scientific@2", "trading@2", "trading@3", "optimization@3"):   # frozen: the limit the pages state
+        assert gate["met"]
+        assert "Not caught under `scientific@2`: an experiment *revised* after its run" in page("scientific.md")
+        assert "Not caught under `trading@2` and `@3`: an experiment *revised* after its run" in page("trading.md")
+        return
+    quote = ("X1's protocol was changed after RUN1 executed it (version 2) — the test that ran is not the one on the "
+             "record; write the new protocol as a new experiment, before its run")
+    assert not gate["met"] and gate["why"] == quote
+    assert quote in page("scientific.md")
+
+
+@pytest.mark.parametrize("profile", ["scientific@2", "trading@3", "optimization@3",
+                                     "scientific@3", "trading@4", "optimization@4"])
+def test_a_hypothesis_revised_after_its_run_reads_as_the_page_says(profile):
+    g, inv, q = _g(profile)
+    x = _experiment(g, inv, q, "2026-01-01T00:00:00+00:00")
+    _run(g, inv, x, "2026-01-02T00:00:00+00:00")
+    h = next(e["dst"] for e in g.snapshot().out[x] if e["rel"] == "tests")
+    g.revise(author=g.policy.importer, node=h, fields={"predictions": ["p50 latency falls by a tenth"]},
+             reason="Matched to what the run showed.")
+    gate = _gate(g, q, "preregistered")
+    if profile in ("scientific@2", "trading@3", "optimization@3"):          # frozen: what the page says went through
+        assert gate["met"]
+        assert "So did a hypothesis whose predictions were rewritten after the run" in page("scientific.md")
+        return
+    quote = ("H1's statement or predictions were changed after RUN1 executed X1 (version 2) — the hypothesis that was "
+             "tested is not the one on the record; test it as it now reads with a new experiment, before its run")
+    assert not gate["met"] and gate["why"] == quote
+    assert quote in page("scientific.md")
+
+
+@pytest.mark.parametrize("profile", ["scientific@3", "trading@4", "optimization@4"])
+def test_a_hypothesis_linked_after_the_run_reads_as_the_page_says(profile):
+    g, inv, q = _g(profile)
+    x = _experiment(g, inv, q, "2026-01-01T00:00:00+00:00")
+    _run(g, inv, x, "2026-01-02T00:00:00+00:00")
+    h2 = g.create(author=g.policy.importer, type="hypothesis", inv=inv, fields={
+        "statement": "Caching cuts the latency by a third.", "predictions": ["p50 latency falls by a third"]},
+        links=[{"rel": "answers", "to": q}])["id"]
+    g.link(author=g.policy.importer, src=x, rel="tests", dst=h2, why="The latency runs also bear on this.",
+           data={"expected": "p50 falls by a third"})
+    quote = ("H2 is tested only through X1, linked after RUN1 executed it — a hypothesis written after its run's "
+             "outcome is not preregistered; test it with a new experiment, written before its run")
+    assert _gate(g, q, "preregistered")["why"] == quote
+    assert quote in page("scientific.md")
+    g, inv, q = _g(profile)                              # the hypothesis before the run, its link after
+    h1 = g.create(author=g.policy.importer, type="hypothesis", inv=inv, at="2026-01-01T00:00:00+00:00", fields={
+        "statement": "Caching halves the latency.", "predictions": ["p50 latency falls by half"]},
+        links=[{"rel": "answers", "to": q}])["id"]
+    x = g.create(author=g.policy.importer, type="experiment", inv=inv, at="2026-01-01T00:00:00+00:00", fields={
+        "aim": "Measure latency with the cache on and off.", "protocol": "Fifty requests each way.",
+        "success_criteria": "The p50 latency with the cache is half of it without."})["id"]
+    _run(g, inv, x, "2026-01-02T00:00:00+00:00")
+    g.link(author=g.policy.importer, src=x, rel="tests", dst=h1, why="The latency runs test it.",
+           data={"expected": "p50 halves"})                                    # at the real clock, after the run
+    quote =("H1 is tested only through X1, linked after RUN1 executed it — H1 was written before the run, but the "
+             "link's expected outcome after it; test it with a new experiment, written before its run")
+    assert _gate(g, q, "preregistered")["why"] == quote
+    assert quote in page("scientific.md")
 
 
 def test_a_check_of_stale_evidence_is_recorded_and_the_gate_does_not_count_it():
