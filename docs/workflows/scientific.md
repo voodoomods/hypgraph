@@ -123,12 +123,15 @@ Measured before it was released:
 - records pinned to no workflow, read as if they were (the two-seat Earhart, MH370 and Zodiac studies and
   HypGraph's own examples, 31 questions with an experiment): 3 questions move, each a protocol or a hypothesis
   changed after its run.
-- live, on gpt-oss-20b: 12 paired runs of four HypSwarm challenges (s2_regression, s3_multiple, t2_gridsearch,
-  o1_knapsack), the frozen and the new version side by side on one board. The new gate held one question: a
-  hypothesis and its experiment both written before the run, the link between them 48 s after it (the second reason
-  above was written for that case; the first draft said the hypothesis came after). Settled questions 30 and 27,
-  right 26 and 24, wrong 2 and 2, calls 1,509 and 1,577; every run that settled less stopped on its budget with the
-  gate met wherever it applied.
+- live, on gpt-oss-20b: 26 paired runs of five HypSwarm challenges (s2_regression, s3_multiple, t2_gridsearch,
+  o1_knapsack and the genuine-signal control t5_genuine), the frozen and the new version side by side on one board,
+  in two rounds. The new gate held one question in the 26 runs: a hypothesis and its experiment both written before
+  the run, the link between them 48 s after it (the second reason above was written for that case; the first draft
+  said the hypothesis came after). Read by the new rule, no question in the frozen arm's 26 runs would have moved.
+  Settled questions 61 and 63, right 51 and 55, wrong 4 and 4, calls 3,431 and 3,426; answers the checks couldn't
+  decide were read by hand, blind to the arm. With the gate firing once, the differences are run-to-run variation
+  (the first round leaned to the frozen version, the second to the new one): the runs show the new version costs
+  nothing, not that it changes outcomes.
 
 ## Review questions and decisions (2026-10-26)
 
