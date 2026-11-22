@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The report's "preregistered" label reads the gate's rule.** `report()` labelled an experiment preregistered when
+  every `tests` link stated an expected outcome, under every profile, so an experiment written after its run read
+  *preregistered* beside a gate saying *"X1 was written after RUN1 executed it — not preregistered"*. The label now
+  reads the rule of the version the record is pinned to (`workflow.experiment_preregistered`), and a label that fails
+  says why: *NOT preregistered (written after RUN1)*, and under `scientific@3`, `trading@4`, `optimization@4` also
+  *H2 linked after RUN1*, *protocol changed after RUN1*, *H1 changed after RUN1*. The gates are unchanged. On the
+  records on disk, 12 of 1,695 experiments in 666 reports change label, all to not preregistered; nothing else in any
+  report changes.
 - **`scientific@3`, `trading@4`, `optimization@4`: preregistration judged per hypothesis.** The `preregistered`
   gate read one time per experiment, when it was first written, against its first run. A hypothesis written after
   the run's outcome and linked `tests` to the experiment that ran counted as preregistered, and so did a protocol

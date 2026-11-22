@@ -301,6 +301,38 @@ def g_preregistered(sc: Scope, now: str) -> dict:
     return _g(False, [], f"no experiment tests a hypothesis on {sc.code(sc.root)}")
 
 
+def experiment_preregistered(s: D.Snap, x: str, by_link: bool) -> tuple[bool, str]:
+    """Whether experiment ``x`` is preregistered, by the rule the record's ``preregistered`` gate reads (``by_link``:
+    ``Workflow.prereg_by_link``), and if not, why in a few words — for the report's per-experiment label, which used to
+    read only that every link states an expected outcome. Every link must carry its expected outcome; the experiment
+    must be written before its first run; and by link, its protocol and success criteria must still be the ones that
+    ran, and each link to a live target must be written before the run, to a hypothesis whose statement and predictions
+    are still the ones tested. Not run yet, the timing can't have failed."""
+    links = [e for e in s.out.get(x, []) if e["rel"] == "tests"]
+    if not links or not all(str((e.get("data") or {}).get("expected") or "").strip() for e in links):
+        return False, "no expected outcome"
+    runs = [e["src"] for e in s.inn.get(x, []) if e["rel"] == "executes"]
+    first_at = min((s.nodes[r]["created_at"] for r in runs), default="")
+    if not first_at:
+        return True, ""
+    first = s.nodes[next(r for r in runs if s.nodes[r]["created_at"] == first_at)]["code"]
+    if first_at < s.nodes[x]["created_at"]:
+        return False, f"written after {first}"
+    if not by_link:
+        return True, ""
+    if _revised_after(s, x, first_at):
+        return False, f"protocol changed after {first}"
+    for e in links:
+        if not _live(s, e["dst"]):
+            continue                                     # a withdrawn target no longer holds anything
+        code = s.nodes[e["dst"]]["code"]
+        if e["at"] > first_at:
+            return False, f"{code} linked after {first}"
+        if _revised_after(s, e["dst"], first_at, HYPOTHESIS_FIELDS):
+            return False, f"{code} changed after {first}"
+    return True, ""
+
+
 def g_run_registered(sc: Scope, now: str) -> dict:
     rs = sc.fresh(sc.runs)
     return _g(bool(rs), rs, f"no run executes an experiment on {sc.code(sc.root)}")
