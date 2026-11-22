@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.8.14 — 2026-11-22: proved, called, accounted for, and preregistered before the result
+
+No change to the bundle format. Three claim policies, each holding one kind of status line to the instrument's
+record: `proof_claim@1` ("it's proved", to the checker's report), `forecast_call@1` ("we called it", to the forecast
+sealed before the outcome) and `flow_counts@1` ("all records are accounted for", to the screening log). Three
+profile versions, `scientific@3`, `trading@4` and `optimization@4`, judge preregistration per hypothesis: a hypothesis
+linked, a protocol changed or a hypothesis rewritten after its run no longer counts as preregistered; every earlier
+version is frozen. The report's per-experiment "preregistered" label now reads the same rule as the gate. Every
+claim policy has a problem story under `examples/problems/`, and the workflow pages name only refusals the engine
+gives. Each policy was measured in its own preregistered round with gpt-oss-20b, and the profile versions in 26 paired
+live runs; the entries below give the numbers and the limits.
 
 - **The report's "preregistered" label reads the gate's rule.** `report()` labelled an experiment preregistered when
   every `tests` link stated an expected outcome, under every profile, so an experiment written after its run read
