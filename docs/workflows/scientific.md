@@ -56,6 +56,15 @@ superseded artifact is STALE; a claim resting only on stale results needs a reru
 "Facts from the record" as today: claims with standing and verdicts, results and whether a claim carries them,
 hypotheses, experiments (preregistered or not), open items, spend; interpretation underneath; linted.
 
+An experiment's label reads the rule the record's own `preregistered` gate reads, and says why when it isn't:
+`X1 tests H1: NOT preregistered (written after RUN1), run`. Every version reads the expected outcome on each link and
+the experiment written before its first run; `scientific@3` also reads each link, the protocol and the hypothesis as
+the gate does (`H2 linked after RUN1`, `protocol changed after RUN1`, `H1 changed after RUN1`). The label used to
+read only the expected outcome, so a report could call an experiment preregistered beside a gate saying it was not.
+In the records on disk, 12 of the 1,695 experiments in 666 reports change label, each to *NOT preregistered (written
+after …)*, all under frozen versions and in HypSwarm seats' records, each written 4 to 85 seconds after the run that
+executes it; nothing else in any report changes.
+
 ## Completion
 
 `questions_settled` (today). Optional: `decisions_recorded` when the task asked for a decision.

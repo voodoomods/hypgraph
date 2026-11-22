@@ -268,11 +268,16 @@ def report(g: "Graph", inv: str) -> dict:
     hyps = [{**_brief_min(s, h), "lifecycle": D.state(s, h)["lifecycle"],
              "support": D.state(s, h).get("independent_lines"), "challenges": D.state(s, h).get("challenges")}
             for h in by_type["hypothesis"]]
+    from . import profiles, workflow
+    prof = profiles.profile_of(s, inv)
+    # the label reads the rule the record's own `preregistered` gate reads; it used to read only that every link states
+    # an expected outcome, so an experiment written after its run was "preregistered" beside a gate saying it was not
+    by_link = bool(prof and prof.workflow and prof.workflow.prereg_by_link)
     exps = []
     for x in by_type["experiment"]:
         tests = [e for e in s.out.get(x, []) if e["rel"] == "tests"]
-        exps.append({**_brief_min(s, x), "preregistered": bool(tests) and all((e.get("data") or {}).get("expected")
-                                                                             for e in tests),
+        pre, why = workflow.experiment_preregistered(s, x, by_link)
+        exps.append({**_brief_min(s, x), "preregistered": pre, "not_preregistered_because": why,
                      "tests": [s.nodes[e["dst"]]["code"] for e in tests if e["dst"] in s.nodes],
                      "executed": bool(_executed(s, x)), "lifecycle": D.state(s, x)["lifecycle"]})
     live = [c for c in claims if c["lifecycle"] != "withdrawn"]
@@ -295,8 +300,6 @@ def report(g: "Graph", inv: str) -> dict:
            "claims": claims, "results": results, "hypotheses": hyps, "experiments": exps,
            "open": open_items, "spend": spend, "seq": s.seq}
     # the workflow's view (@2 and later profiles): each question's derived stage, and the evidence that has gone stale
-    from . import profiles, workflow
-    prof = profiles.profile_of(s, inv)
     if prof and prof.workflow:
         stale = [{"code": s.nodes[i]["code"], "type": s.nodes[i]["type"], "why": D.state(s, i)["stale"]}
                  for i in by_type["result"] + by_type["claim"] + by_type["source"] if D.state(s, i).get("stale")
@@ -328,7 +331,7 @@ def report_markdown(r: dict) -> str:
           f"{cut(h['title'], 140)}" for h in r["hypotheses"]] or ["- none"]
     L += ["", "### Experiments", ""]
     L += [f"- {x['code']} tests {', '.join(x['tests']) or '-'}: "
-          f"{'preregistered' if x['preregistered'] else 'NOT preregistered'}, "
+          f"{'preregistered' if x['preregistered'] else 'NOT preregistered (' + x['not_preregistered_because'] + ')'}, "
           f"{'run' if x['executed'] else 'not run'} — {cut(x['title'], 120)}" for x in r["experiments"]] or ["- none"]
     w = r.get("workflow")
     if w:
