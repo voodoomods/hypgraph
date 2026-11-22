@@ -26,10 +26,13 @@ every earlier version is frozen as it was.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from . import derive as D
 from . import corroboration as R
+from . import flow_counts as FL
+from . import forecast_call as FC
+from . import proof_claim as PC
 from . import done_claim as O
 from . import evaluation as E
 from . import language as L
@@ -60,6 +63,7 @@ class Workflow:
     decisions: dict = field(default_factory=dict)         # decision kind → required fields
     report: str = "Facts from the record"                 # the report's name
     measure_skips: tuple = ()                             # gates a question with asks=measure doesn't need
+    prereg_by_link: bool = False                          # `preregistered` judges each tests link by its own time
 
 
 @dataclass(frozen=True)
@@ -167,11 +171,13 @@ LABELS["optimization@3"] = LABELS["optimization@2"]
 LABELS["trading@3"] = LABELS["trading@2"]
 LABELS["software@3"] = LABELS["software@2"]
 LABELS["evaluation@1"] = LABELS["scientific@2"]
+LABELS["scientific@3"] = LABELS["scientific@2"]
+LABELS["trading@4"] = LABELS["trading@2"]
+LABELS["optimization@4"] = LABELS["optimization@2"]
 
 
 def _add(p: Profile) -> Profile:
     if not p.labels and p.id in LABELS:
-        from dataclasses import replace
         p = replace(p, labels=dict(LABELS[p.id]))
     PROFILES[p.id] = p
     if p.workflow and p.workflow.invalidates:
@@ -434,6 +440,28 @@ SOFTWARE3 = _add(Profile(
     completion=SOFTWARE2.completion, seats=SOFTWARE2.seats, workflow=SOFTWARE2.workflow,
 ))
 
+# ── scientific@3, trading@4, optimization@4: preregistration judged per link. Under the earlier versions the
+# `preregistered` gate read only when the experiment was first written: a hypothesis linked `tests` after the run,
+# with an expected outcome written once the result was in, counted as preregistered, and so did a protocol changed
+# after its run, and a hypothesis whose statement or predictions changed after the run that tested them. Found
+# 2026-11-20 checking the workflow pages against the engine; in the records on disk, 15 of 960 questions with an
+# experiment (HypSwarm seats' records) met the gate on a hypothesis tested only after its run. A hold is lifted by a
+# new experiment written before its run once that run is on the record, not by one written and never run.
+# Each is its newest predecessor with only that changed. evaluation@1 is deprecated and stays as it is. ───────────
+
+_BY_LINK = (" Preregistration is judged per hypothesis: a test linked, a protocol changed, or a hypothesis's "
+            "predictions changed after its run doesn't count.")
+
+
+def _by_link(p: Profile, version: int) -> Profile:
+    return _add(replace(p, version=version, about=p.about + _BY_LINK,
+                        workflow=replace(p.workflow, prereg_by_link=True)))
+
+
+SCIENTIFIC3 = _by_link(SCIENTIFIC2, 3)
+TRADING4 = _by_link(TRADING3, 4)
+OPTIMIZATION4 = _by_link(OPTIMIZATION3, 4)
+
 # ── evaluation@1 is scientific@2 with a win over the baseline held to the held-out comparison. Pushed to "say it beats
 # the baseline", gpt-oss-20b published a false result line in 16 of 24 trials with no record and in 20 of 24 through a
 # record with no profile; the checks are in evaluation.py. ───────────────────────────────────────────────────────────
@@ -524,6 +552,47 @@ CORROBORATION = _add_policy(ClaimPolicy(
              "DEPENDENCE_UNSAID", "CORROBORATION_WITHOUT_REGISTER"),
     validators=R.VALIDATORS,
     relaxes=R.RELAXES,
+))
+
+FLOW_COUNTS = _add_policy(ClaimPolicy(
+    "flow_counts", 1,
+    "A statement on the flow of records through a review. 'All records are accounted for', 'the screening followed "
+    "the protocol' and 'every exclusion has a reason' are held to the screening log's counts.",
+    reads="a result that is the screening log of the review: the counts at each stage (records_identified, "
+          "duplicates_removed, records_screened), records unaccounted for (records_unaccounted), and k-of-n counts "
+          "of exclusions with a reason and of records screened to the protocol's standard",
+    refuses=("RECORDS_UNACCOUNTED", "PROTOCOL_CONTRADICTED", "REASONS_INCOMPLETE", "FLOW_WITHOUT_LOG"),
+    validators=FL.VALIDATORS,
+    relaxes=FL.RELAXES,
+))
+
+FORECAST_CALL = _add_policy(ClaimPolicy(
+    "forecast_call", 1,
+    "A line on how a forecast compared with what happened. 'We called it', 'as predicted' and a forecast said "
+    "right are held to the forecast sealed before the outcome: one must exist, and it must have put what occurred "
+    "at even odds or better. A probability entered afterwards is not given as the forecast.",
+    reads="a result that is the forecast ledger for one question: forecasts sealed before the outcome "
+          "(forecasts_sealed_before_outcome), the sealed probability (sealed_probability_pct), a probability entered "
+          "after the outcome (probability_entered_after_outcome_pct), and whether the event happened "
+          "(outcome_happened)",
+    refuses=("CALL_WITHOUT_SEALED_FORECAST", "CALL_ON_LOW_PROBABILITY", "LATE_ENTRY_AS_FORECAST",
+             "CALL_WITHOUT_LEDGER"),
+    validators=FC.VALIDATORS,
+    relaxes=FC.RELAXES,
+))
+
+PROOF_CLAIM = _add_policy(ClaimPolicy(
+    "proof_claim", 1,
+    "A status line on the verification of one property. 'Proved', 'verified' and 'holds' are held to the checker's "
+    "report: every proof obligation discharged, not a bounded check stated without its bound, not a run that gave "
+    "no result.",
+    reads="a result that is the checker's report on the property: whether it is proved (proved), how many proof "
+          "obligations were discharged (obligations_discharged as k of n), and the bound a model checker checked up "
+          "to (bounded_check_up_to_…)",
+    refuses=("PROVED_WITH_OPEN_OBLIGATIONS", "PROVED_ON_BOUNDED_CHECK", "BOUND_UNSAID", "PROVED_WITHOUT_RESULT",
+             "PROOF_WITHOUT_CHECKER"),
+    validators=PC.VALIDATORS,
+    relaxes=PC.RELAXES,
 ))
 
 
@@ -768,6 +837,15 @@ def claim_issues(s: D.Snap, inv: str, body: dict, support: list, pending: list) 
     if "corroboration_held_to_register" in held:
         out += R.issues(stmt, [R.register(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
                         any(R.register(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
+    if "flow_held_to_log" in held:
+        out += FL.issues(stmt, [FL.log(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                         any(FL.log(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
+    if "call_held_to_sealed_forecast" in held:
+        out += FC.issues(stmt, [FC.ledger(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                         any(FC.ledger(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
+    if "proved_held_to_checker" in held:
+        out += PC.issues(stmt, [PC.report(s.nodes[r]["body"]) for r in results if _from_instrument(s, r)],
+                         any(PC.report(s.nodes[r]["body"]) for r in results if not _from_instrument(s, r)))
     if p and p.workflow:
         from . import workflow as W
         out += W.claim_issues(p, s, inv, body, support, pending)
@@ -946,6 +1024,28 @@ def causal_is_the_logs(s: D.Snap, inv: str, stmt: str, support: list[str]) -> bo
         return False
     return O.reason_is_the_logs(stmt, _action_logs(s, [x for x in support if x in s.nodes
                                                        and s.nodes[x]["type"] == "result"]))
+
+
+def vouched_words(s: D.Snap, inv: str, m: dict, stmt: str = "") -> frozenset:
+    """The absolute words a pinned claim policy vouches for, for a claim that binds a count from the instrument's
+    result of that policy's own shape."""
+    held = held_to(s, inv)
+    rid = m.get("result")
+    if not rid or rid not in s.nodes or not _from_instrument(s, rid):
+        return frozenset()
+    body = s.nodes[rid]["body"]
+    out: frozenset = frozenset()
+    if "flow_held_to_log" in held:
+        x = FL.log(body)
+        if x and FL.clean(x):
+            out |= FL.VOUCHED
+    if "proved_held_to_checker" in held:
+        x = PC.report(body)
+        if x and x["state"] == "proved":
+            out |= PC.VOUCHED
+        elif x and x["state"] == "bounded" and PC.says_bound(stmt):
+            out |= PC.VOUCHED_BOUNDED
+    return out
 
 
 def register_whole_set(s: D.Snap, inv: str, m: dict, rv: dict) -> bool:

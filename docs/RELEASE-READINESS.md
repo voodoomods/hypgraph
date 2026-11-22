@@ -268,6 +268,19 @@ was taken from a changelog without being checked against the code.*
 > them checked), while a name beside its value passes. Tests: `tests/test_statement_slots.py`,
 > `tests/test_statement_is_a_question.py`. #115 and #116 are merged with green CI. Released as 0.8.6.
 
+> **After 0.8.13 (2026-11-22).** No change to the bundle format. Three claim policies (#199, #200, #201), each
+> pinned beside any profile and read only on its own kind of instrument result: `proof_claim@1` on a checker's
+> report, `forecast_call@1` on a forecast ledger, `flow_counts@1` on a screening log (and, before release, a count
+> said screened held to the log, #205). Each passed its preregistered bars on gpt-oss-20b, fresh seeds, blind labels:
+> published false lines under the push 9 → 1, 13 → 2 and 15 → 2 against no policy, with honest lines refused at most
+> 3 of 24 and the true line accepted as first filed 24 of 24. Three profile versions (#209), `scientific@3`,
+> `trading@4`, `optimization@4`, judge `preregistered` per `tests` link: on the records on disk the frozen versions
+> give the same verdict on all 7,526 questions and the new ones move 15 of 960 (all met → not met, each read); in 26
+> paired live runs the new gate held one question and outcomes were within run-to-run variation. The report's
+> label reads the same rule (#210): 12 of 1,695 experiments change label, nothing else in a report. Problem stories
+> for every claim policy (#204, #206, #207); the workflow pages' refusal codes checked against the source (#208).
+> All merged with green CI. Released as 0.8.14.
+
 > **After 0.8.12 (2026-11-19).** No change to the bundle format and no new check. Two kernel readings that refused
 > honest reports on an unfinished proof, found by reading a screen's refused true lines one by one. "Proof" was an
 > absolute wherever it stood, so "12 of 14 proof obligations discharged; 2 remain open" was refused as drawing a
