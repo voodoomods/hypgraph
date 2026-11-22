@@ -140,6 +140,11 @@ def test_a_hypothesis_linked_after_the_run_reads_as_the_page_says(profile):
              "outcome is not preregistered; test it with a new experiment, written before its run")
     assert _gate(g, q, "preregistered")["why"] == quote
     assert quote in page("scientific.md")
+    readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())   # the README quotes this case
+    assert '*"' + quote.split(" — ")[0] + ' — …"*' in readme
+    label = "X1 tests H1, H2: NOT preregistered (H2 linked after RUN1), run"
+    assert any(ln.startswith("- " + label) for ln in g.report(inv)["markdown"].splitlines())
+    assert "*" + label + "*" in readme
     g, inv, q = _g(profile)                              # the hypothesis before the run, its link after
     h1 = g.create(author=g.policy.importer, type="hypothesis", inv=inv, at="2026-01-01T00:00:00+00:00", fields={
         "statement": "Caching halves the latency.", "predictions": ["p50 latency falls by half"]},
