@@ -112,7 +112,7 @@ res = g.create(author="runner", type="result", inv=INV, links=[{"rel": "produced
 <h2 id="workflows">Profile und Workflows</h2>
 <p>Setzen Sie ein Profil auf die Untersuchung, und das Protokoll setzt die Regeln dieser Disziplin durch — und ab den Profilen <code>@2</code> ihren <a href="../#workflows">Workflow</a>: Phasen mit Schranken, was Belege ungültig macht, die typisierten Formen, die ein Diff, eine Instanz, eine Quelle oder eine Position haben müssen. Die Phase wird bei jedem Lesen abgeleitet, wie der Stand.</p>
 <div class="code"><pre>inv = g.create(author="operator", type="investigation",
-               fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@2"})["id"]
+               fields={"title": "Issue 412", "objective": "Fix the importer and prove it.", "profile": "software@3"})["id"]
 q = g.create(author="operator", type="question", inv=inv, fields={"text": "Does the importer keep quoted commas?"})["id"]
 
 g.stage(q)        # {"stage": "implemented", "index": 2, "of": 6, "complete": False,

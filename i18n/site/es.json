@@ -574,7 +574,11 @@
 "274a5af1b9": "Los planes, los umbrales y los evaluadores se fijaron en un commit antes de las ejecuciones. Los umbrales no alcanzados se reportan como no alcanzados (el puesto honesto señalado en la ejecución 3).",
 "1d219495be": "Un solo modelo ocupa todos los puestos, sin coste de nube, así que esto es lo que hace un modelo abierto pequeño. Aquí no se mide un modelo más grande.",
 "7d86884e53": "El motor es el de HypGraph, sin modificar. Donde una ejecución encontró un agujero en él, la corrección entró en la biblioteca con una prueba, y la ejecución se reporta tal como fue.",
-"00845bb327": "Con un modelo real: <1>lo que hizo el registro con gpt-oss-20b</1>, medido en ejecuciones prerregistradas, con sus límites."
+"00845bb327": "Con un modelo real: <1>lo que hizo el registro con gpt-oss-20b</1>, medido en ejecuciones prerregistradas, con sus límites.",
+"23abff79e0": "números que ningún resultado explica; <1>«nunca»</1> sin el recuento; <2>«significativo»</2> sin la prueba; una comprobación sobre evidencia desactualizada; una hipótesis vinculada o reescrita después de su ejecución contada como prerregistrada",
+"8beefdd8fd": "<1>«pasa»</1> sin una ejecución del instrumento, o sobre una cabeza sustituida; el autor del diff como su revisor; <2>«arreglado»</2> o <3>«las pruebas pasan»</3> sobre una ejecución que falló",
+"89eba33d52": "un backtest sin sus costes; <1>«ventaja»</1> sin ambos, sin las configuraciones probadas, o contra las cifras (una pérdida, o por detrás del índice de referencia); un rendimiento dentro de muestra no presentado como tal; una posición sin tamaño, stop y fecha de revisión; una orden real; una hipótesis vinculada o reescrita después de su ejecución contada como prerregistrada",
+"43f02a5a43": "un objetivo sin factibilidad; <1>«óptimo»</1> sin una cota, con una brecha que la cota deja abierta, sobre una solución no factible, o sobre una instancia cambiada; una hipótesis vinculada o reescrita después de su ejecución contada como prerregistrada"
 },
 "js": {
 "Couldn't load the bundle: {e}": "No se pudo cargar el bundle: {e}",
