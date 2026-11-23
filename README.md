@@ -102,12 +102,13 @@ Other ways to try it:
 - **In the browser.** Try to get a claim past the real engine at [hypgraph.com/play](https://hypgraph.com/play/), or
   watch a multi-agent run in each profile, replayed from its record, at
   [hypgraph.com/examples](https://hypgraph.com/examples/).
-- **Scripted scenarios, no model needed.** Eleven short stories in
+- **Scripted scenarios, no model needed.** Thirteen short stories in
   [examples/problems](https://github.com/voodoomods/hypgraph/tree/main/examples/problems): an agent that says it is
   fixed, one that makes up figures, one that tells the boss what he wants to hear, a backtest that brags, an
   "optimal" with no proof, a rogue agent editing the log, and one for each claim policy: a dry run reported as
   done, one wire report called independent confirmation, a validation-split win called beating the baseline, a
-  screening log called fully accounted for, and all six policies pinned on one record.
+  screening log called fully accounted for, a forecast sealed at 35% reported as "we predicted it", "proved" on 12
+  of 14 proof obligations, and all six policies pinned on one record.
 
 ## How a claim is checked
 
@@ -280,6 +281,13 @@ The newest versions read what a result says, not only that it has the right fiel
 None of these refuses a sentence that denies something ("there is no edge"): an audit has to be able to name a claim
 to refute it.
 
+`scientific@3`, `trading@4` and `optimization@4` judge preregistration per hypothesis. A hypothesis counts as
+preregistered only through a `tests` link written before the run, while the experiment's protocol and the
+hypothesis's statement and predictions are still the ones that ran. One linked, or changed, after its run holds its
+question, and the reason names the case: *"H2 is tested only through X1, linked after RUN1 executed it — …"*. A new
+experiment written before its run, once that run is on the record, lifts the hold. The report's per-experiment
+label reads the same rule: *X1 tests H1, H2: NOT preregistered (H2 linked after RUN1), run*.
+
 The method each workflow is taken from is quoted, one page each, in
 [docs/workflows](https://github.com/voodoomods/hypgraph/tree/main/docs/workflows). Adding a discipline is one
 `Profile` with a `Workflow`.
@@ -290,7 +298,7 @@ A profile says how the work proceeds. A **claim policy** says what one kind of s
 no stages, no gates, no completion. It is pinned beside whatever profile the investigation uses, or with none.
 
 ```json
-{"profile": "scientific@2", "claim_policies": ["baseline_comparison@1"]}
+{"profile": "scientific@3", "claim_policies": ["baseline_comparison@1"]}
 ```
 
 | Claim policy | The sentence it reads | The record refuses |
@@ -319,7 +327,7 @@ are in [docs/claim-policies](https://github.com/voodoomods/hypgraph/blob/main/do
 `GET /api/graph/claim-policies` lists the policies available.
 
 `evaluation@1` remains available as a profile. It is `scientific@2` with `baseline_comparison@1`; a test holds the
-two to the same answer, and new work should pin the pair.
+two to the same answer. New work should pin `baseline_comparison@1` beside the newest scientific profile, as above.
 
 ## Integration
 
