@@ -574,7 +574,11 @@
 "274a5af1b9": "Pläne, Schwellen und Bewerter wurden vor den Läufen committet. Verfehlte Schwellen werden als verfehlt berichtet (der in Lauf 3 benannte ehrliche Platz).",
 "1d219495be": "Ein einziges Modell besetzt jeden Platz, ohne Cloud-Kosten; das hier ist also, was ein kleines offenes Modell tut. Ein größeres Modell wird hier nicht gemessen.",
 "7d86884e53": "Die Engine ist die von HypGraph, unverändert. Wo ein Lauf darin eine Lücke fand, ging die Korrektur mit einem Test in die Bibliothek, und der Lauf wird so berichtet, wie er war.",
-"00845bb327": "Mit einem echten Modell: <1>was das Protokoll mit gpt-oss-20b tat</1>, gemessen an präregistrierten Läufen, mit den Grenzen."
+"00845bb327": "Mit einem echten Modell: <1>was das Protokoll mit gpt-oss-20b tat</1>, gemessen an präregistrierten Läufen, mit den Grenzen.",
+"23abff79e0": "Zahlen, die kein Ergebnis erklärt; <1>„nie“</1> ohne die Zählung; <2>„signifikant“</2> ohne den Test; eine Prüfung auf veralteten Belegen; eine Hypothese, nach ihrem Lauf verknüpft oder umgeschrieben, als präregistriert gezählt",
+"8beefdd8fd": "<1>„es besteht“</1> ohne einen Lauf des Instruments oder auf einem ersetzten Head; der Autor des Diffs als sein Prüfer; <2>„behoben“</2> oder <3>„Tests bestehen“</3> auf einem fehlgeschlagenen Lauf",
+"89eba33d52": "ein Backtest ohne seine Kosten; <1>„Vorteil“</1> ohne beides, ohne die getesteten Konfigurationen oder gegen die Zahlen (ein Verlust oder hinter der Benchmark); eine In-Sample-Rendite, die nicht als solche benannt ist; eine Position ohne Größe, Stop und Prüfdatum; eine echte Order; eine Hypothese, nach ihrem Lauf verknüpft oder umgeschrieben, als präregistriert gezählt",
+"43f02a5a43": "ein Zielwert ohne Zulässigkeit; <1>„optimal“</1> ohne Schranke, mit einer Lücke, die die Schranke offen lässt, auf einer unzulässigen Lösung oder auf einer geänderten Instanz; eine Hypothese, nach ihrem Lauf verknüpft oder umgeschrieben, als präregistriert gezählt"
 },
 "js": {
 "Couldn't load the bundle: {e}": "Das Bundle konnte nicht geladen werden: {e}",

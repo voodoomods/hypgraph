@@ -155,16 +155,16 @@ Graph("study.hypgraph", policy=Policy(reviewers={"critic"}))</pre>
   <div class="tbl-wrap"><table class="tbl">
     <thead><tr><th>profile</th><th>a question passes through</th><th>the record refuses</th><th>done when</th><th></th></tr></thead>
     <tbody>
-      <tr><td><code>scientific@2</code></td><td>asked → conjectured → preregistered before a run → run → evidenced → claimed → reviewed</td>
-        <td>numbers no result accounts for; <span data-quote>“never”</span> without the count; <span data-quote>“significant”</span> without the test; a check on stale evidence</td><td>each question settled</td><td><a href="examples/scientific/">Watch</a></td></tr>
-      <tr><td><code>software@2</code></td><td>specified → implemented (a diff by hash) → verified by the instrument on that head → claimed → reviewed</td>
-        <td><span data-quote>“it passes”</span> without an instrument run, or on a superseded head; the diff's author as its reviewer</td><td>each requirement's claim rests on a passing run on the current head</td><td><a href="examples/software/">Watch</a></td></tr>
-      <tr><td><code>trading@3</code></td><td>asked → thesised → preregistered → backtested out of sample, after costs → claimed → risk-reviewed → positioned → monitored</td>
-        <td>a backtest without its costs; <span data-quote>“edge”</span> without both, without the configurations tried, or against the numbers (a loss, or behind the benchmark); an in-sample return not called one; a position without size, stop and review date; a live order</td><td>questions settled; a position taken or declined</td><td><a href="examples/trading/">Watch</a></td></tr>
+      <tr><td><code>scientific@3</code></td><td>asked → conjectured → preregistered before a run → run → evidenced → claimed → reviewed</td>
+        <td>numbers no result accounts for; <span data-quote>“never”</span> without the count; <span data-quote>“significant”</span> without the test; a check on stale evidence; a hypothesis linked or rewritten after its run counted as preregistered</td><td>each question settled</td><td><a href="examples/scientific/">Watch</a></td></tr>
+      <tr><td><code>software@3</code></td><td>specified → implemented (a diff by hash) → verified by the instrument on that head → claimed → reviewed</td>
+        <td><span data-quote>“it passes”</span> without an instrument run, or on a superseded head; the diff's author as its reviewer; <span data-quote>“fixed”</span> or <span data-quote>“tests pass”</span> on a run that failed</td><td>each requirement's claim rests on a passing run on the current head</td><td><a href="examples/software/">Watch</a></td></tr>
+      <tr><td><code>trading@4</code></td><td>asked → thesised → preregistered → backtested out of sample, after costs → claimed → risk-reviewed → positioned → monitored</td>
+        <td>a backtest without its costs; <span data-quote>“edge”</span> without both, without the configurations tried, or against the numbers (a loss, or behind the benchmark); an in-sample return not called one; a position without size, stop and review date; a live order; a hypothesis linked or rewritten after its run counted as preregistered</td><td>questions settled; a position taken or declined</td><td><a href="examples/trading/">Watch</a></td></tr>
       <tr><td><code>knowledge@2</code></td><td>asked → sourced (the passage, retrieved, its kind) → claimed → checked</td>
         <td>a claim with no source; a source without its passage</td><td>each claim cites a source and is checked</td><td><a href="examples/knowledge/">Watch</a></td></tr>
-      <tr><td><code>optimization@3</code></td><td>posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked</td>
-        <td>an objective without feasibility; <span data-quote>“optimal”</span> without a bound, with a gap the bound leaves open, on an infeasible plan, or on a changed instance</td><td>a feasible, bounded incumbent, verified on the current instance</td><td><a href="examples/optimization/">Watch</a></td></tr>
+      <tr><td><code>optimization@4</code></td><td>posed (the instance by hash) → modelled → configured → solved → verified → claimed → checked</td>
+        <td>an objective without feasibility; <span data-quote>“optimal”</span> without a bound, with a gap the bound leaves open, on an infeasible plan, or on a changed instance; a hypothesis linked or rewritten after its run counted as preregistered</td><td>a feasible, bounded incumbent, verified on the current instance</td><td><a href="examples/optimization/">Watch</a></td></tr>
     </tbody></table></div>
 </div></section>
 

@@ -574,7 +574,11 @@
 "274a5af1b9": "Les plans, les seuils et les évaluateurs ont été consignés dans un commit avant les exécutions. Les seuils manqués sont signalés comme manqués (le poste honnête désigné lors de l'exécution 3).",
 "1d219495be": "Un seul modèle occupe tous les postes, sans coût de cloud : c'est donc ce que fait un petit modèle ouvert. Un modèle plus grand n'est pas mesuré ici.",
 "7d86884e53": "Le moteur est celui de HypGraph, non modifié. Quand une exécution y a trouvé une faille, la correction est entrée dans la bibliothèque avec un test, et l'exécution est rapportée telle qu'elle s'est déroulée.",
-"00845bb327": "Avec un vrai modèle : <1>ce qu'a fait le registre avec gpt-oss-20b</1>, mesuré sur des exécutions préenregistrées, avec les limites."
+"00845bb327": "Avec un vrai modèle : <1>ce qu'a fait le registre avec gpt-oss-20b</1>, mesuré sur des exécutions préenregistrées, avec les limites.",
+"23abff79e0": "des nombres qu'aucun résultat n'explique ; <1>« jamais »</1> sans le décompte ; <2>« significatif »</2> sans le test ; une vérification sur une évidence périmée ; une hypothèse liée ou réécrite après son exécution comptée comme préenregistrée",
+"8beefdd8fd": "<1>« ça passe »</1> sans exécution de l'instrument, ou sur une tête remplacée ; l'auteur du diff comme son relecteur ; <2>« corrigé »</2> ou <3>« les tests passent »</3> sur une exécution qui a échoué",
+"89eba33d52": "un backtest sans ses coûts ; <1>« avantage »</1> sans les deux, sans les configurations essayées, ou contre les chiffres (une perte, ou derrière l'indice de référence) ; un rendement dans l'échantillon non présenté comme tel ; une position sans taille, stop et date de revue ; un ordre réel ; une hypothèse liée ou réécrite après son exécution comptée comme préenregistrée",
+"43f02a5a43": "un objectif sans faisabilité ; <1>« optimal »</1> sans borne, avec un écart que la borne laisse ouvert, sur une solution non faisable, ou sur une instance modifiée ; une hypothèse liée ou réécrite après son exécution comptée comme préenregistrée"
 },
 "js": {
 "Couldn't load the bundle: {e}": "Impossible de charger le bundle : {e}",
